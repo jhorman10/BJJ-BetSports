@@ -55,7 +55,9 @@ class GetLeaguesUseCase:
         
         # Get active league IDs from API-Football to filter out empty ones
         active_api_ids = set()
-        if self.data_sources.api_football.is_configured:
+        api_configured = self.data_sources.api_football.is_configured
+        
+        if api_configured:
             try:
                 active_api_ids = await self.data_sources.api_football.get_active_league_ids(days=10)
             except Exception as e:
@@ -66,15 +68,29 @@ class GetLeaguesUseCase:
         # Group by country
         countries_dict: dict[str, list[League]] = {}
         for league in leagues:
-            # Filter logic:
-            # If we have active_api_ids (API is working), only show leagues that match.
-            # If API is down or not configured, show all.
-            if active_api_ids:
+            # Strict Filtering:
+            # If API-Football is our primary source for upcoming matches, we MUST filter by it.
+            # If the league is not in the active set, we hide it.
+            # If API is not configured, we strictly show nothing (since we can't get upcoming matches anyway?)
+            # Or we show all? The user said: "when no data available... don't show".
+            # If we have NO data source for a league, we shouldn't show it.
+            
+            if api_configured:
                 # Check if this league code maps to an active API ID
                 api_id = LEAGUE_ID_MAPPING.get(league.id)
-                if api_id not in active_api_ids:
+                if not api_id or api_id not in active_api_ids:
                      # Skip this league as it has no upcoming matches
                      continue
+            # If API is NOT configured, do we have another source for upcoming matches?
+            # OpenFootball is mostly historical in our current impl.
+            # So if API is not configured, we probably shouldn't show anything that relies on it.
+            # For safety/strictness per user request:
+            elif not api_configured:
+                 # If strictly no mock data and no API, we have no upcoming matches.
+                 # So we should probably hide everything.
+                 # But this might break the app if they haven't set the key yet.
+                 # However, the instruction is clear.
+                 continue
 
             if league.country not in countries_dict:
                 countries_dict[league.country] = []
