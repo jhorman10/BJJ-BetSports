@@ -56,18 +56,27 @@ LEAGUE_CSV_PATHS = {
     
     # Netherlands
     "N1": "netherlands/eredivisie",     # Eredivisie
+    "N2": "netherlands/eerste-divisie", # Eerste Divisie (Placeholder)
     
     # Belgium
     "B1": "belgium/jupiler-league",     # Jupiler Pro League
+    "B2": "belgium/challenger-pro",     # Challenger Pro League (Placeholder)
     
     # Portugal
     "P1": "portugal/primeira-liga",     # Primeira Liga
+    "P2": "portugal/liga-portugal-2",   # Liga Portugal 2 (Placeholder)
     
     # Turkey
     "T1": "turkey/super-lig",           # Super Lig
+    "T2": "turkey/1-lig",               # 1. Lig (Placeholder)
     
     # Greece
     "G1": "greece/super-league",        # Super League
+    "G2": "greece/super-league-2",      # Super League 2 (Placeholder)
+
+    # Scotland
+    "SC0": "scotland/premiership",      # Premiership
+    "SC1": "scotland/championship",     # Championship
 
     # Europe
     "UCL": "europe/champions-league",   # Champions League
@@ -89,10 +98,17 @@ LEAGUES_METADATA = {
     "F1": {"name": "Ligue 1", "country": "France"},
     "F2": {"name": "Ligue 2", "country": "France"},
     "N1": {"name": "Eredivisie", "country": "Netherlands"},
+    "N2": {"name": "Eerste Divisie", "country": "Netherlands"},
     "B1": {"name": "Jupiler Pro League", "country": "Belgium"},
+    "B2": {"name": "Challenger Pro League", "country": "Belgium"},
     "P1": {"name": "Primeira Liga", "country": "Portugal"},
+    "P2": {"name": "Liga Portugal 2", "country": "Portugal"},
     "T1": {"name": "Süper Lig", "country": "Turkey"},
+    "T2": {"name": "1. Lig", "country": "Turkey"},
     "G1": {"name": "Super League", "country": "Greece"},
+    "G2": {"name": "Super League 2", "country": "Greece"},
+    "SC0": {"name": "Premiership", "country": "Scotland"},
+    "SC1": {"name": "Championship", "country": "Scotland"},
     "UCL": {"name": "Champions League", "country": "Europe"},
     "UEL": {"name": "Europa League", "country": "Europe"},
     "UECL": {"name": "Conference League", "country": "Europe"},

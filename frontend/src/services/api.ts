@@ -116,6 +116,16 @@ export const api = {
     const response = await apiClient.get<Match[]>("/api/v1/matches/daily");
     return response.data;
   },
+
+  /**
+   * Get matches for a specific team
+   */
+  async getTeamMatches(teamName: string): Promise<Match[]> {
+    const response = await apiClient.get<Match[]>(
+      `/api/v1/matches/team/${teamName}`
+    );
+    return response.data;
+  },
 };
 
 export default api;

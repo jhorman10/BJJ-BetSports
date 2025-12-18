@@ -47,10 +47,17 @@ LEAGUE_ID_MAPPING = {
     "F1": 61,   # Ligue 1
     "F2": 62,   # Ligue 2
     "N1": 88,   # Eredivisie
+    "N2": 89,   # Eerste Divisie (Netherlands 2)
     "B1": 144,  # Jupiler Pro League
+    "B2": 145,  # Challenger Pro League (Belgium 2)
     "P1": 94,   # Primeira Liga
+    "P2": 95,   # Liga Portugal 2
     "T1": 203,  # Super Lig
+    "T2": 204,  # 1. Lig (Turkey 2)
     "G1": 197,  # Super League Greece
+    "G2": 198,  # Super League 2 Greece
+    "SC0": 179, # Scottish Premiership
+    "SC1": 180, # Scottish Championship
     "UCL": 2,   # UEFA Champions League
     "UEL": 3,   # UEFA Europa League
     "UECL": 848, # UEFA Conference League
@@ -223,6 +230,50 @@ class APIFootballSource:
                 logger.debug(f"Error parsing daily fixture: {e}")
                 continue
         
+        return matches
+
+        return matches
+
+    async def search_team(self, query: str) -> Optional[int]:
+        """
+        Search for a team by name and return its API-Football ID.
+        """
+        data = await self._make_request("/teams", {"search": query})
+        
+        if not data or not data.get("response"):
+            return None
+            
+        # Return first match
+        return data["response"][0]["team"]["id"]
+
+    async def get_team_matches(self, team_name: str) -> list[Match]:
+        """
+        Get all upcoming matches for a specific team.
+        """
+        team_id = await self.search_team(team_name)
+        if not team_id:
+            return []
+            
+        # Get next 10 fixtures for this team
+        data = await self._make_request("/fixtures", {
+            "team": team_id,
+            "next": 10
+        })
+        
+        if not data or not data.get("response"):
+            return []
+            
+        matches = []
+        for fixture in data["response"]:
+            try:
+                # We pass "UNKNOWN" as league info comes from fixture
+                match = self._parse_fixture(fixture, "UNKNOWN", include_stats=True)
+                if match:
+                    matches.append(match)
+            except Exception as e:
+                logger.debug(f"Error parsing team fixture: {e}")
+                continue
+                
         return matches
 
     async def get_live_matches(self) -> list[Match]:

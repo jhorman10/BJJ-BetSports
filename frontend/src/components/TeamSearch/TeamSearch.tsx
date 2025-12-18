@@ -25,7 +25,11 @@ const TeamSearch: React.FC<TeamSearchProps> = ({
           </InputAdornment>
         ),
       }}
+      size="small"
       sx={{
+        maxWidth: 500,
+        margin: "0 auto",
+        display: "flex",
         backgroundColor: "rgba(30, 41, 59, 0.6)",
         backdropFilter: "blur(10px)",
         borderRadius: 2,
