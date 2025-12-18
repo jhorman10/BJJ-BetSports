@@ -11,11 +11,9 @@ import {
   Typography,
   AppBar,
   Toolbar,
-  Chip,
-  Link,
   Alert,
 } from "@mui/material";
-import { SportsSoccer, GitHub } from "@mui/icons-material";
+import { SportsSoccer } from "@mui/icons-material";
 import LeagueSelector from "./components/LeagueSelector";
 import PredictionGrid from "./components/PredictionGrid";
 import {
@@ -67,15 +65,6 @@ const App: React.FC = () => {
           >
             BJJ - BetSports
           </Typography>
-          <Chip label="v1.0.0" size="small" variant="outlined" sx={{ mr: 2 }} />
-          <Link
-            href="https://github.com"
-            target="_blank"
-            rel="noopener"
-            color="inherit"
-          >
-            <GitHub />
-          </Link>
         </Toolbar>
       </AppBar>
 
