@@ -513,9 +513,9 @@ class PredictionService:
                 under_25_probability=0.0,
                 predicted_home_goals=0.0,
                 predicted_away_goals=0.0,
-                predicted_away_goals=0.0,
                 confidence=0.0,
                 data_sources=[],
+             )
              )
 
         # Calculate team strengths
