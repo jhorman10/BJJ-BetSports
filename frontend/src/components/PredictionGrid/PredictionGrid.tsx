@@ -5,21 +5,13 @@
  * Optimized with React.memo and lazy loading.
  */
 
-import React, {
-  memo,
-  useMemo,
-  Suspense,
-  lazy,
-  useState,
-  useCallback,
-} from "react";
+import React, { memo, useMemo, Suspense, lazy, useCallback } from "react";
 import {
   Grid,
   Box,
   Typography,
   CircularProgress,
   Alert,
-  Button,
   Skeleton,
   FormControl,
   InputLabel,
@@ -27,7 +19,7 @@ import {
   MenuItem,
   SelectChangeEvent,
 } from "@mui/material";
-import { Refresh, SportsSoccer, Sort } from "@mui/icons-material";
+import { SportsSoccer, Sort } from "@mui/icons-material";
 import type { MatchPrediction, League } from "../../types";
 
 // Lazy load MatchCard for better initial load performance
@@ -45,8 +37,8 @@ interface PredictionGridProps {
   league: League | null;
   loading: boolean;
   error: Error | null;
-  onRefresh?: () => void;
-  onSortChange?: (sortBy: SortOption, sortDesc: boolean) => void;
+  sortBy: SortOption;
+  onSortChange: (sortBy: SortOption) => void;
 }
 
 // Sort option labels in Spanish
@@ -93,17 +85,11 @@ const emptyStateStyles = {
 } as const;
 
 const PredictionGrid: React.FC<PredictionGridProps> = memo(
-  ({ predictions, league, loading, error, onRefresh, onSortChange }) => {
-    const [sortBy, setSortBy] = useState<SortOption>("confidence");
-
-    // Handle sort change
+  ({ predictions, league, loading, error, sortBy, onSortChange }) => {
+    // Handle sort change - triggers API refetch via parent
     const handleSortChange = useCallback(
       (event: SelectChangeEvent<SortOption>) => {
-        const newSortBy = event.target.value as SortOption;
-        setSortBy(newSortBy);
-        if (onSortChange) {
-          onSortChange(newSortBy, true);
-        }
+        onSortChange(event.target.value as SortOption);
       },
       [onSortChange]
     );
@@ -138,16 +124,7 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
     // Error state
     if (error) {
       return (
-        <Alert
-          severity="error"
-          action={
-            onRefresh && (
-              <Button color="inherit" size="small" onClick={onRefresh}>
-                Reintentar
-              </Button>
-            )
-          }
-        >
+        <Alert severity="error">
           Error al cargar predicciones: {error.message}
         </Alert>
       );
@@ -204,42 +181,29 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
             </Box>
           )}
 
-          <Box display="flex" gap={2} alignItems="center">
-            {/* Sort Dropdown */}
-            <FormControl size="small" sx={{ minWidth: 150 }}>
-              <InputLabel id="sort-by-label">
-                <Box display="flex" alignItems="center" gap={0.5}>
-                  <Sort fontSize="small" />
-                  Ordenar por
-                </Box>
-              </InputLabel>
-              <Select
-                labelId="sort-by-label"
-                value={sortBy}
-                label="Ordenar por"
-                onChange={handleSortChange}
-              >
-                {(Object.entries(sortLabels) as [SortOption, string][]).map(
-                  ([value, label]) => (
-                    <MenuItem key={value} value={value}>
-                      {label}
-                    </MenuItem>
-                  )
-                )}
-              </Select>
-            </FormControl>
-
-            {onRefresh && (
-              <Button
-                variant="outlined"
-                startIcon={<Refresh />}
-                onClick={onRefresh}
-                size="small"
-              >
-                Actualizar
-              </Button>
-            )}
-          </Box>
+          {/* Sort Dropdown */}
+          <FormControl size="small" sx={{ minWidth: 150 }}>
+            <InputLabel id="sort-by-label">
+              <Box display="flex" alignItems="center" gap={0.5}>
+                <Sort fontSize="small" />
+                Ordenar por
+              </Box>
+            </InputLabel>
+            <Select
+              labelId="sort-by-label"
+              value={sortBy}
+              label="Ordenar por"
+              onChange={handleSortChange}
+            >
+              {(Object.entries(sortLabels) as [SortOption, string][]).map(
+                ([value, label]) => (
+                  <MenuItem key={value} value={value}>
+                    {label}
+                  </MenuItem>
+                )
+              )}
+            </Select>
+          </FormControl>
         </Box>
 
         {/* Grid with Suspense for lazy loaded MatchCard */}

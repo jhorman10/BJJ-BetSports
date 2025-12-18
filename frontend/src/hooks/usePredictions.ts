@@ -54,11 +54,23 @@ export function useLeagues() {
   };
 }
 
+// Sort options type
+type SortOption =
+  | "confidence"
+  | "date"
+  | "home_probability"
+  | "away_probability";
+
 /**
  * Hook for fetching predictions for a league
- * Only fetches when leagueId changes
+ * Automatically refetches when leagueId or sorting changes
  */
-export function usePredictions(leagueId: string | null, limit: number = 10) {
+export function usePredictions(
+  leagueId: string | null,
+  limit: number = 10,
+  sortBy: SortOption = "confidence",
+  sortDesc: boolean = true
+) {
   const [data, setData] = useState<PredictionsResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -72,7 +84,12 @@ export function usePredictions(leagueId: string | null, limit: number = 10) {
     setLoading(true);
     setError(null);
     try {
-      const response = await api.getPredictions(leagueId, limit);
+      const response = await api.getPredictions(
+        leagueId,
+        limit,
+        sortBy,
+        sortDesc
+      );
       setData(response);
     } catch (err) {
       setError(
@@ -81,7 +98,7 @@ export function usePredictions(leagueId: string | null, limit: number = 10) {
     } finally {
       setLoading(false);
     }
-  }, [leagueId, limit]);
+  }, [leagueId, limit, sortBy, sortDesc]);
 
   useEffect(() => {
     fetchPredictions();

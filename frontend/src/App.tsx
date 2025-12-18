@@ -4,7 +4,7 @@
  * Football Betting Prediction Bot - Frontend
  */
 
-import React from "react";
+import React, { useState } from "react";
 import {
   Container,
   Box,
@@ -22,6 +22,13 @@ import {
   useLeagueSelection,
 } from "./hooks/usePredictions";
 
+// Sort options type
+type SortOption =
+  | "confidence"
+  | "date"
+  | "home_probability"
+  | "away_probability";
+
 const App: React.FC = () => {
   // State and data hooks
   const {
@@ -32,13 +39,20 @@ const App: React.FC = () => {
   const { selectedCountry, selectedLeague, selectCountry, selectLeague } =
     useLeagueSelection();
 
+  // Sorting state
+  const [sortBy, setSortBy] = useState<SortOption>("confidence");
+
   const {
     predictions,
     league,
     loading: predictionsLoading,
     error: predictionsError,
-    refetch,
-  } = usePredictions(selectedLeague?.id || null);
+  } = usePredictions(selectedLeague?.id || null, 10, sortBy, true);
+
+  // Handle sort change - this automatically triggers refetch via hook dependency
+  const handleSortChange = (newSortBy: SortOption) => {
+    setSortBy(newSortBy);
+  };
 
   return (
     <Box
@@ -115,7 +129,8 @@ const App: React.FC = () => {
             league={league}
             loading={predictionsLoading}
             error={predictionsError}
-            onRefresh={refetch}
+            sortBy={sortBy}
+            onSortChange={handleSortChange}
           />
         )}
 
