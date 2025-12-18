@@ -45,8 +45,8 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         runtimeCaching: [
           {
-            urlPattern:
-              /^https:\/\/bjj-betsports-backend\.onrender\.com\/api\/.*/i,
+            // Match any API call (works with any backend URL)
+            urlPattern: /\/api\/.*/i,
             handler: "NetworkFirst",
             options: {
               cacheName: "api-cache",
