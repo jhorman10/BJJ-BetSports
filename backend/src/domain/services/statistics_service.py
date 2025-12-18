@@ -7,6 +7,7 @@ It is source-agnostic, meaning it can process matches from any data source.
 
 from typing import List
 from src.domain.entities.entities import Match, TeamStatistics
+from src.domain.value_objects.value_objects import LeagueAverages
 
 
 class StatisticsService:
@@ -151,7 +152,7 @@ class StatisticsService:
         Returns:
             LeagueAverages object with calculated means
         """
-        from src.domain.value_objects.value_objects import LeagueAverages
+
         
         total_home = 0
         total_away = 0
