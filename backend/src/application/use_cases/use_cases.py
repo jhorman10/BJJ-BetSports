@@ -375,7 +375,16 @@ class GetMatchDetailsUseCase:
 
     async def execute(self, match_id: str) -> MatchPredictionDTO:
         # 1. Get match details
-        match = await self.data_sources.api_football.get_match_details(match_id)
+        match = None
+        
+        # Try API-Football first (if configured)
+        if self.data_sources.api_football.is_configured:
+            match = await self.data_sources.api_football.get_match_details(match_id)
+            
+        # Try Football-Data.org if not found/configured
+        if not match and self.data_sources.football_data_org.is_configured:
+            match = await self.data_sources.football_data_org.get_match_details(match_id)
+            
         if not match:
             return None
 

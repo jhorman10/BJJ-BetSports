@@ -287,3 +287,44 @@ class FootballDataOrgSource:
             return None
         
         return data.get("standings", [])
+    
+    async def get_match_details(self, match_id: str) -> Optional[Match]:
+        """
+        Get details for a specific match.
+        
+        Args:
+            match_id: The match ID (from football-data.org)
+            
+        Returns:
+            Match entity or None
+        """
+        data = await self._make_request(f"/matches/{match_id}")
+        
+        if not data:
+            return None
+            
+        try:
+            # We need league info to create the Match entity correctly
+            competition = data.get("competition", {})
+            # Try to map back to our internal league code
+            # We need to find which of our codes maps to this competition code
+            comp_code = competition.get("code")
+            league_code = "Unknown"
+            
+            # Reverse lookup
+            for internal, external in COMPETITION_CODE_MAPPING.items():
+                if external == comp_code:
+                    league_code = internal
+                    break
+            
+            league = League(
+                id=league_code,
+                name=competition.get("name", "Unknown"),
+                country=competition.get("area", {}).get("name", "Unknown"),
+            )
+            
+            return self._parse_match(data, league)
+            
+        except Exception as e:
+            logger.error(f"Error parsing match details from football-data.org: {e}")
+            return None
