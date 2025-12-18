@@ -220,6 +220,73 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
               </Grid>
             </Paper>
 
+            {/* Proyección de Eventos (Corners, Cards) */}
+            <Typography variant="subtitle1" gutterBottom sx={{ mt: 3, mb: 1 }}>
+              Proyección de Eventos
+            </Typography>
+            <Paper variant="outlined" sx={{ p: 2 }}>
+              <Grid container spacing={2}>
+                {/* Corners Row */}
+                <Grid item xs={4} textAlign="center">
+                  <Typography variant="h6" fontWeight="bold">
+                    {details.match.home_corners ?? "-"}
+                  </Typography>
+                </Grid>
+                <Grid item xs={4} textAlign="center">
+                  <Typography variant="body2" color="text.secondary">
+                    ⚑ Córners
+                  </Typography>
+                </Grid>
+                <Grid item xs={4} textAlign="center">
+                  <Typography variant="h6" fontWeight="bold">
+                    {details.match.away_corners ?? "-"}
+                  </Typography>
+                </Grid>
+
+                {/* Yellow Cards Row */}
+                <Grid item xs={4} textAlign="center">
+                  <Typography
+                    variant="h6"
+                    fontWeight="bold"
+                    color="warning.main"
+                  >
+                    {details.match.home_yellow_cards ?? "-"}
+                  </Typography>
+                </Grid>
+                <Grid item xs={4} textAlign="center">
+                  <Typography variant="body2" color="text.secondary">
+                    🟨 Amarillas
+                  </Typography>
+                </Grid>
+                <Grid item xs={4} textAlign="center">
+                  <Typography
+                    variant="h6"
+                    fontWeight="bold"
+                    color="warning.main"
+                  >
+                    {details.match.away_yellow_cards ?? "-"}
+                  </Typography>
+                </Grid>
+
+                {/* Red Cards Row */}
+                <Grid item xs={4} textAlign="center">
+                  <Typography variant="h6" fontWeight="bold" color="error.main">
+                    {details.match.home_red_cards ?? "-"}
+                  </Typography>
+                </Grid>
+                <Grid item xs={4} textAlign="center">
+                  <Typography variant="body2" color="text.secondary">
+                    🟥 Rojas
+                  </Typography>
+                </Grid>
+                <Grid item xs={4} textAlign="center">
+                  <Typography variant="h6" fontWeight="bold" color="error.main">
+                    {details.match.away_red_cards ?? "-"}
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Paper>
+
             {/* Recommendation Section */}
             <Box mt={3}>
               <Typography variant="subtitle1" gutterBottom>

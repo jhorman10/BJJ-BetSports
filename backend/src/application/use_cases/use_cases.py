@@ -232,6 +232,18 @@ class GetPredictionsUseCase:
             
             # Convert to DTOs
             match_dto = self._match_to_dto(match)
+            
+            # Inject projected stats (historical averages) for upcoming matches
+            if match.status in ["NS", "TIMED", "SCHEDULED"]:
+                if home_stats and home_stats.matches_played > 0:
+                    match_dto.home_corners = int(round(home_stats.avg_corners_per_match))
+                    match_dto.home_yellow_cards = int(round(home_stats.avg_yellow_cards_per_match))
+                    match_dto.home_red_cards = int(round(home_stats.avg_red_cards_per_match))
+                if away_stats and away_stats.matches_played > 0:
+                    match_dto.away_corners = int(round(away_stats.avg_corners_per_match))
+                    match_dto.away_yellow_cards = int(round(away_stats.avg_yellow_cards_per_match))
+                    match_dto.away_red_cards = int(round(away_stats.avg_red_cards_per_match))
+            
             prediction_dto = self._prediction_to_dto(prediction)
             
             predictions.append(MatchPredictionDTO(
