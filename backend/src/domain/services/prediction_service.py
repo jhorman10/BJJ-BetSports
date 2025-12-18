@@ -20,15 +20,8 @@ from src.domain.entities.entities import (
 from src.domain.value_objects.value_objects import (
     TeamStrength,
     Odds,
+    LeagueAverages,
 )
-
-
-@dataclass
-class LeagueAverages:
-    """Average statistics for a league used in predictions."""
-    avg_home_goals: float
-    avg_away_goals: float
-    avg_total_goals: float
 
 
 class PredictionService:
@@ -78,13 +71,14 @@ class PredictionService:
         # Lower is better, but we invert for calculation
         defense = team_stats.goals_conceded_per_match / league_averages.avg_total_goals * 2
         
-        # Apply home/away adjustment
-        if is_home:
-            attack *= 1.1  # Home teams typically score more
-            defense *= 0.9  # Home teams typically concede less
-        else:
-            attack *= 0.9
-            defense *= 1.1
+        # NOTE: We previously applied a manual 1.1/0.9 multiplier here.
+        # However, checking the math: Expected Goals formula ALREADY multiplies by
+        # League Average Home Goals (e.g. 1.5).
+        # Since we calculated 'attack' relative to the GLOBAL average (2.6),
+        # the 'League Average Home Goals' factor (1.5) provides the necessary skew.
+        # Adding another multiplier (1.1) resulted in double-counting home advantage
+        # (predicting 1.65 goals for an avg team instead of 1.5).
+        # We now trust the Base Rate (LeagueAverages) to handle Home Advantage.
         
         return TeamStrength(
             attack_strength=max(0.1, attack),

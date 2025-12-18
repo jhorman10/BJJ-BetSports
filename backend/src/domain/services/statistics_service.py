@@ -138,5 +138,48 @@ class StatisticsService:
             recent_form=recent_form,
             total_corners=total_corners,
             total_yellow_cards=total_yellows,
+            total_yellow_cards=total_yellows,
             total_red_cards=total_reds,
+        )
+
+    def calculate_league_averages(self, matches: List[Match]) -> LeagueAverages:
+        """
+        Calculate average stats for the league from historical matches.
+        
+        Args:
+            matches: List of matches to analyze
+            
+        Returns:
+            LeagueAverages object with calculated means
+        """
+        from src.domain.value_objects.value_objects import LeagueAverages
+        
+        total_home = 0
+        total_away = 0
+        count = 0
+        
+        for m in matches:
+            if m.is_played:
+                # Use strict extraction to avoid NoneType errors
+                h = m.home_goals if m.home_goals is not None else 0
+                a = m.away_goals if m.away_goals is not None else 0
+                total_home += h
+                total_away += a
+                count += 1
+                
+        if count == 0:
+            # Fallback to defaults if no history
+            return LeagueAverages(
+                avg_home_goals=1.5,
+                avg_away_goals=1.1,
+                avg_total_goals=2.6
+            )
+            
+        avg_home = total_home / count
+        avg_away = total_away / count
+        
+        return LeagueAverages(
+            avg_home_goals=avg_home,
+            avg_away_goals=avg_away,
+            avg_total_goals=avg_home + avg_away
         )

@@ -166,3 +166,11 @@ class PredictionConfidence:
         elif self.overall >= 0.4:
             return "Medium"
         return "Low"
+
+
+@dataclass(frozen=True)
+class LeagueAverages:
+    """Average statistics for a league used in predictions."""
+    avg_home_goals: float
+    avg_away_goals: float
+    avg_total_goals: float

@@ -11,7 +11,8 @@ from dataclasses import dataclass
 import logging
 
 from src.domain.entities.entities import Match, League, Prediction, TeamStatistics
-from src.domain.services.prediction_service import PredictionService, LeagueAverages
+from src.domain.services.prediction_service import PredictionService
+from src.domain.value_objects.value_objects import LeagueAverages
 from src.infrastructure.data_sources.football_data_uk import (
     FootballDataUKSource,
     LEAGUES_METADATA,
@@ -192,8 +193,8 @@ class GetPredictionsUseCase:
             except Exception as e:
                 logger.warning(f"Failed to fetch OpenFootball history: {e}")
 
-        # Calculate league averages from historical data
-        league_averages = self._calculate_league_averages(historical_matches)
+        # Calculate league averages from historical data using the service
+        league_averages = self.statistics_service.calculate_league_averages(historical_matches)
         
         # Get upcoming fixtures
         upcoming_matches = await self._get_upcoming_matches(league_id, limit)
@@ -248,32 +249,7 @@ class GetPredictionsUseCase:
             generated_at=datetime.utcnow(),
         )
     
-    def _calculate_league_averages(self, matches: list[Match]) -> LeagueAverages:
-        """Calculate average goals from historical matches."""
-        if not matches:
-            return LeagueAverages(
-                avg_home_goals=1.5,
-                avg_away_goals=1.1,
-                avg_total_goals=2.6,
-            )
-        
-        played_matches = [m for m in matches if m.is_played]
-        if not played_matches:
-            return LeagueAverages(
-                avg_home_goals=1.5,
-                avg_away_goals=1.1,
-                avg_total_goals=2.6,
-            )
-        
-        total_home = sum(m.home_goals for m in played_matches)
-        total_away = sum(m.away_goals for m in played_matches)
-        n = len(played_matches)
-        
-        return LeagueAverages(
-            avg_home_goals=total_home / n,
-            avg_away_goals=total_away / n,
-            avg_total_goals=(total_home + total_away) / n,
-        )
+
     
     async def _get_upcoming_matches(
         self,
