@@ -61,36 +61,53 @@ class GetLeaguesUseCase:
             try:
                 active_api_ids = await self.data_sources.api_football.get_active_league_ids(days=10)
             except Exception as e:
-                logger.error(f"Failed to get active leagues: {e}")
+                logger.error(f"Failed to get active leagues from API-Football: {e}")
         
+        # Get active codes from Football-Data.org
+        active_org_codes = set()
+        org_configured = self.data_sources.football_data_org.is_configured
+        
+        if org_configured:
+            try:
+                from src.infrastructure.data_sources.football_data_org import COMPETITION_CODE_MAPPING
+                # Create reverse mapping: "PL" -> "E0"
+                org_code_to_internal = {v: k for k, v in COMPETITION_CODE_MAPPING.items()}
+                
+                competitions = await self.data_sources.football_data_org.get_competitions()
+                for comp in competitions:
+                    code = comp.get("code")
+                    if code in org_code_to_internal:
+                        active_org_codes.add(org_code_to_internal[code])
+            except Exception as e:
+                logger.error(f"Failed to get active leagues from Football-Data.org: {e}")
+
         from src.infrastructure.data_sources.api_football import LEAGUE_ID_MAPPING
 
         # Group by country
         countries_dict: dict[str, list[League]] = {}
         for league in leagues:
-            # Strict Filtering:
-            # If API-Football is our primary source for upcoming matches, we MUST filter by it.
-            # If the league is not in the active set, we hide it.
-            # If API is not configured, we strictly show nothing (since we can't get upcoming matches anyway?)
-            # Or we show all? The user said: "when no data available... don't show".
-            # If we have NO data source for a league, we shouldn't show it.
+            is_active = False
             
+            # Check API-Football validity
             if api_configured:
-                # Check if this league code maps to an active API ID
                 api_id = LEAGUE_ID_MAPPING.get(league.id)
-                if not api_id or api_id not in active_api_ids:
-                     # Skip this league as it has no upcoming matches
-                     continue
-            # If API is NOT configured, do we have another source for upcoming matches?
-            # OpenFootball is mostly historical in our current impl.
-            # So if API is not configured, we probably shouldn't show anything that relies on it.
-            # For safety/strictness per user request:
-            elif not api_configured:
-                 # If strictly no mock data and no API, we have no upcoming matches.
-                 # So we should probably hide everything.
-                 # But this might break the app if they haven't set the key yet.
-                 # However, the instruction is clear.
-                 continue
+                if api_id and api_id in active_api_ids:
+                    is_active = True
+            
+            # Check Football-Data.org validity (if not already found active)
+            if not is_active and org_configured:
+                if league.id in active_org_codes:
+                    is_active = True
+            
+            # Strict Filtering Logic:
+            # If ANY source is configured, we require the league to be active in ONE of them.
+            # If NO source is configured, we show nothing (strict "no mock data").
+            
+            if (api_configured or org_configured) and not is_active:
+                continue
+            elif not (api_configured or org_configured):
+                # No data sources available at all -> Show nothing
+                continue
 
             if league.country not in countries_dict:
                 countries_dict[league.country] = []
