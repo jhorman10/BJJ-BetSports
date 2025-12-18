@@ -208,10 +208,13 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
 
         {/* Grid with Suspense for lazy loaded MatchCard */}
         <Grid container spacing={3}>
-          {predictions.map((matchPrediction) => (
+          {predictions.map((matchPrediction, index) => (
             <Grid item xs={12} sm={6} lg={4} key={matchPrediction.match.id}>
               <Suspense fallback={<MatchCardSkeleton />}>
-                <MatchCard matchPrediction={matchPrediction} />
+                <MatchCard
+                  matchPrediction={matchPrediction}
+                  highlight={index === 0}
+                />
               </Suspense>
             </Grid>
           ))}

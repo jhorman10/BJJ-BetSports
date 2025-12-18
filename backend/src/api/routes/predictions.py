@@ -52,26 +52,28 @@ async def get_league_predictions(
         result = await use_case.execute(league_id, limit)
         
         # Apply sorting
+        # For dates: ascending (closest event first)
+        # For confidence/probability: descending (highest first)
         if result.predictions:
             if sort_by == SortBy.CONFIDENCE:
                 result.predictions.sort(
                     key=lambda x: x.prediction.confidence,
-                    reverse=sort_desc
+                    reverse=True  # Highest confidence first
                 )
             elif sort_by == SortBy.DATE:
                 result.predictions.sort(
                     key=lambda x: x.match.match_date,
-                    reverse=sort_desc
+                    reverse=False  # Closest date first (ascending)
                 )
             elif sort_by == SortBy.HOME_PROBABILITY:
                 result.predictions.sort(
                     key=lambda x: x.prediction.home_win_probability,
-                    reverse=sort_desc
+                    reverse=True  # Highest probability first
                 )
             elif sort_by == SortBy.AWAY_PROBABILITY:
                 result.predictions.sort(
                     key=lambda x: x.prediction.away_win_probability,
-                    reverse=sort_desc
+                    reverse=True  # Highest probability first
                 )
         
         return result
