@@ -165,14 +165,6 @@ const App: React.FC = () => {
           </Typography>
         </Box>
 
-        {/* League Selector */}
-        <Box mb={4}>
-          <TeamSearch
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-          />
-        </Box>
-
         {leaguesError ? (
           <Alert severity="error" sx={{ mb: 4 }}>
             Error al cargar las ligas: {leaguesError.message}
@@ -186,6 +178,16 @@ const App: React.FC = () => {
             onLeagueChange={selectLeague}
             loading={leaguesLoading}
           />
+        )}
+
+        {/* Search Bar - only shows when there are predictions to filter */}
+        {(selectedLeague || predictions.length > 0) && (
+          <Box mb={4}>
+            <TeamSearch
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+            />
+          </Box>
         )}
 
         {/* Global Live Matches */}
