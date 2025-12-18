@@ -19,7 +19,7 @@ import {
   Avatar,
   Stack,
 } from "@mui/material";
-import { SportsScore, Public, KeyboardArrowDown } from "@mui/icons-material";
+import { SportsScore, KeyboardArrowDown } from "@mui/icons-material";
 import { Country, League } from "../../types";
 
 interface LeagueSelectorProps {

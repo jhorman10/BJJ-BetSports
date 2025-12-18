@@ -15,7 +15,7 @@ import {
   Link,
   Alert,
 } from "@mui/material";
-import { SportsSoccer, GitHub, Warning } from "@mui/icons-material";
+import { SportsSoccer, GitHub } from "@mui/icons-material";
 import LeagueSelector from "./components/LeagueSelector";
 import PredictionGrid from "./components/PredictionGrid";
 import {
