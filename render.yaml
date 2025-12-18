@@ -18,7 +18,7 @@ services:
       - key: FOOTBALL_DATA_ORG_KEY
         sync: false
       - key: CORS_ORIGINS
-        value: "https://football-prediction-frontend.onrender.com"
+        value: "https://football-prediction-frontend-nz9r.onrender.com"
     healthCheckPath: /health
 
   # 2. Frontend Service (React Static Site)
