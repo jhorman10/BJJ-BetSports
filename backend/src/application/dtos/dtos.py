@@ -7,7 +7,20 @@ They use Pydantic for validation and serialization.
 
 from datetime import datetime
 from typing import Optional
+from enum import Enum
 from pydantic import BaseModel, Field
+
+
+# ============================================================
+# Enums
+# ============================================================
+
+class SortBy(str, Enum):
+    """Sorting options for predictions."""
+    DATE = "date"
+    CONFIDENCE = "confidence"
+    HOME_PROBABILITY = "home_probability"
+    AWAY_PROBABILITY = "away_probability"
 
 
 # ============================================================
@@ -18,6 +31,8 @@ class GetPredictionsRequest(BaseModel):
     """Request for getting predictions."""
     league_id: str = Field(..., description="League identifier")
     limit: int = Field(default=10, ge=1, le=50, description="Max matches to return")
+    sort_by: SortBy = Field(default=SortBy.CONFIDENCE, description="Field to sort by")
+    sort_desc: bool = Field(default=True, description="Sort in descending order")
 
 
 class GetMatchPredictionRequest(BaseModel):

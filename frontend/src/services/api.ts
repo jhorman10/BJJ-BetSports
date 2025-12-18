@@ -70,15 +70,21 @@ export const api = {
   },
 
   /**
-   * Get predictions for a league
+   * Get predictions for a league with optional sorting
    */
   async getPredictions(
     leagueId: string,
-    limit: number = 10
+    limit: number = 10,
+    sortBy:
+      | "date"
+      | "confidence"
+      | "home_probability"
+      | "away_probability" = "confidence",
+    sortDesc: boolean = true
   ): Promise<PredictionsResponse> {
     const response = await apiClient.get<PredictionsResponse>(
       `/api/v1/predictions/league/${leagueId}`,
-      { params: { limit } }
+      { params: { limit, sort_by: sortBy, sort_desc: sortDesc } }
     );
     return response.data;
   },

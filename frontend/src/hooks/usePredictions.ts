@@ -2,9 +2,10 @@
  * Custom Hooks for Predictions
  *
  * React hooks for fetching and managing prediction data.
+ * Optimized with useMemo and useCallback for performance.
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { api } from "../services/api";
 import {
   LeaguesResponse,
@@ -15,6 +16,7 @@ import {
 
 /**
  * Hook for fetching available leagues
+ * Uses memoization to prevent unnecessary re-renders
  */
 export function useLeagues() {
   const [data, setData] = useState<LeaguesResponse | null>(null);
@@ -28,9 +30,7 @@ export function useLeagues() {
       const response = await api.getLeagues();
       setData(response);
     } catch (err) {
-      setError(
-        err instanceof Error ? err : new Error("Failed to fetch leagues")
-      );
+      setError(err instanceof Error ? err : new Error("Error al cargar ligas"));
     } finally {
       setLoading(false);
     }
@@ -40,18 +40,23 @@ export function useLeagues() {
     fetchLeagues();
   }, [fetchLeagues]);
 
+  // Memoize derived values to prevent recalculation on each render
+  const countries = useMemo(() => data?.countries || [], [data]);
+  const totalLeagues = useMemo(() => data?.total_leagues || 0, [data]);
+
   return {
     data,
     loading,
     error,
     refetch: fetchLeagues,
-    countries: data?.countries || [],
-    totalLeagues: data?.total_leagues || 0,
+    countries,
+    totalLeagues,
   };
 }
 
 /**
  * Hook for fetching predictions for a league
+ * Only fetches when leagueId changes
  */
 export function usePredictions(leagueId: string | null, limit: number = 10) {
   const [data, setData] = useState<PredictionsResponse | null>(null);
@@ -71,7 +76,7 @@ export function usePredictions(leagueId: string | null, limit: number = 10) {
       setData(response);
     } catch (err) {
       setError(
-        err instanceof Error ? err : new Error("Failed to fetch predictions")
+        err instanceof Error ? err : new Error("Error al cargar predicciones")
       );
     } finally {
       setLoading(false);
@@ -82,18 +87,23 @@ export function usePredictions(leagueId: string | null, limit: number = 10) {
     fetchPredictions();
   }, [fetchPredictions]);
 
+  // Memoize derived values
+  const predictions = useMemo(() => data?.predictions || [], [data]);
+  const league = useMemo(() => data?.league || null, [data]);
+
   return {
     data,
     loading,
     error,
     refetch: fetchPredictions,
-    predictions: data?.predictions || [],
-    league: data?.league || null,
+    predictions,
+    league,
   };
 }
 
 /**
  * Hook for selected league state
+ * Uses useCallback for stable function references
  */
 export function useLeagueSelection() {
   const [selectedCountry, setSelectedCountry] = useState<Country | null>(null);

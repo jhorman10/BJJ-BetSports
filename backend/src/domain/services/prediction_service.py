@@ -256,40 +256,186 @@ class PredictionService:
         total = home_adj + draw_adj + away_adj
         return (home_adj / total, draw_adj / total, away_adj / total)
     
+    def _calculate_entropy_score(
+        self,
+        probs: tuple[float, float, float],
+    ) -> float:
+        """
+        Calculate certainty score based on Shannon Entropy.
+        
+        Lower entropy = higher certainty in prediction.
+        H = -Σ p(x) * log2(p(x))
+        Max entropy for 3 outcomes = log2(3) ≈ 1.585
+        
+        Args:
+            probs: Tuple of (home_win, draw, away_win) probabilities
+            
+        Returns:
+            Certainty score (0-1), where 1 = very certain
+        """
+        entropy = 0.0
+        for p in probs:
+            if p > 0:
+                entropy -= p * math.log2(p)
+        
+        max_entropy = math.log2(3)  # ~1.585 for 3 outcomes
+        return 1 - (entropy / max_entropy)
+    
+    def _calculate_data_quality(
+        self,
+        home_stats: Optional[TeamStatistics],
+        away_stats: Optional[TeamStatistics],
+    ) -> float:
+        """
+        Calculate data quality score based on sample size.
+        
+        Uses sigmoid function based on Central Limit Theorem:
+        - n >= 30 is statistically reliable
+        - Score reaches ~0.9 at 30 matches
+        
+        Args:
+            home_stats: Home team statistics
+            away_stats: Away team statistics
+            
+        Returns:
+            Data quality score (0-1)
+        """
+        if not home_stats and not away_stats:
+            return 0.2  # Minimal confidence with no data
+        
+        home_n = home_stats.matches_played if home_stats else 0
+        away_n = away_stats.matches_played if away_stats else 0
+        avg_n = (home_n + away_n) / 2
+        
+        # Sigmoid curve centered at 15 matches, reaches ~0.9 at 30
+        return 1 / (1 + math.exp(-0.15 * (avg_n - 15)))
+    
+    def _calculate_odds_agreement(
+        self,
+        calculated_probs: tuple[float, float, float],
+        odds: Optional[Odds],
+    ) -> float:
+        """
+        Calculate agreement between model and market odds.
+        
+        Uses Kullback-Leibler divergence to measure difference.
+        Lower divergence = higher agreement = higher confidence.
+        
+        Args:
+            calculated_probs: Model's predicted probabilities
+            odds: Bookmaker odds (if available)
+            
+        Returns:
+            Agreement score (0-1)
+        """
+        if odds is None:
+            return 0.5  # Neutral score when no odds available
+        
+        odds_probs = odds.to_probabilities()
+        
+        # Calculate KL divergence: D(P||Q) = Σ P(x) * log(P(x)/Q(x))
+        kl_div = 0.0
+        for p, q in zip(calculated_probs, odds_probs):
+            if p > 0 and q > 0:
+                kl_div += p * math.log(p / q)
+        
+        # Map KL divergence to 0-1 score using exponential decay
+        # KL ~0 = perfect agreement (score ~1)
+        # KL ~1 = significant disagreement (score ~0.37)
+        return math.exp(-kl_div)
+    
+    def _calculate_form_consistency(
+        self,
+        home_stats: Optional[TeamStatistics],
+        away_stats: Optional[TeamStatistics],
+    ) -> float:
+        """
+        Calculate form consistency from recent results.
+        
+        Consistent form (e.g., WWWWW or LLLLL) = more predictable.
+        Inconsistent form (e.g., WLWLW) = less predictable.
+        
+        Args:
+            home_stats: Home team statistics with recent_form
+            away_stats: Away team statistics with recent_form
+            
+        Returns:
+            Consistency score (0-1)
+        """
+        def form_consistency(form: str) -> float:
+            if len(form) < 3:
+                return 0.5  # Not enough data
+            
+            # Count transitions between different results
+            transitions = sum(
+                1 for i in range(len(form) - 1) 
+                if form[i] != form[i + 1]
+            )
+            max_transitions = len(form) - 1
+            
+            # Fewer transitions = more consistent
+            return 1 - (transitions / max_transitions)
+        
+        scores = []
+        if home_stats and home_stats.recent_form:
+            scores.append(form_consistency(home_stats.recent_form))
+        if away_stats and away_stats.recent_form:
+            scores.append(form_consistency(away_stats.recent_form))
+        
+        return sum(scores) / len(scores) if scores else 0.5
+    
     def calculate_confidence(
         self,
         home_stats: Optional[TeamStatistics],
         away_stats: Optional[TeamStatistics],
         has_odds: bool,
+        calculated_probs: Optional[tuple[float, float, float]] = None,
+        odds: Optional[Odds] = None,
     ) -> float:
         """
-        Calculate prediction confidence based on available data.
+        Calculate prediction confidence using multiple statistical factors.
+        
+        Combines four components:
+        1. Entropy Score (35%): How certain the model is in its prediction
+        2. Data Quality (30%): Statistical reliability based on sample size
+        3. Odds Agreement (20%): Alignment with market expectations
+        4. Form Consistency (15%): Predictability from recent results
         
         Args:
             home_stats: Home team statistics
             away_stats: Away team statistics
-            has_odds: Whether we have betting odds
+            has_odds: Whether betting odds are available
+            calculated_probs: Model's calculated probabilities
+            odds: Bookmaker odds object
             
         Returns:
             Confidence score (0-1)
         """
-        confidence = 0.5  # Base confidence
+        # Default probabilities if not provided
+        if calculated_probs is None:
+            calculated_probs = (0.33, 0.34, 0.33)
         
-        # Add confidence for available data
-        if home_stats and home_stats.matches_played >= 10:
-            confidence += 0.15
-        elif home_stats and home_stats.matches_played >= 5:
-            confidence += 0.1
+        # 1. Entropy score (35% weight) - model certainty
+        entropy_score = self._calculate_entropy_score(calculated_probs)
         
-        if away_stats and away_stats.matches_played >= 10:
-            confidence += 0.15
-        elif away_stats and away_stats.matches_played >= 5:
-            confidence += 0.1
+        # 2. Data quality score (30% weight) - sample size reliability
+        data_quality = self._calculate_data_quality(home_stats, away_stats)
         
-        if has_odds:
-            confidence += 0.1
+        # 3. Odds agreement score (20% weight) - market validation
+        odds_agreement = self._calculate_odds_agreement(calculated_probs, odds)
         
-        return min(confidence, 1.0)
+        # 4. Form consistency score (15% weight) - recent predictability
+        form_score = self._calculate_form_consistency(home_stats, away_stats)
+        
+        # Weighted combination
+        confidence = (
+            0.35 * entropy_score +
+            0.30 * data_quality +
+            0.20 * odds_agreement +
+            0.15 * form_score
+        )
+        
+        return round(min(max(confidence, 0.0), 1.0), 3)
     
     def generate_prediction(
         self,
@@ -357,11 +503,18 @@ class PredictionService:
             home_expected, away_expected
         )
         
-        # Calculate confidence
+        # Build odds object for confidence calculation
+        odds_obj = None
+        if match.home_odds and match.draw_odds and match.away_odds:
+            odds_obj = Odds(home=match.home_odds, draw=match.draw_odds, away=match.away_odds)
+        
+        # Calculate confidence with full statistical analysis
         confidence = self.calculate_confidence(
             home_stats,
             away_stats,
             has_odds=match.home_odds is not None,
+            calculated_probs=(home_win, draw, away_win),
+            odds=odds_obj,
         )
         
         return Prediction(

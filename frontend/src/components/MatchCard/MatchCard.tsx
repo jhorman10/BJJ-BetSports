@@ -2,9 +2,10 @@
  * MatchCard Component
  *
  * Displays a match prediction with probability bars and recommendations.
+ * Optimized with React.memo to prevent unnecessary re-renders.
  */
 
-import React from "react";
+import React, { memo, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -24,13 +25,13 @@ import {
   Info,
 } from "@mui/icons-material";
 import { styled } from "@mui/material/styles";
-import { MatchPrediction } from "../../types";
+import type { MatchPrediction } from "../../types";
 
 interface MatchCardProps {
   matchPrediction: MatchPrediction;
 }
 
-// Styled probability bar with custom colors
+// Styled probability bar with custom colors - defined outside component
 const ProbabilityBar = styled(LinearProgress)<{ barcolor: string }>(
   ({ barcolor }) => ({
     height: 10,
@@ -43,10 +44,9 @@ const ProbabilityBar = styled(LinearProgress)<{ barcolor: string }>(
   })
 );
 
-// Helper to format probability as percentage
+// Helper functions - defined outside component for performance
 const formatPercent = (value: number): string => `${(value * 100).toFixed(1)}%`;
 
-// Helper to format date
 const formatDate = (dateString: string): string => {
   const date = new Date(dateString);
   return date.toLocaleDateString("es-ES", {
@@ -58,33 +58,84 @@ const formatDate = (dateString: string): string => {
   });
 };
 
-// Helper to get color based on probability
 const getProbabilityColor = (value: number): string => {
-  if (value >= 0.5) return "#10b981"; // Green
-  if (value >= 0.35) return "#f59e0b"; // Amber
-  return "#ef4444"; // Red
+  if (value >= 0.5) return "#10b981";
+  if (value >= 0.35) return "#f59e0b";
+  return "#ef4444";
 };
 
-const MatchCard: React.FC<MatchCardProps> = ({ matchPrediction }) => {
+// Card styles - defined outside component to prevent recreation
+const cardSx = {
+  height: "100%",
+  transition: "all 0.3s ease",
+  "&:hover": {
+    transform: "translateY(-4px)",
+    boxShadow: "0 12px 24px rgba(0, 0, 0, 0.3)",
+  },
+} as const;
+
+const MatchCard: React.FC<MatchCardProps> = memo(({ matchPrediction }) => {
   const { match, prediction } = matchPrediction;
 
+  // Memoize computed values
+  const formattedDate = useMemo(
+    () => formatDate(match.match_date),
+    [match.match_date]
+  );
+
+  const homeGoals = useMemo(
+    () => prediction.predicted_home_goals.toFixed(1),
+    [prediction.predicted_home_goals]
+  );
+
+  const awayGoals = useMemo(
+    () => prediction.predicted_away_goals.toFixed(1),
+    [prediction.predicted_away_goals]
+  );
+
+  const homeWinPercent = useMemo(
+    () => formatPercent(prediction.home_win_probability),
+    [prediction.home_win_probability]
+  );
+
+  const drawPercent = useMemo(
+    () => formatPercent(prediction.draw_probability),
+    [prediction.draw_probability]
+  );
+
+  const awayWinPercent = useMemo(
+    () => formatPercent(prediction.away_win_probability),
+    [prediction.away_win_probability]
+  );
+
+  const overPercent = useMemo(
+    () => formatPercent(prediction.over_25_probability),
+    [prediction.over_25_probability]
+  );
+
+  const underPercent = useMemo(
+    () => formatPercent(prediction.under_25_probability),
+    [prediction.under_25_probability]
+  );
+
+  const confidencePercent = useMemo(
+    () => formatPercent(prediction.confidence),
+    [prediction.confidence]
+  );
+
+  const sourcesTooltip = useMemo(
+    () => `Fuentes: ${prediction.data_sources.join(", ")}`,
+    [prediction.data_sources]
+  );
+
   return (
-    <Card
-      sx={{
-        height: "100%",
-        transition: "all 0.3s ease",
-        "&:hover": {
-          transform: "translateY(-4px)",
-          boxShadow: "0 12px 24px rgba(0, 0, 0, 0.3)",
-        },
-      }}
-    >
+    <Card sx={cardSx}>
       <CardContent>
         {/* Match Date */}
         <Box display="flex" alignItems="center" gap={1} mb={2}>
           <Schedule fontSize="small" color="secondary" />
           <Typography variant="caption" color="text.secondary">
-            {formatDate(match.match_date)}
+            {formattedDate}
           </Typography>
         </Box>
 
@@ -123,7 +174,7 @@ const MatchCard: React.FC<MatchCardProps> = ({ matchPrediction }) => {
           >
             <Box textAlign="center">
               <Typography variant="h5" color="primary" fontWeight={700}>
-                {prediction.predicted_home_goals.toFixed(1)}
+                {homeGoals}
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 Goles esperados
@@ -132,7 +183,7 @@ const MatchCard: React.FC<MatchCardProps> = ({ matchPrediction }) => {
             <SportsSoccer sx={{ color: "text.secondary" }} />
             <Box textAlign="center">
               <Typography variant="h5" color="primary" fontWeight={700}>
-                {prediction.predicted_away_goals.toFixed(1)}
+                {awayGoals}
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 Goles esperados
@@ -154,7 +205,7 @@ const MatchCard: React.FC<MatchCardProps> = ({ matchPrediction }) => {
             <Box display="flex" justifyContent="space-between" mb={0.5}>
               <Typography variant="body2">Local (1)</Typography>
               <Typography variant="body2" fontWeight={600}>
-                {formatPercent(prediction.home_win_probability)}
+                {homeWinPercent}
               </Typography>
             </Box>
             <ProbabilityBar
@@ -169,7 +220,7 @@ const MatchCard: React.FC<MatchCardProps> = ({ matchPrediction }) => {
             <Box display="flex" justifyContent="space-between" mb={0.5}>
               <Typography variant="body2">Empate (X)</Typography>
               <Typography variant="body2" fontWeight={600}>
-                {formatPercent(prediction.draw_probability)}
+                {drawPercent}
               </Typography>
             </Box>
             <ProbabilityBar
@@ -184,7 +235,7 @@ const MatchCard: React.FC<MatchCardProps> = ({ matchPrediction }) => {
             <Box display="flex" justifyContent="space-between" mb={0.5}>
               <Typography variant="body2">Visitante (2)</Typography>
               <Typography variant="body2" fontWeight={600}>
-                {formatPercent(prediction.away_win_probability)}
+                {awayWinPercent}
               </Typography>
             </Box>
             <ProbabilityBar
@@ -205,7 +256,7 @@ const MatchCard: React.FC<MatchCardProps> = ({ matchPrediction }) => {
           <Box display="flex" gap={1}>
             <Chip
               icon={<TrendingUp />}
-              label={`Más: ${formatPercent(prediction.over_25_probability)}`}
+              label={`Más: ${overPercent}`}
               color={
                 prediction.over_25_probability > 0.5 ? "success" : "default"
               }
@@ -216,7 +267,7 @@ const MatchCard: React.FC<MatchCardProps> = ({ matchPrediction }) => {
             />
             <Chip
               icon={<TrendingDown />}
-              label={`Menos: ${formatPercent(prediction.under_25_probability)}`}
+              label={`Menos: ${underPercent}`}
               color={
                 prediction.under_25_probability > 0.5 ? "error" : "default"
               }
@@ -261,11 +312,11 @@ const MatchCard: React.FC<MatchCardProps> = ({ matchPrediction }) => {
             <Box display="flex" alignItems="center" gap={1}>
               <Info fontSize="small" color="action" />
               <Typography variant="caption" color="text.secondary">
-                Confianza: {formatPercent(prediction.confidence)}
+                Confianza: {confidencePercent}
               </Typography>
             </Box>
           </Tooltip>
-          <Tooltip title={`Fuentes: ${prediction.data_sources.join(", ")}`}>
+          <Tooltip title={sourcesTooltip}>
             <Chip
               label={`${prediction.data_sources.length} fuentes`}
               size="small"
@@ -277,6 +328,9 @@ const MatchCard: React.FC<MatchCardProps> = ({ matchPrediction }) => {
       </CardContent>
     </Card>
   );
-};
+});
+
+// Display name for debugging
+MatchCard.displayName = "MatchCard";
 
 export default MatchCard;
