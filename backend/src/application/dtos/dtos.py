@@ -73,6 +73,15 @@ class MatchDTO(BaseModel):
     away_team: TeamDTO
     league: LeagueDTO
     match_date: datetime
+    home_goals: Optional[int] = None
+    away_goals: Optional[int] = None
+    status: str = "NS"
+    home_corners: Optional[int] = None
+    away_corners: Optional[int] = None
+    home_yellow_cards: Optional[int] = None
+    away_yellow_cards: Optional[int] = None
+    home_red_cards: Optional[int] = None
+    away_red_cards: Optional[int] = None
     home_odds: Optional[float] = None
     draw_odds: Optional[float] = None
     away_odds: Optional[float] = None

@@ -22,6 +22,15 @@ export interface Match {
   away_team: Team;
   league: League;
   match_date: string;
+  home_goals?: number;
+  away_goals?: number;
+  status: string;
+  home_corners?: number;
+  away_corners?: number;
+  home_yellow_cards?: number;
+  away_yellow_cards?: number;
+  home_red_cards?: number;
+  away_red_cards?: number;
   home_odds?: number;
   draw_odds?: number;
   away_odds?: number;

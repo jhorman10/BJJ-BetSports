@@ -30,9 +30,10 @@ import type { MatchPrediction } from "../../types";
 interface MatchCardProps {
   matchPrediction: MatchPrediction;
   highlight?: boolean;
+  onClick?: () => void;
 }
 
-// Styled probability bar with custom colors - defined outside component
+// Styled probability bar with custom colors
 const ProbabilityBar = styled(LinearProgress)<{ barcolor: string }>(
   ({ barcolor }) => ({
     height: 10,
@@ -45,7 +46,7 @@ const ProbabilityBar = styled(LinearProgress)<{ barcolor: string }>(
   })
 );
 
-// Helper functions - defined outside component for performance
+// Helper functions
 const formatPercent = (value: number): string => `${(value * 100).toFixed(1)}%`;
 
 const formatDate = (dateString: string): string => {
@@ -64,12 +65,11 @@ const getProbabilityColor = (value: number): string => {
   if (value >= 0.35) return "#f59e0b";
   return "#ef4444";
 };
-
-// Card styles generator
-const getCardSx = (highlight?: boolean) => ({
+const getCardSx = (highlight?: boolean, clickable?: boolean) => ({
   height: "100%",
   transition: "all 0.3s ease",
-  position: "relative" as const, // Ensure valid position type
+  position: "relative" as const,
+  cursor: clickable ? "pointer" : "default",
   ...(highlight
     ? {
         border: "2px solid #10b981",
@@ -78,23 +78,30 @@ const getCardSx = (highlight?: boolean) => ({
       }
     : {}),
   "&:hover": {
-    transform: highlight ? "scale(1.03)" : "translateY(-4px)",
+    transform: highlight
+      ? "scale(1.03)"
+      : clickable
+      ? "translateY(-4px)"
+      : "none",
     boxShadow: highlight
       ? "0 0 30px rgba(16, 185, 129, 0.5)"
-      : "0 12px 24px rgba(0, 0, 0, 0.3)",
+      : clickable
+      ? "0 12px 24px rgba(0, 0, 0, 0.3)"
+      : "none",
   },
 });
 
 const MatchCard: React.FC<MatchCardProps> = memo(
-  ({ matchPrediction, highlight }) => {
+  ({ matchPrediction, highlight, onClick }) => {
     const { match, prediction } = matchPrediction;
 
+    // ... useMemos ...
     const formattedDate = useMemo(
       () => formatDate(match.match_date),
       [match.match_date]
     );
 
-    // Reuse existing useMemo logic...
+    // Format stats with useMemo
     const homeGoals = useMemo(
       () => prediction.predicted_home_goals.toFixed(1),
       [prediction.predicted_home_goals]
@@ -140,8 +147,11 @@ const MatchCard: React.FC<MatchCardProps> = memo(
       [prediction.data_sources]
     );
 
+    const isLive = ["1H", "2H", "HT", "LIVE", "ET", "P"].includes(match.status);
+    const isFinished = ["FT", "AET", "PEN"].includes(match.status);
+
     return (
-      <Card sx={getCardSx(highlight)}>
+      <Card sx={getCardSx(highlight, !!onClick)} onClick={onClick}>
         {highlight && (
           <Box
             sx={{
@@ -155,12 +165,28 @@ const MatchCard: React.FC<MatchCardProps> = memo(
           </Box>
         )}
         <CardContent>
-          {/* Match Date */}
+          {/* Match Date & Status */}
           <Box display="flex" alignItems="center" gap={1} mb={2}>
             <Schedule fontSize="small" color="secondary" />
             <Typography variant="caption" color="text.secondary">
               {formattedDate}
             </Typography>
+            {isLive && (
+              <Chip
+                label="EN VIVO"
+                color="error"
+                size="small"
+                sx={{ height: 20, fontSize: "0.625rem" }}
+              />
+            )}
+            {isFinished && (
+              <Chip
+                label="FINALIZADO"
+                color="default"
+                size="small"
+                sx={{ height: 20, fontSize: "0.625rem" }}
+              />
+            )}
           </Box>
 
           {/* Teams */}

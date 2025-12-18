@@ -16,6 +16,8 @@ import {
 import { SportsSoccer } from "@mui/icons-material";
 import LeagueSelector from "./components/LeagueSelector";
 import PredictionGrid from "./components/PredictionGrid";
+import TeamSearch from "./components/TeamSearch/TeamSearch";
+import LiveMatches from "./components/LiveMatches/LiveMatches";
 import {
   useLeagues,
   usePredictions,
@@ -41,6 +43,8 @@ const App: React.FC = () => {
 
   // Sorting state
   const [sortBy, setSortBy] = useState<SortOption>("confidence");
+  // Search state
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
   const {
     predictions,
@@ -122,6 +126,19 @@ const App: React.FC = () => {
           />
         )}
 
+        {/* Search */}
+        <Box mb={4}>
+          <TeamSearch
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+          />
+        </Box>
+
+        {/* Global Live Matches */}
+        <Box mb={4}>
+          <LiveMatches />
+        </Box>
+
         {/* Predictions Grid */}
         {selectedLeague && (
           <PredictionGrid
@@ -131,6 +148,7 @@ const App: React.FC = () => {
             error={predictionsError}
             sortBy={sortBy}
             onSortChange={handleSortChange}
+            searchQuery={searchQuery}
           />
         )}
 

@@ -188,13 +188,63 @@ class APIFootballSource:
         
         return matches
     
-    def _parse_fixture(self, fixture_data: dict, league_code: str) -> Optional[Match]:
+    async def get_live_matches(self) -> list[Match]:
+        """
+        Get all live matches globally.
+        
+        Returns:
+            List of active Match entities
+        """
+        # Fetch live matches
+        data = await self._make_request("/fixtures", {
+            "live": "all",
+        })
+        
+        if not data or not data.get("response"):
+            return []
+            
+        matches = []
+        for fixture in data["response"]:
+            try:
+                # We pass "UNKNOWN" as league_code since global live matches might be from any league
+                match = self._parse_fixture(fixture, "UNKNOWN", include_stats=True)
+                if match:
+                    matches.append(match)
+            except Exception as e:
+                logger.debug(f"Error parsing live fixture: {e}")
+                continue
+        
+        return matches
+    
+    async def get_match_details(self, match_id: str) -> Optional[Match]:
+        """
+        Get detailed match info including stats.
+        
+        Args:
+            match_id: API-Football fixture ID
+            
+        Returns:
+            Match entity with details or None
+        """
+        data = await self._make_request("/fixtures", {"id": match_id})
+        
+        if not data or not data.get("response"):
+            return None
+            
+        try:
+            return self._parse_fixture(data["response"][0], "UNKNOWN", include_stats=True)
+        except Exception as e:
+            logger.debug(f"Error parsing match details: {e}")
+            return None
+
+    def _parse_fixture(self, fixture_data: dict, league_code: str, include_stats: bool = False) -> Optional[Match]:
         """Parse API-Football fixture into Match entity."""
         try:
             fixture = fixture_data.get("fixture", {})
             league_data = fixture_data.get("league", {})
             teams = fixture_data.get("teams", {})
             goals = fixture_data.get("goals", {})
+            status = fixture.get("status", {}).get("short", "NS")
             
             # Parse match date
             timestamp = fixture.get("timestamp")
@@ -202,7 +252,7 @@ class APIFootballSource:
             
             # Create league
             league = League(
-                id=league_code,
+                id=league_code if league_code != "UNKNOWN" else str(league_data.get("id")),
                 name=league_data.get("name", "Unknown"),
                 country=league_data.get("country", "Unknown"),
                 season=str(league_data.get("season")),
@@ -223,6 +273,29 @@ class APIFootballSource:
             # Get goals if available
             home_goals = goals.get("home")
             away_goals = goals.get("away")
+
+            # Parse stats if requested
+            home_corners = None
+            away_corners = None
+            home_yellow = None
+            away_yellow = None
+            home_red = None
+            away_red = None
+
+            if include_stats and fixture_data.get("statistics"):
+                stats_list = fixture_data.get("statistics", [])
+                for team_stats in stats_list:
+                    team_id = str(team_stats.get("team", {}).get("id"))
+                    stats = {item["type"]: item["value"] for item in team_stats.get("statistics", [])}
+                    
+                    if team_id == home_team.id:
+                        home_corners = stats.get("Corner Kicks")
+                        home_yellow = stats.get("Yellow Cards")
+                        home_red = stats.get("Red Cards")
+                    elif team_id == away_team.id:
+                        away_corners = stats.get("Corner Kicks")
+                        away_yellow = stats.get("Yellow Cards")
+                        away_red = stats.get("Red Cards")
             
             return Match(
                 id=str(fixture.get("id", "")),
@@ -232,6 +305,13 @@ class APIFootballSource:
                 match_date=match_date,
                 home_goals=home_goals,
                 away_goals=away_goals,
+                status=status,
+                home_corners=home_corners,
+                away_corners=away_corners,
+                home_yellow_cards=home_yellow,
+                away_yellow_cards=away_yellow,
+                home_red_cards=home_red,
+                away_red_cards=away_red,
             )
             
         except Exception as e:

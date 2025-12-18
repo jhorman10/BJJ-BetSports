@@ -163,6 +163,7 @@ async def root():
 # Include routers
 app.include_router(leagues.router, prefix="/api/v1")
 app.include_router(predictions.router, prefix="/api/v1")
+app.include_router(matches.router, prefix="/api/v1/matches")
 
 
 if __name__ == "__main__":

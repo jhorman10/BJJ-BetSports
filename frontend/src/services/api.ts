@@ -10,6 +10,8 @@ import {
   PredictionsResponse,
   HealthResponse,
   League,
+  MatchPrediction,
+  Match,
 } from "../types";
 
 // API base URL from environment or default
@@ -86,6 +88,24 @@ export const api = {
       `/api/v1/predictions/league/${leagueId}`,
       { params: { limit, sort_by: sortBy, sort_desc: sortDesc } }
     );
+    return response.data;
+  },
+
+  /**
+   * Get prediction/details for a specific match
+   */
+  async getMatchDetails(matchId: string): Promise<MatchPrediction> {
+    const response = await apiClient.get<MatchPrediction>(
+      `/api/v1/predictions/match/${matchId}`
+    );
+    return response.data;
+  },
+
+  /**
+   * Get all live matches globally
+   */
+  async getLiveMatches(): Promise<Match[]> {
+    const response = await apiClient.get<Match[]>("/api/v1/matches/live");
     return response.data;
   },
 };

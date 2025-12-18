@@ -18,12 +18,17 @@ import {
   Select,
   MenuItem,
   SelectChangeEvent,
+  ToggleButton,
 } from "@mui/material";
-import { SportsSoccer, Sort } from "@mui/icons-material";
+import { SportsSoccer, Sort, LiveTv } from "@mui/icons-material";
 import type { MatchPrediction, League } from "../../types";
 
 // Lazy load MatchCard for better initial load performance
+// Lazy load MatchCard and Modal for better initial load performance
 const MatchCard = lazy(() => import("../MatchCard"));
+const MatchDetailsModal = lazy(
+  () => import("../MatchDetails/MatchDetailsModal")
+);
 
 // Sort options type
 type SortOption =
@@ -39,6 +44,7 @@ interface PredictionGridProps {
   error: Error | null;
   sortBy: SortOption;
   onSortChange: (sortBy: SortOption) => void;
+  searchQuery: string;
 }
 
 // Sort option labels in Spanish
@@ -85,7 +91,22 @@ const emptyStateStyles = {
 } as const;
 
 const PredictionGrid: React.FC<PredictionGridProps> = memo(
-  ({ predictions, league, loading, error, sortBy, onSortChange }) => {
+  ({
+    predictions,
+    league,
+    loading,
+    error,
+    sortBy,
+    onSortChange,
+    searchQuery,
+  }) => {
+    // Local state for UI filters
+    const [showLiveOnly, setShowLiveOnly] = React.useState(false);
+    const [selectedMatch, setSelectedMatch] = React.useState<string | null>(
+      null
+    );
+    const [modalOpen, setModalOpen] = React.useState(false);
+
     // Handle sort change - triggers API refetch via parent
     const handleSortChange = useCallback(
       (event: SelectChangeEvent<SortOption>) => {
@@ -93,6 +114,37 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
       },
       [onSortChange]
     );
+
+    // Filter predictions based on search and live status
+    const filteredPredictions = useMemo(() => {
+      return predictions.filter((p) => {
+        const matchesSearch =
+          searchQuery === "" ||
+          p.match.home_team.name
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase()) ||
+          p.match.away_team.name
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase());
+
+        const isLive = ["1H", "2H", "HT", "LIVE", "ET", "P"].includes(
+          p.match.status
+        );
+        const matchesLive = !showLiveOnly || isLive;
+
+        return matchesSearch && matchesLive;
+      });
+    }, [predictions, searchQuery, showLiveOnly]);
+
+    const handleMatchClick = useCallback((matchId: string) => {
+      setSelectedMatch(matchId);
+      setModalOpen(true);
+    }, []);
+
+    const handleCloseModal = useCallback(() => {
+      setModalOpen(false);
+      setSelectedMatch(null);
+    }, []);
 
     // Memoize the prediction count text
     const predictionCountText = useMemo(
@@ -103,9 +155,12 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
     // Sort predictions client-side to ensure visual consistency
     // This runs efficiently on the small dataset (limit=10) and guarantees correct order
     // regardless of backend response
+    // Sort predictions client-side to ensure visual consistency
+    // This runs efficiently on the small dataset (limit=10) and guarantees correct order
+    // regardless of backend response
     const sortedPredictions = useMemo(() => {
       // Create a shallow copy to avoid mutating props
-      const sorted = [...predictions];
+      const sorted = [...filteredPredictions];
 
       return sorted.sort((a, b) => {
         switch (sortBy) {
@@ -138,7 +193,7 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
             return 0;
         }
       });
-    }, [predictions, sortBy]);
+    }, [filteredPredictions, sortBy]);
 
     // Loading state
     if (loading) {
@@ -221,29 +276,46 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
             </Box>
           )}
 
-          {/* Sort Dropdown */}
-          <FormControl size="small" sx={{ minWidth: 150 }}>
-            <InputLabel id="sort-by-label">
-              <Box display="flex" alignItems="center" gap={0.5}>
-                <Sort fontSize="small" />
-                Ordenar por
-              </Box>
-            </InputLabel>
-            <Select
-              labelId="sort-by-label"
-              value={sortBy}
-              label="Ordenar por"
-              onChange={handleSortChange}
+          <Box display="flex" gap={2} flexWrap="wrap" alignItems="center">
+            {/* Search removed - hosted in App */}
+
+            {/* Live Toggle */}
+            <ToggleButton
+              value="check"
+              selected={showLiveOnly}
+              onChange={() => setShowLiveOnly(!showLiveOnly)}
+              size="small"
+              color="error"
+              sx={{ borderRadius: 2 }}
             >
-              {(Object.entries(sortLabels) as [SortOption, string][]).map(
-                ([value, label]) => (
-                  <MenuItem key={value} value={value}>
-                    {label}
-                  </MenuItem>
-                )
-              )}
-            </Select>
-          </FormControl>
+              <LiveTv fontSize="small" sx={{ mr: 1 }} />
+              EN VIVO
+            </ToggleButton>
+
+            {/* Sort Dropdown */}
+            <FormControl size="small" sx={{ minWidth: 150 }}>
+              <InputLabel id="sort-by-label">
+                <Box display="flex" alignItems="center" gap={0.5}>
+                  <Sort fontSize="small" />
+                  Ordenar por
+                </Box>
+              </InputLabel>
+              <Select
+                labelId="sort-by-label"
+                value={sortBy}
+                label="Ordenar por"
+                onChange={handleSortChange}
+              >
+                {(Object.entries(sortLabels) as [SortOption, string][]).map(
+                  ([value, label]) => (
+                    <MenuItem key={value} value={value}>
+                      {label}
+                    </MenuItem>
+                  )
+                )}
+              </Select>
+            </FormControl>
+          </Box>
         </Box>
 
         {/* Grid with Suspense for lazy loaded MatchCard */}
@@ -254,11 +326,21 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
                 <MatchCard
                   matchPrediction={matchPrediction}
                   highlight={index === 0}
+                  onClick={() => handleMatchClick(matchPrediction.match.id)}
                 />
               </Suspense>
             </Grid>
           ))}
         </Grid>
+
+        {/* Modal */}
+        <Suspense fallback={null}>
+          <MatchDetailsModal
+            open={modalOpen}
+            onClose={handleCloseModal}
+            matchId={selectedMatch}
+          />
+        </Suspense>
       </Box>
     );
   }
