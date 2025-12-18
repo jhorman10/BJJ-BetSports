@@ -50,11 +50,20 @@ class StatisticsService:
             is_home = home_name == target_name
             is_away = away_name == target_name
             
-            # Simple substring check if exact match fails (helps with naming variations)
+            # Robust fuzzy matching
             if not (is_home or is_away):
-                if target_name in home_name:
+                # check target in match names
+                cond1_home = target_name in home_name
+                cond1_away = target_name in away_name
+                
+                # check match names in target (e.g. "Chelsea" in "Chelsea FC")
+                # We filter out very short strings to avoid false positives with abbreviations like "FC"
+                cond2_home = (len(home_name) > 3 and home_name in target_name)
+                cond2_away = (len(away_name) > 3 and away_name in target_name)
+                
+                if cond1_home or cond2_home:
                     is_home = True
-                elif target_name in away_name:
+                elif cond1_away or cond2_away:
                     is_away = True
             
             if not (is_home or is_away):
