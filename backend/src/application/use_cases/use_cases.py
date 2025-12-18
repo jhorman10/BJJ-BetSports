@@ -18,6 +18,7 @@ from src.infrastructure.data_sources.football_data_uk import (
 )
 from src.infrastructure.data_sources.api_football import APIFootballSource
 from src.infrastructure.data_sources.football_data_org import FootballDataOrgSource
+from src.infrastructure.data_sources.openfootball import OpenFootballSource
 from src.application.dtos.dtos import (
     TeamDTO,
     LeagueDTO,
@@ -39,6 +40,7 @@ class DataSources:
     football_data_uk: FootballDataUKSource
     api_football: APIFootballSource
     football_data_org: FootballDataOrgSource
+    openfootball: OpenFootballSource
 
 
 class GetLeaguesUseCase:
@@ -162,6 +164,9 @@ class GetPredictionsUseCase:
         if self.data_sources.football_data_org.is_configured:
             data_sources_used.append(FootballDataOrgSource.SOURCE_NAME)
         
+        # OpenFootball is always configured (public URL)
+        data_sources_used.append(OpenFootballSource.SOURCE_NAME)
+        
         for match in upcoming_matches[:limit]:
             # Get team statistics
             home_stats = self.data_sources.football_data_uk.calculate_team_statistics(
@@ -251,6 +256,24 @@ class GetPredictionsUseCase:
             if matches:
                 return matches[:limit]
         
+        # Try OpenFootball
+        # We need league entity for mapping
+        try:
+            from src.infrastructure.data_sources.football_data_uk import LEAGUES_METADATA
+            if league_id in LEAGUES_METADATA:
+                meta = LEAGUES_METADATA[league_id]
+                league_entity = League(id=league_id, name=meta["name"], country=meta["country"])
+                matches = await self.data_sources.openfootball.get_matches(league_entity)
+                
+                # Filter for upcoming only (NS)
+                upcoming = [m for m in matches if m.status == "NS"]
+                if upcoming:
+                    # Sort by date
+                    upcoming.sort(key=lambda x: x.match_date)
+                    return upcoming[:limit]
+        except Exception as e:
+            logger.error(f"OpenFootball fetch failed: {e}")
+            
         return []
     
     def _create_sample_matches(

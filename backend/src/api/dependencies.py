@@ -10,6 +10,7 @@ from functools import lru_cache
 from src.infrastructure.data_sources.football_data_uk import FootballDataUKSource
 from src.infrastructure.data_sources.api_football import APIFootballSource
 from src.infrastructure.data_sources.football_data_org import FootballDataOrgSource
+from src.infrastructure.data_sources.openfootball import OpenFootballSource
 from src.domain.services.prediction_service import PredictionService
 from src.application.use_cases.use_cases import DataSources
 
@@ -32,12 +33,19 @@ def get_football_data_org() -> FootballDataOrgSource:
     return FootballDataOrgSource()
 
 
+@lru_cache()
+def get_openfootball() -> OpenFootballSource:
+    """Get OpenFootball data source (cached)."""
+    return OpenFootballSource()
+
+
 def get_data_sources() -> DataSources:
     """Get all data sources container."""
     return DataSources(
         football_data_uk=get_football_data_uk(),
         api_football=get_api_football(),
         football_data_org=get_football_data_org(),
+        openfootball=get_openfootball(),
     )
 
 
