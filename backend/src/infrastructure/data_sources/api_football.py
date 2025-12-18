@@ -188,11 +188,14 @@ class APIFootballSource:
 
         # Get next N fixtures regardless of date
         # This ensures we get matches even if they are weeks away (common for cups)
-        data = await self._make_request("/fixtures", {
+        # Get next N fixtures regardless of date or season
+        # Using 'next' without 'season' is safer for cups and transition periods
+        params = {
             "league": api_league_id,
-            "season": season,
             "next": next_n,
-        })
+        }
+        
+        data = await self._make_request("/fixtures", params)
         
         if not data or not data.get("response"):
             return []
