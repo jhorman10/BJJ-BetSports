@@ -35,12 +35,14 @@ LEAGUE_CSV_PATHS = {
     # England
     "E0": "england/premier-league",    # Premier League
     "E1": "england/championship",       # Championship
+    "E_FA": "england/fa-cup",           # FA Cup (Placeholder)
     "E2": "england/league-one",         # League One
     "E3": "england/league-two",         # League Two
     
     # Spain
     "SP1": "spain/la-liga",             # La Liga
     "SP2": "spain/segunda",             # Segunda Division
+    "SP_C": "spain/copa-del-rey",       # Copa del Rey (Placeholder)
     
     # Germany
     "D1": "germany/bundesliga",         # Bundesliga
@@ -89,8 +91,10 @@ LEAGUE_CSV_PATHS = {
 LEAGUES_METADATA = {
     "E0": {"name": "Premier League", "country": "England"},
     "E1": {"name": "Championship", "country": "England"},
+    "E_FA": {"name": "FA Cup", "country": "England"},
     "SP1": {"name": "La Liga", "country": "Spain"},
     "SP2": {"name": "Segunda División", "country": "Spain"},
+    "SP_C": {"name": "Copa del Rey", "country": "Spain"},
     "D1": {"name": "Bundesliga", "country": "Germany"},
     "D2": {"name": "2. Bundesliga", "country": "Germany"},
     "I1": {"name": "Serie A", "country": "Italy"},

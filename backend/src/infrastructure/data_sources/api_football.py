@@ -38,8 +38,10 @@ class APIFootballConfig:
 LEAGUE_ID_MAPPING = {
     "E0": 39,   # Premier League
     "E1": 40,   # Championship
+    "E_FA": 45, # FA Cup
     "SP1": 140, # La Liga
     "SP2": 141, # Segunda División
+    "SP_C": 143, # Copa del Rey
     "D1": 78,   # Bundesliga
     "D2": 79,   # 2. Bundesliga
     "I1": 135,  # Serie A
