@@ -210,11 +210,7 @@ const LeagueSelector: React.FC<LeagueSelectorProps> = ({
                   Seleccionar país...
                 </Typography>
               </MenuItem>
-              <MenuItem value="Global">
-                <Box display="flex" alignItems="center" gap={1.5} width="100%">
-                  <Typography fontSize="1.2rem">🌎</Typography>
-                  <Typography variant="body2" fontWeight={500} sx={{ flex: 1 }}>
-                    Todos los Torneos
+
               {countries.map((country) => (
                 <MenuItem key={country.name} value={country.name}>
                   <Box
