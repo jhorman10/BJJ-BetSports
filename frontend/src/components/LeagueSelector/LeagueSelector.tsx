@@ -45,6 +45,7 @@ const countryData: Record<string, { flag: string; name: string }> = {
   Greece: { flag: "🇬🇷", name: "Grecia" },
   Scotland: { flag: "🏴󠁧󠁢󠁳󠁣󠁴󠁿", name: "Escocia" },
   Europe: { flag: "🇪🇺", name: "Europa" },
+  Global: { flag: "🌎", name: "Global" },
 };
 
 const LeagueSelector: React.FC<LeagueSelectorProps> = ({
@@ -57,6 +58,18 @@ const LeagueSelector: React.FC<LeagueSelectorProps> = ({
 }) => {
   const handleCountryChange = (event: SelectChangeEvent<string>) => {
     const countryName = event.target.value;
+
+    if (countryName === "Global") {
+      // Create a dummy country object for Global
+      const globalCountry: Country = {
+        name: "Global",
+        code: "GLOBAL",
+        leagues: [],
+      };
+      onCountryChange(globalCountry);
+      return;
+    }
+
     if (!countryName) {
       onCountryChange(null);
       return;
@@ -209,6 +222,14 @@ const LeagueSelector: React.FC<LeagueSelectorProps> = ({
                   Seleccionar país...
                 </Typography>
               </MenuItem>
+              <MenuItem value="Global">
+                <Box display="flex" alignItems="center" gap={1.5} width="100%">
+                  <Typography fontSize="1.2rem">🌎</Typography>
+                  <Typography variant="body2" fontWeight={500} sx={{ flex: 1 }}>
+                    Todos los Torneos
+                  </Typography>
+                </Box>
+              </MenuItem>
               {countries.map((country) => (
                 <MenuItem key={country.name} value={country.name}>
                   <Box
@@ -245,10 +266,11 @@ const LeagueSelector: React.FC<LeagueSelectorProps> = ({
           </FormControl>
 
           {/* League Selector */}
+          {/* League Selector */}
           <FormControl
             sx={{ flex: 1, minWidth: 200 }}
             size="small"
-            disabled={!selectedCountry}
+            disabled={!selectedCountry || selectedCountry.name === "Global"}
           >
             <InputLabel
               id="league-select-label"

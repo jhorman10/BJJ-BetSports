@@ -4,13 +4,16 @@
  * Football Betting Prediction Bot - Frontend
  */
 
-import React, { useState } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Container,
   Box,
   Typography,
   AppBar,
   Toolbar,
+  Paper,
+  Chip,
+  Fade,
   Alert,
 } from "@mui/material";
 import { SportsSoccer } from "@mui/icons-material";
@@ -18,6 +21,8 @@ import LeagueSelector from "./components/LeagueSelector";
 import PredictionGrid from "./components/PredictionGrid";
 import TeamSearch from "./components/TeamSearch/TeamSearch";
 import LiveMatches from "./components/LiveMatches/LiveMatches";
+import api from "./services/api";
+import { MatchPrediction, Country } from "./types";
 import {
   useLeagues,
   usePredictions,
@@ -56,6 +61,60 @@ const App: React.FC = () => {
   // Handle sort change - this automatically triggers refetch via hook dependency
   const handleSortChange = (newSortBy: SortOption) => {
     setSortBy(newSortBy);
+  };
+
+  // State for Global/All mode
+  const [isGlobalMode, setIsGlobalMode] = useState(false);
+  const [dailyMatches, setDailyMatches] = useState<MatchPrediction[]>([]);
+  const [dailyLoading, setDailyLoading] = useState(false);
+
+  // Fetch daily matches when Global mode is active
+  useEffect(() => {
+    if (isGlobalMode) {
+      const fetchDaily = async () => {
+        setDailyLoading(true);
+        try {
+          const matches = await api.getDailyMatches();
+          // Wrap in MatchPrediction structure
+          const predictions: MatchPrediction[] = matches.map((m) => ({
+            match: m,
+            prediction: {
+              match_id: m.id,
+              confidence: 0,
+              home_win_probability: 0,
+              draw_probability: 0,
+              away_win_probability: 0,
+              over_25_probability: 0,
+              under_25_probability: 0,
+              predicted_home_goals: 0,
+              predicted_away_goals: 0,
+              recommended_bet: "N/A",
+              over_under_recommendation: "N/A",
+              data_sources: [],
+              created_at: new Date().toISOString(),
+            },
+          }));
+          setDailyMatches(predictions);
+        } catch (e) {
+          console.error(e);
+        } finally {
+          setDailyLoading(false);
+        }
+      };
+      fetchDaily();
+    }
+  }, [isGlobalMode]);
+
+  const handleCountrySelect = (country: Country | null) => {
+    if (country?.name === "Global") {
+      setIsGlobalMode(true);
+      selectCountry(country);
+      selectLeague(null);
+    } else {
+      setIsGlobalMode(false);
+      selectCountry(country);
+      selectLeague(null);
+    }
   };
 
   return (
@@ -111,6 +170,13 @@ const App: React.FC = () => {
         </Box>
 
         {/* League Selector */}
+        <Box mb={4}>
+          <TeamSearch
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+          />
+        </Box>
+
         {leaguesError ? (
           <Alert severity="error" sx={{ mb: 4 }}>
             Error al cargar las ligas: {leaguesError.message}
@@ -120,19 +186,11 @@ const App: React.FC = () => {
             countries={countries}
             selectedCountry={selectedCountry}
             selectedLeague={selectedLeague}
-            onCountryChange={selectCountry}
+            onCountryChange={handleCountrySelect}
             onLeagueChange={selectLeague}
             loading={leaguesLoading}
           />
         )}
-
-        {/* Search */}
-        <Box mb={4}>
-          <TeamSearch
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-          />
-        </Box>
 
         {/* Global Live Matches */}
         <Box mb={4}>
@@ -140,12 +198,12 @@ const App: React.FC = () => {
         </Box>
 
         {/* Predictions Grid */}
-        {selectedLeague && (
+        {(selectedLeague || isGlobalMode) && (
           <PredictionGrid
-            predictions={predictions}
-            league={league}
-            loading={predictionsLoading}
-            error={predictionsError}
+            predictions={isGlobalMode ? dailyMatches : predictions}
+            league={selectedLeague}
+            loading={isGlobalMode ? dailyLoading : predictionsLoading}
+            error={isGlobalMode ? null : predictionsError}
             sortBy={sortBy}
             onSortChange={handleSortChange}
             searchQuery={searchQuery}

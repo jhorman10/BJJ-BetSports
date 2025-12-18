@@ -192,6 +192,39 @@ class APIFootballSource:
         
         return matches
     
+    async def get_daily_matches(self, date_str: Optional[str] = None) -> list[Match]:
+        """
+        Get all matches for a specific date globally.
+        
+        Args:
+            date_str: Date in "YYYY-MM-DD" format. Defaults to today.
+            
+        Returns:
+            List of Match entities
+        """
+        if not date_str:
+            date_str = datetime.now().strftime("%Y-%m-%d")
+            
+        data = await self._make_request("/fixtures", {
+            "date": date_str,
+        })
+        
+        if not data or not data.get("response"):
+            return []
+            
+        matches = []
+        for fixture in data["response"]:
+            try:
+                # We pass "UNKNOWN" as league_code, parse stats if available
+                match = self._parse_fixture(fixture, "UNKNOWN", include_stats=True)
+                if match:
+                    matches.append(match)
+            except Exception as e:
+                logger.debug(f"Error parsing daily fixture: {e}")
+                continue
+        
+        return matches
+
     async def get_live_matches(self) -> list[Match]:
         """
         Get all live matches globally.

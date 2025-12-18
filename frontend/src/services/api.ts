@@ -108,6 +108,14 @@ export const api = {
     const response = await apiClient.get<Match[]>("/api/v1/matches/live");
     return response.data;
   },
+
+  /**
+   * Get all matches for today globally
+   */
+  async getDailyMatches(): Promise<Match[]> {
+    const response = await apiClient.get<Match[]>("/api/v1/matches/daily");
+    return response.data;
+  },
 };
 
 export default api;
