@@ -446,9 +446,23 @@ class GetMatchDetailsUseCase:
             league_averages=None, # Will use defaults
             data_sources=[APIFootballSource.SOURCE_NAME] + ([FootballDataUKSource.SOURCE_NAME] if historical_matches else []),
         )
+        
+        # Enhanced Match DTO with projected stats if NS
+        match_dto = self._match_to_dto(match)
+        if match.status in ["NS", "TIMED", "SCHEDULED"] and historical_matches:
+             # Inject projected stats (averages) for UI display
+             if home_stats and  home_stats.matches_played > 0:
+                 match_dto.home_corners = int(round(home_stats.avg_corners_per_match))
+                 match_dto.home_yellow_cards = int(round(home_stats.avg_yellow_cards_per_match))
+                 match_dto.home_red_cards = int(round(home_stats.avg_red_cards_per_match))
+             
+             if away_stats and away_stats.matches_played > 0:
+                 match_dto.away_corners = int(round(away_stats.avg_corners_per_match))
+                 match_dto.away_yellow_cards = int(round(away_stats.avg_yellow_cards_per_match))
+                 match_dto.away_red_cards = int(round(away_stats.avg_red_cards_per_match))
 
         return MatchPredictionDTO(
-            match=self._match_to_dto(match),
+            match=match_dto,
             prediction=self._prediction_to_dto(prediction),
         )
 

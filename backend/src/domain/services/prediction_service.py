@@ -490,7 +490,6 @@ class PredictionService:
         Returns:
             Complete Prediction object
         """
-        # Use defaults if league averages not provided
         if league_averages is None:
             league_averages = LeagueAverages(
                 avg_home_goals=self.DEFAULT_HOME_GOALS,
@@ -498,20 +497,35 @@ class PredictionService:
                 avg_total_goals=self.DEFAULT_HOME_GOALS + self.DEFAULT_AWAY_GOALS,
             )
         
-        # Calculate team strengths
-        if home_stats:
-            home_strength = self.calculate_team_strength(
-                home_stats, league_averages, is_home=True
-            )
-        else:
-            home_strength = TeamStrength(attack_strength=1.0, defense_strength=1.0)
+        # Check for sufficient data
+        home_played = home_stats.matches_played if home_stats else 0
+        away_played = away_stats.matches_played if away_stats else 0
         
-        if away_stats:
-            away_strength = self.calculate_team_strength(
-                away_stats, league_averages, is_home=False
-            )
-        else:
-            away_strength = TeamStrength(attack_strength=1.0, defense_strength=1.0)
+        # If either team has NO history, we cannot calculate a "real" prediction.
+        # Returning defaults (1.5/1.1) is misleading.
+        if home_played == 0 or away_played == 0:
+             return Prediction(
+                match_id=match.id,
+                home_win_probability=0.0,
+                draw_probability=0.0,
+                away_win_probability=0.0,
+                over_25_probability=0.0,
+                under_25_probability=0.0,
+                predicted_home_goals=0.0,
+                predicted_away_goals=0.0,
+                predicted_away_goals=0.0,
+                confidence=0.0,
+                data_sources=[],
+             )
+
+        # Calculate team strengths
+        home_strength = self.calculate_team_strength(
+            home_stats, league_averages, is_home=True
+        )
+        
+        away_strength = self.calculate_team_strength(
+            away_stats, league_averages, is_home=False
+        )
         
         # Calculate expected goals
         home_expected, away_expected = self.calculate_expected_goals(

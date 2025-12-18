@@ -209,6 +209,9 @@ class TeamStatistics:
     goals_conceded: int
     home_wins: int = 0
     away_wins: int = 0
+    total_corners: int = 0
+    total_yellow_cards: int = 0
+    total_red_cards: int = 0
     recent_form: str = ""  # e.g., "WWDLW"
     
     @property
@@ -236,3 +239,18 @@ class TeamStatistics:
     def goal_difference(self) -> int:
         """Calculate goal difference."""
         return self.goals_scored - self.goals_conceded
+    
+    @property
+    def avg_corners_per_match(self) -> float:
+        if self.matches_played == 0: return 0.0
+        return round(self.total_corners / self.matches_played, 2)
+        
+    @property
+    def avg_yellow_cards_per_match(self) -> float:
+        if self.matches_played == 0: return 0.0
+        return round(self.total_yellow_cards / self.matches_played, 2)
+        
+    @property
+    def avg_red_cards_per_match(self) -> float:
+        if self.matches_played == 0: return 0.0
+        return round(self.total_red_cards / self.matches_played, 2)

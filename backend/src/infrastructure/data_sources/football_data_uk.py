@@ -275,6 +275,19 @@ class FootballDataUKSource:
                         away_odds = float(row[a]) if pd.notna(row[a]) else None
                         break
                 
+                # Parse Stats (Corners, Cards)
+                # HC = Home Corners, AC = Away Corners
+                home_corners = int(row['HC']) if 'HC' in row and pd.notna(row['HC']) else None
+                away_corners = int(row['AC']) if 'AC' in row and pd.notna(row['AC']) else None
+                
+                # HY = Home Yellows, AY = Away Yellows
+                home_yellow = int(row['HY']) if 'HY' in row and pd.notna(row['HY']) else None
+                away_yellow = int(row['AY']) if 'AY' in row and pd.notna(row['AY']) else None
+                
+                # HR = Home Reds, AR = Away Reds
+                home_red = int(row['HR']) if 'HR' in row and pd.notna(row['HR']) else None
+                away_red = int(row['AR']) if 'AR' in row and pd.notna(row['AR']) else None
+
                 match = Match(
                     id=f"{league.id}_{match_date.strftime('%Y%m%d')}_{home_team.id}_{away_team.id}",
                     home_team=home_team,
@@ -286,6 +299,12 @@ class FootballDataUKSource:
                     home_odds=home_odds,
                     draw_odds=draw_odds,
                     away_odds=away_odds,
+                    home_corners=home_corners,
+                    away_corners=away_corners,
+                    home_yellow_cards=home_yellow,
+                    away_yellow_cards=away_yellow,
+                    home_red_cards=home_red,
+                    away_red_cards=away_red,
                 )
                 matches.append(match)
                 

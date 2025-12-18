@@ -38,6 +38,11 @@ class StatisticsService:
         away_wins = 0
         recent_results = []
         
+        # Stats accumulators
+        total_corners = 0
+        total_yellows = 0
+        total_reds = 0
+        
         for match in matches:
             if not match.is_played:
                 continue
@@ -77,6 +82,16 @@ class StatisticsService:
             # Goals
             h_goals = match.home_goals if match.home_goals is not None else 0
             a_goals = match.away_goals if match.away_goals is not None else 0
+            
+            # Accumulate Stats (if available)
+            if is_home:
+                if match.home_corners is not None: total_corners += match.home_corners
+                if match.home_yellow_cards is not None: total_yellows += match.home_yellow_cards
+                if match.home_red_cards is not None: total_reds += match.home_red_cards
+            else:
+                if match.away_corners is not None: total_corners += match.away_corners
+                if match.away_yellow_cards is not None: total_yellows += match.away_yellow_cards
+                if match.away_red_cards is not None: total_reds += match.away_red_cards
             
             if is_home:
                 goals_scored += h_goals
@@ -121,4 +136,7 @@ class StatisticsService:
             home_wins=home_wins,
             away_wins=away_wins,
             recent_form=recent_form,
+            total_corners=total_corners,
+            total_yellow_cards=total_yellows,
+            total_red_cards=total_reds,
         )
