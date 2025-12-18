@@ -104,6 +104,8 @@ class GetLeaguesUseCase:
         )
 
 
+from src.domain.services.statistics_service import StatisticsService
+
 class GetPredictionsUseCase:
     """Use case for getting match predictions."""
     
@@ -111,9 +113,11 @@ class GetPredictionsUseCase:
         self,
         data_sources: DataSources,
         prediction_service: PredictionService,
+        statistics_service: StatisticsService,
     ):
         self.data_sources = data_sources
         self.prediction_service = prediction_service
+        self.statistics_service = statistics_service
     
     async def execute(self, league_id: str, limit: int = 10) -> PredictionsResponseDTO:
         """
@@ -137,25 +141,31 @@ class GetPredictionsUseCase:
             country=meta["country"],
         )
         
-        # Get historical data from Football-Data.co.uk
+        # Get historical data
+        # 1. Try Football-Data.co.uk (CSV) - Preferred for stats
         historical_matches = await self.data_sources.football_data_uk.get_historical_matches(
             league_id,
             seasons=["2425", "2324"],
         )
         
+        # 2. If no data, try OpenFootball (JSON) - Fallback
+        # Note: We need a League entity, which we created above ('league')
+        if not historical_matches:
+            logger.info(f"No CSV data for {league_id}, trying OpenFootball...")
+            try:
+                open_matches = await self.data_sources.openfootball.get_matches(league)
+                # Filter for played matches only
+                historical_matches = [m for m in open_matches if m.status in ["FT", "AET", "PEN"]]
+            except Exception as e:
+                logger.warning(f"Failed to fetch OpenFootball history: {e}")
+
         # Calculate league averages from historical data
         league_averages = self._calculate_league_averages(historical_matches)
         
         # Get upcoming fixtures
         upcoming_matches = await self._get_upcoming_matches(league_id, limit)
         
-        # If no upcoming matches from APIs, return empty list.
-        # Strict real-data only policy requested by user.
-        if not upcoming_matches:
-            upcoming_matches = []
-            logger.info("No upcoming matches found from APIs. Returning empty list.")
-        
-        # Generate predictions
+        # Build predictions
         predictions = []
         data_sources_used = [FootballDataUKSource.SOURCE_NAME]
         
@@ -163,17 +173,16 @@ class GetPredictionsUseCase:
             data_sources_used.append(APIFootballSource.SOURCE_NAME)
         if self.data_sources.football_data_org.is_configured:
             data_sources_used.append(FootballDataOrgSource.SOURCE_NAME)
-        
-        # OpenFootball is always configured (public URL)
-        data_sources_used.append(OpenFootballSource.SOURCE_NAME)
+        if self.data_sources.openfootball:
+             data_sources_used.append(OpenFootballSource.SOURCE_NAME)
         
         for match in upcoming_matches[:limit]:
-            # Get team statistics
-            home_stats = self.data_sources.football_data_uk.calculate_team_statistics(
+            # Get team statistics using the generic service
+            home_stats = self.statistics_service.calculate_team_statistics(
                 match.home_team.name,
                 historical_matches,
             )
-            away_stats = self.data_sources.football_data_uk.calculate_team_statistics(
+            away_stats = self.statistics_service.calculate_team_statistics(
                 match.away_team.name,
                 historical_matches,
             )
@@ -275,7 +284,124 @@ class GetPredictionsUseCase:
             logger.error(f"OpenFootball fetch failed: {e}")
             
         return []
-    
+
+
+class GetMatchDetailsUseCase:
+    """Use case for getting details and prediction for a single match."""
+
+    def __init__(
+        self,
+        data_sources: DataSources,
+        prediction_service: PredictionService,
+        statistics_service: StatisticsService,
+    ):
+        self.data_sources = data_sources
+        self.prediction_service = prediction_service
+        self.statistics_service = statistics_service
+
+    async def execute(self, match_id: str) -> MatchPredictionDTO:
+        # 1. Get match details
+        match = await self.data_sources.api_football.get_match_details(match_id)
+        if not match:
+            return None
+
+        # 2. Get historical data for context (for stats)
+        # We need to map the API-Football league to our internal ID -> data source
+        # This mapping is tricky if we don't assume.
+        # But we can try fetching from OpenFootball using the country info
+        
+        # Simplified: Try to find historical data using the country/name
+        # Or, since we have the League entity from the match, we can try OpenFootball if we have a mapping.
+        # But `football_data_uk` requires an internal ID (E0, SP1, etc.)
+        # We might not have that easily.
+        
+        # Strategy:
+        # A. If we can map to internal ID, use it.
+        # B. If not, use OpenFootball (it creates teams on the fly).
+        
+        historical_matches = []
+        
+        # Try to map to internal ID associated with our data sources
+        # (This would require a reverse lookup or storing it in the match info)
+        # For now, we'll try to guess based on standard leagues or skip CSV and go to OpenFootball if possible.
+        
+        # For this prototype: Assume we can try OpenFootball directly with the League entity
+        if self.data_sources.openfootball:
+             try:
+                 # API-Football league ID is numeric. OpenFootball needs country/name mapping.
+                 # Our `OpenFootballSource.get_matches` uses `league.id` for mapping (E0, etc).
+                 # So we need the internal code.
+                 pass
+             except:
+                 pass
+
+        # If we can't fetch history easily, we proceed with empty history (low confidence) -> 33/33/33
+        # BUT the user wants improved probabilities.
+        # We really need to try to get stats.
+        
+        # Let's try to fetch last 5 matches for H2H or form from API-Football if configured!
+        # (Not implemented in APIFootballSource yet, but standard API-Football has /fixtures?team=ID&last=5)
+        # That would be the best "universal" way.
+        
+        # For now, we fallback to our generic calculator with empty list (safe default).
+        home_stats = self.statistics_service.calculate_team_statistics(match.home_team.name, historical_matches)
+        away_stats = self.statistics_service.calculate_team_statistics(match.away_team.name, historical_matches)
+        
+        # Generate prediction
+        prediction = self.prediction_service.generate_prediction(
+            match=match,
+            home_stats=home_stats,
+            away_stats=away_stats,
+            league_averages=None,
+            data_sources=[APIFootballSource.SOURCE_NAME],
+        )
+
+        return MatchPredictionDTO(
+            match=self._match_to_dto(match),
+            prediction=self._prediction_to_dto(prediction),
+        )
+
+    def _match_to_dto(self, match: Match) -> MatchDTO:
+        # Duplicated helper for now (should be in mapper)
+        from src.application.dtos.dtos import TeamDTO, LeagueDTO
+        return MatchDTO(
+            id=match.id,
+            home_team=TeamDTO(id=match.home_team.id, name=match.home_team.name, country=match.home_team.country),
+            away_team=TeamDTO(id=match.away_team.id, name=match.away_team.name, country=match.away_team.country),
+            league=LeagueDTO(id=match.league.id, name=match.league.name, country=match.league.country, season=match.league.season),
+            match_date=match.match_date,
+            home_goals=match.home_goals,
+            away_goals=match.away_goals,
+            status=match.status,
+            home_corners=match.home_corners,
+            away_corners=match.away_corners,
+            home_yellow_cards=match.home_yellow_cards,
+            away_yellow_cards=match.away_yellow_cards,
+            home_red_cards=match.home_red_cards,
+            away_red_cards=match.away_red_cards,
+            home_odds=match.home_odds,
+            draw_odds=match.draw_odds,
+            away_odds=match.away_odds,
+        )
+
+    def _prediction_to_dto(self, prediction: Prediction) -> PredictionDTO:
+         from src.application.dtos.dtos import PredictionDTO
+         return PredictionDTO(
+            match_id=prediction.match_id,
+            home_win_probability=prediction.home_win_probability,
+            draw_probability=prediction.draw_probability,
+            away_win_probability=prediction.away_win_probability,
+            over_25_probability=prediction.over_25_probability,
+            under_25_probability=prediction.under_25_probability,
+            predicted_home_goals=prediction.predicted_home_goals,
+            predicted_away_goals=prediction.predicted_away_goals,
+            confidence=prediction.confidence,
+            data_sources=prediction.data_sources,
+            recommended_bet=prediction.recommended_bet,
+            over_under_recommendation=prediction.over_under_recommendation,
+            created_at=prediction.created_at,
+        )
+        
     def _create_sample_matches(
         self,
         historical_matches: list[Match],

@@ -12,6 +12,7 @@ from src.infrastructure.data_sources.api_football import APIFootballSource
 from src.infrastructure.data_sources.football_data_org import FootballDataOrgSource
 from src.infrastructure.data_sources.openfootball import OpenFootballSource
 from src.domain.services.prediction_service import PredictionService
+from src.domain.services.statistics_service import StatisticsService
 from src.application.use_cases.use_cases import DataSources
 
 
@@ -49,7 +50,16 @@ def get_data_sources() -> DataSources:
     )
 
 
+from src.domain.services.statistics_service import StatisticsService
+
+
 @lru_cache()
 def get_prediction_service() -> PredictionService:
     """Get prediction service (cached)."""
     return PredictionService()
+
+
+@lru_cache()
+def get_statistics_service() -> StatisticsService:
+    """Get statistics service (cached)."""
+    return StatisticsService()
