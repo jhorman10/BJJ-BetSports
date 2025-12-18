@@ -101,8 +101,31 @@ async def get_match_prediction(match_id: str) -> MatchPredictionDTO:
     data_sources = get_data_sources()
     prediction_service = get_prediction_service()
     
-    # 1. Get match details from API-Football
-    match = await data_sources.api_football.get_match_details(match_id)
+    # 1. Check if it's a sample match
+    if match_id.startswith("sample_"):
+        # Create a mock match for display purposes
+        from datetime import datetime, timedelta
+        from src.domain.entities.entities import Match, Team, League
+        
+        # Try to parse league ID from sample ID (sample_{league_id}_{index})
+        parts = match_id.split("_")
+        league_id = parts[1] if len(parts) > 1 else "Unknown"
+        
+        match = Match(
+            id=match_id,
+            home_team=Team(id="mock_home", name="Sample Home Team", country="Unknown"),
+            away_team=Team(id="mock_away", name="Sample Away Team", country="Unknown"),
+            league=League(id=league_id, name="Sample League", country="Unknown", season="2024"),
+            match_date=datetime.now() + timedelta(days=1),
+            status="NS",
+            home_odds=2.5,
+            draw_odds=3.2,
+            away_odds=2.8
+        )
+    else:
+        # Get match details from API-Football
+        match = await data_sources.api_football.get_match_details(match_id)
+        
     if not match:
          raise HTTPException(status_code=404, detail="Match not found")
          
