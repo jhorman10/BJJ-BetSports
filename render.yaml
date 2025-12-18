@@ -1,42 +1,42 @@
-# Render Blueprint Configuration
-# Deploy this project to Render using this configuration file
-
+# ===========================================
+# CONFIGURACIÓN DE RENDER
+# ===========================================
 services:
-  # Backend API Service
-  - type: web
-    name: football-prediction-api
-    runtime: python
-    region: oregon
-    plan: free
+  # 1. Backend Service (FastAPI)
+  - name: football-prediction-api
+    type: web
+    env: python
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn src.api.main:app --host 0.0.0.0 --port $PORT
+    rootDir: backend
     envVars:
       - key: PYTHON_VERSION
-        value: "3.11.0"
+        value: "3.11.10"
       - key: API_FOOTBALL_KEY
         sync: false
       - key: FOOTBALL_DATA_ORG_KEY
         sync: false
       - key: CORS_ORIGINS
-        value: https://football-prediction-frontend.onrender.com
+        value: "https://football-prediction-frontend.onrender.com"
     healthCheckPath: /health
-    rootDir: backend
 
-  # Frontend Static Site
-  - type: web
-    name: football-prediction-frontend
-    runtime: static
-    buildCommand: npm install && npm run build
-    staticPublishPath: dist
+  # 2. Frontend Service (React Static Site)
+  - name: football-prediction-frontend
+    type: web
+    env: static
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: ./frontend/dist
     envVars:
       - key: VITE_API_URL
-        value: https://football-prediction-api.onrender.com
+        value: "https://football-prediction-api.onrender.com"
     headers:
       - path: /*
         name: Cache-Control
         value: public, max-age=3600
     routes:
       - type: rewrite
+        source: /api/*
+        destination: https://football-prediction-api.onrender.com/api/*
+      - type: rewrite
         source: /*
         destination: /index.html
-    rootDir: frontend
