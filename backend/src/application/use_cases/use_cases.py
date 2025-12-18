@@ -51,9 +51,29 @@ class GetLeaguesUseCase:
         """Get all available leagues grouped by country."""
         leagues = self.data_sources.football_data_uk.get_available_leagues()
         
+        # Get active league IDs from API-Football to filter out empty ones
+        active_api_ids = set()
+        if self.data_sources.api_football.is_configured:
+            try:
+                active_api_ids = await self.data_sources.api_football.get_active_league_ids(days=10)
+            except Exception as e:
+                logger.error(f"Failed to get active leagues: {e}")
+        
+        from src.infrastructure.data_sources.api_football import LEAGUE_ID_MAPPING
+
         # Group by country
         countries_dict: dict[str, list[League]] = {}
         for league in leagues:
+            # Filter logic:
+            # If we have active_api_ids (API is working), only show leagues that match.
+            # If API is down or not configured, show all.
+            if active_api_ids:
+                # Check if this league code maps to an active API ID
+                api_id = LEAGUE_ID_MAPPING.get(league.id)
+                if api_id not in active_api_ids:
+                     # Skip this league as it has no upcoming matches
+                     continue
+
             if league.country not in countries_dict:
                 countries_dict[league.country] = []
             countries_dict[league.country].append(league)

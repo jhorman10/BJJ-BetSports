@@ -8,8 +8,9 @@ API Documentation: https://www.api-football.com/documentation-v3
 """
 
 import os
+import asyncio
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Set
 from dataclasses import dataclass
 import logging
 
@@ -84,6 +85,9 @@ class APIFootballSource:
         self.config = config or APIFootballConfig()
         self._request_count = 0
         self._last_reset = datetime.utcnow().date()
+        
+        # Cache for active leagues: {timestamp: datetime, ids: Set[int]}
+        self._active_leagues_cache = {"timestamp": None, "ids": set()}
     
     @property
     def is_configured(self) -> bool:
@@ -246,6 +250,45 @@ class APIFootballSource:
         return matches
 
         return matches
+
+        return matches
+
+    async def get_active_league_ids(self, days: int = 7) -> Set[int]:
+        """
+        Get set of league IDs that have matches scheduled in the next N days.
+        Uses caching to minimize API requests.
+        """
+        # Check cache (1 hour validity)
+        now = datetime.utcnow()
+        cache = self._active_leagues_cache
+        if cache["timestamp"] and (now - cache["timestamp"]).total_seconds() < 3600:
+            return cache["ids"]
+
+        if not self.is_configured:
+            return set()
+
+        # Fetch matches for next N days
+        dates = [(now + timedelta(days=i)).strftime("%Y-%m-%d") for i in range(days)]
+        
+        # Create tasks for all dates (parallel fetching)
+        tasks = [self.get_daily_matches(d) for d in dates]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        active_ids = set()
+        for result in results:
+            if isinstance(result, list):
+                for match in result:
+                    if match.league.id and match.league.id.isdigit():
+                        active_ids.add(int(match.league.id))
+                        
+        # Update cache
+        self._active_leagues_cache = {
+            "timestamp": now,
+            "ids": active_ids
+        }
+        logger.info(f"Updated active leagues cache. Found {len(active_ids)} active leagues.")
+        
+        return active_ids
 
     async def search_team(self, query: str) -> Optional[int]:
         """
