@@ -161,7 +161,11 @@ class Prediction:
                 raise ValueError(f"Probability must be between 0 and 1, got {prob}")
         
         # Probabilities should sum to approximately 1
+        # Exception: Allow sum of 0 if all are 0 (indicates no prediction possible due to lack of data)
         total = sum(probs)
+        if total == 0:
+            return
+
         if abs(total - 1.0) > 0.01:
             raise ValueError(f"Match outcome probabilities must sum to 1, got {total}")
     
