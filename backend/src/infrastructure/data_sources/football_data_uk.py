@@ -80,11 +80,13 @@ LEAGUE_CSV_PATHS = {
     "SC0": "scotland/premiership",      # Premiership
     "SC1": "scotland/championship",     # Championship
 
-    # Europe
-    "UCL": "europe/champions-league",   # Champions League
-    "UEL": "europe/europa-league",      # Europa League
-    "UECL": "europe/conference-league", # Conference League
-    "EURO": "europe/euro-championship", # Euro Championship
+    # International (Europe & Americas)
+    "UCL": "international/champions-league",   # Champions League
+    "UEL": "international/europa-league",      # Europa League
+    "UECL": "international/conference-league", # Conference League
+    "EURO": "international/euro-championship", # Euro Championship
+    "LIB": "international/libertadores",       # Copa Libertadores (Placeholder)
+    "SUD": "international/sudamericana",       # Copa Sudamericana (Placeholder)
 }
 
 # League metadata
@@ -113,10 +115,12 @@ LEAGUES_METADATA = {
     "G2": {"name": "Super League 2", "country": "Greece"},
     "SC0": {"name": "Premiership", "country": "Scotland"},
     "SC1": {"name": "Championship", "country": "Scotland"},
-    "UCL": {"name": "Champions League", "country": "Europe"},
-    "UEL": {"name": "Europa League", "country": "Europe"},
-    "UECL": {"name": "Conference League", "country": "Europe"},
-    "EURO": {"name": "Euro Championship", "country": "Europe"},
+    "UCL": {"name": "Champions League", "country": "International"},
+    "UEL": {"name": "Europa League", "country": "International"},
+    "UECL": {"name": "Conference League", "country": "International"},
+    "EURO": {"name": "Euro Championship", "country": "International"},
+    "LIB": {"name": "Copa Libertadores", "country": "International"},
+    "SUD": {"name": "Copa Sudamericana", "country": "International"},
 }
 
 

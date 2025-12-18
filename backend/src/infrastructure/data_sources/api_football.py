@@ -64,6 +64,8 @@ LEAGUE_ID_MAPPING = {
     "UEL": 3,   # UEFA Europa League
     "UECL": 848, # UEFA Conference League
     "EURO": 4,  # UEFA Euro Championship
+    "LIB": 13,  # Copa Libertadores
+    "SUD": 11,  # Copa Sudamericana
 }
 
 
