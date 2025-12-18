@@ -138,7 +138,6 @@ class StatisticsService:
             recent_form=recent_form,
             total_corners=total_corners,
             total_yellow_cards=total_yellows,
-            total_yellow_cards=total_yellows,
             total_red_cards=total_reds,
         )
 
