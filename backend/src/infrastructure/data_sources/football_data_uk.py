@@ -68,6 +68,12 @@ LEAGUE_CSV_PATHS = {
     
     # Greece
     "G1": "greece/super-league",        # Super League
+
+    # Europe
+    "UCL": "europe/champions-league",   # Champions League
+    "UEL": "europe/europa-league",      # Europa League
+    "UECL": "europe/conference-league", # Conference League
+    "EURO": "europe/euro-championship", # Euro Championship
 }
 
 # League metadata
@@ -87,6 +93,10 @@ LEAGUES_METADATA = {
     "P1": {"name": "Primeira Liga", "country": "Portugal"},
     "T1": {"name": "Süper Lig", "country": "Turkey"},
     "G1": {"name": "Super League", "country": "Greece"},
+    "UCL": {"name": "Champions League", "country": "Europe"},
+    "UEL": {"name": "Europa League", "country": "Europe"},
+    "UECL": {"name": "Conference League", "country": "Europe"},
+    "EURO": {"name": "Euro Championship", "country": "Europe"},
 }
 
 

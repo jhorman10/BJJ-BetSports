@@ -51,6 +51,10 @@ LEAGUE_ID_MAPPING = {
     "P1": 94,   # Primeira Liga
     "T1": 203,  # Super Lig
     "G1": 197,  # Super League Greece
+    "UCL": 2,   # UEFA Champions League
+    "UEL": 3,   # UEFA Europa League
+    "UECL": 848, # UEFA Conference League
+    "EURO": 4,  # UEFA Euro Championship
 }
 
 

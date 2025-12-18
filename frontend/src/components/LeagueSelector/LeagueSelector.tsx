@@ -44,6 +44,7 @@ const countryData: Record<string, { flag: string; name: string }> = {
   Turkey: { flag: "🇹🇷", name: "Turquía" },
   Greece: { flag: "🇬🇷", name: "Grecia" },
   Scotland: { flag: "🏴󠁧󠁢󠁳󠁣󠁴󠁿", name: "Escocia" },
+  Europe: { flag: "🇪🇺", name: "Europa" },
 };
 
 const LeagueSelector: React.FC<LeagueSelectorProps> = ({
