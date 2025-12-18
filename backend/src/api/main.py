@@ -17,6 +17,11 @@ from fastapi.responses import JSONResponse
 from src.api.routes import leagues, predictions, matches
 from src.application.dtos.dtos import HealthResponseDTO, ErrorResponseDTO
 
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
 
 # Configure logging
 logging.basicConfig(
