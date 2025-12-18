@@ -306,54 +306,62 @@ class GetMatchDetailsUseCase:
             return None
 
         # 2. Get historical data for context (for stats)
-        # We need to map the API-Football league to our internal ID -> data source
-        # This mapping is tricky if we don't assume.
-        # But we can try fetching from OpenFootball using the country info
-        
-        # Simplified: Try to find historical data using the country/name
-        # Or, since we have the League entity from the match, we can try OpenFootball if we have a mapping.
-        # But `football_data_uk` requires an internal ID (E0, SP1, etc.)
-        # We might not have that easily.
-        
-        # Strategy:
-        # A. If we can map to internal ID, use it.
-        # B. If not, use OpenFootball (it creates teams on the fly).
-        
         historical_matches = []
         
-        # Try to map to internal ID associated with our data sources
-        # (This would require a reverse lookup or storing it in the match info)
-        # For now, we'll try to guess based on standard leagues or skip CSV and go to OpenFootball if possible.
+        # Try to map API-Football league ID to our internal code
+        from src.infrastructure.data_sources.api_football import LEAGUE_ID_MAPPING
         
-        # For this prototype: Assume we can try OpenFootball directly with the League entity
-        if self.data_sources.openfootball:
-             try:
-                 # API-Football league ID is numeric. OpenFootball needs country/name mapping.
-                 # Our `OpenFootballSource.get_matches` uses `league.id` for mapping (E0, etc).
-                 # So we need the internal code.
-                 pass
-             except:
-                 pass
-
-        # If we can't fetch history easily, we proceed with empty history (low confidence) -> 33/33/33
-        # BUT the user wants improved probabilities.
-        # We really need to try to get stats.
+        # Create reverse mapping: {39: "E0", ...}
+        api_id_to_code = {v: k for k, v in LEAGUE_ID_MAPPING.items()}
         
-        # Let's try to fetch last 5 matches for H2H or form from API-Football if configured!
-        # (Not implemented in APIFootballSource yet, but standard API-Football has /fixtures?team=ID&last=5)
-        # That would be the best "universal" way.
+        internal_league_code = None
+        try:
+            # API ID is usually string in Match entity, mapping values are int
+            lid = int(match.league.id)
+            if lid in api_id_to_code:
+                internal_league_code = api_id_to_code[lid]
+        except (ValueError, TypeError):
+            pass
+            
+        if internal_league_code:
+            # We found a mapping! Now we can fetch historical data.
+            # 2a. Try Football-Data.co.uk (CSV)
+            try:
+                historical_matches = await self.data_sources.football_data_uk.get_historical_matches(
+                    internal_league_code,
+                    seasons=["2425", "2324"], # Fetch current and last season
+                )
+            except Exception as e:
+                logger.warning(f"Failed to fetch CSV history details: {e}")
+                
+            # 2b. If no CSV data, try OpenFootball
+            if not historical_matches and self.data_sources.openfootball:
+                try:
+                    # Construct a league entity with the internal ID for OpenFootball lookup
+                    # (OpenFootballSource uses league.id to find the file)
+                    from src.domain.entities.entities import League
+                    temp_league = League(
+                        id=internal_league_code, 
+                        name=match.league.name, 
+                        country=match.league.country, 
+                        season=match.league.season
+                    )
+                    open_matches = await self.data_sources.openfootball.get_matches(temp_league)
+                    historical_matches = [m for m in open_matches if m.status in ["FT", "AET", "PEN"]]
+                except Exception as e:
+                    logger.warning(f"Failed to fetch OpenFootball history details: {e}")
         
-        # For now, we fallback to our generic calculator with empty list (safe default).
+        # 3. Calculate stats using whatever history we found (or empty list)
         home_stats = self.statistics_service.calculate_team_statistics(match.home_team.name, historical_matches)
         away_stats = self.statistics_service.calculate_team_statistics(match.away_team.name, historical_matches)
         
-        # Generate prediction
+        # 4. Generate prediction
         prediction = self.prediction_service.generate_prediction(
             match=match,
             home_stats=home_stats,
             away_stats=away_stats,
-            league_averages=None,
-            data_sources=[APIFootballSource.SOURCE_NAME],
+            league_averages=None, # Will use defaults
+            data_sources=[APIFootballSource.SOURCE_NAME] + ([FootballDataUKSource.SOURCE_NAME] if historical_matches else []),
         )
 
         return MatchPredictionDTO(
