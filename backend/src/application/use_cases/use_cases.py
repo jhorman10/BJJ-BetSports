@@ -127,10 +127,11 @@ class GetPredictionsUseCase:
         # Get upcoming fixtures
         upcoming_matches = await self._get_upcoming_matches(league_id, limit)
         
-        # If no upcoming matches from APIs, create mock upcoming matches
-        # from the most recent unplayed historical data
+        # If no upcoming matches from APIs, return empty list.
+        # Strict real-data only policy requested by user.
         if not upcoming_matches:
-            upcoming_matches = self._create_sample_matches(historical_matches, league, limit)
+            upcoming_matches = []
+            logger.info("No upcoming matches found from APIs. Returning empty list.")
         
         # Generate predictions
         predictions = []
