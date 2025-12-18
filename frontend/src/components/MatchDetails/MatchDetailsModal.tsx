@@ -13,7 +13,7 @@ import {
   Divider,
   Paper,
 } from "@mui/material";
-import { SportsSoccer, Warning, CompareArrows } from "@mui/icons-material";
+import { Warning, CompareArrows } from "@mui/icons-material";
 import { MatchPrediction } from "../../types";
 import api from "../../services/api";
 
