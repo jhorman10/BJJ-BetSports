@@ -516,7 +516,6 @@ class PredictionService:
                 confidence=0.0,
                 data_sources=[],
              )
-             )
 
         # Calculate team strengths
         home_strength = self.calculate_team_strength(
