@@ -100,6 +100,46 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
       [predictions.length]
     );
 
+    // Sort predictions client-side to ensure visual consistency
+    // This runs efficiently on the small dataset (limit=10) and guarantees correct order
+    // regardless of backend response
+    const sortedPredictions = useMemo(() => {
+      // Create a shallow copy to avoid mutating props
+      const sorted = [...predictions];
+
+      return sorted.sort((a, b) => {
+        switch (sortBy) {
+          case "confidence":
+            // Descending: Higher confidence first
+            return b.prediction.confidence - a.prediction.confidence;
+
+          case "date":
+            // Ascending: Closest date first
+            return (
+              new Date(a.match.match_date).getTime() -
+              new Date(b.match.match_date).getTime()
+            );
+
+          case "home_probability":
+            // Descending: Higher probability first
+            return (
+              b.prediction.home_win_probability -
+              a.prediction.home_win_probability
+            );
+
+          case "away_probability":
+            // Descending: Higher probability first
+            return (
+              b.prediction.away_win_probability -
+              a.prediction.away_win_probability
+            );
+
+          default:
+            return 0;
+        }
+      });
+    }, [predictions, sortBy]);
+
     // Loading state
     if (loading) {
       return (
@@ -208,7 +248,7 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
 
         {/* Grid with Suspense for lazy loaded MatchCard */}
         <Grid container spacing={3}>
-          {predictions.map((matchPrediction, index) => (
+          {sortedPredictions.map((matchPrediction, index) => (
             <Grid item xs={12} sm={6} lg={4} key={matchPrediction.match.id}>
               <Suspense fallback={<MatchCardSkeleton />}>
                 <MatchCard
