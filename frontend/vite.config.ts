@@ -44,11 +44,15 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          // Vendor chunks
+          // Group React together
           "react-vendor": ["react", "react-dom"],
-          "mui-core": ["@mui/material"],
-          "mui-icons": ["@mui/icons-material"],
-          emotion: ["@emotion/react", "@emotion/styled"],
+          // Group MUI + Emotion together to avoid circular dependency issues
+          "mui-vendor": [
+            "@mui/material",
+            "@mui/icons-material",
+            "@emotion/react",
+            "@emotion/styled",
+          ],
         },
         // Asset naming for better caching
         assetFileNames: "assets/[name]-[hash][extname]",
