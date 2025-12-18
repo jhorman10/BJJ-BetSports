@@ -1,0 +1,127 @@
+"""
+Unit Tests for API Endpoints
+
+Tests the FastAPI routes and responses.
+"""
+
+import pytest
+from fastapi.testclient import TestClient
+from unittest.mock import patch, MagicMock
+
+from src.api.main import app
+
+
+@pytest.fixture
+def client():
+    """Create test client."""
+    return TestClient(app)
+
+
+class TestHealthEndpoint:
+    """Tests for health check endpoint."""
+    
+    def test_health_check(self, client):
+        """Test health check returns healthy status."""
+        response = client.get("/health")
+        assert response.status_code == 200
+        
+        data = response.json()
+        assert data["status"] == "healthy"
+        assert "version" in data
+        assert "timestamp" in data
+
+
+class TestRootEndpoint:
+    """Tests for root endpoint."""
+    
+    def test_root_returns_api_info(self, client):
+        """Test root returns API information."""
+        response = client.get("/")
+        assert response.status_code == 200
+        
+        data = response.json()
+        assert "name" in data
+        assert "version" in data
+        assert "endpoints" in data
+
+
+class TestLeaguesEndpoints:
+    """Tests for leagues endpoints."""
+    
+    def test_get_leagues(self, client):
+        """Test getting all leagues."""
+        response = client.get("/api/v1/leagues")
+        assert response.status_code == 200
+        
+        data = response.json()
+        assert "countries" in data
+        assert "total_leagues" in data
+        assert data["total_leagues"] > 0
+    
+    def test_get_league_by_id_valid(self, client):
+        """Test getting a valid league."""
+        response = client.get("/api/v1/leagues/E0")
+        assert response.status_code == 200
+        
+        data = response.json()
+        assert data["id"] == "E0"
+        assert data["name"] == "Premier League"
+        assert data["country"] == "England"
+    
+    def test_get_league_by_id_invalid(self, client):
+        """Test getting an invalid league returns 404."""
+        response = client.get("/api/v1/leagues/INVALID")
+        assert response.status_code == 404
+
+
+class TestPredictionsEndpoints:
+    """Tests for predictions endpoints."""
+    
+    def test_get_predictions_invalid_league(self, client):
+        """Test getting predictions for invalid league returns 404."""
+        response = client.get("/api/v1/predictions/league/INVALID")
+        assert response.status_code == 404
+    
+    def test_get_predictions_limit_validation(self, client):
+        """Test limit parameter validation."""
+        # Limit too high
+        response = client.get("/api/v1/predictions/league/E0?limit=100")
+        assert response.status_code == 422  # Validation error
+        
+        # Limit too low
+        response = client.get("/api/v1/predictions/league/E0?limit=0")
+        assert response.status_code == 422
+    
+    def test_get_match_prediction_not_implemented(self, client):
+        """Test single match prediction returns 501."""
+        response = client.get("/api/v1/predictions/match/123")
+        assert response.status_code == 501
+
+
+class TestCORS:
+    """Tests for CORS configuration."""
+    
+    def test_cors_headers(self, client):
+        """Test CORS headers are present."""
+        response = client.options(
+            "/api/v1/leagues",
+            headers={
+                "Origin": "http://localhost:3000",
+                "Access-Control-Request-Method": "GET",
+            },
+        )
+        
+        # Should allow the origin
+        assert response.headers.get("access-control-allow-origin") in [
+            "http://localhost:3000",
+            "*",
+        ]
+
+
+class TestErrorHandling:
+    """Tests for error handling."""
+    
+    def test_404_on_unknown_route(self, client):
+        """Test 404 on unknown route."""
+        response = client.get("/api/v1/unknown")
+        assert response.status_code == 404
