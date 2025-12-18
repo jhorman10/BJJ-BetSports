@@ -301,7 +301,7 @@ class PredictionService:
             Data quality score (0-1)
         """
         if not home_stats and not away_stats:
-            return 0.2  # Minimal confidence with no data
+            return 0.0  # Zero confidence with no data
         
         home_n = home_stats.matches_played if home_stats else 0
         away_n = away_stats.matches_played if away_stats else 0
@@ -415,26 +415,58 @@ class PredictionService:
         if calculated_probs is None:
             calculated_probs = (0.33, 0.34, 0.33)
         
-        # 1. Entropy score (35% weight) - model certainty
+        # Calculate components
         entropy_score = self._calculate_entropy_score(calculated_probs)
-        
-        # 2. Data quality score (30% weight) - sample size reliability
         data_quality = self._calculate_data_quality(home_stats, away_stats)
         
-        # 3. Odds agreement score (20% weight) - market validation
-        odds_agreement = self._calculate_odds_agreement(calculated_probs, odds)
+        # Calculate availability flags
+        has_stats = (home_stats is not None) and (away_stats is not None)
+        has_odds_data = (odds is not None)
+        has_recent_form = False
+        if has_stats:
+            has_recent_form = bool(home_stats.recent_form and away_stats.recent_form)
         
-        # 4. Form consistency score (15% weight) - recent predictability
-        form_score = self._calculate_form_consistency(home_stats, away_stats)
+        form_score = 0.5
+        if has_recent_form:
+             form_score = self._calculate_form_consistency(home_stats, away_stats)
+             
+        odds_agreement = 0.5
+        if has_odds_data:
+             odds_agreement = self._calculate_odds_agreement(calculated_probs, odds)
         
-        # Weighted combination
+        # Dynamic Weighting
+        # Base weights: Entropy (30%), Data Quality (40%), Odds (15%), Form (15%)
+        # If components are missing, redistribute weights to Data Quality and Entropy
+        
+        w_entropy = 0.35
+        w_quality = 0.35
+        w_odds = 0.15
+        w_form = 0.15
+        
+        if not has_odds_data:
+            # Distribute 0.15 odds weight: 0.10 to quality, 0.05 to entropy
+            w_quality += 0.10
+            w_entropy += 0.05
+            w_odds = 0.0
+            
+        if not has_recent_form:
+            # Distribute 0.15 form weight: 0.10 to quality, 0.05 to entropy
+            w_quality += 0.10
+            w_entropy += 0.05
+            w_form = 0.0
+            
         confidence = (
-            0.35 * entropy_score +
-            0.30 * data_quality +
-            0.20 * odds_agreement +
-            0.15 * form_score
+            w_entropy * entropy_score +
+            w_quality * data_quality +
+            w_odds * odds_agreement +
+            w_form * form_score
         )
         
+        # Strict penalty for low data quality
+        # If we have very few matches, confidence should be capped
+        if data_quality < 0.4:  # Matches < ~10
+            confidence = min(confidence, 0.45)
+            
         return round(min(max(confidence, 0.0), 1.0), 3)
     
     def generate_prediction(
