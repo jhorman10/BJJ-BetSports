@@ -12,8 +12,9 @@ import {
   AppBar,
   Toolbar,
   Alert,
+  Button,
 } from "@mui/material";
-import { SportsSoccer } from "@mui/icons-material";
+import { SportsSoccer, GetApp } from "@mui/icons-material";
 import LeagueSelector from "./components/LeagueSelector";
 import PredictionGrid from "./components/PredictionGrid";
 import TeamSearch from "./components/TeamSearch/TeamSearch";
@@ -26,6 +27,17 @@ import {
   useLeagueSelection,
 } from "./hooks/usePredictions";
 
+// Extend window type for PWA install event
+declare global {
+  interface WindowEventMap {
+    beforeinstallprompt: BeforeInstallPromptEvent;
+  }
+  interface BeforeInstallPromptEvent extends Event {
+    prompt: () => Promise<void>;
+    userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+  }
+}
+
 // Sort options type
 type SortOption =
   | "confidence"
@@ -34,6 +46,37 @@ type SortOption =
   | "away_probability";
 
 const App: React.FC = () => {
+  // PWA Install state
+  const [installPrompt, setInstallPrompt] =
+    useState<BeforeInstallPromptEvent | null>(null);
+  const [isInstalled, setIsInstalled] = useState(false);
+
+  // Capture the install prompt event
+  useEffect(() => {
+    const handler = (e: BeforeInstallPromptEvent) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+
+    // Check if already installed
+    if (window.matchMedia("(display-mode: standalone)").matches) {
+      setIsInstalled(true);
+    }
+
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === "accepted") {
+      setIsInstalled(true);
+    }
+    setInstallPrompt(null);
+  };
+
   // State and data hooks
   const {
     countries,
@@ -138,6 +181,19 @@ const App: React.FC = () => {
           >
             BJJ - BetSports
           </Typography>
+          {/* PWA Install Button */}
+          {installPrompt && !isInstalled && (
+            <Button
+              variant="outlined"
+              color="primary"
+              size="small"
+              startIcon={<GetApp />}
+              onClick={handleInstallClick}
+              sx={{ ml: 2 }}
+            >
+              Instalar App
+            </Button>
+          )}
         </Toolbar>
       </AppBar>
 
