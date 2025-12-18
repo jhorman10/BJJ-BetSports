@@ -4,16 +4,13 @@
  * Football Betting Prediction Bot - Frontend
  */
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Container,
   Box,
   Typography,
   AppBar,
   Toolbar,
-  Paper,
-  Chip,
-  Fade,
   Alert,
 } from "@mui/material";
 import { SportsSoccer } from "@mui/icons-material";
@@ -53,7 +50,6 @@ const App: React.FC = () => {
 
   const {
     predictions,
-    league,
     loading: predictionsLoading,
     error: predictionsError,
   } = usePredictions(selectedLeague?.id || null, 10, sortBy, true);
