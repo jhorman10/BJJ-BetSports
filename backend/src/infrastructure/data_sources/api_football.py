@@ -173,17 +173,23 @@ class APIFootballSource:
             return []
         
         api_league_id = LEAGUE_ID_MAPPING[league_code]
-        season = season or datetime.now().year
+        api_league_id = LEAGUE_ID_MAPPING[league_code]
         
-        # Get fixtures for next 7 days
-        from_date = datetime.now().strftime("%Y-%m-%d")
-        to_date = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")
-        
+        # Calculate correct season
+        # Matches in first half of year (Jan-Jun) usually belong to season starting previous year
+        now = datetime.now()
+        if season is None:
+            if now.month < 7:
+                season = now.year - 1
+            else:
+                season = now.year
+
+        # Get next N fixtures regardless of date
+        # This ensures we get matches even if they are weeks away (common for cups)
         data = await self._make_request("/fixtures", {
             "league": api_league_id,
             "season": season,
-            "from": from_date,
-            "to": to_date,
+            "next": next_n,
         })
         
         if not data or not data.get("response"):
