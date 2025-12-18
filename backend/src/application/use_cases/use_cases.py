@@ -300,6 +300,47 @@ class GetPredictionsUseCase:
             logger.error(f"OpenFootball fetch failed: {e}")
             
         return []
+        
+    def _match_to_dto(self, match: Match) -> MatchDTO:
+        # Duplicated helper for now (should be in mapper)
+        from src.application.dtos.dtos import TeamDTO, LeagueDTO
+        return MatchDTO(
+            id=match.id,
+            home_team=TeamDTO(id=match.home_team.id, name=match.home_team.name, country=match.home_team.country),
+            away_team=TeamDTO(id=match.away_team.id, name=match.away_team.name, country=match.away_team.country),
+            league=LeagueDTO(id=match.league.id, name=match.league.name, country=match.league.country, season=match.league.season),
+            match_date=match.match_date,
+            home_goals=match.home_goals,
+            away_goals=match.away_goals,
+            status=match.status,
+            home_corners=match.home_corners,
+            away_corners=match.away_corners,
+            home_yellow_cards=match.home_yellow_cards,
+            away_yellow_cards=match.away_yellow_cards,
+            home_red_cards=match.home_red_cards,
+            away_red_cards=match.away_red_cards,
+            home_odds=match.home_odds,
+            draw_odds=match.draw_odds,
+            away_odds=match.away_odds,
+        )
+
+    def _prediction_to_dto(self, prediction: Prediction) -> PredictionDTO:
+         from src.application.dtos.dtos import PredictionDTO
+         return PredictionDTO(
+            match_id=prediction.match_id,
+            home_win_probability=prediction.home_win_probability,
+            draw_probability=prediction.draw_probability,
+            away_win_probability=prediction.away_win_probability,
+            over_25_probability=prediction.over_25_probability,
+            under_25_probability=prediction.under_25_probability,
+            predicted_home_goals=prediction.predicted_home_goals,
+            predicted_away_goals=prediction.predicted_away_goals,
+            confidence=prediction.confidence,
+            data_sources=prediction.data_sources,
+            recommended_bet=prediction.recommended_bet,
+            over_under_recommendation=prediction.over_under_recommendation,
+            created_at=prediction.created_at,
+        )
 
 
 class GetMatchDetailsUseCase:
@@ -426,114 +467,4 @@ class GetMatchDetailsUseCase:
             created_at=prediction.created_at,
         )
         
-    def _create_sample_matches(
-        self,
-        historical_matches: list[Match],
-        league: League,
-        limit: int,
-    ) -> list[Match]:
-        """
-        Create sample upcoming matches from historical teams.
-        
-        Used when real fixtures aren't available.
-        """
-        # Get unique teams from historical matches
-        teams = {}
-        for match in historical_matches:
-            teams[match.home_team.name] = match.home_team
-            teams[match.away_team.name] = match.away_team
-        
-        team_list = list(teams.values())
-        if len(team_list) < 2:
-            return []
-        
-        # Create sample matches
-        sample_matches = []
-        from datetime import timedelta
-        now = datetime.utcnow()
-        
-        # Use last known odds if available
-        odds_map = {}
-        for match in historical_matches[-100:]:
-            if match.home_odds:
-                odds_map[match.home_team.name] = {
-                    'home': match.home_odds,
-                    'draw': match.draw_odds,
-                    'away': match.away_odds,
-                }
-        
-        for i in range(min(limit, len(team_list) // 2)):
-            home = team_list[i * 2]
-            away = team_list[i * 2 + 1]
-            
-            # Get odds if available
-            odds = odds_map.get(home.name, {})
-            
-            match = Match(
-                id=f"sample_{league.id}_{i}",
-                home_team=home,
-                away_team=away,
-                league=league,
-                match_date=now + timedelta(days=i + 1),
-                home_odds=odds.get('home'),
-                draw_odds=odds.get('draw'),
-                away_odds=odds.get('away'),
-            )
-            sample_matches.append(match)
-        
-        return sample_matches
-    
-    def _match_to_dto(self, match: Match) -> MatchDTO:
-        """Convert Match entity to DTO."""
-        return MatchDTO(
-            id=match.id,
-            home_team=TeamDTO(
-                id=match.home_team.id,
-                name=match.home_team.name,
-                short_name=match.home_team.short_name,
-                country=match.home_team.country,
-            ),
-            away_team=TeamDTO(
-                id=match.away_team.id,
-                name=match.away_team.name,
-                short_name=match.away_team.short_name,
-                country=match.away_team.country,
-            ),
-            league=LeagueDTO(
-                id=match.league.id,
-                name=match.league.name,
-                country=match.league.country,
-                season=match.league.season,
-            ),
-            match_date=match.match_date,
-            home_goals=match.home_goals,
-            away_goals=match.away_goals,
-            status=match.status,
-            home_corners=match.home_corners,
-            away_corners=match.away_corners,
-            home_yellow_cards=match.home_yellow_cards,
-            away_yellow_cards=match.away_yellow_cards,
-            home_red_cards=match.home_red_cards,
-            away_red_cards=match.away_red_cards,
-            home_odds=match.home_odds,
-            draw_odds=match.draw_odds,
-            away_odds=match.away_odds,
-        )
-    
-    def _prediction_to_dto(self, prediction: Prediction) -> PredictionDTO:
-        """Convert Prediction entity to DTO."""
-        return PredictionDTO(
-            match_id=prediction.match_id,
-            home_win_probability=prediction.home_win_probability,
-            draw_probability=prediction.draw_probability,
-            away_win_probability=prediction.away_win_probability,
-            over_25_probability=prediction.over_25_probability,
-            under_25_probability=prediction.under_25_probability,
-            predicted_home_goals=prediction.predicted_home_goals,
-            predicted_away_goals=prediction.predicted_away_goals,
-            confidence=prediction.confidence,
-            data_sources=prediction.data_sources,
-            recommended_bet=prediction.recommended_bet,
-            over_under_recommendation=prediction.over_under_recommendation,
-            created_at=prediction.created_at,
-        )
+
