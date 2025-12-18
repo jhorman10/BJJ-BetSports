@@ -29,7 +29,7 @@ services:
     staticPublishPath: ./frontend/dist
     envVars:
       - key: VITE_API_URL
-        value: "https://football-prediction-api.onrender.com"
+        value: "https://football-prediction-api-x4pm.onrender.com"
     headers:
       - path: /*
         name: Cache-Control
@@ -37,7 +37,7 @@ services:
     routes:
       - type: rewrite
         source: /api/*
-        destination: https://football-prediction-api.onrender.com/api/*
+        destination: https://football-prediction-api-x4pm.onrender.com/api/*
       - type: rewrite
         source: /*
         destination: /index.html
