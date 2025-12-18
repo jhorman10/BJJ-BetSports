@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import {
   Dialog,
   DialogTitle,
@@ -8,49 +8,26 @@ import {
   Box,
   Typography,
   Grid,
-  CircularProgress,
   Chip,
   Divider,
   Paper,
 } from "@mui/material";
 import { Warning, CompareArrows } from "@mui/icons-material";
 import { MatchPrediction } from "../../types";
-import api from "../../services/api";
 
 interface MatchDetailsModalProps {
   open: boolean;
   onClose: () => void;
-  matchId: string | null;
+  matchPrediction: MatchPrediction | null;
 }
 
 const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
   open,
   onClose,
-  matchId,
+  matchPrediction,
 }) => {
-  const [details, setDetails] = useState<MatchPrediction | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (open && matchId) {
-      setLoading(true);
-      setError(null);
-      api
-        .getMatchDetails(matchId)
-        .then((data) => {
-          setDetails(data);
-          setLoading(false);
-        })
-        .catch((err) => {
-          console.error(err);
-          setError("Error al cargar detalles del partido.");
-          setLoading(false);
-        });
-    } else {
-      setDetails(null);
-    }
-  }, [open, matchId]);
+  // Use the passed data directly, no need to fetch
+  const details = matchPrediction;
 
   if (!open) return null;
 
@@ -86,15 +63,13 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
         Detalles del Partido
       </DialogTitle>
       <DialogContent>
-        {loading ? (
-          <Box display="flex" justifyContent="center" p={4}>
-            <CircularProgress />
-          </Box>
-        ) : error ? (
+        {!details ? (
           <Box p={3} textAlign="center">
-            <Typography color="error">{error}</Typography>
+            <Typography color="text.secondary">
+              No hay datos disponibles.
+            </Typography>
           </Box>
-        ) : details ? (
+        ) : (
           <Box>
             {/* Score Header */}
             <Box
@@ -215,7 +190,7 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
               </Paper>
             </Box>
           </Box>
-        ) : null}
+        )}
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cerrar</Button>

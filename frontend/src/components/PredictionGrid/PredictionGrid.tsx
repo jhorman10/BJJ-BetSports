@@ -102,9 +102,8 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
   }) => {
     // Local state for UI filters
     const [showLiveOnly, setShowLiveOnly] = React.useState(false);
-    const [selectedMatch, setSelectedMatch] = React.useState<string | null>(
-      null
-    );
+    const [selectedMatch, setSelectedMatch] =
+      React.useState<MatchPrediction | null>(null);
     const [modalOpen, setModalOpen] = React.useState(false);
 
     // Handle sort change - triggers API refetch via parent
@@ -136,8 +135,8 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
       });
     }, [predictions, searchQuery, showLiveOnly]);
 
-    const handleMatchClick = useCallback((matchId: string) => {
-      setSelectedMatch(matchId);
+    const handleMatchClick = useCallback((matchPrediction: MatchPrediction) => {
+      setSelectedMatch(matchPrediction);
       setModalOpen(true);
     }, []);
 
@@ -326,7 +325,7 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
                 <MatchCard
                   matchPrediction={matchPrediction}
                   highlight={index === 0}
-                  onClick={() => handleMatchClick(matchPrediction.match.id)}
+                  onClick={() => handleMatchClick(matchPrediction)}
                 />
               </Suspense>
             </Grid>
@@ -338,7 +337,7 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
           <MatchDetailsModal
             open={modalOpen}
             onClose={handleCloseModal}
-            matchId={selectedMatch}
+            matchPrediction={selectedMatch}
           />
         </Suspense>
       </Box>
