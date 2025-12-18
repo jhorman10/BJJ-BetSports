@@ -13,7 +13,11 @@ export default defineConfig({
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: ["favicon.svg", "robots.txt"],
+      devOptions: {
+        enabled: true, // Enable PWA in development for testing
+      },
       manifest: {
+        id: "/",
         name: "BJJ BetSports",
         short_name: "BJJ Bets",
         description: "Predicciones de fútbol con modelos matemáticos",
@@ -21,7 +25,10 @@ export default defineConfig({
         background_color: "#0f172a",
         display: "standalone",
         orientation: "portrait-primary",
+        scope: "/",
         start_url: "/",
+        categories: ["sports", "utilities"],
+        prefer_related_applications: false,
         icons: [
           {
             src: "pwa-192x192.png",
@@ -37,7 +44,7 @@ export default defineConfig({
             src: "pwa-512x512.png",
             sizes: "512x512",
             type: "image/png",
-            purpose: "any maskable",
+            purpose: "maskable",
           },
         ],
       },
