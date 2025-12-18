@@ -12,7 +12,6 @@ import {
   Divider,
   Paper,
 } from "@mui/material";
-import { Warning, CompareArrows } from "@mui/icons-material";
 import { MatchPrediction } from "../../types";
 
 interface MatchDetailsModalProps {
@@ -30,32 +29,6 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
   const details = matchPrediction;
 
   if (!open) return null;
-
-  const renderStatRow = (
-    label: string,
-    homeValue: number | undefined | null,
-    awayValue: number | undefined | null,
-    icon?: React.ReactNode
-  ) => (
-    <Box
-      display="flex"
-      justifyContent="space-between"
-      alignItems="center"
-      py={1}
-      borderBottom="1px solid rgba(255,255,255,0.1)"
-    >
-      <Typography variant="body1" fontWeight="bold">
-        {homeValue ?? "-"}
-      </Typography>
-      <Box display="flex" alignItems="center" gap={1} color="text.secondary">
-        {icon}
-        <Typography variant="body2">{label}</Typography>
-      </Box>
-      <Typography variant="body1" fontWeight="bold">
-        {awayValue ?? "-"}
-      </Typography>
-    </Box>
-  );
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -112,35 +85,145 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
               </Box>
             </Box>
 
-            {/* Statistics */}
+            {/* Probabilidades */}
             <Typography variant="subtitle1" gutterBottom sx={{ mt: 2, mb: 1 }}>
-              Estadísticas
+              Probabilidades
             </Typography>
             <Paper variant="outlined" sx={{ p: 2 }}>
-              {renderStatRow(
-                "Córners",
-                details.match.home_corners,
-                details.match.away_corners,
-                <CompareArrows fontSize="small" />
-              )}
-              {renderStatRow(
-                "Tarjetas Amarillas",
-                details.match.home_yellow_cards,
-                details.match.away_yellow_cards,
-                <Warning fontSize="small" color="warning" />
-              )}
-              {renderStatRow(
-                "Tarjetas Rojas",
-                details.match.home_red_cards,
-                details.match.away_red_cards,
-                <Warning fontSize="small" color="error" />
-              )}
+              <Grid container spacing={2}>
+                {/* Row 1: Home / Draw / Away */}
+                <Grid item xs={4} textAlign="center">
+                  <Typography variant="caption" color="text.secondary">
+                    Local (1)
+                  </Typography>
+                  <Typography
+                    variant="h5"
+                    fontWeight="bold"
+                    color={
+                      details.prediction.home_win_probability >
+                        details.prediction.away_win_probability &&
+                      details.prediction.home_win_probability >
+                        details.prediction.draw_probability
+                        ? "success.main"
+                        : "text.primary"
+                    }
+                  >
+                    {(details.prediction.home_win_probability * 100).toFixed(0)}
+                    %
+                  </Typography>
+                </Grid>
+                <Grid item xs={4} textAlign="center">
+                  <Typography variant="caption" color="text.secondary">
+                    Empate (X)
+                  </Typography>
+                  <Typography
+                    variant="h5"
+                    fontWeight="bold"
+                    color={
+                      details.prediction.draw_probability >
+                        details.prediction.home_win_probability &&
+                      details.prediction.draw_probability >
+                        details.prediction.away_win_probability
+                        ? "warning.main"
+                        : "text.primary"
+                    }
+                  >
+                    {(details.prediction.draw_probability * 100).toFixed(0)}%
+                  </Typography>
+                </Grid>
+                <Grid item xs={4} textAlign="center">
+                  <Typography variant="caption" color="text.secondary">
+                    Visitante (2)
+                  </Typography>
+                  <Typography
+                    variant="h5"
+                    fontWeight="bold"
+                    color={
+                      details.prediction.away_win_probability >
+                        details.prediction.home_win_probability &&
+                      details.prediction.away_win_probability >
+                        details.prediction.draw_probability
+                        ? "info.main"
+                        : "text.primary"
+                    }
+                  >
+                    {(details.prediction.away_win_probability * 100).toFixed(0)}
+                    %
+                  </Typography>
+                </Grid>
+              </Grid>
+
+              <Divider sx={{ my: 2 }} />
+
+              {/* Row 2: Over/Under + Expected Goals */}
+              <Grid container spacing={2} alignItems="center">
+                <Grid item xs={6} textAlign="center">
+                  <Typography variant="caption" color="text.secondary">
+                    Más de 2.5 Goles
+                  </Typography>
+                  <Box>
+                    <Chip
+                      label={`${(
+                        details.prediction.over_25_probability * 100
+                      ).toFixed(0)}%`}
+                      color={
+                        details.prediction.over_25_probability > 0.5
+                          ? "success"
+                          : "default"
+                      }
+                      size="small"
+                      sx={{ fontWeight: "bold" }}
+                    />
+                  </Box>
+                </Grid>
+                <Grid item xs={6} textAlign="center">
+                  <Typography variant="caption" color="text.secondary">
+                    Menos de 2.5 Goles
+                  </Typography>
+                  <Box>
+                    <Chip
+                      label={`${(
+                        details.prediction.under_25_probability * 100
+                      ).toFixed(0)}%`}
+                      color={
+                        details.prediction.under_25_probability > 0.5
+                          ? "error"
+                          : "default"
+                      }
+                      size="small"
+                      sx={{ fontWeight: "bold" }}
+                    />
+                  </Box>
+                </Grid>
+              </Grid>
+
+              <Divider sx={{ my: 2 }} />
+
+              {/* Row 3: Expected Goals */}
+              <Grid container spacing={2}>
+                <Grid item xs={6} textAlign="center">
+                  <Typography variant="caption" color="text.secondary">
+                    Goles Esperados Local
+                  </Typography>
+                  <Typography variant="h6" color="primary.main">
+                    {details.prediction.predicted_home_goals.toFixed(1)}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6} textAlign="center">
+                  <Typography variant="caption" color="text.secondary">
+                    Goles Esperados Visitante
+                  </Typography>
+                  <Typography variant="h6" color="primary.main">
+                    {details.prediction.predicted_away_goals.toFixed(1)}
+                  </Typography>
+                </Grid>
+              </Grid>
             </Paper>
 
-            {/* Prediction Info */}
+            {/* Recommendation Section */}
             <Box mt={3}>
               <Typography variant="subtitle1" gutterBottom>
-                Predicción Previa
+                Recomendación
               </Typography>
               <Paper
                 elevation={0}
@@ -150,33 +233,10 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                   borderRadius: 1,
                 }}
               >
-                <Grid container spacing={2}>
+                <Grid container spacing={2} alignItems="center">
                   <Grid item xs={6}>
                     <Typography variant="caption" color="text.secondary">
-                      Probabilidad Local
-                    </Typography>
-                    <Typography variant="body1">
-                      {(details.prediction.home_win_probability * 100).toFixed(
-                        0
-                      )}
-                      %
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="caption" color="text.secondary">
-                      Probabilidad Visitante
-                    </Typography>
-                    <Typography variant="body1">
-                      {(details.prediction.away_win_probability * 100).toFixed(
-                        0
-                      )}
-                      %
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={12}>
-                    <Divider sx={{ my: 1 }} />
-                    <Typography variant="caption" color="text.secondary">
-                      Recomendación
+                      Resultado
                     </Typography>
                     <Typography
                       variant="body1"
@@ -184,6 +244,27 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                       fontWeight="bold"
                     >
                       {details.prediction.recommended_bet}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="caption" color="text.secondary">
+                      Goles
+                    </Typography>
+                    <Typography
+                      variant="body1"
+                      color="secondary.main"
+                      fontWeight="bold"
+                    >
+                      {details.prediction.over_under_recommendation}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Divider sx={{ my: 1 }} />
+                    <Typography variant="caption" color="text.secondary">
+                      Índice de Confianza
+                    </Typography>
+                    <Typography variant="body1" fontWeight="bold">
+                      {(details.prediction.confidence * 100).toFixed(0)}%
                     </Typography>
                   </Grid>
                 </Grid>
