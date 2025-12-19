@@ -11,6 +11,7 @@ from src.infrastructure.data_sources.football_data_uk import FootballDataUKSourc
 from src.infrastructure.data_sources.api_football import APIFootballSource
 from src.infrastructure.data_sources.football_data_org import FootballDataOrgSource
 from src.infrastructure.data_sources.openfootball import OpenFootballSource
+from src.infrastructure.cache.cache_service import CacheService, get_cache_service
 from src.domain.services.prediction_service import PredictionService
 from src.domain.services.statistics_service import StatisticsService
 from src.application.use_cases.use_cases import DataSources

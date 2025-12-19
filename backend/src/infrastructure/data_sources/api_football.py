@@ -69,6 +69,14 @@ LEAGUE_ID_MAPPING = {
     "SUD": 11,  # Copa Sudamericana
 }
 
+# Target leagues for live matches filtering (Premier League, La Liga, Serie A, Bundesliga)
+TARGET_LEAGUE_IDS = {
+    39,   # Premier League
+    140,  # La Liga
+    135,  # Serie A
+    78,   # Bundesliga
+}
+
 
 class APIFootballSource:
     """
@@ -358,6 +366,60 @@ class APIFootballSource:
                 logger.debug(f"Error parsing live fixture: {e}")
                 continue
         
+        return matches
+    
+    async def get_live_matches_filtered(
+        self, 
+        league_ids: Optional[Set[int]] = None,
+        include_stats: bool = True,
+    ) -> list[Match]:
+        """
+        Get live matches filtered by specific leagues.
+        
+        Optimized for frontend with faster response times.
+        
+        Args:
+            league_ids: Set of API-Football league IDs to filter.
+                       If None, uses TARGET_LEAGUE_IDS (top 4 leagues).
+            include_stats: Whether to include match statistics
+            
+        Returns:
+            List of active Match entities from target leagues
+        """
+        if league_ids is None:
+            league_ids = TARGET_LEAGUE_IDS
+        
+        # Fetch live matches
+        data = await self._make_request("/fixtures", {
+            "live": "all",
+        })
+        
+        if not data or not data.get("response"):
+            return []
+        
+        matches = []
+        for fixture in data["response"]:
+            try:
+                # Filter by league ID
+                fixture_league_id = fixture.get("league", {}).get("id")
+                if fixture_league_id not in league_ids:
+                    continue
+                
+                # Determine internal league code for mapping
+                league_code = "UNKNOWN"
+                for code, api_id in LEAGUE_ID_MAPPING.items():
+                    if api_id == fixture_league_id:
+                        league_code = code
+                        break
+                
+                match = self._parse_fixture(fixture, league_code, include_stats=include_stats)
+                if match:
+                    matches.append(match)
+            except Exception as e:
+                logger.debug(f"Error parsing filtered live fixture: {e}")
+                continue
+        
+        logger.info(f"Found {len(matches)} live matches in target leagues")
         return matches
     
     async def get_match_details(self, match_id: str) -> Optional[Match]:

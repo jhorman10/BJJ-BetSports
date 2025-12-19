@@ -12,6 +12,7 @@ import {
   League,
   MatchPrediction,
   Match,
+  LiveMatchPrediction,
 } from "../types";
 
 // API base URL from environment or default
@@ -106,6 +107,23 @@ export const api = {
    */
   async getLiveMatches(): Promise<Match[]> {
     const response = await apiClient.get<Match[]>("/api/v1/matches/live");
+    return response.data;
+  },
+
+  /**
+   * Get live matches with AI predictions
+   * Optimized for accuracy - uses caching for fast subsequent loads
+   */
+  async getLiveMatchesWithPredictions(
+    filterTargetLeagues: boolean = true
+  ): Promise<LiveMatchPrediction[]> {
+    const response = await apiClient.get<MatchPrediction[]>(
+      "/api/v1/matches/live/with-predictions",
+      {
+        params: { filter_target_leagues: filterTargetLeagues },
+        timeout: 10000, // 10s timeout for this endpoint
+      }
+    );
     return response.data;
   },
 

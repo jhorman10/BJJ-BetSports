@@ -86,3 +86,20 @@ export interface ApiError {
   message: string;
   details?: Record<string, unknown>;
 }
+
+/**
+ * Live match with prediction data
+ */
+export interface LiveMatchPrediction extends MatchPrediction {
+  isProcessing?: boolean;
+  processingMessage?: string;
+}
+
+/**
+ * Response for live matches with predictions endpoint
+ */
+export interface LiveMatchesResponse {
+  matches: LiveMatchPrediction[];
+  processingMessage: string;
+  lastUpdated: string;
+}
