@@ -18,9 +18,9 @@ import { SportsSoccer, GetApp } from "@mui/icons-material";
 import LeagueSelector from "./components/LeagueSelector";
 import PredictionGrid from "./components/PredictionGrid";
 import LiveMatchesList from "./components/MatchDetails/LiveMatchesList";
-import ParleySlip from "./components/Parley/ParleySlip";
+import ParleySlip, { ParleyPickItem } from "./components/Parley/ParleySlip";
 
-import { Country, MatchPrediction } from "./types";
+import { Country } from "./types";
 import {
   useLeagues,
   usePredictions,
@@ -46,12 +46,10 @@ type SortOption =
   | "home_probability"
   | "away_probability";
 
-// ... (existing code)
-
 const App: React.FC = () => {
   // Parley State
-  const [selectedParleyMatches, setSelectedParleyMatches] = useState<
-    Map<string, MatchPrediction>
+  const [selectedParleyPicks, setSelectedParleyPicks] = useState<
+    Map<string, ParleyPickItem>
   >(new Map());
   const [isParleySlipOpen, setIsParleySlipOpen] = useState(false);
 
@@ -233,13 +231,13 @@ const App: React.FC = () => {
           <>
             {/* Parley Slip replaces auto ParleySection */}
             <ParleySlip
-              selectedPredictions={Array.from(selectedParleyMatches.values())}
+              items={Array.from(selectedParleyPicks.values())}
               onRemove={(id) => {
-                const newMap = new Map(selectedParleyMatches);
+                const newMap = new Map(selectedParleyPicks);
                 newMap.delete(id);
-                setSelectedParleyMatches(newMap);
+                setSelectedParleyPicks(newMap);
               }}
-              onClear={() => setSelectedParleyMatches(new Map())}
+              onClear={() => setSelectedParleyPicks(new Map())}
               isOpen={isParleySlipOpen}
               onToggle={() => setIsParleySlipOpen(!isParleySlipOpen)}
             />
@@ -259,9 +257,9 @@ const App: React.FC = () => {
                 onSortChange={handleSortChange}
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
-                selectedMatchIds={Array.from(selectedParleyMatches.keys())}
-                onToggleMatchSelection={(match) => {
-                  const newMap = new Map(selectedParleyMatches);
+                selectedMatchIds={Array.from(selectedParleyPicks.keys())}
+                onToggleMatchSelection={(match, pick) => {
+                  const newMap = new Map(selectedParleyPicks);
                   if (newMap.has(match.match.id)) {
                     newMap.delete(match.match.id);
                   } else {
@@ -269,10 +267,13 @@ const App: React.FC = () => {
                       alert("Máximo 10 selecciones permitidas");
                       return;
                     }
-                    newMap.set(match.match.id, match);
-                    if (!isParleySlipOpen) setIsParleySlipOpen(true);
+
+                    if (pick) {
+                      newMap.set(match.match.id, pick);
+                      if (!isParleySlipOpen) setIsParleySlipOpen(true);
+                    }
                   }
-                  setSelectedParleyMatches(newMap);
+                  setSelectedParleyPicks(newMap);
                 }}
               />
             )}

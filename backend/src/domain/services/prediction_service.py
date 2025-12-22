@@ -406,6 +406,83 @@ class PredictionService:
         
         return sum(scores) / len(scores) if scores else 0.5
     
+    def calculate_corner_probabilities(
+        self,
+        home_stats: Optional[TeamStatistics],
+        away_stats: Optional[TeamStatistics],
+    ) -> tuple[float, float]:
+        """Calculate prob for Over/Under 9.5 corners."""
+        if not home_stats or not away_stats or home_stats.matches_played < 3 or away_stats.matches_played < 3:
+            return (0.0, 0.0)
+            
+        # Estimate expected corners (Heuristic: Home Avg + Away Avg)
+        # Global approx average is ~10.
+        avg_corners = home_stats.avg_corners_per_match + away_stats.avg_corners_per_match
+        if avg_corners == 0: avg_corners = 9.5 # Fallback
+        
+        # Use Poisson for > 9.5
+        under = 0.0
+        probs = self._get_poisson_distribution(avg_corners, 20)
+        for k in range(10): # 0 to 9
+            under += probs[k]
+            
+        over = 1.0 - under
+        return (round(over, 4), round(under, 4))
+
+    def calculate_card_probabilities(
+        self,
+        home_stats: Optional[TeamStatistics],
+        away_stats: Optional[TeamStatistics],
+    ) -> tuple[float, float]:
+        """Calculate prob for Over/Under 4.5 yellow cards."""
+        if not home_stats or not away_stats or home_stats.matches_played < 3 or away_stats.matches_played < 3:
+            return (0.0, 0.0)
+            
+        # Estimate expected cards
+        avg_cards = home_stats.avg_yellow_cards_per_match + away_stats.avg_yellow_cards_per_match
+        if avg_cards == 0: avg_cards = 4.0 # Fallback
+        
+        # Use Poisson for > 4.5
+        under = 0.0
+        probs = self._get_poisson_distribution(avg_cards, 15)
+        for k in range(5): # 0 to 4
+            under += probs[k]
+            
+        over = 1.0 - under
+        return (round(over, 4), round(under, 4))
+        
+    def calculate_handicap_probabilities(
+        self,
+        home_expected: float,
+        away_expected: float,
+    ) -> tuple[float, float, float]:
+        """
+        Calculate Asian Handicap probabilities using simulation/Poisson diff.
+        Returns: (line, home_beat_line_prob, away_beat_line_prob)
+        """
+        diff = home_expected - away_expected
+        # Determine strict line (nearest 0.5)
+        line = round(diff * 2) / 2
+        if line == 0: line = -0.5 # Default to home slight disadvantage if equal
+        
+        # If line is positive (e.g. +1.5), it means Home gets +1.5. 
+        # Usually spread is denoted as "Home -1.5" if Home is favorite.
+        # Let's standardize: Line is applied to Home score.
+        # Home Win Spread = P(Home + Line > Away)
+        
+        home_win_spread = 0.0
+        
+        max_goals = 10
+        home_probs = self._get_poisson_distribution(home_expected, max_goals)
+        away_probs = self._get_poisson_distribution(away_expected, max_goals)
+        
+        for h in range(max_goals + 1):
+            for a in range(max_goals + 1):
+                if (h + line) > a:
+                    home_win_spread += home_probs[h] * away_probs[a]
+                    
+        return (line, round(home_win_spread, 4), round(1.0 - home_win_spread, 4))
+
     def calculate_confidence(
         self,
         home_stats: Optional[TeamStatistics],
@@ -549,6 +626,15 @@ class PredictionService:
                     under_25_probability=0.0,
                     predicted_home_goals=0.0,
                     predicted_away_goals=0.0,
+                    
+                    over_95_corners_probability=0.0,
+                    under_95_corners_probability=0.0,
+                    over_45_cards_probability=0.0,
+                    under_45_cards_probability=0.0,
+                    handicap_line=0.0,
+                    handicap_home_probability=0.0,
+                    handicap_away_probability=0.0,
+
                     confidence=0.3, # Low confidence as it's just market implied
                     data_sources=["Mercado de Apuestas (Odds)"],
                 )
@@ -562,6 +648,15 @@ class PredictionService:
                 under_25_probability=0.0,
                 predicted_home_goals=0.0,
                 predicted_away_goals=0.0,
+                
+                over_95_corners_probability=0.0,
+                under_95_corners_probability=0.0,
+                over_45_cards_probability=0.0,
+                under_45_cards_probability=0.0,
+                handicap_line=0.0,
+                handicap_home_probability=0.0,
+                handicap_away_probability=0.0,
+
                 confidence=0.0,
                 data_sources=["Datos Insuficientes"],
             )
@@ -602,6 +697,15 @@ class PredictionService:
         if match.home_odds and match.draw_odds and match.away_odds:
             odds_obj = Odds(home=match.home_odds, draw=match.draw_odds, away=match.away_odds)
         
+        # Calculate Over/Under Corners (9.5)
+        over_95_corners, under_95_corners = self.calculate_corner_probabilities(home_stats, away_stats)
+        
+        # Calculate Over/Under Cards (4.5)
+        over_45_cards, under_45_cards = self.calculate_card_probabilities(home_stats, away_stats)
+        
+        # Calculate Handicap
+        handicap_line, handicap_home, handicap_away = self.calculate_handicap_probabilities(home_expected, away_expected)
+
         # Calculate confidence based on ACTUAL data quality
         confidence = self.calculate_confidence(
             home_stats,
@@ -620,6 +724,16 @@ class PredictionService:
             under_25_probability=round(under_25, 4),
             predicted_home_goals=round(home_expected, 2),
             predicted_away_goals=round(away_expected, 2),
+            
+            # New Fields
+            over_95_corners_probability=over_95_corners,
+            under_95_corners_probability=under_95_corners,
+            over_45_cards_probability=over_45_cards,
+            under_45_cards_probability=under_45_cards,
+            handicap_line=handicap_line,
+            handicap_home_probability=handicap_home,
+            handicap_away_probability=handicap_away,
+            
             confidence=round(confidence, 2),
             data_sources=data_sources or [],
         )

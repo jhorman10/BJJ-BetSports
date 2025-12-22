@@ -146,6 +146,16 @@ class Prediction:
     under_25_probability: float
     predicted_home_goals: float
     predicted_away_goals: float
+    # New Standard Probabilities
+    over_95_corners_probability: float
+    under_95_corners_probability: float
+    over_45_cards_probability: float
+    under_45_cards_probability: float
+    # Dynamic Handicap
+    handicap_line: float
+    handicap_home_probability: float
+    handicap_away_probability: float
+    
     confidence: float
     data_sources: list[str] = field(default_factory=list)
     created_at: datetime = field(default_factory=datetime.utcnow)

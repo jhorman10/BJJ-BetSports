@@ -19,8 +19,15 @@ import {
 } from "@mui/icons-material";
 import { MatchPrediction } from "../../types";
 
+export interface ParleyPickItem {
+  match: MatchPrediction;
+  pick: string; // '1', 'X', '2'
+  probability: number;
+  label: string; // e.g. "Local", "Empate", "Visitante"
+}
+
 interface ParleySlipProps {
-  selectedPredictions: MatchPrediction[];
+  items: ParleyPickItem[];
   onRemove: (matchId: string) => void;
   onClear: () => void;
   isOpen: boolean;
@@ -28,31 +35,18 @@ interface ParleySlipProps {
 }
 
 const ParleySlip: React.FC<ParleySlipProps> = ({
-  selectedPredictions,
+  items,
   onRemove,
   onClear,
   isOpen,
   onToggle,
 }) => {
   const stats = useMemo(() => {
-    if (selectedPredictions.length === 0)
-      return { totalProb: 0, combinedOdds: 0 };
+    if (items.length === 0) return { totalProb: 0, combinedOdds: 0 };
 
     // Simple probability multiplication (assuming independence)
-    const totalProb = selectedPredictions.reduce((acc, curr) => {
-      // Use the probability of the recommended bet
-      // Logic: If recommended is '1', use home_win, '2' away, 'X' draw
-      let prob = 0.5; // Default fallback
-      const rec = curr.prediction.recommended_bet;
-
-      if (rec === "1") prob = curr.prediction.home_win_probability;
-      else if (rec === "2") prob = curr.prediction.away_win_probability;
-      else if (rec === "X") prob = curr.prediction.draw_probability;
-      else if (rec === "Over 2.5") prob = curr.prediction.over_25_probability;
-      else if (rec === "Under 2.5") prob = curr.prediction.under_25_probability;
-      else prob = curr.prediction.confidence / 100; // Fallback to confidence
-
-      return acc * prob;
+    const totalProb = items.reduce((acc, curr) => {
+      return acc * curr.probability;
     }, 1.0);
 
     // Mock Odds Calculation (since we might not have exact odds for every market)
@@ -63,9 +57,9 @@ const ParleySlip: React.FC<ParleySlipProps> = ({
       totalProb: totalProb * 100,
       combinedOdds: combinedOdds.toFixed(2),
     };
-  }, [selectedPredictions]);
+  }, [items]);
 
-  if (selectedPredictions.length === 0) return null;
+  if (items.length === 0) return null;
 
   return (
     <Paper
@@ -104,7 +98,7 @@ const ParleySlip: React.FC<ParleySlipProps> = ({
             Mi Parley
           </Typography>
           <Chip
-            label={selectedPredictions.length}
+            label={items.length}
             size="small"
             color="primary"
             sx={{ ml: 1, height: 20, minWidth: 20 }}
@@ -119,9 +113,9 @@ const ParleySlip: React.FC<ParleySlipProps> = ({
       <Collapse in={isOpen}>
         <Box sx={{ p: 0, maxHeight: 400, overflowY: "auto" }}>
           <List disablePadding>
-            {selectedPredictions.map((item) => (
+            {items.map((item) => (
               <ListItem
-                key={item.match.id}
+                key={item.match.match.id}
                 sx={{
                   borderBottom: "1px solid rgba(255,255,255,0.05)",
                   flexDirection: "column",
@@ -138,13 +132,14 @@ const ParleySlip: React.FC<ParleySlipProps> = ({
                   }}
                 >
                   <Typography variant="caption" color="text.secondary">
-                    {item.match.home_team.name} vs {item.match.away_team.name}
+                    {item.match.match.home_team.name} vs{" "}
+                    {item.match.match.away_team.name}
                   </Typography>
                   <IconButton
                     size="small"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onRemove(item.match.id);
+                      onRemove(item.match.match.id);
                     }}
                     sx={{ p: 0.5, color: "error.main" }}
                   >
@@ -160,11 +155,19 @@ const ParleySlip: React.FC<ParleySlipProps> = ({
                     alignItems: "center",
                   }}
                 >
-                  <Typography variant="body2" color="white" fontWeight="bold">
-                    {item.prediction.recommended_bet}
-                  </Typography>
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <Chip
+                      label={item.pick}
+                      size="small"
+                      color="secondary"
+                      sx={{ fontWeight: "bold", height: 24, minWidth: 24 }}
+                    />
+                    <Typography variant="body2" color="white" fontWeight="bold">
+                      {item.label}
+                    </Typography>
+                  </Box>
                   <Chip
-                    label={`${item.prediction.confidence}%`}
+                    label={`${(item.probability * 100).toFixed(0)}%`}
                     size="small"
                     variant="outlined"
                     sx={{

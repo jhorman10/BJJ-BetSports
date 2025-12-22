@@ -46,6 +46,18 @@ export interface Prediction {
   under_25_probability: number;
   predicted_home_goals: number;
   predicted_away_goals: number;
+
+  // New Standard Probabilities
+  over_95_corners_probability?: number;
+  under_95_corners_probability?: number;
+  over_45_cards_probability?: number;
+  under_45_cards_probability?: number;
+
+  // Dynamic Handicap
+  handicap_line?: number;
+  handicap_home_probability?: number;
+  handicap_away_probability?: number;
+
   confidence: number;
   data_sources: string[];
   recommended_bet: string;

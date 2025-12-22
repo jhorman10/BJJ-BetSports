@@ -9,6 +9,8 @@ const MatchDetailsModal = lazy(
   () => import("../MatchDetails/MatchDetailsModal")
 );
 
+import { ParleyPickItem } from "../Parley/ParleySlip";
+
 interface PredictionGridProps {
   predictions: MatchPrediction[];
   league: League | null;
@@ -21,7 +23,11 @@ interface PredictionGridProps {
   onSearchChange: (query: string) => void;
 
   selectedMatchIds?: string[];
-  onToggleMatchSelection?: (match: MatchPrediction) => void;
+  onToggleMatchSelection?: (
+    match: MatchPrediction,
+    pick?: ParleyPickItem
+  ) => void;
+  onMatchClick?: (match: MatchPrediction) => void;
 }
 
 const emptyStateStyles = {
@@ -42,18 +48,18 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
     onSearchChange,
     selectedMatchIds = [],
     onToggleMatchSelection,
+    onMatchClick,
   }) => {
     const [selectedMatch, setSelectedMatch] =
       React.useState<MatchPrediction | null>(null);
     const [modalOpen, setModalOpen] = React.useState(false);
 
-    // Filter predictions based on search and live status
+    // ... (filteredPredictions useMemo)
     const filteredPredictions = useMemo(() => {
-      // If we are showing live only, filtered list is handled by LiveMatchesList component mostly,
-      // but for the 'grid' view logic below, we might want to know if there are matches.
-      // However, LiveMatchesList fetches its own data.
-
-      // Filter the PROPS predictions (standard predictions)
+      // ... (existing filter code)
+      // Note: 'Live Only' now toggles the view to the LiveMatchesList component
+      // which fetches its own real-time data.
+      // We ensure we don't double filter if the user just wants to see the grid but searched.
       return predictions.filter((p) => {
         const matchesSearch =
           searchQuery === "" ||
@@ -63,18 +69,96 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
           p.match.away_team.name
             .toLowerCase()
             .includes(searchQuery.toLowerCase());
-
-        // Note: 'Live Only' now toggles the view to the LiveMatchesList component
-        // which fetches its own real-time data.
-        // We ensure we don't double filter if the user just wants to see the grid but searched.
         return matchesSearch;
       });
     }, [predictions, searchQuery]);
 
-    const handleMatchClick = useCallback((matchPrediction: MatchPrediction) => {
-      setSelectedMatch(matchPrediction);
-      setModalOpen(true);
-    }, []);
+    const handleMatchClick = useCallback(
+      (matchPrediction: MatchPrediction) => {
+        if (onMatchClick) {
+          onMatchClick(matchPrediction);
+        } else {
+          setSelectedMatch(matchPrediction);
+          setModalOpen(true);
+        }
+      },
+      [onMatchClick]
+    );
+
+    const handleToggleSelection = useCallback(
+      (match: MatchPrediction) => {
+        if (!onToggleMatchSelection) return;
+
+        // Calculate Best Pick Logic (Moved from App.tsx)
+        const p = match.prediction;
+        const probs = [
+          // 1X2
+          { type: "1", val: p.home_win_probability, label: "Local" },
+          { type: "X", val: p.draw_probability, label: "Empate" },
+          { type: "2", val: p.away_win_probability, label: "Visitante" },
+          // Goals
+          { type: "O2.5", val: p.over_25_probability, label: "Más 2.5 Goles" },
+          {
+            type: "U2.5",
+            val: p.under_25_probability,
+            label: "Menos 2.5 Goles",
+          },
+          // Corners
+          {
+            type: "O9.5Cor",
+            val: p.over_95_corners_probability || 0,
+            label: "Más 9.5 Corners",
+          },
+          {
+            type: "U9.5Cor",
+            val: p.under_95_corners_probability || 0,
+            label: "Menos 9.5 Corners",
+          },
+          // Cards
+          {
+            type: "O4.5Card",
+            val: p.over_45_cards_probability || 0,
+            label: "Más 4.5 Tarjetas",
+          },
+          {
+            type: "U4.5Card",
+            val: p.under_45_cards_probability || 0,
+            label: "Menos 4.5 Tarjetas",
+          },
+          // Handicap
+          {
+            type: "AhHome",
+            val: p.handicap_home_probability || 0,
+            label: `Local (${
+              p.handicap_line && p.handicap_line > 0 ? "+" : ""
+            }${p.handicap_line || 0})`,
+          },
+          {
+            type: "AhAway",
+            val: p.handicap_away_probability || 0,
+            label: `Visitante (${
+              p.handicap_line
+                ? (p.handicap_line * -1 > 0 ? "+" : "") + p.handicap_line * -1
+                : 0
+            })`,
+          },
+        ];
+
+        // Sort descending
+        probs.sort((a, b) => b.val - a.val);
+        const best = probs[0];
+
+        const pickItem: ParleyPickItem = {
+          match: match,
+          pick: best.type,
+          probability: best.val,
+          label: best.label,
+        };
+
+        onToggleMatchSelection(match, pickItem);
+      },
+      [onToggleMatchSelection]
+    );
 
     const handleCloseModal = useCallback(() => {
       setModalOpen(false);
@@ -194,7 +278,7 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
           predictions={sortedPredictions}
           onMatchClick={handleMatchClick}
           selectedMatchIds={selectedMatchIds}
-          onToggleMatchSelection={onToggleMatchSelection}
+          onToggleMatchSelection={handleToggleSelection}
         />
 
         {/* Modal */}
