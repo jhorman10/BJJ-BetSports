@@ -30,11 +30,9 @@ class PredictionService:
     
     Uses a combination of Poisson distribution for expected goals
     and statistical analysis for match outcomes.
-    """
     
-    # Default league averages (used when actual data is unavailable)
-    DEFAULT_HOME_GOALS = 1.5
-    DEFAULT_AWAY_GOALS = 1.1
+    STRICT: Only uses REAL data. Returns zeros when insufficient data.
+    """
     
     def __init__(self):
         """Initialize the prediction service."""
@@ -472,68 +470,42 @@ class PredictionService:
         data_sources: Optional[list[str]] = None,
     ) -> Prediction:
         """
-        Generate a complete prediction for a match.
+        Generate a prediction for a match using ONLY real data.
+        
+        If historical data is insufficient, returns zeros/empty values
+        instead of fake defaults.
         
         Args:
             match: The match to predict
-            home_stats: Historical stats for home team
-            away_stats: Historical stats for away team
-            league_averages: League average goals
+            home_stats: Historical stats for home team (None if unavailable)
+            away_stats: Historical stats for away team (None if unavailable)
+            league_averages: League average goals (None if unavailable)
             data_sources: List of data sources used
             
         Returns:
-            Complete Prediction object
+            Prediction object (with zeros if no data available)
         """
-        if league_averages is None:
-            league_averages = LeagueAverages(
-                avg_home_goals=self.DEFAULT_HOME_GOALS,
-                avg_away_goals=self.DEFAULT_AWAY_GOALS,
-                avg_total_goals=self.DEFAULT_HOME_GOALS + self.DEFAULT_AWAY_GOALS,
-            )
-        
-        # Check for sufficient data
+        # Check for sufficient data - STRICT: require both teams AND league data
         home_played = home_stats.matches_played if home_stats else 0
         away_played = away_stats.matches_played if away_stats else 0
+        has_league_data = league_averages is not None
         
-        # If either team has NO history, we cannot calculate a "real" prediction.
-        # Returning defaults (1.5/1.1) is misleading.
-        # If either team has NO history, use default league averages for that team
-        # This ensures we always return a prediction based on league context
-        use_default_home = home_played == 0
-        use_default_away = away_played == 0
-        
-        # Create default stats based on league averages if needed
-        if use_default_home:
-            home_stats = TeamStatistics(
-                team_id=match.home_team.id,
-                matches_played=10,  # Assume average sample
-                wins=4,
-                draws=3,
-                losses=3,
-                goals_scored=int(league_averages.avg_home_goals * 10),
-                goals_conceded=int(league_averages.avg_away_goals * 10),
-                recent_form="",
-                total_corners=50,  # Liga average ~5 per game
-                total_yellow_cards=15,  # Liga average ~1.5 per game
-                total_red_cards=1,
+        # If insufficient data, return empty prediction (no fake values)
+        if home_played < 3 or away_played < 3 or not has_league_data:
+            return Prediction(
+                match_id=match.id,
+                home_win_probability=0.0,
+                draw_probability=0.0,
+                away_win_probability=0.0,
+                over_25_probability=0.0,
+                under_25_probability=0.0,
+                predicted_home_goals=0.0,
+                predicted_away_goals=0.0,
+                confidence=0.0,
+                data_sources=["Datos Insuficientes"],
             )
         
-        if use_default_away:
-            away_stats = TeamStatistics(
-                team_id=match.away_team.id,
-                matches_played=10,
-                wins=3,
-                draws=3,
-                losses=4,
-                goals_scored=int(league_averages.avg_away_goals * 10),
-                goals_conceded=int(league_averages.avg_home_goals * 10),
-                recent_form="",
-                total_corners=45,
-                total_yellow_cards=18,
-                total_red_cards=1,
-            )
-
-        # Calculate team strengths
+        # Calculate team strengths (using REAL data only)
         home_strength = self.calculate_team_strength(
             home_stats, league_averages, is_home=True
         )
@@ -569,21 +541,14 @@ class PredictionService:
         if match.home_odds and match.draw_odds and match.away_odds:
             odds_obj = Odds(home=match.home_odds, draw=match.draw_odds, away=match.away_odds)
         
-        # Calculate confidence - reduce if using defaults
+        # Calculate confidence based on ACTUAL data quality
         confidence = self.calculate_confidence(
-            home_stats if not use_default_home else None,
-            away_stats if not use_default_away else None,
+            home_stats,
+            away_stats,
             has_odds=match.home_odds is not None,
             calculated_probs=(home_win, draw, away_win),
             odds=odds_obj,
         )
-        
-        # If using defaults, cap confidence and mark sources
-        active_sources = data_sources or []
-        if use_default_home or use_default_away:
-            confidence = min(confidence, 0.35)  # Cap at 35% for limited data
-            if not active_sources:
-                active_sources = ["Promedios de Liga"]
         
         return Prediction(
             match_id=match.id,
@@ -595,5 +560,5 @@ class PredictionService:
             predicted_home_goals=round(home_expected, 2),
             predicted_away_goals=round(away_expected, 2),
             confidence=round(confidence, 2),
-            data_sources=active_sources,
+            data_sources=data_sources or [],
         )

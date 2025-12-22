@@ -110,34 +110,54 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
               Probabilidades
             </Typography>
             <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-              <Grid container spacing={2}>
-                <Grid item xs={4} textAlign="center">
+              {details.prediction.confidence === 0 ? (
+                <Box textAlign="center" py={2}>
+                  <Typography color="warning.main" fontWeight="bold">
+                    ⚠️ Datos insuficientes
+                  </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Local (1)
+                    No hay suficiente historial para calcular probabilidades
+                    reales.
                   </Typography>
-                  <Typography variant="h5" fontWeight="bold" color="primary">
-                    {(details.prediction.home_win_probability * 100).toFixed(0)}
-                    %
-                  </Typography>
+                </Box>
+              ) : (
+                <Grid container spacing={2}>
+                  <Grid item xs={4} textAlign="center">
+                    <Typography variant="body2" color="text.secondary">
+                      Local (1)
+                    </Typography>
+                    <Typography variant="h5" fontWeight="bold" color="primary">
+                      {(details.prediction.home_win_probability * 100).toFixed(
+                        0
+                      )}
+                      %
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={4} textAlign="center">
+                    <Typography variant="body2" color="text.secondary">
+                      Empate (X)
+                    </Typography>
+                    <Typography
+                      variant="h5"
+                      fontWeight="bold"
+                      color="secondary"
+                    >
+                      {(details.prediction.draw_probability * 100).toFixed(0)}%
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={4} textAlign="center">
+                    <Typography variant="body2" color="text.secondary">
+                      Visitante (2)
+                    </Typography>
+                    <Typography variant="h5" fontWeight="bold" color="error">
+                      {(details.prediction.away_win_probability * 100).toFixed(
+                        0
+                      )}
+                      %
+                    </Typography>
+                  </Grid>
                 </Grid>
-                <Grid item xs={4} textAlign="center">
-                  <Typography variant="body2" color="text.secondary">
-                    Empate (X)
-                  </Typography>
-                  <Typography variant="h5" fontWeight="bold" color="secondary">
-                    {(details.prediction.draw_probability * 100).toFixed(0)}%
-                  </Typography>
-                </Grid>
-                <Grid item xs={4} textAlign="center">
-                  <Typography variant="body2" color="text.secondary">
-                    Visitante (2)
-                  </Typography>
-                  <Typography variant="h5" fontWeight="bold" color="error">
-                    {(details.prediction.away_win_probability * 100).toFixed(0)}
-                    %
-                  </Typography>
-                </Grid>
-              </Grid>
+              )}
             </Paper>
 
             {/* Goles Esperados */}
