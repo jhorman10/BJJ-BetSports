@@ -54,56 +54,74 @@ const PickRow: React.FC<{ pick: SuggestedPick }> = ({ pick }) => {
   const color = getPickColor(pick.probability);
 
   return (
-    <Box
-      sx={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        py: 1,
-        px: 1.5,
-        borderLeft: `3px solid ${color}`,
-        bgcolor: `${color}15`,
-        borderRadius: "8px",
-        mb: 1,
-        transition: "all 0.2s ease",
-        "&:hover": {
-          bgcolor: `${color}25`,
-          transform: "translateX(2px)",
-        },
-      }}
-    >
-      <Box display="flex" alignItems="center" gap={1} flex={1}>
-        <Typography sx={{ fontSize: "1rem" }}>
-          {getMarketIcon(pick.market_type)}
-        </Typography>
-        <Typography
-          variant="body2"
+    <>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          py: 1,
+          px: 1.5,
+          borderLeft: `3px solid ${color}`,
+          bgcolor: `${color}15`,
+          borderRadius: "8px",
+          mb: 1,
+          transition: "all 0.2s ease",
+          "&:hover": {
+            bgcolor: `${color}25`,
+            transform: "translateX(2px)",
+          },
+        }}
+      >
+        <Box display="flex" alignItems="center" gap={1} flex={1}>
+          <Typography sx={{ fontSize: "1rem" }}>
+            {getMarketIcon(pick.market_type)}
+          </Typography>
+          <Typography
+            variant="body2"
+            sx={{
+              fontWeight: 600,
+              color: "#ffffff",
+              fontSize: "0.85rem",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {pick.market_label}
+          </Typography>
+        </Box>
+        <Chip
+          label={`${(pick.probability * 100).toFixed(0)}%`}
+          size="small"
           sx={{
-            fontWeight: 600,
-            color: "#ffffff",
-            fontSize: "0.85rem",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
+            bgcolor: color,
+            color: "white",
+            fontWeight: 700,
+            fontSize: "0.75rem",
+            height: 24,
+            minWidth: 45,
+            "& .MuiChip-label": { px: 1 },
+          }}
+        />
+      </Box>
+      {pick.reasoning && (
+        <Typography
+          variant="caption"
+          sx={{
+            display: "block",
+            fontSize: "0.75rem",
+            color: "rgba(255,255,255,0.6)",
+            mt: -0.5,
+            mb: 1.5,
+            pl: 1,
+            fontStyle: "italic",
           }}
         >
-          {pick.market_label}
+          {pick.reasoning}
         </Typography>
-      </Box>
-      <Chip
-        label={`${(pick.probability * 100).toFixed(0)}%`}
-        size="small"
-        sx={{
-          bgcolor: color,
-          color: "white",
-          fontWeight: 700,
-          fontSize: "0.75rem",
-          height: 24,
-          minWidth: 45,
-          "& .MuiChip-label": { px: 1 },
-        }}
-      />
-    </Box>
+      )}
+    </>
   );
 };
 
@@ -146,8 +164,12 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
   // Sort picks by probability (highest first)
   const sortedPicks = useMemo(() => {
     if (!apiPicks?.suggested_picks) return [];
+    // FIX: Use priority_score to respect backend's market weighting logic.
+    // If priority_score is missing, fallback to raw probability.
     return [...apiPicks.suggested_picks].sort(
-      (a, b) => b.probability - a.probability
+      (a, b) =>
+        (b.priority_score || b.probability) -
+        (a.priority_score || a.probability)
     );
   }, [apiPicks]);
 

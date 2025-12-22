@@ -6,6 +6,7 @@ market prioritization based on historical performance and feedback rules.
 """
 
 import math
+import functools
 from typing import Optional
 from src.domain.entities.entities import Match, TeamStatistics
 from src.domain.entities.suggested_pick import (
@@ -106,44 +107,16 @@ class PicksService:
             for pick in corners_picks:
                 picks.add_pick(pick)
         
-        # Always try individual team corners if we don't have enough combined data OR just to add variety
-        # But ensure we don't duplicate
-        if not picks.has_market(MarketType.CORNERS_OVER): 
-             if has_home_stats:
-                home_corners = self._generate_single_team_corners(home_stats, match, is_home=True)
-                if home_corners:
-                    picks.add_pick(home_corners)
-
-             if has_away_stats:
-                away_corners = self._generate_single_team_corners(away_stats, match, is_home=False)
-                if away_corners:
-                    picks.add_pick(away_corners)
-        
-        # 2. Generate yellow cards picks
-        if has_home_stats and has_away_stats:
+            # Generate cards picks
             cards_picks = self._generate_cards_picks(home_stats, away_stats, match)
             for pick in cards_picks:
                 picks.add_pick(pick)
+            
+            # Generate red card pick
+            red_card_pick = self._generate_red_cards_pick(home_stats, away_stats, match)
+            if red_card_pick:
+                picks.add_pick(red_card_pick)
         
-        # Always try individual team cards if needed
-        if not picks.has_market(MarketType.CARDS_OVER):
-            if has_home_stats:
-                home_cards = self._generate_single_team_cards(home_stats, match, is_home=True)
-                if home_cards:
-                    picks.add_pick(home_cards)
-
-            if has_away_stats:
-                away_cards = self._generate_single_team_cards(away_stats, match, is_home=False)
-                if away_cards:
-                    picks.add_pick(away_cards)
-        
-        # 3. Generate red cards pick
-        if has_home_stats and has_away_stats:
-            red_cards_pick = self._generate_red_cards_pick(home_stats, away_stats, match)
-            if red_cards_pick:
-                picks.add_pick(red_cards_pick)
-        
-        # 4. Prediction-based picks
         # 4. Prediction-based picks (Winner/Goals)
         # We can generate winner picks if we have probability (even from odds), 
         # but Goals picks require goal stats.
@@ -172,10 +145,15 @@ class PicksService:
             for pick in goals_picks:
                 picks.add_pick(pick)
         
-        if not picks.suggested_picks:
-            # We strictly respect "no invented data". 
-            # If no real stats generated picks, we return empty.
-            pass
+        # CRITICAL FIX: If we have odds-based picks, return them even if no stats!
+        # The previous 'pass' block was doing nothing, but we want to ensure we don't return empty if we have *something*.
+        if not picks.suggested_picks and home_win_prob > 0:
+             # If we still have nothing but have probabilities, try harder to get a winner pick
+             winner_pick = self._generate_winner_pick(
+                match, home_win_prob, draw_prob, away_win_prob
+            )
+             if winner_pick:
+                picks.add_pick(winner_pick)
             
         return picks
     
@@ -284,10 +262,14 @@ class PicksService:
                     priority_score=priority_score,
                 )
                 picks.append(pick)
-                # Removed break to allow multiple valid thresholds as requested
-
         
-        return picks
+        # User Request: Return ONLY the pick with highest probability
+        if picks:
+            # Sort by probability descending
+            picks.sort(key=lambda x: x.probability, reverse=True)
+            return [picks[0]]
+            
+        return []
     
     def _generate_cards_picks(
         self,
@@ -304,6 +286,8 @@ class PicksService:
         
         if total_avg == 0:
             return picks
+            
+        potential_picks = []
         
         # Find best threshold
         for threshold in self.CARD_THRESHOLDS:
@@ -330,9 +314,12 @@ class PicksService:
                     is_recommended=adjusted_prob > 0.60,
                     priority_score=priority_score,
                 )
-                picks.append(pick)
-                picks.append(pick)
-                # Removed break to allow multiple thresholds
+                potential_picks.append(pick)
+        
+        # Select best overall card pick
+        if potential_picks:
+            potential_picks.sort(key=lambda x: x.probability, reverse=True)
+            picks.append(potential_picks[0])
         
         # Also generate team-specific card picks
         for team_name, team_avg, is_home in [
@@ -383,7 +370,8 @@ class PicksService:
         for handicap in self.VA_HANDICAPS:
             # Calculate probability of covering handicap
             # VA (+X) means team can lose by up to X-1 goals
-            probability = self._calculate_va_probability(goal_diff, handicap)
+            total_expected = predicted_home + predicted_away
+            probability = self._calculate_va_probability(goal_diff, handicap, total_expected)
             
             adj = self.learning_weights.get_market_adjustment(MarketType.VA_HANDICAP.value)
             adjusted_prob = min(1.0, probability * adj)
@@ -406,7 +394,6 @@ class PicksService:
                     is_recommended=adjusted_prob > 0.70,
                     priority_score=priority_score,
                 )
-                picks.append(pick)
                 picks.append(pick)
                 # Removed break to allow multiple handicap options
         
@@ -486,27 +473,38 @@ class PicksService:
         
         return picks
     
-    def _poisson_over_probability(self, expected: float, threshold: float) -> float:
-        """Calculate probability of over threshold using Poisson distribution."""
+    @staticmethod
+    @functools.lru_cache(maxsize=1024)
+    def _poisson_over_probability(expected: float, threshold: float) -> float:
+        """Calculate probability of over threshold using Poisson distribution (Optimized)."""
         if expected <= 0:
             return 0.0
         
-        under_prob = 0.0
-        # Sum probabilities from 0 to threshold (rounded down)
-        for k in range(int(threshold) + 1):
-            under_prob += (math.pow(expected, k) * math.exp(-expected)) / math.factorial(k)
+        # Optimization: Calculate Poisson iteratively to avoid expensive factorial/pow calls
+        # P(k) = (lambda^k * e^-lambda) / k!
+        # P(k) = P(k-1) * lambda / k
+        p_k = math.exp(-expected)  # Probability for k=0
+        under_prob = p_k
         
+        for k in range(1, int(threshold) + 1):
+            p_k *= expected / k
+            under_prob += p_k
+            
         return 1 - under_prob
     
-    def _calculate_va_probability(self, goal_diff: float, handicap: float) -> float:
+    @staticmethod
+    @functools.lru_cache(maxsize=1024)
+    def _calculate_va_probability(goal_diff: float, handicap: float, total_expected: float = 2.5) -> float:
         """
         Calculate probability of covering VA handicap.
         
         VA (+X) wins if: actual_diff + X > 0
         So we need actual_diff > -X
         """
-        # Use normal approximation for goal difference
-        std_dev = 1.3  # Typical std dev for goal difference
+        # Use Skellam approximation for goal difference variance
+        # Variance of (Home - Away) = Var(Home) + Var(Away)
+        # For Poisson, Var = Mean. So Var(Diff) = ExpHome + ExpAway = TotalExpected
+        std_dev = math.sqrt(total_expected) if total_expected > 0 else 1.3
         
         # Need to beat -handicap threshold
         z_score = (goal_diff - (-handicap)) / std_dev
@@ -514,7 +512,8 @@ class PicksService:
         # Approximate normal CDF
         return 0.5 * (1 + math.erf(z_score / math.sqrt(2)))
     
-    def _calculate_risk_level(self, probability: float) -> int:
+    @staticmethod
+    def _calculate_risk_level(probability: float) -> int:
         """Calculate risk level (1-5) from probability."""
         if probability > 0.80:
             return 1
@@ -633,39 +632,50 @@ class PicksService:
         
         goal_diff = predicted_home - predicted_away
         
-        # Determine dominant team
+        # Determine dominant team and align goal_diff relative to that team
         if home_win_prob > away_win_prob + 0.10:
-            team_name = "Local"
-            dominant_prob = home_win_prob
+            team_name = match.home_team.name
+            # Goal diff relative to Home is already set
         elif away_win_prob > home_win_prob + 0.10:
-            team_name = "Visitante"
+            team_name = match.away_team.name
+            # Goal diff relative to Away
             goal_diff = -goal_diff
-            dominant_prob = away_win_prob
         else:
-            team_name = "Local"
-            dominant_prob = max(home_win_prob, away_win_prob)
+            # Balanced match - pick the one with positive diff, or Home if 0
+            if goal_diff >= 0:
+                team_name = match.home_team.name
+            else:
+                team_name = match.away_team.name
+                goal_diff = -goal_diff
         
-        # VA (+2) probability
-        handicap = 2.0
-        va_prob = self._calculate_va_probability(abs(goal_diff), handicap)
-        adjusted_prob = min(0.85, va_prob * dominant_prob * 1.3)
-        adjusted_prob = max(0.55, adjusted_prob)
+        total_expected = predicted_home + predicted_away
         
-        confidence = SuggestedPick.get_confidence_level(adjusted_prob)
-        risk = self._calculate_risk_level(adjusted_prob)
-        
-        pick = SuggestedPick(
-            market_type=MarketType.VA_HANDICAP,
-            market_label=f"Hándicap VA (+2) - {team_name}",
-            probability=round(adjusted_prob, 3),
-            confidence_level=confidence,
-            reasoning=f"Ventaja para el equipo {team_name.lower()} con hándicap asiático. "
-                      f"Diferencia de goles esperada: {abs(goal_diff):.1f}",
-            risk_level=risk,
-            is_recommended=adjusted_prob > 0.65,
-            priority_score=adjusted_prob * self.MARKET_PRIORITY[MarketType.VA_HANDICAP],
-        )
-        picks.append(pick)
+        # Iterate over all available handicaps instead of hardcoding 2.0
+        for handicap in self.VA_HANDICAPS:
+            # FIX: Use signed goal_diff, not abs(). 
+            # If selected team is actually underdog (negative diff), we want that reflected.
+            va_prob = self._calculate_va_probability(goal_diff, handicap, total_expected)
+            
+            # Use the calculated probability directly, but cap it slightly to account for uncertainty
+            adjusted_prob = min(0.95, va_prob)
+            adjusted_prob = max(0.55, adjusted_prob)
+            
+            if adjusted_prob > 0.60:
+                confidence = SuggestedPick.get_confidence_level(adjusted_prob)
+                risk = self._calculate_risk_level(adjusted_prob)
+                
+                pick = SuggestedPick(
+                    market_type=MarketType.VA_HANDICAP,
+                    market_label=f"Hándicap VA (+{handicap}) - {team_name.split()[0]}",
+                    probability=round(adjusted_prob, 3),
+                    confidence_level=confidence,
+                    reasoning=f"Ventaja para {team_name} con hándicap asiático. "
+                              f"Diferencia de goles esperada: {abs(goal_diff):.1f}",
+                    risk_level=risk,
+                    is_recommended=adjusted_prob > 0.65,
+                    priority_score=adjusted_prob * self.MARKET_PRIORITY[MarketType.VA_HANDICAP],
+                )
+                picks.append(pick)
         
         return picks
     

@@ -62,21 +62,23 @@ class PredictionService:
         if team_stats.matches_played == 0:
             return TeamStrength(attack_strength=1.0, defense_strength=1.0)
         
-        # Attack strength = team's goals scored / league average goals
-        attack = team_stats.goals_per_match / league_averages.avg_total_goals * 2
+        # Correct Poisson Normalization:
+        # Compare stats against the specific venue average (Home vs Away)
+        # to correctly capture relative strength without double-counting home advantage.
         
-        # Defense strength = team's goals conceded / league average goals
-        # Lower is better, but we invert for calculation
-        defense = team_stats.goals_conceded_per_match / league_averages.avg_total_goals * 2
-        
-        # NOTE: We previously applied a manual 1.1/0.9 multiplier here.
-        # However, checking the math: Expected Goals formula ALREADY multiplies by
-        # League Average Home Goals (e.g. 1.5).
-        # Since we calculated 'attack' relative to the GLOBAL average (2.6),
-        # the 'League Average Home Goals' factor (1.5) provides the necessary skew.
-        # Adding another multiplier (1.1) resulted in double-counting home advantage
-        # (predicting 1.65 goals for an avg team instead of 1.5).
-        # We now trust the Base Rate (LeagueAverages) to handle Home Advantage.
+        if is_home:
+            # Home Attack vs League Avg Home Goals
+            avg_goals_scored = league_averages.avg_home_goals if league_averages.avg_home_goals > 0 else 1.5
+            # Home Defense vs League Avg Away Goals (what visitors usually score)
+            avg_goals_conceded = league_averages.avg_away_goals if league_averages.avg_away_goals > 0 else 1.2
+        else:
+            # Away Attack vs League Avg Away Goals
+            avg_goals_scored = league_averages.avg_away_goals if league_averages.avg_away_goals > 0 else 1.2
+            # Away Defense vs League Avg Home Goals (what hosts usually score)
+            avg_goals_conceded = league_averages.avg_home_goals if league_averages.avg_home_goals > 0 else 1.5
+            
+        attack = team_stats.goals_per_match / avg_goals_scored
+        defense = team_stats.goals_conceded_per_match / avg_goals_conceded
         
         return TeamStrength(
             attack_strength=max(0.1, attack),
@@ -485,9 +487,20 @@ class PredictionService:
         Returns:
             Prediction object (with zeros if no data available)
         """
-        # Check for sufficient data - STRICT: require both teams AND league data
+        # Check for sufficient data - STRICT: require both teams AND league data (or use defaults)
         home_played = home_stats.matches_played if home_stats else 0
         away_played = away_stats.matches_played if away_stats else 0
+        
+        # FIX: If league_averages is None but we have Stats, use a default global average
+        if not league_averages and (home_played >= 3 and away_played >= 3):
+            # Global average ~2.6-2.7 goals. Home typically 1.5, Away 1.2
+            from src.domain.value_objects.value_objects import LeagueAverages
+            league_averages = LeagueAverages(
+                avg_home_goals=1.50,
+                avg_away_goals=1.20,
+                avg_total_goals=2.70
+            ) 
+
         has_league_data = league_averages is not None
         
         # If insufficient data, return empty prediction (no fake values)

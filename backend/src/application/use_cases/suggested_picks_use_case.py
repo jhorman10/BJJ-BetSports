@@ -144,12 +144,21 @@ class GetSuggestedPicksUseCase:
         api_id_to_code = {v: k for k, v in LEAGUE_ID_MAPPING.items()}
         
         internal_league_code = None
-        try:
-            lid = int(match.league.id)
-            if lid in api_id_to_code:
-                internal_league_code = api_id_to_code[lid]
-        except (ValueError, TypeError):
-            pass
+        
+        # Check if ID is already a valid internal code (e.g. "E1")
+        from src.infrastructure.data_sources.football_data_uk import LEAGUES_METADATA
+        if match.league.id in LEAGUES_METADATA:
+            internal_league_code = match.league.id
+        else:
+            # Try mapping from integer ID
+            try:
+                lid = int(match.league.id)
+                if lid in api_id_to_code:
+                    internal_league_code = api_id_to_code[lid]
+            except (ValueError, TypeError):
+                pass
+        
+        logger.info(f"Mapping league ID {match.league.id} -> Internal Code: {internal_league_code}")
         
         if not internal_league_code:
             return []
