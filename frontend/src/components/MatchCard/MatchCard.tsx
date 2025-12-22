@@ -24,6 +24,7 @@ import {
   Schedule,
   SportsSoccer,
   Info,
+  Diamond,
 } from "@mui/icons-material";
 import { styled } from "@mui/material/styles";
 import type { MatchPrediction } from "../../types";
@@ -194,9 +195,39 @@ const MatchCard: React.FC<MatchCardProps> = memo(
               top: 12,
               right: 12,
               zIndex: 1,
+              display: "flex",
+              flexDirection: "column",
+              gap: 0.5,
+              alignItems: "flex-end",
             }}
           >
             <Chip label="Destacado" color="success" size="small" />
+          </Box>
+        )}
+
+        {/* Value Bet Badge - Always visible if value exists */}
+        {prediction.is_value_bet && (
+          <Box
+            sx={{
+              position: "absolute",
+              top: highlight ? 40 : 12, // Stack below Destacado if highlighted
+              right: 12,
+              zIndex: 1,
+            }}
+          >
+            <Chip
+              icon={<Diamond sx={{ fontSize: "0.9rem !important" }} />}
+              label={`EV +${((prediction.expected_value || 0) * 100).toFixed(
+                1
+              )}%`}
+              size="small"
+              sx={{
+                bgcolor: "rgba(255, 215, 0, 0.15)",
+                color: "#fbbf24",
+                border: "1px solid rgba(251, 191, 36, 0.5)",
+                fontWeight: "bold",
+              }}
+            />
           </Box>
         )}
         <CardContent>
@@ -439,14 +470,42 @@ const MatchCard: React.FC<MatchCardProps> = memo(
                 </Typography>
               </Box>
             </Tooltip>
-            <Tooltip title={sourcesTooltip}>
-              <Chip
-                label={`${prediction.data_sources.length} fuentes`}
-                size="small"
-                variant="outlined"
-                sx={{ fontSize: "0.7rem" }}
-              />
-            </Tooltip>
+            <Box display="flex" gap={1} alignItems="center">
+              {prediction.data_updated_at && (
+                <Tooltip
+                  title={`Datos actualizados: ${new Date(
+                    prediction.data_updated_at
+                  ).toLocaleString()}`}
+                >
+                  <Typography
+                    variant="caption"
+                    color={
+                      new Date().getTime() -
+                        new Date(prediction.data_updated_at).getTime() >
+                      12 * 60 * 60 * 1000
+                        ? "error.main"
+                        : "text.secondary"
+                    }
+                  >
+                    ⏱ Hace{" "}
+                    {Math.round(
+                      (new Date().getTime() -
+                        new Date(prediction.data_updated_at).getTime()) /
+                        (1000 * 60 * 60)
+                    )}
+                    h
+                  </Typography>
+                </Tooltip>
+              )}
+              <Tooltip title={sourcesTooltip}>
+                <Chip
+                  label={`${prediction.data_sources.length} fuentes`}
+                  size="small"
+                  variant="outlined"
+                  sx={{ fontSize: "0.7rem" }}
+                />
+              </Tooltip>
+            </Box>
           </Box>
         </CardContent>
       </Card>

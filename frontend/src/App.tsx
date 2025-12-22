@@ -13,12 +13,15 @@ import {
   Toolbar,
   Alert,
   Button,
+  IconButton,
+  Tooltip,
 } from "@mui/material";
-import { SportsSoccer, GetApp } from "@mui/icons-material";
+import { SportsSoccer, GetApp, SmartToy, Dashboard } from "@mui/icons-material";
 import LeagueSelector from "./components/LeagueSelector";
 import PredictionGrid from "./components/PredictionGrid";
 import LiveMatchesList from "./components/MatchDetails/LiveMatchesList";
 import ParleySlip, { ParleyPickItem } from "./components/Parley/ParleySlip";
+import BotDashboard from "./BotDashboard";
 
 import { Country } from "./types";
 import {
@@ -52,6 +55,11 @@ const App: React.FC = () => {
     Map<string, ParleyPickItem>
   >(new Map());
   const [isParleySlipOpen, setIsParleySlipOpen] = useState(false);
+
+  // View State (Predictions vs Bot Dashboard)
+  const [currentView, setCurrentView] = useState<"predictions" | "bot">(
+    "predictions"
+  );
 
   // PWA Install state
   const [installPrompt, setInstallPrompt] =
@@ -150,6 +158,27 @@ const App: React.FC = () => {
           >
             BJJ - BetSports
           </Typography>
+
+          {/* View Switcher */}
+          <Tooltip
+            title={
+              currentView === "predictions"
+                ? "Ir al Bot de Inversión"
+                : "Ver Predicciones"
+            }
+          >
+            <IconButton
+              onClick={() =>
+                setCurrentView(
+                  currentView === "predictions" ? "bot" : "predictions"
+                )
+              }
+              sx={{ color: "white", mr: 1 }}
+            >
+              {currentView === "predictions" ? <SmartToy /> : <Dashboard />}
+            </IconButton>
+          </Tooltip>
+
           {/* PWA Install Button */}
           {installPrompt && !isInstalled && (
             <Button
@@ -168,114 +197,125 @@ const App: React.FC = () => {
 
       {/* Main Content */}
       <Container maxWidth="xl" sx={{ py: 4 }}>
-        {/* Header */}
-        <Box mb={4}>
-          <Typography
-            variant="h3"
-            fontWeight={700}
-            sx={{
-              background: "linear-gradient(90deg, #6366f1 0%, #10b981 100%)",
-              backgroundClip: "text",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              mb: 1,
-            }}
-          >
-            Predicciones de Fútbol
-          </Typography>
-          <Typography variant="body1" color="text.secondary" maxWidth={600}>
-            Análisis estadístico de partidos de fútbol basado en datos
-            históricos, distribución de Poisson y algoritmos de machine
-            learning.
-          </Typography>
-        </Box>
-
-        {leaguesError ? (
-          <Alert
-            severity="error"
-            sx={{ mb: 4 }}
-            action={
-              <Button
-                color="inherit"
-                size="small"
-                onClick={() => window.location.reload()}
-              >
-                Reintentar
-              </Button>
-            }
-          >
-            Error al cargar las ligas: {leaguesError.message}. El servidor puede
-            estar iniciándose.
-          </Alert>
-        ) : (
-          <LeagueSelector
-            countries={countries}
-            selectedCountry={selectedCountry}
-            selectedLeague={selectedLeague}
-            onCountryChange={handleCountrySelect}
-            onLeagueChange={selectLeague}
-            loading={leaguesLoading}
-            showLive={showLive}
-            onLiveToggle={() => setShowLive(!showLive)}
-          />
-        )}
-
-        {showLive ? (
-          <Box mb={4}>
-            <LiveMatchesList
-              selectedLeagueIds={selectedLeague ? [selectedLeague.id] : []}
-              selectedLeagueNames={selectedLeague ? [selectedLeague.name] : []}
-            />
-          </Box>
+        {currentView === "bot" ? (
+          <BotDashboard />
         ) : (
           <>
-            {/* Parley Slip replaces auto ParleySection */}
-            <ParleySlip
-              items={Array.from(selectedParleyPicks.values())}
-              onRemove={(id) => {
-                const newMap = new Map(selectedParleyPicks);
-                newMap.delete(id);
-                setSelectedParleyPicks(newMap);
-              }}
-              onClear={() => setSelectedParleyPicks(new Map())}
-              isOpen={isParleySlipOpen}
-              onToggle={() => setIsParleySlipOpen(!isParleySlipOpen)}
-            />
-
-            {/* Predictions Grid */}
-            {(selectedLeague || searchQuery.length > 2) && (
-              <PredictionGrid
-                predictions={
-                  searchQuery.length > 2 ? searchMatches : predictions
-                }
-                league={selectedLeague}
-                loading={
-                  searchQuery.length > 2 ? searchLoading : predictionsLoading
-                }
-                error={searchQuery.length > 2 ? null : predictionsError}
-                sortBy={sortBy}
-                onSortChange={handleSortChange}
-                searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
-                selectedMatchIds={Array.from(selectedParleyPicks.keys())}
-                onToggleMatchSelection={(match, pick) => {
-                  const newMap = new Map(selectedParleyPicks);
-                  if (newMap.has(match.match.id)) {
-                    newMap.delete(match.match.id);
-                  } else {
-                    if (newMap.size >= 10) {
-                      alert("Máximo 10 selecciones permitidas");
-                      return;
-                    }
-
-                    if (pick) {
-                      newMap.set(match.match.id, pick);
-                      if (!isParleySlipOpen) setIsParleySlipOpen(true);
-                    }
-                  }
-                  setSelectedParleyPicks(newMap);
+            {/* Header */}
+            <Box mb={4}>
+              <Typography
+                variant="h3"
+                fontWeight={700}
+                sx={{
+                  background:
+                    "linear-gradient(90deg, #6366f1 0%, #10b981 100%)",
+                  backgroundClip: "text",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  mb: 1,
                 }}
+              >
+                Predicciones de Fútbol
+              </Typography>
+              <Typography variant="body1" color="text.secondary" maxWidth={600}>
+                Análisis estadístico de partidos de fútbol basado en datos
+                históricos, distribución de Poisson y algoritmos de machine
+                learning.
+              </Typography>
+            </Box>
+
+            {leaguesError ? (
+              <Alert
+                severity="error"
+                sx={{ mb: 4 }}
+                action={
+                  <Button
+                    color="inherit"
+                    size="small"
+                    onClick={() => window.location.reload()}
+                  >
+                    Reintentar
+                  </Button>
+                }
+              >
+                Error al cargar las ligas: {leaguesError.message}. El servidor
+                puede estar iniciándose.
+              </Alert>
+            ) : (
+              <LeagueSelector
+                countries={countries}
+                selectedCountry={selectedCountry}
+                selectedLeague={selectedLeague}
+                onCountryChange={handleCountrySelect}
+                onLeagueChange={selectLeague}
+                loading={leaguesLoading}
+                showLive={showLive}
+                onLiveToggle={() => setShowLive(!showLive)}
               />
+            )}
+
+            {showLive ? (
+              <Box mb={4}>
+                <LiveMatchesList
+                  selectedLeagueIds={selectedLeague ? [selectedLeague.id] : []}
+                  selectedLeagueNames={
+                    selectedLeague ? [selectedLeague.name] : []
+                  }
+                />
+              </Box>
+            ) : (
+              <>
+                {/* Parley Slip replaces auto ParleySection */}
+                <ParleySlip
+                  items={Array.from(selectedParleyPicks.values())}
+                  onRemove={(id) => {
+                    const newMap = new Map(selectedParleyPicks);
+                    newMap.delete(id);
+                    setSelectedParleyPicks(newMap);
+                  }}
+                  onClear={() => setSelectedParleyPicks(new Map())}
+                  isOpen={isParleySlipOpen}
+                  onToggle={() => setIsParleySlipOpen(!isParleySlipOpen)}
+                />
+
+                {/* Predictions Grid */}
+                {(selectedLeague || searchQuery.length > 2) && (
+                  <PredictionGrid
+                    predictions={
+                      searchQuery.length > 2 ? searchMatches : predictions
+                    }
+                    league={selectedLeague}
+                    loading={
+                      searchQuery.length > 2
+                        ? searchLoading
+                        : predictionsLoading
+                    }
+                    error={searchQuery.length > 2 ? null : predictionsError}
+                    sortBy={sortBy}
+                    onSortChange={handleSortChange}
+                    searchQuery={searchQuery}
+                    onSearchChange={setSearchQuery}
+                    selectedMatchIds={Array.from(selectedParleyPicks.keys())}
+                    onToggleMatchSelection={(match, pick) => {
+                      const newMap = new Map(selectedParleyPicks);
+                      if (newMap.has(match.match.id)) {
+                        newMap.delete(match.match.id);
+                      } else {
+                        if (newMap.size >= 10) {
+                          alert("Máximo 10 selecciones permitidas");
+                          return;
+                        }
+
+                        if (pick) {
+                          newMap.set(match.match.id, pick);
+                          if (!isParleySlipOpen) setIsParleySlipOpen(true);
+                        }
+                      }
+                      setSelectedParleyPicks(newMap);
+                    }}
+                  />
+                )}
+              </>
             )}
           </>
         )}

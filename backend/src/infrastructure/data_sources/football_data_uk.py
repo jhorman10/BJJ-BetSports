@@ -136,7 +136,7 @@ class FootballDataUKSource:
     def __init__(self, config: Optional[FootballDataConfig] = None):
         """Initialize the data source."""
         self.config = config or FootballDataConfig()
-        self._cache: dict[str, pd.DataFrame] = {}
+        self._cache: dict[str, tuple[pd.DataFrame, datetime]] = {}
     
     def _get_csv_url(self, league_code: str, season: str) -> str:
         """
@@ -156,7 +156,7 @@ class FootballDataUKSource:
         self,
         league_code: str,
         season: str,
-    ) -> Optional[pd.DataFrame]:
+    ) -> Optional[tuple[pd.DataFrame, datetime]]:
         """
         Download and parse CSV data for a league.
         
@@ -165,7 +165,7 @@ class FootballDataUKSource:
             season: Season code (e.g., "2324")
             
         Returns:
-            DataFrame with match data or None if failed
+            Tuple of (DataFrame, timestamp) or None if failed
         """
         cache_key = f"{league_code}_{season}"
         
@@ -186,9 +186,10 @@ class FootballDataUKSource:
                     on_bad_lines='skip',
                 )
                 
-                self._cache[cache_key] = df
+                now = datetime.utcnow()
+                self._cache[cache_key] = (df, now)
                 logger.info(f"Downloaded {len(df)} matches from {url}")
-                return df
+                return (df, now)
                 
         except httpx.HTTPStatusError as e:
             logger.warning(f"HTTP error downloading {url}: {e}")
@@ -211,6 +212,7 @@ class FootballDataUKSource:
         self,
         df: pd.DataFrame,
         league: League,
+        fetch_time: Optional[datetime] = None,
     ) -> list[Match]:
         """
         Parse DataFrame into Match entities.
@@ -218,6 +220,7 @@ class FootballDataUKSource:
         Args:
             df: DataFrame from CSV
             league: League entity
+            fetch_time: Time when data was fetched
             
         Returns:
             List of Match entities
@@ -305,6 +308,7 @@ class FootballDataUKSource:
                     away_yellow_cards=away_yellow,
                     home_red_cards=home_red,
                     away_red_cards=away_red,
+                    data_fetched_at=fetch_time,
                 )
                 matches.append(match)
                 
@@ -347,12 +351,11 @@ class FootballDataUKSource:
         
         all_matches = []
         tasks = [self.download_csv(league_code, season) for season in seasons]
-        dfs = await asyncio.gather(*tasks)
-        
         all_matches = []
-        for df in dfs:
-            if df is not None:
-                matches = self.parse_matches(df, league)
+        for result in await asyncio.gather(*tasks):
+            if result is not None:
+                df, timestamp = result
+                matches = self.parse_matches(df, league, timestamp)
                 all_matches.extend(matches)
         
         return all_matches
@@ -448,6 +451,10 @@ class FootballDataUKSource:
         # Get last 5 results for form
         recent_form = ''.join(recent_results[-5:]) if recent_results else ""
         
+        # Calculate data freshness
+        timestamps = [m.data_fetched_at for m in matches if hasattr(m, 'data_fetched_at') and m.data_fetched_at]
+        last_updated = max(timestamps) if timestamps else None
+        
         return TeamStatistics(
             team_id=team_id or team_name.lower().replace(" ", "_"),
             matches_played=matches_played,
@@ -459,6 +466,7 @@ class FootballDataUKSource:
             home_wins=home_wins,
             away_wins=away_wins,
             recent_form=recent_form,
+            data_updated_at=last_updated,
         )
     
     def get_available_leagues(self) -> list[League]:

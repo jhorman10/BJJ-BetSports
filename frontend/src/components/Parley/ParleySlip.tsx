@@ -16,6 +16,7 @@ import {
   LocalActivity,
   ExpandLess,
   ExpandMore,
+  Diamond,
 } from "@mui/icons-material";
 import { MatchPrediction } from "../../types";
 
@@ -166,17 +167,42 @@ const ParleySlip: React.FC<ParleySlipProps> = ({
                       {item.label}
                     </Typography>
                   </Box>
-                  <Chip
-                    label={`${(item.probability * 100).toFixed(0)}%`}
-                    size="small"
-                    variant="outlined"
-                    sx={{
-                      height: 20,
-                      fontSize: "0.65rem",
-                      color: "#10b981",
-                      borderColor: "rgba(16,185,129,0.3)",
-                    }}
-                  />
+
+                  <Box display="flex" alignItems="center" gap={1}>
+                    {item.match.prediction.is_value_bet && (
+                      <Chip
+                        icon={
+                          <Diamond
+                            sx={{
+                              fontSize: "0.8rem !important",
+                              color: "#fbbf24 !important",
+                            }}
+                          />
+                        }
+                        label={`EV+`}
+                        size="small"
+                        sx={{
+                          height: 20,
+                          fontSize: "0.65rem",
+                          bgcolor: "rgba(251, 191, 36, 0.15)",
+                          color: "#fbbf24",
+                          border: "1px solid rgba(251, 191, 36, 0.3)",
+                          "& .MuiChip-label": { px: 0.5 },
+                        }}
+                      />
+                    )}
+                    <Chip
+                      label={`${(item.probability * 100).toFixed(0)}%`}
+                      size="small"
+                      variant="outlined"
+                      sx={{
+                        height: 20,
+                        fontSize: "0.65rem",
+                        color: "#10b981",
+                        borderColor: "rgba(16,185,129,0.3)",
+                      }}
+                    />
+                  </Box>
                 </Box>
               </ListItem>
             ))}

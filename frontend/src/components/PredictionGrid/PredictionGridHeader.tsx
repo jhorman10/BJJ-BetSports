@@ -70,19 +70,18 @@ const PredictionGridHeader: React.FC<PredictionGridHeaderProps> = ({
       <Box
         display="flex"
         gap={2}
-        flexWrap="wrap"
         alignItems="center"
-        sx={{ ml: "auto" }}
+        sx={{ ml: "auto", maxWidth: "100%" }}
       >
         {/* Search Bar */}
         <TeamSearch
           searchQuery={searchQuery}
           onSearchChange={onSearchChange}
-          sx={{ width: 250, mr: 1 }}
+          sx={{ flex: 1, minWidth: { xs: 120, sm: 200 }, mr: 1 }}
         />
 
         {/* Sort Dropdown */}
-        <FormControl size="small" sx={{ minWidth: 150 }}>
+        <FormControl size="small" sx={{ minWidth: { xs: 120, sm: 150 } }}>
           <InputLabel id="sort-by-label">
             <Box display="flex" alignItems="center" gap={0.5}>
               <Sort fontSize="small" />

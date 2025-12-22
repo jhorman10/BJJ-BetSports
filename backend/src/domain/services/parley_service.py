@@ -9,7 +9,7 @@ from src.domain.entities.entities import MatchPrediction
 
 @dataclass
 class ParleyConfig:
-    min_probability: float = 0.60
+    min_probability: float = 0.50  # Lowered to allow Value Bets (e.g. Odds 2.10 with 55% prob)
     min_picks: int = 3
     max_picks: int = 5
     count: int = 3
@@ -55,9 +55,21 @@ class ParleyService:
         Here we will assume we can generate picks from the prediction data or use existing suggested picks if available.
         """
         picks = []
+        # Define threshold for no-odds scenario to ensure safety
+        no_odds_threshold = max(min_probability, 0.75)
+        
         for pred in predictions:
+            match = pred.match
+            
+            # Helper: Calculate EV (Expected Value)
+            # EV = (Probability * Odds) - 1
+            def get_ev(prob, odds):
+                return (prob * odds) - 1 if odds and odds > 1 else -1.0
+
             # Check Home Win
-            if pred.prediction.home_win_probability >= min_probability:
+            ev_home = get_ev(pred.prediction.home_win_probability, match.home_odds)
+            # Condition: Positive EV OR (No Odds AND High Probability)
+            if ev_home > 0.02 or (not match.home_odds and pred.prediction.home_win_probability >= no_odds_threshold):
                 confidence = SuggestedPick.get_confidence_level(pred.prediction.home_win_probability)
                 risk = self._calculate_risk_level(pred.prediction.home_win_probability)
                 
@@ -69,11 +81,13 @@ class ParleyService:
                     reasoning="Alta probabilidad de victoria local basada en modelo predictivo.",
                     risk_level=risk,
                     is_recommended=True,
-                    priority_score=pred.prediction.home_win_probability
+                    # Priority based on EV if available, else probability
+                    priority_score=ev_home if ev_home > 0 else pred.prediction.home_win_probability
                 ))
             
             # Check Away Win
-            elif pred.prediction.away_win_probability >= min_probability:
+            ev_away = get_ev(pred.prediction.away_win_probability, match.away_odds)
+            if ev_away > 0.02 or (not match.away_odds and pred.prediction.away_win_probability >= no_odds_threshold):
                 confidence = SuggestedPick.get_confidence_level(pred.prediction.away_win_probability)
                 risk = self._calculate_risk_level(pred.prediction.away_win_probability)
                 
@@ -85,10 +99,11 @@ class ParleyService:
                     reasoning="Alta probabilidad de victoria visitante basada en modelo predictivo.",
                     risk_level=risk,
                     is_recommended=True,
-                    priority_score=pred.prediction.away_win_probability
+                    priority_score=ev_away if ev_away > 0 else pred.prediction.away_win_probability
                 ))
 
             # Check Over 2.5
+            # Note: Match entity usually doesn't carry Over/Under odds in this simple model, so we stick to probability
             if pred.prediction.over_25_probability >= min_probability:
                  confidence = SuggestedPick.get_confidence_level(pred.prediction.over_25_probability)
                  risk = self._calculate_risk_level(pred.prediction.over_25_probability)

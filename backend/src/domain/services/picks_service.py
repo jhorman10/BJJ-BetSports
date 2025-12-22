@@ -461,7 +461,8 @@ class PicksService:
             confidence_level=confidence,
             reasoning=f"Goles esperados totales: {total_expected:.1f}.{penalty_note}",
             risk_level=risk + (1 if is_low_scoring else 0),  # Increase risk if low-scoring
-            is_recommended=adjusted_prob > 0.65 and not is_low_scoring,
+            # PROFITABILITY FIX: Increase threshold to 0.70 since we often lack O/U odds to verify EV
+            is_recommended=adjusted_prob > 0.70 and not is_low_scoring,
             priority_score=priority_score,
         )
         picks.append(pick)
@@ -648,28 +649,74 @@ class PicksService:
         """Generate match winner pick."""
         max_prob = max(home_win_prob, draw_prob, away_win_prob)
         
+        selected_odds = 0.0
+        
         if home_win_prob == max_prob:
             label = f"Victoria {match.home_team.name} (1)"
             reasoning = "Análisis estadístico favorece al equipo local."
+            selected_odds = match.home_odds if match.home_odds else 0.0
         elif away_win_prob == max_prob:
             label = f"Victoria {match.away_team.name} (2)"
             reasoning = "Análisis estadístico favorece al equipo visitante."
+            selected_odds = match.away_odds if match.away_odds else 0.0
         else:
             label = "Empate (X)"
             reasoning = "Equipos equilibrados, el empate es el resultado más probable."
+            selected_odds = match.draw_odds if match.draw_odds else 0.0
         
+        # Profitability Check: Calculate Expected Value (EV)
+        # EV = (Probability * Odds) - 1
+        ev_note = ""
+        is_value_bet = False
+        kelly_stake = 0.0
+        
+        if selected_odds > 0:
+            ev = (max_prob * selected_odds) - 1
+            if ev > 0:
+                # Kelly Criterion: f* = (bp - q) / b
+                # b = odds - 1 (net odds)
+                b = selected_odds - 1
+                if b > 0:
+                    q = 1 - max_prob
+                    f = ((b * max_prob) - q) / b
+                    # Use Quarter Kelly (1/4) for safety in sports betting
+                    kelly_stake = max(0, (f * 0.25) * 100)
+                
+                ev_note = f" 💎 VALUE BET (EV +{ev:.1%}). Stake sugerido (Kelly 1/4): {kelly_stake:.1f}%."
+                is_value_bet = True
+            else:
+                ev_note = f". ⚠️ Precaución: Cuota {selected_odds} sin valor matemático (EV {ev:.1%}). No apostar."
+
         confidence = SuggestedPick.get_confidence_level(max_prob)
         risk = self._calculate_risk_level(max_prob)
+        
+        # Boost priority significantly for Value Bets
+        priority_mult = 2.0 if is_value_bet else 0.5
+        
+        # Recommendation Logic for Profitability:
+        # 1. If Value Bet: Recommend if prob > 35% (allow underdogs if value exists)
+        # 2. If No Odds: Recommend if prob > 60% (blind prediction)
+        # 3. If Negative EV: Do NOT recommend (long term loss guaranteed)
+        
+        should_recommend = False
+        if is_value_bet:
+            # PROFITABILITY FIX: Allow lower probability for Value Bets if EV is positive.
+            # E.g. Odds 4.0 (25%) with Model 30% is a massive value bet.
+            should_recommend = max_prob > 0.30
+        elif selected_odds == 0:
+            # PROFITABILITY FIX: Without odds, we are betting blind. Require high certainty.
+            should_recommend = max_prob > 0.70
         
         return SuggestedPick(
             market_type=MarketType.WINNER,
             market_label=label,
             probability=round(max_prob, 3),
             confidence_level=confidence,
-            reasoning=reasoning,
+            reasoning=reasoning + ev_note,
             risk_level=risk,
-            is_recommended=max_prob > 0.50,
-            priority_score=max_prob * self.MARKET_PRIORITY.get(MarketType.RESULT_1X2, 1.0),
+            is_recommended=should_recommend,
+            # PROFITABILITY FIX: Use EV as priority score component if available
+            priority_score=(ev if is_value_bet else max_prob) * self.MARKET_PRIORITY.get(MarketType.RESULT_1X2, 1.0) * priority_mult,
         )
 
     # Fallback pick removed to strictly comply with 'no invented data' policy

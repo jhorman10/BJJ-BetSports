@@ -26,10 +26,39 @@ const ParleySection: React.FC<ParleySectionProps> = ({
   const parleyPicks = useMemo(() => {
     if (!predictions || predictions.length === 0) return [];
 
-    // Filter for reasonably high confidence and sort by confidence desc
-    return [...predictions]
-      .filter((p) => p.prediction.confidence > 60)
-      .sort((a, b) => b.prediction.confidence - a.prediction.confidence)
+    // PROFITABILITY FIX: Sort by Expected Value (EV) instead of just confidence
+    // EV = (Probability * Odds) - 1
+    const picksWithScore = predictions.map((p) => {
+      const { match, prediction } = p;
+      let score = 0;
+
+      // Check Home Win Value
+      if (match.home_odds) {
+        const ev = prediction.home_win_probability * match.home_odds - 1;
+        if (ev > score) score = ev;
+      }
+
+      // Check Away Win Value
+      if (match.away_odds) {
+        const ev = prediction.away_win_probability * match.away_odds - 1;
+        if (ev > score) score = ev;
+      }
+
+      // Fallback to raw probability score if no odds (normalized to be lower than EV)
+      if (score === 0) {
+        score =
+          Math.max(
+            prediction.home_win_probability,
+            prediction.away_win_probability
+          ) * 0.1;
+      }
+
+      return { ...p, score };
+    });
+
+    return picksWithScore
+      .filter((p) => p.score > 0.02 || p.prediction.confidence > 65) // Filter for Value (>2% edge) or High Confidence
+      .sort((a, b) => b.score - a.score) // Sort by Value (EV) descending
       .slice(0, 3); // Top 3 picks
   }, [predictions]);
 

@@ -243,41 +243,6 @@ class PredictionService:
         over = 1.0 - under
         return (over, under)
     
-    def adjust_with_odds(
-        self,
-        calculated_probs: tuple[float, float, float],
-        odds: Optional[Odds],
-        weight: float = 0.3,
-    ) -> tuple[float, float, float]:
-        """
-        Adjust calculated probabilities with bookmaker odds.
-        
-        Bookmaker odds encode market expectations which can
-        improve prediction accuracy.
-        
-        Args:
-            calculated_probs: (home, draw, away) probabilities
-            odds: Bookmaker odds (optional)
-            weight: How much to weight odds (0-1)
-            
-        Returns:
-            Adjusted probabilities
-        """
-        if odds is None:
-            return calculated_probs
-        
-        home_calc, draw_calc, away_calc = calculated_probs
-        home_odds, draw_odds, away_odds = odds.to_probabilities()
-        
-        # Weighted average of calculated and odds-implied probabilities
-        home_adj = (1 - weight) * home_calc + weight * home_odds
-        draw_adj = (1 - weight) * draw_calc + weight * draw_odds
-        away_adj = (1 - weight) * away_calc + weight * away_odds
-        
-        # Normalize
-        total = home_adj + draw_adj + away_adj
-        return (home_adj / total, draw_adj / total, away_adj / total)
-    
     def _calculate_entropy_score(
         self,
         probs: tuple[float, float, float],
@@ -330,7 +295,8 @@ class PredictionService:
         avg_n = (home_n + away_n) / 2
         
         # Sigmoid curve centered at 15 matches, reaches ~0.9 at 30
-        return 1 / (1 + math.exp(-0.15 * (avg_n - 15)))
+        # PROFITABILITY FIX: Shift center to 20 matches to be more conservative/reliable
+        return 1 / (1 + math.exp(-0.15 * (avg_n - 22)))
     
     def _calculate_odds_agreement(
         self,
@@ -412,7 +378,8 @@ class PredictionService:
         away_stats: Optional[TeamStatistics],
     ) -> tuple[float, float]:
         """Calculate prob for Over/Under 9.5 corners."""
-        if not home_stats or not away_stats or home_stats.matches_played < 3 or away_stats.matches_played < 3:
+        # PROFITABILITY FIX: Require at least 6 matches for reliable corner stats
+        if not home_stats or not away_stats or home_stats.matches_played < 6 or away_stats.matches_played < 6:
             return (0.0, 0.0)
             
         # Estimate expected corners (Heuristic: Home Avg + Away Avg)
@@ -435,7 +402,8 @@ class PredictionService:
         away_stats: Optional[TeamStatistics],
     ) -> tuple[float, float]:
         """Calculate prob for Over/Under 4.5 yellow cards."""
-        if not home_stats or not away_stats or home_stats.matches_played < 3 or away_stats.matches_played < 3:
+        # PROFITABILITY FIX: Require at least 6 matches for reliable card stats
+        if not home_stats or not away_stats or home_stats.matches_played < 6 or away_stats.matches_played < 6:
             return (0.0, 0.0)
             
         # Estimate expected cards
@@ -534,13 +502,14 @@ class PredictionService:
              odds_agreement = self._calculate_odds_agreement(calculated_probs, odds)
         
         # Dynamic Weighting
-        # Base weights: Entropy (30%), Data Quality (40%), Odds (15%), Form (15%)
-        # If components are missing, redistribute weights to Data Quality and Entropy
+        # PROFITABILITY FIX: Reduce reliance on Odds Agreement. 
+        # To find value, we must be willing to disagree with the market if Data Quality is high.
+        # New Weights: Entropy (40%), Data Quality (45%), Odds (5%), Form (10%)
         
-        w_entropy = 0.35
-        w_quality = 0.35
-        w_odds = 0.15
-        w_form = 0.15
+        w_entropy = 0.40
+        w_quality = 0.45
+        w_odds = 0.05
+        w_form = 0.10
         
         if not has_odds_data:
             # Distribute 0.15 odds weight: 0.10 to quality, 0.05 to entropy
@@ -596,8 +565,11 @@ class PredictionService:
         home_played = home_stats.matches_played if home_stats else 0
         away_played = away_stats.matches_played if away_stats else 0
         
+        # PROFITABILITY FIX: Increase minimum matches to 6 to ensure statistical significance
+        MIN_MATCHES = 6
+        
         # FIX: If league_averages is None but we have Stats, use a default global average
-        if not league_averages and (home_played >= 3 and away_played >= 3):
+        if not league_averages and (home_played >= MIN_MATCHES and away_played >= MIN_MATCHES):
             # Global average ~2.6-2.7 goals. Home typically 1.5, Away 1.2
             from src.domain.value_objects.value_objects import LeagueAverages
             league_averages = LeagueAverages(
@@ -609,7 +581,7 @@ class PredictionService:
         has_league_data = league_averages is not None
         
         # If insufficient data, return empty prediction (no fake values)
-        if home_played < 3 or away_played < 3 or not has_league_data:
+        if home_played < MIN_MATCHES or away_played < MIN_MATCHES or not has_league_data:
             # FALLBACK TO ODDS: If we have odds, use them as implied probability
             if match.home_odds and match.draw_odds and match.away_odds:
                 odds = Odds(home=match.home_odds, draw=match.draw_odds, away=match.away_odds)
@@ -635,6 +607,9 @@ class PredictionService:
                     handicap_home_probability=0.0,
                     handicap_away_probability=0.0,
 
+                    expected_value=0.0,
+                    is_value_bet=False,
+
                     confidence=0.3, # Low confidence as it's just market implied
                     data_sources=["Mercado de Apuestas (Odds)"],
                 )
@@ -656,6 +631,9 @@ class PredictionService:
                 handicap_line=0.0,
                 handicap_home_probability=0.0,
                 handicap_away_probability=0.0,
+
+                expected_value=0.0,
+                is_value_bet=False,
 
                 confidence=0.0,
                 data_sources=["Datos Insuficientes"],
@@ -680,13 +658,6 @@ class PredictionService:
             home_expected, away_expected
         )
         
-        # Adjust with odds if available
-        if match.home_odds and match.draw_odds and match.away_odds:
-            odds = Odds(home=match.home_odds, draw=match.draw_odds, away=match.away_odds)
-            home_win, draw, away_win = self.adjust_with_odds(
-                (home_win, draw, away_win), odds
-            )
-        
         # Calculate over/under
         over_25, under_25 = self.calculate_over_under_probability(
             home_expected, away_expected
@@ -706,6 +677,22 @@ class PredictionService:
         # Calculate Handicap
         handicap_line, handicap_home, handicap_away = self.calculate_handicap_probabilities(home_expected, away_expected)
 
+        # Calculate Expected Value (EV)
+        # We look for the highest EV among the main 1X2 market
+        max_ev = 0.0
+        is_value_bet = False
+        
+        if match.home_odds and match.draw_odds and match.away_odds:
+            ev_home = (home_win * match.home_odds) - 1
+            ev_draw = (draw * match.draw_odds) - 1
+            ev_away = (away_win * match.away_odds) - 1
+            
+            max_ev = max(ev_home, ev_draw, ev_away)
+            
+            # Threshold for "Value Bet" badge (e.g. > 2% edge)
+            if max_ev > 0.02:
+                is_value_bet = True
+
         # Calculate confidence based on ACTUAL data quality
         confidence = self.calculate_confidence(
             home_stats,
@@ -714,6 +701,19 @@ class PredictionService:
             calculated_probs=(home_win, draw, away_win),
             odds=odds_obj,
         )
+        
+        # Calculate data updated time
+        data_updated_at = None
+        timestamps = []
+        if home_stats and home_stats.data_updated_at:
+            timestamps.append(home_stats.data_updated_at)
+        if away_stats and away_stats.data_updated_at:
+            timestamps.append(away_stats.data_updated_at)
+            
+        if timestamps:
+            # Use the oldest timestamp to be conservative (data is only as fresh as its oldest component)
+            # OR use newest? Usually they are from same source/time. Let's use max (newest) as it indicates when check was done.
+            data_updated_at = max(timestamps)
         
         return Prediction(
             match_id=match.id,
@@ -734,6 +734,11 @@ class PredictionService:
             handicap_home_probability=handicap_home,
             handicap_away_probability=handicap_away,
             
+            # Value Bet
+            expected_value=round(max_ev, 4),
+            is_value_bet=is_value_bet,
+            
             confidence=round(confidence, 2),
             data_sources=data_sources or [],
+            data_updated_at=data_updated_at,
         )

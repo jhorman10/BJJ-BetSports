@@ -14,7 +14,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from src.api.routes import leagues, predictions, matches, suggested_picks, parleys
+from src.api.routes import leagues, predictions, matches, suggested_picks, parleys, learning
 from src.application.dtos.dtos import HealthResponseDTO, ErrorResponseDTO
 
 from dotenv import load_dotenv
@@ -171,6 +171,7 @@ app.include_router(predictions.router, prefix="/api/v1")
 app.include_router(matches.router, prefix="/api/v1/matches")
 app.include_router(suggested_picks.router, prefix="/api/v1")
 app.include_router(parleys.router, prefix="/api/v1")
+app.include_router(learning.router, prefix="/api/v1")
 
 
 if __name__ == "__main__":

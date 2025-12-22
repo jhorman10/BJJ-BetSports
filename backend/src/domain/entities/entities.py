@@ -95,6 +95,7 @@ class Match:
     home_odds: Optional[float] = None
     draw_odds: Optional[float] = None
     away_odds: Optional[float] = None
+    data_fetched_at: Optional[datetime] = None
     
     @property
     def is_played(self) -> bool:
@@ -156,9 +157,15 @@ class Prediction:
     handicap_home_probability: float
     handicap_away_probability: float
     
+    # Value Bet Fields
+    expected_value: float
+    is_value_bet: bool
+    
     confidence: float
     data_sources: list[str] = field(default_factory=list)
     created_at: datetime = field(default_factory=datetime.utcnow)
+    data_updated_at: Optional[datetime] = None
+    fundamental_analysis: Optional[dict] = field(default=None)
     
     def __post_init__(self):
         """Validate probability values."""
@@ -228,6 +235,7 @@ class TeamStatistics:
     total_yellow_cards: int = 0
     total_red_cards: int = 0
     recent_form: str = ""  # e.g., "WWDLW"
+    data_updated_at: Optional[datetime] = None
     
     @property
     def win_rate(self) -> float:

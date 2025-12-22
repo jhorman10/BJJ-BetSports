@@ -58,11 +58,17 @@ export interface Prediction {
   handicap_home_probability?: number;
   handicap_away_probability?: number;
 
+  // Value Bet
+  expected_value?: number;
+  is_value_bet?: boolean;
+
   confidence: number;
   data_sources: string[];
   recommended_bet: string;
   over_under_recommendation: string;
   created_at: string;
+  data_updated_at?: string;
+  fundamental_analysis?: Record<string, boolean>;
 }
 
 export interface MatchPrediction {
