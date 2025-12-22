@@ -1,7 +1,7 @@
 from typing import List
 from dataclasses import dataclass
 from datetime import datetime
-from ..services.parley_service import ParleyService, ParleyConfig
+from src.domain.services.parley_service import ParleyService, ParleyConfig
 from ...domain.entities.parley import Parley
 from ...domain.entities.entities import MatchPrediction, Match, Prediction, Team, League
 from .use_cases import GetPredictionsUseCase
