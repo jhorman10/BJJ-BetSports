@@ -19,6 +19,9 @@ interface PredictionGridProps {
 
   searchQuery: string;
   onSearchChange: (query: string) => void;
+
+  selectedMatchIds?: string[];
+  onToggleMatchSelection?: (match: MatchPrediction) => void;
 }
 
 const emptyStateStyles = {
@@ -37,6 +40,8 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
 
     searchQuery,
     onSearchChange,
+    selectedMatchIds = [],
+    onToggleMatchSelection,
   }) => {
     const [selectedMatch, setSelectedMatch] =
       React.useState<MatchPrediction | null>(null);
@@ -188,6 +193,8 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
         <PredictionGridList
           predictions={sortedPredictions}
           onMatchClick={handleMatchClick}
+          selectedMatchIds={selectedMatchIds}
+          onToggleMatchSelection={onToggleMatchSelection}
         />
 
         {/* Modal */}

@@ -16,6 +16,7 @@ import {
   Divider,
   Tooltip,
   Stack,
+  Checkbox,
 } from "@mui/material";
 import {
   TrendingUp,
@@ -31,6 +32,8 @@ interface MatchCardProps {
   matchPrediction: MatchPrediction;
   highlight?: boolean;
   onClick?: () => void;
+  isSelected?: boolean;
+  onToggleSelection?: () => void;
 }
 
 // Styled probability bar with custom colors
@@ -93,7 +96,7 @@ const getCardSx = (highlight?: boolean, clickable?: boolean) => ({
 });
 
 const MatchCard: React.FC<MatchCardProps> = memo(
-  ({ matchPrediction, highlight, onClick }) => {
+  ({ matchPrediction, highlight, onClick, isSelected, onToggleSelection }) => {
     const { match, prediction } = matchPrediction;
 
     // ... useMemos ...
@@ -153,6 +156,37 @@ const MatchCard: React.FC<MatchCardProps> = memo(
 
     return (
       <Card sx={getCardSx(highlight, !!onClick)} onClick={onClick}>
+        {/* Selection Checkbox - Only if handler provided */}
+        {onToggleSelection && (
+          <Box
+            sx={{
+              position: "absolute",
+              top: 8,
+              left: 8,
+              zIndex: 2,
+              bgcolor: "rgba(15, 23, 42, 0.6)",
+              borderRadius: "50%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 32,
+              height: 32,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Checkbox
+              checked={!!isSelected}
+              onChange={onToggleSelection}
+              size="small"
+              sx={{
+                color: "rgba(255,255,255,0.7)",
+                "&.Mui-checked": { color: "#6366f1" },
+                padding: 0,
+              }}
+            />
+          </Box>
+        )}
+
         {highlight && (
           <Box
             sx={{
@@ -167,7 +201,13 @@ const MatchCard: React.FC<MatchCardProps> = memo(
         )}
         <CardContent>
           {/* Match Date & Status */}
-          <Box display="flex" alignItems="center" gap={1} mb={2}>
+          <Box
+            display="flex"
+            alignItems="center"
+            gap={1}
+            mb={2}
+            pl={onToggleSelection ? 3 : 0}
+          >
             <Schedule fontSize="small" color="secondary" />
             <Typography variant="caption" color="text.secondary">
               {formattedDate}

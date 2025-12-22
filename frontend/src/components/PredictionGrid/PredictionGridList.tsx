@@ -34,11 +34,15 @@ const MatchCardSkeleton: React.FC = () => (
 interface PredictionGridListProps {
   predictions: MatchPrediction[];
   onMatchClick: (matchPrediction: MatchPrediction) => void;
+  selectedMatchIds?: string[];
+  onToggleMatchSelection?: (match: MatchPrediction) => void;
 }
 
 const PredictionGridList: React.FC<PredictionGridListProps> = ({
   predictions,
   onMatchClick,
+  selectedMatchIds = [],
+  onToggleMatchSelection,
 }) => {
   return (
     <Grid container spacing={3}>
@@ -49,6 +53,11 @@ const PredictionGridList: React.FC<PredictionGridListProps> = ({
               matchPrediction={matchPrediction}
               highlight={index === 0}
               onClick={() => onMatchClick(matchPrediction)}
+              isSelected={selectedMatchIds.includes(matchPrediction.match.id)}
+              onToggleSelection={() =>
+                onToggleMatchSelection &&
+                onToggleMatchSelection(matchPrediction)
+              }
             />
           </Suspense>
         </Grid>

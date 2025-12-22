@@ -18,9 +18,9 @@ import { SportsSoccer, GetApp } from "@mui/icons-material";
 import LeagueSelector from "./components/LeagueSelector";
 import PredictionGrid from "./components/PredictionGrid";
 import LiveMatchesList from "./components/MatchDetails/LiveMatchesList";
-import ParleySection from "./components/Parley/ParleySection";
+import ParleySlip from "./components/Parley/ParleySlip";
 
-import { Country } from "./types";
+import { Country, MatchPrediction } from "./types";
 import {
   useLeagues,
   usePredictions,
@@ -46,10 +46,19 @@ type SortOption =
   | "home_probability"
   | "away_probability";
 
+// ... (existing code)
+
 const App: React.FC = () => {
+  // Parley State
+  const [selectedParleyMatches, setSelectedParleyMatches] = useState<
+    Map<string, MatchPrediction>
+  >(new Map());
+  const [isParleySlipOpen, setIsParleySlipOpen] = useState(false);
+
   // PWA Install state
   const [installPrompt, setInstallPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
+  // ... (rest of the code follows)
   const [isInstalled, setIsInstalled] = useState(false);
 
   // Capture the install prompt event
@@ -222,13 +231,18 @@ const App: React.FC = () => {
           </Box>
         ) : (
           <>
-            {/* Parley Section - Only show if we have predictions and not searching */}
-            {selectedLeague && !searchQuery && !predictionsError && (
-              <ParleySection
-                predictions={predictions}
-                loading={predictionsLoading}
-              />
-            )}
+            {/* Parley Slip replaces auto ParleySection */}
+            <ParleySlip
+              selectedPredictions={Array.from(selectedParleyMatches.values())}
+              onRemove={(id) => {
+                const newMap = new Map(selectedParleyMatches);
+                newMap.delete(id);
+                setSelectedParleyMatches(newMap);
+              }}
+              onClear={() => setSelectedParleyMatches(new Map())}
+              isOpen={isParleySlipOpen}
+              onToggle={() => setIsParleySlipOpen(!isParleySlipOpen)}
+            />
 
             {/* Predictions Grid */}
             {(selectedLeague || searchQuery.length > 2) && (
@@ -245,6 +259,21 @@ const App: React.FC = () => {
                 onSortChange={handleSortChange}
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
+                selectedMatchIds={Array.from(selectedParleyMatches.keys())}
+                onToggleMatchSelection={(match) => {
+                  const newMap = new Map(selectedParleyMatches);
+                  if (newMap.has(match.match.id)) {
+                    newMap.delete(match.match.id);
+                  } else {
+                    if (newMap.size >= 10) {
+                      alert("Máximo 10 selecciones permitidas");
+                      return;
+                    }
+                    newMap.set(match.match.id, match);
+                    if (!isParleySlipOpen) setIsParleySlipOpen(true);
+                  }
+                  setSelectedParleyMatches(newMap);
+                }}
               />
             )}
           </>
