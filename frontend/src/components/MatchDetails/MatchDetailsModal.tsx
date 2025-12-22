@@ -414,7 +414,7 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
 
             {/* Tab 2: Suggested Picks */}
             <TabPanel value={tabValue} index={1}>
-              <SuggestedPicksTab matchId={details.match.id} />
+              <SuggestedPicksTab matchPrediction={details} />
             </TabPanel>
           </Box>
         )}
