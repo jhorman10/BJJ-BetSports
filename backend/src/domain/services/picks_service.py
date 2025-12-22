@@ -65,6 +65,9 @@ class PicksService:
         league_averages: Optional[LeagueAverages] = None,
         predicted_home_goals: float = 1.5,
         predicted_away_goals: float = 1.1,
+        home_win_prob: float = 0.4,
+        draw_prob: float = 0.3,
+        away_win_prob: float = 0.3,
     ) -> MatchSuggestedPicks:
         """
         Generate suggested picks for a match.
@@ -76,6 +79,9 @@ class PicksService:
             league_averages: League average statistics
             predicted_home_goals: Expected goals for home team
             predicted_away_goals: Expected goals for away team
+            home_win_prob: Probability of home win
+            draw_prob: Probability of draw
+            away_win_prob: Probability of away win
             
         Returns:
             MatchSuggestedPicks with sorted recommendations
@@ -91,11 +97,6 @@ class PicksService:
                 home_stats, away_stats, predicted_home_goals, predicted_away_goals
             )
         
-            # Check for dominant team
-            dominant_team = self._get_dominant_team(
-                home_stats, away_stats, predicted_home_goals, predicted_away_goals
-            )
-            
             # Generate corners picks
             corners_picks = self._generate_corners_picks(
                 home_stats, away_stats, match
@@ -103,53 +104,58 @@ class PicksService:
             for pick in corners_picks:
                 picks.add_pick(pick)
             
-            # Generate cards picks
+            # Generate yellow cards picks
             cards_picks = self._generate_cards_picks(
                 home_stats, away_stats, match
             )
             for pick in cards_picks:
                 picks.add_pick(pick)
             
-            # Generate VA handicap picks (if dominant team exists)
-            if dominant_team:
-                va_picks = self._generate_va_handicap_picks(
-                    dominant_team, predicted_home_goals, predicted_away_goals, match
-                )
-                for pick in va_picks:
-                    picks.add_pick(pick)
+            # Generate red cards pick
+            red_cards_pick = self._generate_red_cards_pick(
+                home_stats, away_stats, match
+            )
+            if red_cards_pick:
+                picks.add_pick(red_cards_pick)
+        else:
+            # Generate default corners pick based on expected goals
+            corners_pick = self._generate_default_corners_pick(
+                predicted_home_goals, predicted_away_goals
+            )
+            if corners_pick:
+                picks.add_pick(corners_pick)
+            
+            # Generate default cards pick
+            cards_pick = self._generate_default_cards_pick(match)
+            if cards_pick:
+                picks.add_pick(cards_pick)
+            
+            # Generate default red cards pick
+            red_cards_pick = self._generate_default_red_cards_pick()
+            if red_cards_pick:
+                picks.add_pick(red_cards_pick)
         
-        # Generate goals picks (always, even without stats)
+        # Generate VA handicap picks (always)
+        va_picks = self._generate_va_handicap_picks_v2(
+            match, predicted_home_goals, predicted_away_goals, 
+            home_win_prob, away_win_prob
+        )
+        for pick in va_picks:
+            picks.add_pick(pick)
+        
+        # Generate winner pick (always)
+        winner_pick = self._generate_winner_pick(
+            match, home_win_prob, draw_prob, away_win_prob
+        )
+        if winner_pick:
+            picks.add_pick(winner_pick)
+        
+        # Generate goals picks (always)
         goals_picks = self._generate_goals_picks(
             predicted_home_goals, predicted_away_goals, is_low_scoring
         )
         for pick in goals_picks:
             picks.add_pick(pick)
-        
-        # Add combination warning if too many picks
-        recommended_count = len([p for p in picks.suggested_picks if p.is_recommended])
-        if recommended_count > 3:
-            picks.combination_warning = (
-                "⚠️ Evita combinar más de 3 picks - Mayor riesgo de fallo. "
-                "Las combinadas largas (4+) fallaron por 1-2 selecciones en el historial."
-            )
-        
-        # Check for duplicate market warning
-        if picks.has_duplicate_markets():
-            if picks.combination_warning:
-                picks.combination_warning += (
-                    " No combines over goles total + over goles por equipo."
-                )
-            else:
-                picks.combination_warning = (
-                    "⚠️ No combines over goles total + over goles por equipo."
-                )
-        
-        # Add warning if no historical stats available
-        if not has_stats and len(picks.suggested_picks) > 0:
-            if picks.combination_warning:
-                picks.combination_warning = "⚠️ Datos históricos limitados. " + picks.combination_warning
-            else:
-                picks.combination_warning = "⚠️ Datos históricos limitados. Los picks se basan solo en promedios de liga."
         
         return picks
     
@@ -496,3 +502,180 @@ class PicksService:
         elif probability > 0.50:
             return 4
         return 5
+    
+    def _generate_red_cards_pick(
+        self,
+        home_stats: TeamStatistics,
+        away_stats: TeamStatistics,
+        match: Match,
+    ) -> Optional[SuggestedPick]:
+        """Generate red cards pick based on historical data."""
+        home_avg = home_stats.avg_red_cards_per_match
+        away_avg = away_stats.avg_red_cards_per_match
+        total_avg = home_avg + away_avg
+        
+        # Red cards are rare events, typically 0.1-0.3 per match
+        probability = min(0.45, 0.12 + total_avg * 0.15)
+        
+        if probability > 0.10:
+            confidence = SuggestedPick.get_confidence_level(probability)
+            risk = self._calculate_risk_level(probability)
+            
+            return SuggestedPick(
+                market_type=MarketType.RED_CARDS,
+                market_label="Tarjeta Roja en el Partido",
+                probability=round(probability, 3),
+                confidence_level=confidence,
+                reasoning=f"Promedio combinado: {total_avg:.2f} rojas/partido. "
+                         f"Historial reciente indica {'tendencia a expulsiones' if total_avg > 0.2 else 'baja probabilidad'}.",
+                risk_level=5,  # Red cards are always high risk
+                is_recommended=False,  # Never recommend due to rarity
+                priority_score=probability * 0.5,  # Low priority
+            )
+        return None
+    
+    def _generate_default_red_cards_pick(self) -> Optional[SuggestedPick]:
+        """Generate default red cards pick without historical data."""
+        probability = 0.12  # League average ~12%
+        
+        return SuggestedPick(
+            market_type=MarketType.RED_CARDS,
+            market_label="Tarjeta Roja en el Partido",
+            probability=probability,
+            confidence_level=ConfidenceLevel.LOW,
+            reasoning="Probabilidad basada en promedios de liga. Evento poco frecuente.",
+            risk_level=5,
+            is_recommended=False,
+            priority_score=probability * 0.5,
+        )
+    
+    def _generate_default_corners_pick(
+        self,
+        predicted_home_goals: float,
+        predicted_away_goals: float,
+    ) -> Optional[SuggestedPick]:
+        """Generate corners pick based on expected goals when no stats available."""
+        total_goals = predicted_home_goals + predicted_away_goals
+        # Corners correlate with expected goals (~3.5 corners per goal)
+        expected_corners = total_goals * 3.5
+        
+        threshold = 6.5 if expected_corners < 8 else 8.5
+        probability = min(0.85, 0.55 + (expected_corners - threshold) * 0.04)
+        probability = max(0.45, probability)
+        
+        confidence = SuggestedPick.get_confidence_level(probability)
+        risk = self._calculate_risk_level(probability)
+        
+        return SuggestedPick(
+            market_type=MarketType.CORNERS_OVER,
+            market_label=f"Más de {threshold} córners",
+            probability=round(probability, 3),
+            confidence_level=confidence,
+            reasoning=f"Estimación basada en goles esperados: {total_goals:.1f} → ~{expected_corners:.0f} córners",
+            risk_level=risk,
+            is_recommended=probability > 0.60,
+            priority_score=probability * self.MARKET_PRIORITY[MarketType.CORNERS_OVER],
+        )
+    
+    def _generate_default_cards_pick(self, match: Match) -> Optional[SuggestedPick]:
+        """Generate cards pick without historical data."""
+        # League average is typically 3-4 yellow cards per match
+        expected_cards = 3.5
+        probability = 0.72  # ~72% chance of over 2.5 cards
+        
+        confidence = SuggestedPick.get_confidence_level(probability)
+        risk = self._calculate_risk_level(probability)
+        
+        return SuggestedPick(
+            market_type=MarketType.CARDS_OVER,
+            market_label=f"{match.home_team.name.split()[0]} - Más de 1.5 Tarjetas",
+            probability=round(probability, 3),
+            confidence_level=confidence,
+            reasoning="Promedio de liga sugiere alta probabilidad de tarjetas.",
+            risk_level=risk,
+            is_recommended=probability > 0.65,
+            priority_score=probability * self.MARKET_PRIORITY[MarketType.CARDS_OVER],
+        )
+    
+    def _generate_va_handicap_picks_v2(
+        self,
+        match: Match,
+        predicted_home: float,
+        predicted_away: float,
+        home_win_prob: float,
+        away_win_prob: float,
+    ) -> list[SuggestedPick]:
+        """Generate VA handicap picks based on win probabilities."""
+        picks = []
+        
+        goal_diff = predicted_home - predicted_away
+        
+        # Determine dominant team
+        if home_win_prob > away_win_prob + 0.10:
+            team_name = "Local"
+            dominant_prob = home_win_prob
+        elif away_win_prob > home_win_prob + 0.10:
+            team_name = "Visitante"
+            goal_diff = -goal_diff
+            dominant_prob = away_win_prob
+        else:
+            team_name = "Local"
+            dominant_prob = max(home_win_prob, away_win_prob)
+        
+        # VA (+2) probability
+        handicap = 2.0
+        va_prob = self._calculate_va_probability(abs(goal_diff), handicap)
+        adjusted_prob = min(0.85, va_prob * dominant_prob * 1.3)
+        adjusted_prob = max(0.55, adjusted_prob)
+        
+        confidence = SuggestedPick.get_confidence_level(adjusted_prob)
+        risk = self._calculate_risk_level(adjusted_prob)
+        
+        pick = SuggestedPick(
+            market_type=MarketType.VA_HANDICAP,
+            market_label=f"Hándicap VA (+2) - {team_name}",
+            probability=round(adjusted_prob, 3),
+            confidence_level=confidence,
+            reasoning=f"Ventaja para el equipo {team_name.lower()} con hándicap asiático. "
+                      f"Diferencia de goles esperada: {abs(goal_diff):.1f}",
+            risk_level=risk,
+            is_recommended=adjusted_prob > 0.65,
+            priority_score=adjusted_prob * self.MARKET_PRIORITY[MarketType.VA_HANDICAP],
+        )
+        picks.append(pick)
+        
+        return picks
+    
+    def _generate_winner_pick(
+        self,
+        match: Match,
+        home_win_prob: float,
+        draw_prob: float,
+        away_win_prob: float,
+    ) -> Optional[SuggestedPick]:
+        """Generate match winner pick."""
+        max_prob = max(home_win_prob, draw_prob, away_win_prob)
+        
+        if home_win_prob == max_prob:
+            label = f"Victoria {match.home_team.name} (1)"
+            reasoning = "Análisis estadístico favorece al equipo local."
+        elif away_win_prob == max_prob:
+            label = f"Victoria {match.away_team.name} (2)"
+            reasoning = "Análisis estadístico favorece al equipo visitante."
+        else:
+            label = "Empate (X)"
+            reasoning = "Equipos equilibrados, el empate es el resultado más probable."
+        
+        confidence = SuggestedPick.get_confidence_level(max_prob)
+        risk = self._calculate_risk_level(max_prob)
+        
+        return SuggestedPick(
+            market_type=MarketType.WINNER,
+            market_label=label,
+            probability=round(max_prob, 3),
+            confidence_level=confidence,
+            reasoning=reasoning,
+            risk_level=risk,
+            is_recommended=max_prob > 0.50,
+            priority_score=max_prob * self.MARKET_PRIORITY.get(MarketType.RESULT_1X2, 1.0),
+        )

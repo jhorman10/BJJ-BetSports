@@ -17,22 +17,11 @@ import {
   MatchPrediction,
   SuggestedPick,
   MatchSuggestedPicks,
-  Match,
-  Prediction,
 } from "../../types";
 import api from "../../services/api";
 
 interface SuggestedPicksTabProps {
   matchPrediction: MatchPrediction;
-}
-
-// Local pick interface for fallback calculation
-interface LocalPick {
-  market_type: string;
-  market_label: string;
-  probability: number;
-  reasoning: string;
-  risk_level: number;
 }
 
 /**
@@ -70,7 +59,7 @@ const getColorScheme = (
 };
 
 /**
- * Get market icon
+ * Get market icon based on market type from backend
  */
 const getMarketIcon = (marketType: string): string => {
   switch (marketType) {
@@ -160,159 +149,12 @@ const RiskDots: React.FC<{ level: number; color: string }> = ({
 };
 
 /**
- * Calculate fallback picks when API returns empty (using local data)
+ * Pick Card Component - Displays data from backend
  */
-const calculateFallbackPicks = (
-  match: Match,
-  prediction: Prediction
-): LocalPick[] => {
-  const picks: LocalPick[] = [];
-  const totalExpectedGoals =
-    prediction.predicted_home_goals + prediction.predicted_away_goals;
-
-  // 1. Corners Pick
-  const totalCorners = (match.home_corners ?? 0) + (match.away_corners ?? 0);
-  const expectedCorners =
-    totalCorners > 0 ? totalCorners : Math.round(totalExpectedGoals * 3.5);
-  const cornersProb = Math.min(0.92, 0.55 + (expectedCorners - 7) * 0.04);
-  picks.push({
-    market_type: "corners_over",
-    market_label: `Más de ${
-      expectedCorners > 6 ? expectedCorners - 1 : 6
-    }.5 Córners`,
-    probability: Math.max(0.45, Math.min(0.92, cornersProb)),
-    reasoning:
-      "Análisis estadístico y rendimiento reciente de ambos equipos sugieren alta probabilidad.",
-    risk_level: cornersProb > 0.75 ? 3 : 4,
-  });
-
-  // 2. Yellow Cards Pick
-  const totalYellowCards =
-    (match.home_yellow_cards ?? 0) + (match.away_yellow_cards ?? 0);
-  const expectedCards = totalYellowCards > 0 ? totalYellowCards : 3;
-  const cardsProb = Math.min(0.88, 0.5 + (expectedCards - 2) * 0.08);
-  picks.push({
-    market_type: "cards_over",
-    market_label: `${match.home_team.name.split(" ")[0]} - Más de ${Math.max(
-      1,
-      expectedCards - 1
-    )}.5 Tarjetas`,
-    probability: Math.max(0.5, Math.min(0.88, cardsProb)),
-    reasoning:
-      "Partidos con alto historial de amonestaciones y árbitro estricto.",
-    risk_level: 3,
-  });
-
-  // 3. Red Cards Pick
-  const totalRedCards =
-    (match.home_red_cards ?? 0) + (match.away_red_cards ?? 0);
-  const redCardsProb =
-    totalRedCards > 0 ? Math.min(0.45, 0.15 + totalRedCards * 0.12) : 0.12;
-  picks.push({
-    market_type: "red_cards",
-    market_label: `Tarjeta Roja en el Partido`,
-    probability: redCardsProb,
-    reasoning:
-      totalRedCards > 0
-        ? "Historial reciente muestra tendencia a expulsiones en estos enfrentamientos."
-        : "Probabilidad baja pero presente basada en promedios de liga.",
-    risk_level: 5,
-  });
-
-  // 4. Handicap VA Pick (always show)
-  const homeDominant =
-    prediction.home_win_probability > prediction.away_win_probability + 0.1;
-  const awayDominant =
-    prediction.away_win_probability > prediction.home_win_probability + 0.1;
-
-  const dominantTeam = homeDominant
-    ? "Local"
-    : awayDominant
-    ? "Visitante"
-    : "Local";
-  const handicapProb =
-    homeDominant || awayDominant
-      ? Math.max(
-          prediction.home_win_probability,
-          prediction.away_win_probability
-        ) * 0.95
-      : Math.max(
-          prediction.home_win_probability,
-          prediction.away_win_probability
-        ) * 0.85;
-
-  picks.push({
-    market_type: "va_handicap",
-    market_label: `Hándicap VA (+2) - ${dominantTeam}`,
-    probability: Math.min(0.85, Math.max(0.55, handicapProb)),
-    reasoning: `Ventaja considerable para el equipo ${dominantTeam.toLowerCase()} con el soporte del hándicap asiático.`,
-    risk_level: 3,
-  });
-
-  // 5. Winner Pick
-  const maxWinProb = Math.max(
-    prediction.home_win_probability,
-    prediction.draw_probability,
-    prediction.away_win_probability
-  );
-  let winnerLabel = "Empate (X)";
-  let winnerReasoning =
-    "Equipos equilibrados con probabilidad similar de empate.";
-
-  if (prediction.home_win_probability === maxWinProb) {
-    winnerLabel = `Victoria ${match.home_team.name} (1)`;
-    winnerReasoning =
-      "Análisis favorece al equipo local basado en rendimiento y estadísticas.";
-  } else if (prediction.away_win_probability === maxWinProb) {
-    winnerLabel = `Victoria ${match.away_team.name} (2)`;
-    winnerReasoning =
-      "El visitante muestra mejor forma y rendimiento reciente.";
-  }
-
-  picks.push({
-    market_type: "winner",
-    market_label: winnerLabel,
-    probability: maxWinProb,
-    reasoning: winnerReasoning,
-    risk_level: maxWinProb > 0.5 ? 2 : 4,
-  });
-
-  // 6. Goals Pick
-  const goalsProb =
-    prediction.over_25_probability > prediction.under_25_probability
-      ? prediction.over_25_probability
-      : prediction.under_25_probability;
-  const goalsLabel =
-    prediction.over_25_probability > prediction.under_25_probability
-      ? "Más de 2.5 Goles"
-      : "Menos de 2.5 Goles";
-  const goalsType =
-    prediction.over_25_probability > prediction.under_25_probability
-      ? "goals_over"
-      : "goals_under";
-
-  picks.push({
-    market_type: goalsType,
-    market_label: goalsLabel,
-    probability: goalsProb,
-    reasoning:
-      goalsProb > 0.6
-        ? "Ambos equipos con tendencia ofensiva y alta conversión de goles."
-        : "Encuentro impredecible con defensas sólidas, pero potencial ofensivo.",
-    risk_level: goalsProb > 0.7 ? 2 : 4,
-  });
-
-  return picks;
-};
-
-/**
- * Pick Card Component
- */
-const PickCard: React.FC<{ pick: SuggestedPick | LocalPick }> = ({ pick }) => {
+const PickCard: React.FC<{ pick: SuggestedPick }> = ({ pick }) => {
   const colors = getColorScheme(pick.probability);
   const confidenceText =
     pick.probability > 0.8 ? "5" : pick.probability > 0.6 ? "4" : "3";
-  const marketType = "market_type" in pick ? pick.market_type : "";
 
   return (
     <Card
@@ -341,7 +183,7 @@ const PickCard: React.FC<{ pick: SuggestedPick | LocalPick }> = ({ pick }) => {
         >
           <Box display="flex" alignItems="center" gap={1.5} flex={1}>
             <Typography sx={{ fontSize: "1.4rem", lineHeight: 1 }}>
-              {getMarketIcon(marketType)}
+              {getMarketIcon(pick.market_type)}
             </Typography>
             <Typography
               variant="h6"
@@ -384,7 +226,7 @@ const PickCard: React.FC<{ pick: SuggestedPick | LocalPick }> = ({ pick }) => {
           </Typography>
         </Box>
 
-        {/* Description */}
+        {/* Description from backend */}
         <Typography
           variant="body2"
           sx={{
@@ -408,25 +250,27 @@ const PickCard: React.FC<{ pick: SuggestedPick | LocalPick }> = ({ pick }) => {
 
 /**
  * Suggested Picks Tab Component
- * Fetches picks from backend API (which calculates with learning service)
- * Falls back to local calculation if API returns empty
+ * All data comes from the backend API - no local calculations
  */
 const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
   matchPrediction,
 }) => {
-  const { match, prediction } = matchPrediction;
+  const { match } = matchPrediction;
   const [loading, setLoading] = useState(true);
   const [apiPicks, setApiPicks] = useState<MatchSuggestedPicks | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  // Fetch picks from backend API
+  // Fetch picks from backend API (all calculations done server-side)
   useEffect(() => {
     const fetchPicks = async () => {
       try {
         setLoading(true);
+        setError(null);
         const data = await api.getSuggestedPicks(match.id);
         setApiPicks(data);
       } catch (err) {
         console.error("Error fetching suggested picks:", err);
+        setError("No se pudieron cargar los picks");
         setApiPicks(null);
       } finally {
         setLoading(false);
@@ -436,29 +280,13 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
     fetchPicks();
   }, [match.id]);
 
-  // Calculate fallback picks locally if API returns empty
-  const fallbackPicks = useMemo(
-    () => calculateFallbackPicks(match, prediction),
-    [match, prediction]
-  );
-
-  // Use API picks if available, otherwise use fallback
-  const picks = useMemo(() => {
-    if (
-      apiPicks &&
-      apiPicks.suggested_picks &&
-      apiPicks.suggested_picks.length > 0
-    ) {
-      return apiPicks.suggested_picks;
-    }
-    return fallbackPicks;
-  }, [apiPicks, fallbackPicks]);
-
-  // Sort picks by probability
-  const sortedPicks = useMemo(
-    () => [...picks].sort((a, b) => b.probability - a.probability),
-    [picks]
-  );
+  // Sort picks by probability (highest first)
+  const sortedPicks = useMemo(() => {
+    if (!apiPicks?.suggested_picks) return [];
+    return [...apiPicks.suggested_picks].sort(
+      (a, b) => b.probability - a.probability
+    );
+  }, [apiPicks]);
 
   if (loading) {
     return (
@@ -474,14 +302,14 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
     );
   }
 
-  if (sortedPicks.length === 0) {
+  if (error || sortedPicks.length === 0) {
     return (
       <Box textAlign="center" py={4}>
         <TipsAndUpdates
           sx={{ fontSize: 48, color: "rgba(255,255,255,0.3)", mb: 2 }}
         />
         <Typography sx={{ color: "rgba(255,255,255,0.6)" }}>
-          No hay picks sugeridos disponibles para este partido.
+          {error || "No hay picks sugeridos disponibles."}
         </Typography>
       </Box>
     );

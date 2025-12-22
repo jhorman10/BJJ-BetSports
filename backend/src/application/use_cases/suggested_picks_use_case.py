@@ -90,13 +90,21 @@ class GetSuggestedPicksUseCase:
             predicted_home = prediction.predicted_home_goals if prediction.predicted_home_goals > 0 else 1.5
             predicted_away = prediction.predicted_away_goals if prediction.predicted_away_goals > 0 else 1.1
             
-            # 5. Generate suggested picks
+            # Get win probabilities (use defaults if zero)
+            home_win_prob = prediction.home_win_probability if prediction.home_win_probability > 0 else 0.4
+            draw_prob = prediction.draw_probability if prediction.draw_probability > 0 else 0.3
+            away_win_prob = prediction.away_win_probability if prediction.away_win_probability > 0 else 0.3
+            
+            # 5. Generate suggested picks with all data
             suggested_picks = self.picks_service.generate_suggested_picks(
                 match=match,
                 home_stats=home_stats if home_stats and home_stats.matches_played > 0 else None,
                 away_stats=away_stats if away_stats and away_stats.matches_played > 0 else None,
                 predicted_home_goals=predicted_home,
                 predicted_away_goals=predicted_away,
+                home_win_prob=home_win_prob,
+                draw_prob=draw_prob,
+                away_win_prob=away_win_prob,
             )
             
             # 6. Convert to DTO
