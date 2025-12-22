@@ -82,42 +82,43 @@ class PicksService:
         """
         picks = MatchSuggestedPicks(match_id=match.id)
         
-        if not home_stats or not away_stats:
-            return picks
+        has_stats = home_stats is not None and away_stats is not None
         
-        # Check if this is a low-scoring context
-        is_low_scoring = self._is_low_scoring_context(
-            home_stats, away_stats, predicted_home_goals, predicted_away_goals
-        )
-        
-        # Check for dominant team
-        dominant_team = self._get_dominant_team(
-            home_stats, away_stats, predicted_home_goals, predicted_away_goals
-        )
-        
-        # Generate corners picks
-        corners_picks = self._generate_corners_picks(
-            home_stats, away_stats, match
-        )
-        for pick in corners_picks:
-            picks.add_pick(pick)
-        
-        # Generate cards picks
-        cards_picks = self._generate_cards_picks(
-            home_stats, away_stats, match
-        )
-        for pick in cards_picks:
-            picks.add_pick(pick)
-        
-        # Generate VA handicap picks (if dominant team exists)
-        if dominant_team:
-            va_picks = self._generate_va_handicap_picks(
-                dominant_team, predicted_home_goals, predicted_away_goals, match
+        # Check if this is a low-scoring context (only if we have stats)
+        is_low_scoring = False
+        if has_stats:
+            is_low_scoring = self._is_low_scoring_context(
+                home_stats, away_stats, predicted_home_goals, predicted_away_goals
             )
-            for pick in va_picks:
-                picks.add_pick(pick)
         
-        # Generate goals picks (with penalties if low-scoring)
+            # Check for dominant team
+            dominant_team = self._get_dominant_team(
+                home_stats, away_stats, predicted_home_goals, predicted_away_goals
+            )
+            
+            # Generate corners picks
+            corners_picks = self._generate_corners_picks(
+                home_stats, away_stats, match
+            )
+            for pick in corners_picks:
+                picks.add_pick(pick)
+            
+            # Generate cards picks
+            cards_picks = self._generate_cards_picks(
+                home_stats, away_stats, match
+            )
+            for pick in cards_picks:
+                picks.add_pick(pick)
+            
+            # Generate VA handicap picks (if dominant team exists)
+            if dominant_team:
+                va_picks = self._generate_va_handicap_picks(
+                    dominant_team, predicted_home_goals, predicted_away_goals, match
+                )
+                for pick in va_picks:
+                    picks.add_pick(pick)
+        
+        # Generate goals picks (always, even without stats)
         goals_picks = self._generate_goals_picks(
             predicted_home_goals, predicted_away_goals, is_low_scoring
         )
@@ -125,7 +126,8 @@ class PicksService:
             picks.add_pick(pick)
         
         # Add combination warning if too many picks
-        if len([p for p in picks.suggested_picks if p.is_recommended]) > 3:
+        recommended_count = len([p for p in picks.suggested_picks if p.is_recommended])
+        if recommended_count > 3:
             picks.combination_warning = (
                 "⚠️ Evita combinar más de 3 picks - Mayor riesgo de fallo. "
                 "Las combinadas largas (4+) fallaron por 1-2 selecciones en el historial."
@@ -141,6 +143,13 @@ class PicksService:
                 picks.combination_warning = (
                     "⚠️ No combines over goles total + over goles por equipo."
                 )
+        
+        # Add warning if no historical stats available
+        if not has_stats and len(picks.suggested_picks) > 0:
+            if picks.combination_warning:
+                picks.combination_warning = "⚠️ Datos históricos limitados. " + picks.combination_warning
+            else:
+                picks.combination_warning = "⚠️ Datos históricos limitados. Los picks se basan solo en promedios de liga."
         
         return picks
     

@@ -57,44 +57,59 @@ class GetSuggestedPicksUseCase:
         Returns:
             MatchSuggestedPicksDTO with AI suggestions, or None if match not found
         """
-        # 1. Get match details
-        match = await self._get_match(match_id)
-        if not match:
-            return None
-        
-        # 2. Get historical data for statistics
-        historical_matches = await self._get_historical_matches(match)
-        
-        # 3. Calculate team statistics
-        home_stats = self.statistics_service.calculate_team_statistics(
-            match.home_team.name,
-            historical_matches,
-        )
-        away_stats = self.statistics_service.calculate_team_statistics(
-            match.away_team.name,
-            historical_matches,
-        )
-        
-        # 4. Generate base prediction for expected goals
-        prediction = self.prediction_service.generate_prediction(
-            match=match,
-            home_stats=home_stats,
-            away_stats=away_stats,
-            league_averages=None,
-            data_sources=[],
-        )
-        
-        # 5. Generate suggested picks
-        suggested_picks = self.picks_service.generate_suggested_picks(
-            match=match,
-            home_stats=home_stats,
-            away_stats=away_stats,
-            predicted_home_goals=prediction.predicted_home_goals,
-            predicted_away_goals=prediction.predicted_away_goals,
-        )
-        
-        # 6. Convert to DTO
-        return self._to_dto(suggested_picks)
+        try:
+            # 1. Get match details
+            match = await self._get_match(match_id)
+            if not match:
+                logger.warning(f"Match {match_id} not found in any data source")
+                return None
+            
+            # 2. Get historical data for statistics
+            historical_matches = await self._get_historical_matches(match)
+            
+            # 3. Calculate team statistics
+            home_stats = self.statistics_service.calculate_team_statistics(
+                match.home_team.name,
+                historical_matches,
+            )
+            away_stats = self.statistics_service.calculate_team_statistics(
+                match.away_team.name,
+                historical_matches,
+            )
+            
+            # 4. Generate base prediction for expected goals
+            prediction = self.prediction_service.generate_prediction(
+                match=match,
+                home_stats=home_stats,
+                away_stats=away_stats,
+                league_averages=None,
+                data_sources=[],
+            )
+            
+            # Use default values if prediction has zeros (no data)
+            predicted_home = prediction.predicted_home_goals if prediction.predicted_home_goals > 0 else 1.5
+            predicted_away = prediction.predicted_away_goals if prediction.predicted_away_goals > 0 else 1.1
+            
+            # 5. Generate suggested picks
+            suggested_picks = self.picks_service.generate_suggested_picks(
+                match=match,
+                home_stats=home_stats if home_stats and home_stats.matches_played > 0 else None,
+                away_stats=away_stats if away_stats and away_stats.matches_played > 0 else None,
+                predicted_home_goals=predicted_home,
+                predicted_away_goals=predicted_away,
+            )
+            
+            # 6. Convert to DTO
+            return self._to_dto(suggested_picks)
+        except Exception as e:
+            logger.error(f"Error generating suggested picks for match {match_id}: {e}", exc_info=True)
+            # Return empty picks instead of failing
+            return MatchSuggestedPicksDTO(
+                match_id=match_id,
+                suggested_picks=[],
+                combination_warning="No se pudieron generar picks debido a datos insuficientes.",
+                generated_at=datetime.utcnow(),
+            )
     
     async def _get_match(self, match_id: str) -> Optional[Match]:
         """Get match details from available sources."""
