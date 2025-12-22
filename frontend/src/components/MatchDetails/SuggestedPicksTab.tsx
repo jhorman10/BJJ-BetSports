@@ -80,8 +80,12 @@ const getMarketIcon = (marketType: string): string => {
     case "cards_over":
     case "cards_under":
       return "🟨";
+    case "red_cards":
+      return "🟥";
     case "va_handicap":
       return "⚖️";
+    case "winner":
+      return "🏆";
     case "goals_over":
       return "⚽";
     case "goals_under":
@@ -199,29 +203,81 @@ const calculateFallbackPicks = (
     risk_level: 3,
   });
 
-  // 3. Handicap VA Pick
-  const homeDominant =
-    prediction.home_win_probability > prediction.away_win_probability + 0.15;
-  const awayDominant =
-    prediction.away_win_probability > prediction.home_win_probability + 0.15;
+  // 3. Red Cards Pick
+  const totalRedCards =
+    (match.home_red_cards ?? 0) + (match.away_red_cards ?? 0);
+  const redCardsProb =
+    totalRedCards > 0 ? Math.min(0.45, 0.15 + totalRedCards * 0.12) : 0.12;
+  picks.push({
+    market_type: "red_cards",
+    market_label: `Tarjeta Roja en el Partido`,
+    probability: redCardsProb,
+    reasoning:
+      totalRedCards > 0
+        ? "Historial reciente muestra tendencia a expulsiones en estos enfrentamientos."
+        : "Probabilidad baja pero presente basada en promedios de liga.",
+    risk_level: 5,
+  });
 
-  if (homeDominant || awayDominant) {
-    const dominantTeam = homeDominant ? "Local" : "Visitante";
-    const handicapProb =
-      Math.max(
-        prediction.home_win_probability,
-        prediction.away_win_probability
-      ) * 0.95;
-    picks.push({
-      market_type: "va_handicap",
-      market_label: `Hándicap VA (+2) - ${dominantTeam}`,
-      probability: Math.min(0.82, Math.max(0.6, handicapProb)),
-      reasoning: `Ventaja considerable para el equipo ${dominantTeam.toLowerCase()} en casa con soporte de datos.`,
-      risk_level: 3,
-    });
+  // 4. Handicap VA Pick (always show)
+  const homeDominant =
+    prediction.home_win_probability > prediction.away_win_probability + 0.1;
+  const awayDominant =
+    prediction.away_win_probability > prediction.home_win_probability + 0.1;
+
+  const dominantTeam = homeDominant
+    ? "Local"
+    : awayDominant
+    ? "Visitante"
+    : "Local";
+  const handicapProb =
+    homeDominant || awayDominant
+      ? Math.max(
+          prediction.home_win_probability,
+          prediction.away_win_probability
+        ) * 0.95
+      : Math.max(
+          prediction.home_win_probability,
+          prediction.away_win_probability
+        ) * 0.85;
+
+  picks.push({
+    market_type: "va_handicap",
+    market_label: `Hándicap VA (+2) - ${dominantTeam}`,
+    probability: Math.min(0.85, Math.max(0.55, handicapProb)),
+    reasoning: `Ventaja considerable para el equipo ${dominantTeam.toLowerCase()} con el soporte del hándicap asiático.`,
+    risk_level: 3,
+  });
+
+  // 5. Winner Pick
+  const maxWinProb = Math.max(
+    prediction.home_win_probability,
+    prediction.draw_probability,
+    prediction.away_win_probability
+  );
+  let winnerLabel = "Empate (X)";
+  let winnerReasoning =
+    "Equipos equilibrados con probabilidad similar de empate.";
+
+  if (prediction.home_win_probability === maxWinProb) {
+    winnerLabel = `Victoria ${match.home_team.name} (1)`;
+    winnerReasoning =
+      "Análisis favorece al equipo local basado en rendimiento y estadísticas.";
+  } else if (prediction.away_win_probability === maxWinProb) {
+    winnerLabel = `Victoria ${match.away_team.name} (2)`;
+    winnerReasoning =
+      "El visitante muestra mejor forma y rendimiento reciente.";
   }
 
-  // 4. Goals Pick
+  picks.push({
+    market_type: "winner",
+    market_label: winnerLabel,
+    probability: maxWinProb,
+    reasoning: winnerReasoning,
+    risk_level: maxWinProb > 0.5 ? 2 : 4,
+  });
+
+  // 6. Goals Pick
   const goalsProb =
     prediction.over_25_probability > prediction.under_25_probability
       ? prediction.over_25_probability
