@@ -2,15 +2,16 @@ import React from "react";
 import {
   Box,
   Typography,
-  ToggleButton,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
   SelectChangeEvent,
 } from "@mui/material";
-import { Sort, LiveTv } from "@mui/icons-material";
+import { Sort } from "@mui/icons-material";
 import { League } from "../../types";
+import { getLeagueName } from "../LeagueSelector/constants";
+import TeamSearch from "../TeamSearch/TeamSearch";
 
 export type SortOption =
   | "confidence"
@@ -28,19 +29,19 @@ const sortLabels: Record<SortOption, string> = {
 interface PredictionGridHeaderProps {
   league: League | null;
   predictionCount: number;
-  showLiveOnly: boolean;
-  onLiveToggle: () => void;
   sortBy: SortOption;
   onSortChange: (sortBy: SortOption) => void;
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
 }
 
 const PredictionGridHeader: React.FC<PredictionGridHeaderProps> = ({
   league,
   predictionCount,
-  showLiveOnly,
-  onLiveToggle,
   sortBy,
   onSortChange,
+  searchQuery,
+  onSearchChange,
 }) => {
   const handleSortChange = (event: SelectChangeEvent<SortOption>) => {
     onSortChange(event.target.value as SortOption);
@@ -58,7 +59,7 @@ const PredictionGridHeader: React.FC<PredictionGridHeaderProps> = ({
       {league && (
         <Box>
           <Typography variant="h5" fontWeight={600}>
-            Predicciones: {league.name}
+            Predicciones: {getLeagueName(league.name)}
           </Typography>
           <Typography variant="body2" color="text.secondary">
             {predictionCount} partidos analizados
@@ -66,19 +67,19 @@ const PredictionGridHeader: React.FC<PredictionGridHeaderProps> = ({
         </Box>
       )}
 
-      <Box display="flex" gap={2} flexWrap="wrap" alignItems="center">
-        {/* Live Toggle */}
-        <ToggleButton
-          value="check"
-          selected={showLiveOnly}
-          onChange={onLiveToggle}
-          size="small"
-          color="error"
-          sx={{ borderRadius: 2 }}
-        >
-          <LiveTv fontSize="small" sx={{ mr: 1 }} />
-          EN VIVO
-        </ToggleButton>
+      <Box
+        display="flex"
+        gap={2}
+        flexWrap="wrap"
+        alignItems="center"
+        sx={{ ml: "auto" }}
+      >
+        {/* Search Bar */}
+        <TeamSearch
+          searchQuery={searchQuery}
+          onSearchChange={onSearchChange}
+          sx={{ width: 250, mr: 1 }}
+        />
 
         {/* Sort Dropdown */}
         <FormControl size="small" sx={{ minWidth: 150 }}>

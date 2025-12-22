@@ -73,3 +73,28 @@ export const MENU_PROPS = {
     },
   },
 };
+
+export const LEAGUE_TRANSLATIONS: Record<string, string> = {
+  "Premier League": "Premier League",
+  Bundesliga: "Bundesliga",
+  "La Liga": "La Liga",
+  "Serie A": "Serie A",
+  "Ligue 1": "Ligue 1",
+  Eredivisie: "Eredivisie",
+  "Primeira Liga": "Primeira Liga",
+  "UEFA Champions League": "UEFA Champions League",
+  "UEFA Europa League": "UEFA Europa League",
+  "World Cup": "Copa del Mundo",
+  "European Championship": "Eurocopa",
+  "Copa Libertadores": "Copa Libertadores",
+  "Copa Sudamericana": "Copa Sudamericana",
+  Friendlies: "Amistosos Internacionales",
+  "Club Friendlies": "Amistosos de Clubes",
+  Championship: "Championship (2ª Ing)",
+  "Brasileirão Série A": "Brasileirão Série A",
+};
+
+export const getLeagueName = (name: string) => {
+  if (!name) return "";
+  return LEAGUE_TRANSLATIONS[name] || name;
+};

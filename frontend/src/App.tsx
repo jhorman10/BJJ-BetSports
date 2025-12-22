@@ -17,7 +17,7 @@ import {
 import { SportsSoccer, GetApp } from "@mui/icons-material";
 import LeagueSelector from "./components/LeagueSelector";
 import PredictionGrid from "./components/PredictionGrid";
-import TeamSearch from "./components/TeamSearch/TeamSearch";
+import LiveMatchesList from "./components/MatchDetails/LiveMatchesList";
 
 import { Country } from "./types";
 import {
@@ -88,6 +88,9 @@ const App: React.FC = () => {
 
   // Sorting state
   const [sortBy, setSortBy] = useState<SortOption>("confidence");
+  // Live view state
+  const [showLive, setShowLive] = useState(false);
+
   // Search hook
   const {
     searchQuery,
@@ -191,32 +194,38 @@ const App: React.FC = () => {
             onCountryChange={handleCountrySelect}
             onLeagueChange={selectLeague}
             loading={leaguesLoading}
+            showLive={showLive}
+            onLiveToggle={() => setShowLive(!showLive)}
           />
         )}
 
-        {/* Search Bar - only shows when there are predictions to filter */}
-        {(selectedLeague || predictions.length > 0) && (
+        {showLive ? (
           <Box mb={4}>
-            <TeamSearch
-              searchQuery={searchQuery}
-              onSearchChange={setSearchQuery}
+            <LiveMatchesList
+              selectedLeagueIds={selectedLeague ? [selectedLeague.id] : []}
+              selectedLeagueNames={selectedLeague ? [selectedLeague.name] : []}
             />
           </Box>
-        )}
-
-        {/* Predictions Grid */}
-        {(selectedLeague || searchQuery.length > 2) && (
-          <PredictionGrid
-            predictions={searchQuery.length > 2 ? searchMatches : predictions}
-            league={selectedLeague}
-            loading={
-              searchQuery.length > 2 ? searchLoading : predictionsLoading
-            }
-            error={searchQuery.length > 2 ? null : predictionsError}
-            sortBy={sortBy}
-            onSortChange={handleSortChange}
-            searchQuery={searchQuery}
-          />
+        ) : (
+          <>
+            {/* Predictions Grid */}
+            {(selectedLeague || searchQuery.length > 2) && (
+              <PredictionGrid
+                predictions={
+                  searchQuery.length > 2 ? searchMatches : predictions
+                }
+                league={selectedLeague}
+                loading={
+                  searchQuery.length > 2 ? searchLoading : predictionsLoading
+                }
+                error={searchQuery.length > 2 ? null : predictionsError}
+                sortBy={sortBy}
+                onSortChange={handleSortChange}
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+              />
+            )}
+          </>
         )}
 
         {/* Footer */}
@@ -230,7 +239,8 @@ const App: React.FC = () => {
           }}
         >
           <Typography variant="body2" color="text.secondary">
-            Datos de Football-Data.co.uk, API-Football y Football-Data.org
+            Datos de Football-Data.co.uk, API-Football, TheSportsDB, ESPN y
+            Football-Data.org
           </Typography>
           <Typography
             variant="caption"

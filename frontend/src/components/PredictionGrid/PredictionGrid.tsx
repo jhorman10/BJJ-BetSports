@@ -8,7 +8,6 @@ import PredictionGridList, { MatchCardSkeleton } from "./PredictionGridList";
 const MatchDetailsModal = lazy(
   () => import("../MatchDetails/MatchDetailsModal")
 );
-const LiveMatchesList = lazy(() => import("../MatchDetails/LiveMatchesList"));
 
 interface PredictionGridProps {
   predictions: MatchPrediction[];
@@ -17,8 +16,9 @@ interface PredictionGridProps {
   error: Error | null;
   sortBy: SortOption;
   onSortChange: (sortBy: SortOption) => void;
+
   searchQuery: string;
-  onLiveToggle?: (isLive: boolean) => void;
+  onSearchChange: (query: string) => void;
 }
 
 const emptyStateStyles = {
@@ -34,11 +34,10 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
     error,
     sortBy,
     onSortChange,
+
     searchQuery,
-    onLiveToggle,
+    onSearchChange,
   }) => {
-    // Local state for UI filters
-    const [showLiveOnly, setShowLiveOnly] = React.useState(false);
     const [selectedMatch, setSelectedMatch] =
       React.useState<MatchPrediction | null>(null);
     const [modalOpen, setModalOpen] = React.useState(false);
@@ -76,15 +75,6 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
       setModalOpen(false);
       setSelectedMatch(null);
     }, []);
-
-    // Stable handler for live toggle
-    const handleLiveChange = useCallback(() => {
-      setShowLiveOnly((prev) => {
-        const newState = !prev;
-        if (onLiveToggle) onLiveToggle(newState);
-        return newState;
-      });
-    }, [onLiveToggle]);
 
     // Sort predictions client-side to ensure visual consistency
     const sortedPredictions = useMemo(() => {
@@ -189,31 +179,16 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
         <PredictionGridHeader
           league={league}
           predictionCount={predictions.length}
-          showLiveOnly={showLiveOnly}
-          onLiveToggle={handleLiveChange}
           sortBy={sortBy}
           onSortChange={onSortChange}
+          searchQuery={searchQuery}
+          onSearchChange={onSearchChange}
         />
 
-        {showLiveOnly ? (
-          <Suspense
-            fallback={
-              <Box display="flex" justifyContent="center" p={4}>
-                <CircularProgress />
-              </Box>
-            }
-          >
-            <LiveMatchesList
-              selectedLeagueIds={league ? [league.id] : []}
-              selectedLeagueNames={league ? [league.name] : []}
-            />
-          </Suspense>
-        ) : (
-          <PredictionGridList
-            predictions={sortedPredictions}
-            onMatchClick={handleMatchClick}
-          />
-        )}
+        <PredictionGridList
+          predictions={sortedPredictions}
+          onMatchClick={handleMatchClick}
+        />
 
         {/* Modal */}
         <Suspense fallback={null}>

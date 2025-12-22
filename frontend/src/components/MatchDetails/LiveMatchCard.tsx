@@ -11,6 +11,7 @@ import {
 } from "@mui/material";
 import { Flag } from "@mui/icons-material";
 import { LiveMatch } from "../../hooks/useLiveMatches";
+import { getLeagueName } from "../LeagueSelector/constants";
 
 // --- Estilos Personalizados ---
 const MatchCard = styled(Card)(() => ({
@@ -66,42 +67,68 @@ const LiveMatchCard: React.FC<LiveMatchCardProps> = memo(
       <Grid item xs={12} sm={6} md={6} lg={4}>
         <MatchCard onClick={() => onSelect?.(match.id)}>
           <CardContent sx={{ p: "20px !important" }}>
-            {/* Header: Tiempo */}
+            {/* Header: Liga + Bandera + Tiempo */}
             <Box
               display="flex"
               justifyContent="space-between"
               alignItems="center"
               mb={2}
             >
-              <Box
-                display="flex"
-                alignItems="center"
-                gap={1}
-                sx={{
-                  bgcolor: "rgba(34, 197, 94, 0.1)",
-                  px: 1.5,
-                  py: 0.5,
-                  borderRadius: "100px",
-                  border: "1px solid rgba(34, 197, 94, 0.2)",
-                }}
-              >
-                <PulseDot />
-                <Typography variant="caption" fontWeight={700} color="#4ade80">
-                  {match.minute}'
+              <Box display="flex" alignItems="center" gap={1}>
+                {match.league_flag && (
+                  <Box
+                    component="img"
+                    src={match.league_flag}
+                    alt={match.league_name}
+                    sx={{
+                      width: 16,
+                      height: 12,
+                      borderRadius: 0.5,
+                      objectFit: "cover",
+                    }}
+                  />
+                )}
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  fontWeight={600}
+                  sx={{ textTransform: "uppercase", fontSize: "0.65rem" }}
+                >
+                  {getLeagueName(match.league_name)}
                 </Typography>
               </Box>
-              {match.status === "HT" && (
-                <Chip
-                  label="HT"
-                  size="small"
-                  color="warning"
+
+              <Box display="flex" alignItems="center" gap={1}>
+                {match.status === "HT" && (
+                  <Chip
+                    label="HT"
+                    size="small"
+                    color="warning"
+                    sx={{ height: 18, fontSize: "0.6rem", fontWeight: 700 }}
+                  />
+                )}
+                <Box
+                  display="flex"
+                  alignItems="center"
+                  gap={1}
                   sx={{
-                    height: 20,
-                    fontSize: "0.65rem",
-                    fontWeight: 700,
+                    bgcolor: "rgba(34, 197, 94, 0.1)",
+                    px: 1,
+                    py: 0.25,
+                    borderRadius: "100px",
+                    border: "1px solid rgba(34, 197, 94, 0.2)",
                   }}
-                />
-              )}
+                >
+                  <PulseDot />
+                  <Typography
+                    variant="caption"
+                    fontWeight={700}
+                    color="#4ade80"
+                  >
+                    {match.minute}'
+                  </Typography>
+                </Box>
+              </Box>
             </Box>
 
             {/* Scoreboard Central */}

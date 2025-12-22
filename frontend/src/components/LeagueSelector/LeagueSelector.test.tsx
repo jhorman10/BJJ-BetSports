@@ -38,6 +38,8 @@ describe("LeagueSelector Component", () => {
     onCountryChange: vi.fn(),
     onLeagueChange: vi.fn(),
     loading: false,
+    showLive: false,
+    onLiveToggle: vi.fn(),
   };
 
   it("renders loading state correctly", () => {

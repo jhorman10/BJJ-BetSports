@@ -155,6 +155,28 @@ class PicksService:
              if winner_pick:
                 picks.add_pick(winner_pick)
             
+        # Fallback: Si aún no hay picks pero tenemos estadísticas, intentamos mercados individuales
+        # Esto asegura que si hay "data en la card" (stats), se genere al menos una sugerencia.
+        if not picks.suggested_picks and has_home_stats and has_away_stats:
+            fallback_picks = []
+            
+            # Intentar Córners Individuales
+            p = self._generate_single_team_corners(home_stats, match, True)
+            if p: fallback_picks.append(p)
+            p = self._generate_single_team_corners(away_stats, match, False)
+            if p: fallback_picks.append(p)
+            
+            # Intentar Tarjetas Individuales
+            p = self._generate_single_team_cards(home_stats, match, True)
+            if p: fallback_picks.append(p)
+            p = self._generate_single_team_cards(away_stats, match, False)
+            if p: fallback_picks.append(p)
+            
+            if fallback_picks:
+                # Seleccionar el mejor pick individual disponible
+                fallback_picks.sort(key=lambda x: x.probability, reverse=True)
+                picks.add_pick(fallback_picks[0])
+
         return picks
     
     def _is_low_scoring_context(
@@ -555,69 +577,6 @@ class PicksService:
                 priority_score=probability * 0.5,  # Low priority
             )
         return None
-    
-    def _generate_default_red_cards_pick(self) -> Optional[SuggestedPick]:
-        """Generate default red cards pick without historical data."""
-        probability = 0.12  # League average ~12%
-        
-        return SuggestedPick(
-            market_type=MarketType.RED_CARDS,
-            market_label="Tarjeta Roja en el Partido",
-            probability=probability,
-            confidence_level=ConfidenceLevel.LOW,
-            reasoning="Probabilidad basada en promedios de liga. Evento poco frecuente.",
-            risk_level=5,
-            is_recommended=False,
-            priority_score=probability * 0.5,
-        )
-    
-    def _generate_default_corners_pick(
-        self,
-        predicted_home_goals: float,
-        predicted_away_goals: float,
-    ) -> Optional[SuggestedPick]:
-        """Generate corners pick based on expected goals when no stats available."""
-        total_goals = predicted_home_goals + predicted_away_goals
-        # Corners correlate with expected goals (~3.5 corners per goal)
-        expected_corners = total_goals * 3.5
-        
-        threshold = 6.5 if expected_corners < 8 else 8.5
-        probability = min(0.85, 0.55 + (expected_corners - threshold) * 0.04)
-        probability = max(0.45, probability)
-        
-        confidence = SuggestedPick.get_confidence_level(probability)
-        risk = self._calculate_risk_level(probability)
-        
-        return SuggestedPick(
-            market_type=MarketType.CORNERS_OVER,
-            market_label=f"Más de {threshold} córners",
-            probability=round(probability, 3),
-            confidence_level=confidence,
-            reasoning=f"Estimación basada en goles esperados: {total_goals:.1f} → ~{expected_corners:.0f} córners",
-            risk_level=risk,
-            is_recommended=probability > 0.60,
-            priority_score=probability * self.MARKET_PRIORITY[MarketType.CORNERS_OVER],
-        )
-    
-    def _generate_default_cards_pick(self, match: Match) -> Optional[SuggestedPick]:
-        """Generate cards pick without historical data."""
-        # League average is typically 3-4 yellow cards per match
-        expected_cards = 3.5
-        probability = 0.72  # ~72% chance of over 2.5 cards
-        
-        confidence = SuggestedPick.get_confidence_level(probability)
-        risk = self._calculate_risk_level(probability)
-        
-        return SuggestedPick(
-            market_type=MarketType.CARDS_OVER,
-            market_label=f"{match.home_team.name.split()[0]} - Más de 1.5 Tarjetas",
-            probability=round(probability, 3),
-            confidence_level=confidence,
-            reasoning="Promedio de liga sugiere alta probabilidad de tarjetas.",
-            risk_level=risk,
-            is_recommended=probability > 0.65,
-            priority_score=probability * self.MARKET_PRIORITY[MarketType.CARDS_OVER],
-        )
     
     def _generate_va_handicap_picks_v2(
         self,

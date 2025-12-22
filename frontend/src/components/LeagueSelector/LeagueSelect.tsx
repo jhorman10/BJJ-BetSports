@@ -10,6 +10,7 @@ import {
 } from "@mui/material";
 import { KeyboardArrowDown } from "@mui/icons-material";
 import { League, Country } from "../../types";
+import { getLeagueName } from "./constants";
 
 interface LeagueSelectProps {
   leagues: League[];
@@ -80,7 +81,7 @@ const LeagueSelect: React.FC<LeagueSelectProps> = ({
                 }}
               />
               <Typography variant="body2" fontWeight={500}>
-                {league.name}
+                {getLeagueName(league.name)}
               </Typography>
             </Box>
           </MenuItem>

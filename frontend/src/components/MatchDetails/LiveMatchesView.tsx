@@ -13,15 +13,6 @@ import { SportsSoccer, Refresh } from "@mui/icons-material";
 import { LiveMatch } from "../../hooks/useLiveMatches";
 import LiveMatchCard from "./LiveMatchCard";
 
-const LeagueTitle = styled(Typography)(({ theme }) => ({
-  color: "rgba(255, 255, 255, 0.7)",
-  fontWeight: 700,
-  fontSize: "0.9rem",
-  marginBottom: theme.spacing(2),
-  paddingLeft: theme.spacing(1),
-  borderLeft: "3px solid #22c55e",
-}));
-
 const PulseDot = styled(Box)({
   width: 8,
   height: 8,
@@ -55,8 +46,8 @@ const LiveMatchesView: React.FC<LiveMatchesViewProps> = ({
   selectedLeagueNames = [],
   onMatchSelect,
 }) => {
-  // Filtrar y Agrupar por Liga
-  const groupedMatches = useMemo(() => {
+  // Filtrar Partidos (Sin Agrupar)
+  const filteredMatches = useMemo(() => {
     // 1. Filtrar por ligas seleccionadas (si hay selección)
     let filtered = matches;
     if (selectedLeagueIds.length > 0) {
@@ -80,16 +71,7 @@ const LiveMatchesView: React.FC<LiveMatchesViewProps> = ({
         filtered = [];
       }
     }
-
-    // 2. Agrupar por nombre de liga
-    return filtered.reduce((groups, match) => {
-      const league = match.league_name;
-      if (!groups[league]) {
-        groups[league] = [];
-      }
-      groups[league].push(match);
-      return groups;
-    }, {} as Record<string, LiveMatch[]>);
+    return filtered;
   }, [matches, selectedLeagueIds, selectedLeagueNames]);
 
   return (
@@ -139,7 +121,7 @@ const LiveMatchesView: React.FC<LiveMatchesViewProps> = ({
         </Box>
       ) : error ? (
         <Alert severity="error">{error}</Alert>
-      ) : Object.keys(groupedMatches).length === 0 ? (
+      ) : filteredMatches.length === 0 ? (
         <Box textAlign="center" p={4} color="rgba(255, 255, 255, 0.5)">
           <SportsSoccer sx={{ fontSize: 40, opacity: 0.3, mb: 1 }} />
           <Typography variant="body2">
@@ -147,26 +129,23 @@ const LiveMatchesView: React.FC<LiveMatchesViewProps> = ({
           </Typography>
         </Box>
       ) : (
-        /* Lista de Partidos */
-        Object.entries(groupedMatches).map(([leagueName, leagueMatches]) => (
-          <Box key={leagueName}>
-            <LeagueTitle>{leagueName.toUpperCase()}</LeagueTitle>
-            <Grid
-              container
-              spacing={3}
-              justifyContent="center"
-              sx={{ mb: 4, px: { xs: 2, sm: 4, md: 0 } }}
-            >
-              {leagueMatches.map((match) => (
-                <LiveMatchCard
-                  key={match.id}
-                  match={match}
-                  onSelect={onMatchSelect}
-                />
-              ))}
-            </Grid>
-          </Box>
-        ))
+        /* Lista de Partidos Plana */
+        <Box>
+          <Grid
+            container
+            spacing={2}
+            justifyContent="center" // Centrado
+            sx={{ mb: 4, px: { xs: 2, sm: 2, md: 0 } }}
+          >
+            {filteredMatches.map((match) => (
+              <LiveMatchCard
+                key={match.id}
+                match={match}
+                onSelect={onMatchSelect}
+              />
+            ))}
+          </Grid>
+        </Box>
       )}
     </Box>
   );

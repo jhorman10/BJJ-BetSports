@@ -14,12 +14,18 @@ import {
   Stack,
   SelectChangeEvent,
   Chip,
+  ToggleButton,
 } from "@mui/material";
-import { SportsScore } from "@mui/icons-material";
+import { SportsScore, LiveTv } from "@mui/icons-material";
 import { Country, League } from "../../types";
 import CountrySelect from "./CountrySelect";
 import LeagueSelect from "./LeagueSelect";
-import { COUNTRY_DATA, MENU_PROPS, SELECT_STYLES } from "./constants";
+import {
+  COUNTRY_DATA,
+  MENU_PROPS,
+  SELECT_STYLES,
+  getLeagueName,
+} from "./constants";
 
 export interface LeagueSelectorProps {
   countries: Country[];
@@ -27,6 +33,8 @@ export interface LeagueSelectorProps {
   selectedLeague: League | null;
   onCountryChange: (country: Country | null) => void;
   onLeagueChange: (league: League | null) => void;
+  showLive: boolean;
+  onLiveToggle: () => void;
   loading?: boolean;
 }
 
@@ -36,6 +44,8 @@ const LeagueSelector: React.FC<LeagueSelectorProps> = ({
   selectedLeague,
   onCountryChange,
   onLeagueChange,
+  showLive,
+  onLiveToggle,
   loading = false,
 }) => {
   const handleCountryChange = (event: SelectChangeEvent<string>) => {
@@ -104,6 +114,30 @@ const LeagueSelector: React.FC<LeagueSelectorProps> = ({
               Elige el país y la liga para ver las predicciones
             </Typography>
           </Box>
+
+          {/* Live Toggle - Top Right */}
+          <ToggleButton
+            value="check"
+            selected={showLive}
+            onChange={onLiveToggle}
+            size="small"
+            color="error"
+            sx={{
+              borderRadius: 2,
+              ml: "auto !important",
+              border: "1px solid rgba(239, 68, 68, 0.5)",
+              "&.Mui-selected": {
+                backgroundColor: "rgba(239, 68, 68, 0.2)",
+                color: "#ef4444",
+                "&:hover": {
+                  backgroundColor: "rgba(239, 68, 68, 0.3)",
+                },
+              },
+            }}
+          >
+            <LiveTv fontSize="small" sx={{ mr: 1 }} />
+            EN VIVO
+          </ToggleButton>
         </Box>
 
         {/* Selectors Row */}
@@ -156,7 +190,7 @@ const LeagueSelector: React.FC<LeagueSelectorProps> = ({
             </Box>
             <Box sx={{ flex: 1 }}>
               <Typography variant="body2" fontWeight={600}>
-                {selectedLeague.name}
+                {getLeagueName(selectedLeague.name)}
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 {COUNTRY_DATA[selectedLeague.country]?.name ||

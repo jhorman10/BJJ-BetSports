@@ -5,11 +5,13 @@ import { Search } from "@mui/icons-material";
 interface TeamSearchProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
+  sx?: any;
 }
 
 const TeamSearch: React.FC<TeamSearchProps> = ({
   searchQuery,
   onSearchChange,
+  sx,
 }) => {
   return (
     <TextField
@@ -28,7 +30,7 @@ const TeamSearch: React.FC<TeamSearchProps> = ({
       size="small"
       sx={{
         maxWidth: 500,
-        margin: "0 auto",
+        ...sx, // Allow overriding
         display: "flex",
         backgroundColor: "rgba(30, 41, 59, 0.6)",
         backdropFilter: "blur(10px)",

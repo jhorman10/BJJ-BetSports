@@ -163,15 +163,59 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
 
   // Sort picks by probability (highest first)
   const sortedPicks = useMemo(() => {
-    if (!apiPicks?.suggested_picks) return [];
+    let picks = apiPicks?.suggested_picks ? [...apiPicks.suggested_picks] : [];
+
+    // Fallback Frontend: Si el backend no devolvió picks pero tenemos predicción,
+    // generamos un pick basado en la data visible (probabilidades).
+    if (apiPicks && picks.length === 0 && matchPrediction.prediction) {
+      const { prediction, match } = matchPrediction;
+
+      // 1. Intentar sugerir Ganador si hay probabilidad decente (>50%)
+      const maxWinProb = Math.max(
+        prediction.home_win_probability,
+        prediction.away_win_probability
+      );
+      if (maxWinProb > 0.5) {
+        const isHome =
+          prediction.home_win_probability > prediction.away_win_probability;
+        picks.push({
+          market_type: "winner",
+          market_label: isHome
+            ? `Victoria ${match.home_team.name}`
+            : `Victoria ${match.away_team.name}`,
+          probability: maxWinProb,
+          confidence_level: 2,
+          reasoning:
+            "Sugerencia basada en probabilidades del modelo (Data de Card).",
+          risk_level: 3,
+          is_recommended: true,
+          priority_score: 1,
+        } as any);
+      }
+      // 2. Si no, intentar sugerir Goles (+2.5)
+      else if (prediction.over_25_probability > 0.55) {
+        picks.push({
+          market_type: "goals_over",
+          market_label: "Más de 2.5 Goles",
+          probability: prediction.over_25_probability,
+          confidence_level: 2,
+          reasoning:
+            "Sugerencia basada en probabilidades del modelo (Data de Card).",
+          risk_level: 3,
+          is_recommended: true,
+          priority_score: 1,
+        } as any);
+      }
+    }
+
     // FIX: Use priority_score to respect backend's market weighting logic.
     // If priority_score is missing, fallback to raw probability.
-    return [...apiPicks.suggested_picks].sort(
+    return picks.sort(
       (a, b) =>
         (b.priority_score || b.probability) -
         (a.priority_score || a.probability)
     );
-  }, [apiPicks]);
+  }, [apiPicks, matchPrediction]);
 
   if (loading) {
     return (
