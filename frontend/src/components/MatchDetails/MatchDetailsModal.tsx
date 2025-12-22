@@ -212,101 +212,135 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
               Estadísticas Proyectadas
             </Typography>
             <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-              <Grid container spacing={1}>
-                {/* Header */}
-                <Grid item xs={4}>
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    fontWeight="bold"
-                  >
-                    Estadística
-                  </Typography>
-                </Grid>
-                <Grid item xs={4} textAlign="center">
-                  <Typography
-                    variant="caption"
-                    color="primary"
-                    fontWeight="bold"
-                  >
-                    {details.match.home_team.name.split(" ")[0]}
-                  </Typography>
-                </Grid>
-                <Grid item xs={4} textAlign="center">
-                  <Typography variant="caption" color="error" fontWeight="bold">
-                    {details.match.away_team.name.split(" ")[0]}
-                  </Typography>
-                </Grid>
+              {/* Header: Team names */}
+              <Box
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+                mb={2}
+              >
+                <Typography
+                  variant="body2"
+                  fontWeight="bold"
+                  color="primary"
+                  sx={{ flex: 1 }}
+                >
+                  {details.match.home_team.name}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ px: 2 }}
+                >
+                  vs
+                </Typography>
+                <Typography
+                  variant="body2"
+                  fontWeight="bold"
+                  color="error"
+                  sx={{ flex: 1, textAlign: "right" }}
+                >
+                  {details.match.away_team.name}
+                </Typography>
+              </Box>
 
-                {/* Corners */}
-                <Grid item xs={4}>
-                  <Typography variant="body2">⚑ Córners</Typography>
-                </Grid>
-                <Grid item xs={4} textAlign="center">
-                  <Typography
-                    variant="body1"
-                    fontWeight="bold"
-                    color="info.main"
-                  >
-                    {details.match.home_corners ?? "-"}
-                  </Typography>
-                </Grid>
-                <Grid item xs={4} textAlign="center">
-                  <Typography
-                    variant="body1"
-                    fontWeight="bold"
-                    color="info.main"
-                  >
-                    {details.match.away_corners ?? "-"}
-                  </Typography>
-                </Grid>
+              {/* Corners */}
+              <Box
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+                py={1}
+                borderBottom="1px solid rgba(255,255,255,0.1)"
+              >
+                <Typography
+                  variant="h6"
+                  fontWeight="bold"
+                  color="info.main"
+                  sx={{ width: 40, textAlign: "center" }}
+                >
+                  {details.match.home_corners ?? "-"}
+                </Typography>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ flex: 1, textAlign: "center" }}
+                >
+                  ⚑ Córners
+                </Typography>
+                <Typography
+                  variant="h6"
+                  fontWeight="bold"
+                  color="info.main"
+                  sx={{ width: 40, textAlign: "center" }}
+                >
+                  {details.match.away_corners ?? "-"}
+                </Typography>
+              </Box>
 
-                {/* Yellow Cards */}
-                <Grid item xs={4}>
-                  <Typography variant="body2">🟨 T. Amarillas</Typography>
-                </Grid>
-                <Grid item xs={4} textAlign="center">
-                  <Typography
-                    variant="body1"
-                    fontWeight="bold"
-                    color="warning.main"
-                  >
-                    {details.match.home_yellow_cards ?? "-"}
-                  </Typography>
-                </Grid>
-                <Grid item xs={4} textAlign="center">
-                  <Typography
-                    variant="body1"
-                    fontWeight="bold"
-                    color="warning.main"
-                  >
-                    {details.match.away_yellow_cards ?? "-"}
-                  </Typography>
-                </Grid>
+              {/* Yellow Cards */}
+              <Box
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+                py={1}
+                borderBottom="1px solid rgba(255,255,255,0.1)"
+              >
+                <Typography
+                  variant="h6"
+                  fontWeight="bold"
+                  color="warning.main"
+                  sx={{ width: 40, textAlign: "center" }}
+                >
+                  {details.match.home_yellow_cards ?? "-"}
+                </Typography>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ flex: 1, textAlign: "center" }}
+                >
+                  🟨 Amarillas
+                </Typography>
+                <Typography
+                  variant="h6"
+                  fontWeight="bold"
+                  color="warning.main"
+                  sx={{ width: 40, textAlign: "center" }}
+                >
+                  {details.match.away_yellow_cards ?? "-"}
+                </Typography>
+              </Box>
 
-                {/* Red Cards */}
-                <Grid item xs={4}>
-                  <Typography variant="body2">🟥 T. Rojas</Typography>
-                </Grid>
-                <Grid item xs={4} textAlign="center">
-                  <Typography
-                    variant="body1"
-                    fontWeight="bold"
-                    color="error.main"
-                  >
-                    {details.match.home_red_cards ?? "-"}
-                  </Typography>
-                </Grid>
-                <Grid item xs={4} textAlign="center">
-                  <Typography
-                    variant="body1"
-                    fontWeight="bold"
-                    color="error.main"
-                  >
-                    {details.match.away_red_cards ?? "-"}
-                  </Typography>
-                </Grid>
-              </Grid>
+              {/* Red Cards */}
+              <Box
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+                py={1}
+              >
+                <Typography
+                  variant="h6"
+                  fontWeight="bold"
+                  color="error.main"
+                  sx={{ width: 40, textAlign: "center" }}
+                >
+                  {details.match.home_red_cards ?? "-"}
+                </Typography>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ flex: 1, textAlign: "center" }}
+                >
+                  🟥 Rojas
+                </Typography>
+                <Typography
+                  variant="h6"
+                  fontWeight="bold"
+                  color="error.main"
+                  sx={{ width: 40, textAlign: "center" }}
+                >
+                  {details.match.away_red_cards ?? "-"}
+                </Typography>
+              </Box>
             </Paper>
 
             {/* Recomendaciones y Confianza */}
