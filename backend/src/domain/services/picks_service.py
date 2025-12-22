@@ -63,99 +63,91 @@ class PicksService:
         home_stats: Optional[TeamStatistics],
         away_stats: Optional[TeamStatistics],
         league_averages: Optional[LeagueAverages] = None,
-        predicted_home_goals: float = 1.5,
-        predicted_away_goals: float = 1.1,
-        home_win_prob: float = 0.4,
-        draw_prob: float = 0.3,
-        away_win_prob: float = 0.3,
+        predicted_home_goals: float = 0.0,
+        predicted_away_goals: float = 0.0,
+        home_win_prob: float = 0.0,
+        draw_prob: float = 0.0,
+        away_win_prob: float = 0.0,
     ) -> MatchSuggestedPicks:
         """
-        Generate suggested picks for a match.
+        Generate suggested picks for a match using ONLY REAL DATA.
+        
+        STRICT POLICY: No picks are generated without real historical data.
+        Returns empty picks if data is insufficient.
         
         Args:
             match: The match to generate picks for
-            home_stats: Home team historical statistics
-            away_stats: Away team historical statistics
-            league_averages: League average statistics
-            predicted_home_goals: Expected goals for home team
-            predicted_away_goals: Expected goals for away team
-            home_win_prob: Probability of home win
-            draw_prob: Probability of draw
-            away_win_prob: Probability of away win
+            home_stats: Home team historical statistics (required for picks)
+            away_stats: Away team historical statistics (required for picks)
+            predicted_home_goals: Expected goals (from real calculation)
+            predicted_away_goals: Expected goals (from real calculation)
+            home_win_prob: Real calculated probability
+            draw_prob: Real calculated probability
+            away_win_prob: Real calculated probability
             
         Returns:
-            MatchSuggestedPicks with sorted recommendations
+            MatchSuggestedPicks (empty if no real data)
         """
         picks = MatchSuggestedPicks(match_id=match.id)
         
-        has_stats = home_stats is not None and away_stats is not None
+        # STRICT: Require real statistics for both teams (min 3 matches)
+        has_home_stats = home_stats is not None and home_stats.matches_played >= 3
+        has_away_stats = away_stats is not None and away_stats.matches_played >= 3
+        has_prediction_data = predicted_home_goals > 0 and predicted_away_goals > 0
         
-        # Check if this is a low-scoring context (only if we have stats)
-        is_low_scoring = False
-        if has_stats:
-            is_low_scoring = self._is_low_scoring_context(
-                home_stats, away_stats, predicted_home_goals, predicted_away_goals
-            )
+        if not (has_home_stats and has_away_stats):
+            picks.combination_warning = "⚠️ Datos históricos insuficientes para generar picks confiables."
+            return picks
         
-            # Generate corners picks
-            corners_picks = self._generate_corners_picks(
-                home_stats, away_stats, match
-            )
-            for pick in corners_picks:
-                picks.add_pick(pick)
-            
-            # Generate yellow cards picks
-            cards_picks = self._generate_cards_picks(
-                home_stats, away_stats, match
-            )
-            for pick in cards_picks:
-                picks.add_pick(pick)
-            
-            # Generate red cards pick
-            red_cards_pick = self._generate_red_cards_pick(
-                home_stats, away_stats, match
-            )
-            if red_cards_pick:
-                picks.add_pick(red_cards_pick)
-        else:
-            # Generate default corners pick based on expected goals
-            corners_pick = self._generate_default_corners_pick(
-                predicted_home_goals, predicted_away_goals
-            )
-            if corners_pick:
-                picks.add_pick(corners_pick)
-            
-            # Generate default cards pick
-            cards_pick = self._generate_default_cards_pick(match)
-            if cards_pick:
-                picks.add_pick(cards_pick)
-            
-            # Generate default red cards pick
-            red_cards_pick = self._generate_default_red_cards_pick()
-            if red_cards_pick:
-                picks.add_pick(red_cards_pick)
-        
-        # Generate VA handicap picks (always)
-        va_picks = self._generate_va_handicap_picks_v2(
-            match, predicted_home_goals, predicted_away_goals, 
-            home_win_prob, away_win_prob
+        # Check if this is a low-scoring context
+        is_low_scoring = self._is_low_scoring_context(
+            home_stats, away_stats, predicted_home_goals, predicted_away_goals
         )
-        for pick in va_picks:
+        
+        # Generate corners picks (REAL data)
+        corners_picks = self._generate_corners_picks(
+            home_stats, away_stats, match
+        )
+        for pick in corners_picks:
             picks.add_pick(pick)
         
-        # Generate winner pick (always)
-        winner_pick = self._generate_winner_pick(
-            match, home_win_prob, draw_prob, away_win_prob
+        # Generate yellow cards picks (REAL data)
+        cards_picks = self._generate_cards_picks(
+            home_stats, away_stats, match
         )
-        if winner_pick:
-            picks.add_pick(winner_pick)
-        
-        # Generate goals picks (always)
-        goals_picks = self._generate_goals_picks(
-            predicted_home_goals, predicted_away_goals, is_low_scoring
-        )
-        for pick in goals_picks:
+        for pick in cards_picks:
             picks.add_pick(pick)
+        
+        # Generate red cards pick (REAL data)
+        red_cards_pick = self._generate_red_cards_pick(
+            home_stats, away_stats, match
+        )
+        if red_cards_pick:
+            picks.add_pick(red_cards_pick)
+        
+        # Only generate prediction-based picks if we have real predictions
+        if has_prediction_data and home_win_prob > 0:
+            # Generate VA handicap picks
+            va_picks = self._generate_va_handicap_picks_v2(
+                match, predicted_home_goals, predicted_away_goals, 
+                home_win_prob, away_win_prob
+            )
+            for pick in va_picks:
+                picks.add_pick(pick)
+            
+            # Generate winner pick
+            winner_pick = self._generate_winner_pick(
+                match, home_win_prob, draw_prob, away_win_prob
+            )
+            if winner_pick:
+                picks.add_pick(winner_pick)
+            
+            # Generate goals picks
+            goals_picks = self._generate_goals_picks(
+                predicted_home_goals, predicted_away_goals, is_low_scoring
+            )
+            for pick in goals_picks:
+                picks.add_pick(pick)
         
         return picks
     
