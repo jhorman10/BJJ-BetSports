@@ -505,7 +505,7 @@ class PredictionService:
         # Create default stats based on league averages if needed
         if use_default_home:
             home_stats = TeamStatistics(
-                team_name=match.home_team.name,
+                team_id=match.home_team.id,
                 matches_played=10,  # Assume average sample
                 wins=4,
                 draws=3,
@@ -520,7 +520,7 @@ class PredictionService:
         
         if use_default_away:
             away_stats = TeamStatistics(
-                team_name=match.away_team.name,
+                team_id=match.away_team.id,
                 matches_played=10,
                 wins=3,
                 draws=3,
