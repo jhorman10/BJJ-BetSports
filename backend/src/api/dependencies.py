@@ -64,3 +64,13 @@ def get_prediction_service() -> PredictionService:
 def get_statistics_service() -> StatisticsService:
     """Get statistics service (cached)."""
     return StatisticsService()
+
+
+from src.domain.services.learning_service import LearningService
+
+
+@lru_cache()
+def get_learning_service() -> LearningService:
+    """Get learning service (cached)."""
+    return LearningService()
+

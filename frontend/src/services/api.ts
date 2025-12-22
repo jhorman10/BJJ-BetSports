@@ -13,6 +13,10 @@ import {
   MatchPrediction,
   Match,
   LiveMatchPrediction,
+  MatchSuggestedPicks,
+  BettingFeedbackRequest,
+  BettingFeedbackResponse,
+  LearningStatsResponse,
 } from "../types";
 
 // API base URL from environment or default
@@ -141,6 +145,39 @@ export const api = {
   async getTeamMatches(teamName: string): Promise<Match[]> {
     const response = await apiClient.get<Match[]>(
       `/api/v1/matches/team/${teamName}`
+    );
+    return response.data;
+  },
+
+  /**
+   * Get AI-suggested picks for a match
+   */
+  async getSuggestedPicks(matchId: string): Promise<MatchSuggestedPicks> {
+    const response = await apiClient.get<MatchSuggestedPicks>(
+      `/api/v1/suggested-picks/match/${matchId}`
+    );
+    return response.data;
+  },
+
+  /**
+   * Register betting feedback for continuous learning
+   */
+  async registerFeedback(
+    feedback: BettingFeedbackRequest
+  ): Promise<BettingFeedbackResponse> {
+    const response = await apiClient.post<BettingFeedbackResponse>(
+      `/api/v1/suggested-picks/feedback`,
+      feedback
+    );
+    return response.data;
+  },
+
+  /**
+   * Get learning statistics from feedback
+   */
+  async getLearningStats(): Promise<LearningStatsResponse> {
+    const response = await apiClient.get<LearningStatsResponse>(
+      `/api/v1/suggested-picks/learning-stats`
     );
     return response.data;
   },

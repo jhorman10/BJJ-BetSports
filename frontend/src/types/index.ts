@@ -103,3 +103,73 @@ export interface LiveMatchesResponse {
   processingMessage: string;
   lastUpdated: string;
 }
+
+/**
+ * Suggested betting pick from AI
+ */
+export interface SuggestedPick {
+  market_type: string;
+  market_label: string;
+  probability: number;
+  confidence_level: "high" | "medium" | "low";
+  reasoning: string;
+  risk_level: number;
+  is_recommended: boolean;
+  priority_score: number;
+}
+
+/**
+ * Container for all suggested picks for a match
+ */
+export interface MatchSuggestedPicks {
+  match_id: string;
+  suggested_picks: SuggestedPick[];
+  combination_warning?: string;
+  generated_at: string;
+}
+
+/**
+ * Request for registering betting feedback
+ */
+export interface BettingFeedbackRequest {
+  match_id: string;
+  market_type: string;
+  prediction: string;
+  actual_outcome: string;
+  was_correct: boolean;
+  odds: number;
+  stake?: number;
+}
+
+/**
+ * Response for betting feedback registration
+ */
+export interface BettingFeedbackResponse {
+  success: boolean;
+  message: string;
+  market_type: string;
+  new_confidence_adjustment: number;
+}
+
+/**
+ * Market performance statistics
+ */
+export interface MarketPerformance {
+  market_type: string;
+  total_predictions: number;
+  correct_predictions: number;
+  success_rate: number;
+  avg_odds: number;
+  total_profit_loss: number;
+  confidence_adjustment: number;
+  last_updated: string;
+}
+
+/**
+ * Learning statistics response
+ */
+export interface LearningStatsResponse {
+  market_performances: MarketPerformance[];
+  total_feedback_count: number;
+  last_updated: string;
+}

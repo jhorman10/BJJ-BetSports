@@ -152,3 +152,78 @@ class ErrorResponseDTO(BaseModel):
     error: str
     message: str
     details: Optional[dict] = None
+
+
+# ============================================================
+# Suggested Picks DTOs
+# ============================================================
+
+class SuggestedPickDTO(BaseModel):
+    """Suggested pick data transfer object."""
+    market_type: str
+    market_label: str
+    probability: float = Field(..., ge=0, le=1)
+    confidence_level: str  # "high", "medium", "low"
+    reasoning: str
+    risk_level: int = Field(..., ge=1, le=5)
+    is_recommended: bool = True
+    priority_score: float = 0.0
+    
+    class Config:
+        from_attributes = True
+
+
+class MatchSuggestedPicksDTO(BaseModel):
+    """Container for all suggested picks for a match."""
+    match_id: str
+    suggested_picks: list[SuggestedPickDTO] = Field(default_factory=list)
+    combination_warning: Optional[str] = None
+    generated_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    class Config:
+        from_attributes = True
+
+
+# ============================================================
+# Betting Feedback DTOs
+# ============================================================
+
+class BettingFeedbackRequestDTO(BaseModel):
+    """Request for registering betting feedback."""
+    match_id: str = Field(..., description="Match identifier")
+    market_type: str = Field(..., description="Type of market (corners_over, cards_over, etc.)")
+    prediction: str = Field(..., description="The prediction made")
+    actual_outcome: str = Field(..., description="What actually happened")
+    was_correct: bool = Field(..., description="Whether prediction was correct")
+    odds: float = Field(..., ge=1.0, description="Betting odds")
+    stake: Optional[float] = Field(None, ge=0, description="Amount staked")
+
+
+class BettingFeedbackResponseDTO(BaseModel):
+    """Response for betting feedback registration."""
+    success: bool
+    message: str
+    market_type: str
+    new_confidence_adjustment: float
+
+
+class MarketPerformanceDTO(BaseModel):
+    """Market performance statistics DTO."""
+    market_type: str
+    total_predictions: int
+    correct_predictions: int
+    success_rate: float
+    avg_odds: float
+    total_profit_loss: float
+    confidence_adjustment: float
+    last_updated: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class LearningStatsResponseDTO(BaseModel):
+    """Response containing all learning statistics."""
+    market_performances: list[MarketPerformanceDTO]
+    total_feedback_count: int
+    last_updated: datetime
