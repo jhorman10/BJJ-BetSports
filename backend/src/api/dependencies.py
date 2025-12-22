@@ -82,3 +82,10 @@ def get_learning_service() -> LearningService:
     """Get learning service (cached)."""
     return LearningService()
 
+
+from src.domain.services.parley_service import ParleyService
+
+@lru_cache()
+def get_parley_service() -> ParleyService:
+    """Get parley service (cached)."""
+    return ParleyService()

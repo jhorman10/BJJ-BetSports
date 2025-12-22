@@ -259,3 +259,13 @@ class TeamStatistics:
     def avg_red_cards_per_match(self) -> float:
         if self.matches_played == 0: return 0.0
         return round(self.total_red_cards / self.matches_played, 2)
+
+
+@dataclass
+class MatchPrediction:
+    """
+    Combined entity containing both Match and Prediction data.
+    Useful for services that need context from both.
+    """
+    match: Match
+    prediction: Prediction

@@ -9,6 +9,7 @@ This is a pure domain service with no external dependencies.
 """
 
 import math
+import functools
 from dataclasses import dataclass
 from typing import Optional
 
@@ -85,7 +86,9 @@ class PredictionService:
             defense_strength=max(0.1, defense),
         )
     
-    def poisson_probability(self, expected: float, actual: int) -> float:
+    @staticmethod
+    @functools.lru_cache(maxsize=1024)
+    def poisson_probability(expected: float, actual: int) -> float:
         """
         Calculate Poisson probability.
         
@@ -103,6 +106,28 @@ class PredictionService:
         
         return (math.pow(expected, actual) * math.exp(-expected)) / math.factorial(actual)
     
+    @staticmethod
+    def _get_poisson_distribution(expected: float, max_goals: int) -> list[float]:
+        """
+        Generate Poisson distribution up to max_goals.
+        Optimized to avoid repeated factorial/pow calculations.
+        """
+        if expected <= 0:
+            probs = [0.0] * (max_goals + 1)
+            probs[0] = 1.0
+            return probs
+            
+        probs = [0.0] * (max_goals + 1)
+        # P(0) = e^-lambda
+        current_prob = math.exp(-expected)
+        probs[0] = current_prob
+        
+        for k in range(1, max_goals + 1):
+            current_prob *= expected / k
+            probs[k] = current_prob
+            
+        return probs
+
     def calculate_expected_goals(
         self,
         home_strength: TeamStrength,
@@ -157,13 +182,15 @@ class PredictionService:
         draw = 0.0
         away_win = 0.0
         
+        # Optimization: Pre-calculate distributions
+        home_probs = self._get_poisson_distribution(home_expected, max_goals)
+        away_probs = self._get_poisson_distribution(away_expected, max_goals)
+        
         # Calculate probability for each possible score
         for home_goals in range(max_goals + 1):
             for away_goals in range(max_goals + 1):
-                prob = (
-                    self.poisson_probability(home_expected, home_goals) *
-                    self.poisson_probability(away_expected, away_goals)
-                )
+                # Use pre-calculated probabilities
+                prob = home_probs[home_goals] * away_probs[away_goals]
                 
                 if home_goals > away_goals:
                     home_win += prob
@@ -201,15 +228,16 @@ class PredictionService:
         """
         under = 0.0
         
+        # Optimization: Pre-calculate distributions
+        home_probs = self._get_poisson_distribution(home_expected, max_goals)
+        away_probs = self._get_poisson_distribution(away_expected, max_goals)
+        
         # Calculate probability of total goals <= threshold
         for home_goals in range(max_goals + 1):
             for away_goals in range(max_goals + 1):
                 total = home_goals + away_goals
                 if total <= threshold:
-                    prob = (
-                        self.poisson_probability(home_expected, home_goals) *
-                        self.poisson_probability(away_expected, away_goals)
-                    )
+                    prob = home_probs[home_goals] * away_probs[away_goals]
                     under += prob
         
         over = 1.0 - under

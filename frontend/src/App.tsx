@@ -18,6 +18,7 @@ import { SportsSoccer, GetApp } from "@mui/icons-material";
 import LeagueSelector from "./components/LeagueSelector";
 import PredictionGrid from "./components/PredictionGrid";
 import LiveMatchesList from "./components/MatchDetails/LiveMatchesList";
+import ParleySection from "./components/Parley/ParleySection";
 
 import { Country } from "./types";
 import {
@@ -183,8 +184,21 @@ const App: React.FC = () => {
         </Box>
 
         {leaguesError ? (
-          <Alert severity="error" sx={{ mb: 4 }}>
-            Error al cargar las ligas: {leaguesError.message}
+          <Alert
+            severity="error"
+            sx={{ mb: 4 }}
+            action={
+              <Button
+                color="inherit"
+                size="small"
+                onClick={() => window.location.reload()}
+              >
+                Reintentar
+              </Button>
+            }
+          >
+            Error al cargar las ligas: {leaguesError.message}. El servidor puede
+            estar iniciándose.
           </Alert>
         ) : (
           <LeagueSelector
@@ -208,6 +222,14 @@ const App: React.FC = () => {
           </Box>
         ) : (
           <>
+            {/* Parley Section - Only show if we have predictions and not searching */}
+            {selectedLeague && !searchQuery && !predictionsError && (
+              <ParleySection
+                predictions={predictions}
+                loading={predictionsLoading}
+              />
+            )}
+
             {/* Predictions Grid */}
             {(selectedLeague || searchQuery.length > 2) && (
               <PredictionGrid
