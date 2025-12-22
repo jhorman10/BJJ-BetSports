@@ -1,8 +1,7 @@
 /**
  * MatchCard Component
  *
- * Displays a match prediction with probability bars, recommendations,
- * and dynamic picks section with color-coded events.
+ * Displays a match prediction with probability bars and recommendations.
  * Optimized with React.memo to prevent unnecessary re-renders.
  */
 
@@ -26,20 +25,12 @@ import {
   Info,
 } from "@mui/icons-material";
 import { styled } from "@mui/material/styles";
-import type { MatchPrediction, Match, Prediction } from "../../types";
+import type { MatchPrediction } from "../../types";
 
 interface MatchCardProps {
   matchPrediction: MatchPrediction;
   highlight?: boolean;
   onClick?: () => void;
-}
-
-// Pick interface for dynamic events
-interface DynamicPick {
-  id: string;
-  event: string;
-  probability: number;
-  icon: string;
 }
 
 // Styled probability bar with custom colors
@@ -75,138 +66,6 @@ const getProbabilityColor = (value: number): string => {
   return "#ef4444";
 };
 
-/**
- * Get pick color based on ranking (green=1st, orange=2nd, red=rest)
- */
-const getPickColorByRank = (rank: number): { bg: string; border: string } => {
-  switch (rank) {
-    case 1:
-      return { bg: "rgba(76, 175, 80, 0.15)", border: "#4caf50" };
-    case 2:
-      return { bg: "rgba(255, 152, 0, 0.15)", border: "#ff9800" };
-    default:
-      return { bg: "rgba(244, 67, 54, 0.15)", border: "#f44336" };
-  }
-};
-
-/**
- * Calculate dynamic picks from match and prediction data
- */
-const calculateDynamicPicks = (
-  match: Match,
-  prediction: Prediction
-): DynamicPick[] => {
-  const picks: DynamicPick[] = [];
-
-  // Calculate total expected goals
-  const totalExpectedGoals =
-    prediction.predicted_home_goals + prediction.predicted_away_goals;
-
-  // Calculate corners probability (if data available)
-  const totalCorners = (match.home_corners ?? 0) + (match.away_corners ?? 0);
-  if (totalCorners > 0 || totalExpectedGoals > 0) {
-    // Estimated corners based on expected goals (higher goals = more corners typically)
-    const expectedCorners =
-      totalCorners > 0 ? totalCorners : Math.round(totalExpectedGoals * 3.5);
-    const cornersProb = Math.min(0.95, 0.5 + (expectedCorners - 7) * 0.05);
-    picks.push({
-      id: "corners",
-      event: `Total córners ${expectedCorners}+`,
-      probability: Math.max(0.3, Math.min(0.95, cornersProb)),
-      icon: "⚑",
-    });
-  }
-
-  // Calculate yellow cards probability
-  const totalYellowCards =
-    (match.home_yellow_cards ?? 0) + (match.away_yellow_cards ?? 0);
-  if (totalYellowCards > 0 || totalExpectedGoals > 0) {
-    const expectedCards = totalYellowCards > 0 ? totalYellowCards : 3;
-    const cardsProb = Math.min(0.9, 0.4 + (expectedCards - 2) * 0.1);
-    picks.push({
-      id: "yellow_cards",
-      event: `Total amarillas ${expectedCards}+`,
-      probability: Math.max(0.35, Math.min(0.9, cardsProb)),
-      icon: "🟨",
-    });
-  }
-
-  // Calculate red cards probability (usually low)
-  const totalRedCards =
-    (match.home_red_cards ?? 0) + (match.away_red_cards ?? 0);
-  const redCardsProb =
-    totalRedCards > 0 ? Math.min(0.5, 0.15 + totalRedCards * 0.1) : 0.12;
-  picks.push({
-    id: "red_cards",
-    event: `Tarjeta roja ${totalRedCards > 0 ? `(${totalRedCards})` : ""}`,
-    probability: redCardsProb,
-    icon: "🟥",
-  });
-
-  // Total goals (over 2.5)
-  picks.push({
-    id: "over_goals",
-    event: `Más de 2.5 goles`,
-    probability: prediction.over_25_probability,
-    icon: "⚽",
-  });
-
-  // Total goals (under 2.5)
-  picks.push({
-    id: "under_goals",
-    event: `Menos de 2.5 goles`,
-    probability: prediction.under_25_probability,
-    icon: "🛡️",
-  });
-
-  // Winner prediction
-  const winnerProb = Math.max(
-    prediction.home_win_probability,
-    prediction.draw_probability,
-    prediction.away_win_probability
-  );
-  let winnerLabel = "Empate";
-  if (prediction.home_win_probability === winnerProb) {
-    winnerLabel = `Victoria ${match.home_team.name}`;
-  } else if (prediction.away_win_probability === winnerProb) {
-    winnerLabel = `Victoria ${match.away_team.name}`;
-  }
-  picks.push({
-    id: "winner",
-    event: winnerLabel,
-    probability: winnerProb,
-    icon: "🏆",
-  });
-
-  return picks;
-};
-
-/**
- * Assign ranking to picks based on probability
- */
-const assignPickRankings = (picks: DynamicPick[]): Map<string, number> => {
-  const rankings = new Map<string, number>();
-
-  // Sort by probability descending
-  const sorted = [...picks].sort((a, b) => b.probability - a.probability);
-
-  let currentRank = 1;
-  let prevProb: number | null = null;
-
-  sorted.forEach((pick, index) => {
-    // If same probability as previous, keep same rank
-    if (prevProb !== null && pick.probability === prevProb) {
-      rankings.set(pick.id, currentRank);
-    } else {
-      currentRank = index + 1;
-      rankings.set(pick.id, currentRank > 2 ? 3 : currentRank);
-    }
-    prevProb = pick.probability;
-  });
-
-  return rankings;
-};
-
 const getCardSx = (highlight?: boolean, clickable?: boolean) => ({
   height: "100%",
   transition: "all 0.3s ease",
@@ -236,21 +95,6 @@ const getCardSx = (highlight?: boolean, clickable?: boolean) => ({
 const MatchCard: React.FC<MatchCardProps> = memo(
   ({ matchPrediction, highlight, onClick }) => {
     const { match, prediction } = matchPrediction;
-
-    // Calculate dynamic picks
-    const dynamicPicks = useMemo(
-      () => calculateDynamicPicks(match, prediction),
-      [match, prediction]
-    );
-
-    // Get pick rankings
-    const pickRankings = useMemo(
-      () => assignPickRankings(dynamicPicks),
-      [dynamicPicks]
-    );
-
-    // Check if we have sufficient data
-    const hasSufficientData = prediction.confidence > 0;
 
     // ... useMemos ...
     const formattedDate = useMemo(
@@ -397,77 +241,6 @@ const MatchCard: React.FC<MatchCardProps> = memo(
                 </Typography>
               </Box>
             </Box>
-          </Box>
-
-          <Divider sx={{ mb: 2 }} />
-
-          {/* Dynamic Picks Section */}
-          <Box mb={2}>
-            <Typography variant="subtitle2" color="text.secondary" mb={1.5}>
-              📊 Picks Destacados
-            </Typography>
-            {hasSufficientData ? (
-              <Box display="flex" flexDirection="column" gap={1}>
-                {dynamicPicks
-                  .sort((a, b) => b.probability - a.probability)
-                  .slice(0, 4) // Show top 4 picks
-                  .map((pick) => {
-                    const rank = pickRankings.get(pick.id) ?? 3;
-                    const colors = getPickColorByRank(rank);
-                    return (
-                      <Box
-                        key={pick.id}
-                        sx={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          p: 1,
-                          borderRadius: 1,
-                          bgcolor: colors.bg,
-                          borderLeft: `3px solid ${colors.border}`,
-                        }}
-                      >
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 0.5,
-                          }}
-                        >
-                          <span>{pick.icon}</span>
-                          {pick.event}
-                        </Typography>
-                        <Chip
-                          label={formatPercent(pick.probability)}
-                          size="small"
-                          sx={{
-                            bgcolor: colors.border,
-                            color: "white",
-                            fontWeight: "bold",
-                            fontSize: "0.75rem",
-                            height: 22,
-                          }}
-                        />
-                      </Box>
-                    );
-                  })}
-              </Box>
-            ) : (
-              <Box
-                sx={{
-                  p: 2,
-                  textAlign: "center",
-                  bgcolor: "rgba(255, 152, 0, 0.1)",
-                  borderRadius: 1,
-                  border: "1px dashed rgba(255, 152, 0, 0.3)",
-                }}
-              >
-                <Typography variant="body2" color="text.secondary">
-                  ⚠️ Datos insuficientes para calcular picks
-                </Typography>
-              </Box>
-            )}
           </Box>
 
           <Divider sx={{ mb: 2 }} />
