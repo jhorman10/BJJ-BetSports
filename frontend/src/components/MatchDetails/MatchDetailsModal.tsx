@@ -31,7 +31,20 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
   if (!open) return null;
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="sm"
+      fullWidth
+      PaperProps={{
+        sx: {
+          width: { xs: "95%", sm: "100%" },
+          height: { xs: "95vh", sm: "auto" },
+          maxHeight: { xs: "95vh", sm: "90vh" },
+          m: { xs: 1, sm: 2 },
+        },
+      }}
+    >
       <DialogTitle sx={{ textAlign: "center", pb: 1 }}>
         Detalles del Partido
       </DialogTitle>
