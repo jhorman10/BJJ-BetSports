@@ -212,35 +212,97 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
               Estadísticas Proyectadas
             </Typography>
             <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-              <Grid container spacing={2}>
-                <Grid item xs={4} textAlign="center">
-                  <Typography variant="caption" color="text.secondary">
-                    ⚑ Córners
+              <Grid container spacing={1}>
+                {/* Header */}
+                <Grid item xs={4}>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    fontWeight="bold"
+                  >
+                    Estadística
                   </Typography>
-                  <Typography variant="h6" fontWeight="bold" color="info.main">
-                    {details.match.home_corners ?? "-"} -{" "}
+                </Grid>
+                <Grid item xs={4} textAlign="center">
+                  <Typography
+                    variant="caption"
+                    color="primary"
+                    fontWeight="bold"
+                  >
+                    {details.match.home_team.name.split(" ")[0]}
+                  </Typography>
+                </Grid>
+                <Grid item xs={4} textAlign="center">
+                  <Typography variant="caption" color="error" fontWeight="bold">
+                    {details.match.away_team.name.split(" ")[0]}
+                  </Typography>
+                </Grid>
+
+                {/* Corners */}
+                <Grid item xs={4}>
+                  <Typography variant="body2">⚑ Córners</Typography>
+                </Grid>
+                <Grid item xs={4} textAlign="center">
+                  <Typography
+                    variant="body1"
+                    fontWeight="bold"
+                    color="info.main"
+                  >
+                    {details.match.home_corners ?? "-"}
+                  </Typography>
+                </Grid>
+                <Grid item xs={4} textAlign="center">
+                  <Typography
+                    variant="body1"
+                    fontWeight="bold"
+                    color="info.main"
+                  >
                     {details.match.away_corners ?? "-"}
                   </Typography>
                 </Grid>
+
+                {/* Yellow Cards */}
+                <Grid item xs={4}>
+                  <Typography variant="body2">🟨 T. Amarillas</Typography>
+                </Grid>
                 <Grid item xs={4} textAlign="center">
-                  <Typography variant="caption" color="text.secondary">
-                    🟨 T. Amarillas
-                  </Typography>
                   <Typography
-                    variant="h6"
+                    variant="body1"
                     fontWeight="bold"
                     color="warning.main"
                   >
-                    {details.match.home_yellow_cards ?? "-"} -{" "}
-                    {details.match.away_yellow_cards ?? "-"}
+                    {details.match.home_yellow_cards ?? "-"}
                   </Typography>
                 </Grid>
                 <Grid item xs={4} textAlign="center">
-                  <Typography variant="caption" color="text.secondary">
-                    🟥 T. Rojas
+                  <Typography
+                    variant="body1"
+                    fontWeight="bold"
+                    color="warning.main"
+                  >
+                    {details.match.away_yellow_cards ?? "-"}
                   </Typography>
-                  <Typography variant="h6" fontWeight="bold" color="error.main">
-                    {details.match.home_red_cards ?? "-"} -{" "}
+                </Grid>
+
+                {/* Red Cards */}
+                <Grid item xs={4}>
+                  <Typography variant="body2">🟥 T. Rojas</Typography>
+                </Grid>
+                <Grid item xs={4} textAlign="center">
+                  <Typography
+                    variant="body1"
+                    fontWeight="bold"
+                    color="error.main"
+                  >
+                    {details.match.home_red_cards ?? "-"}
+                  </Typography>
+                </Grid>
+                <Grid item xs={4} textAlign="center">
+                  <Typography
+                    variant="body1"
+                    fontWeight="bold"
+                    color="error.main"
+                  >
                     {details.match.away_red_cards ?? "-"}
                   </Typography>
                 </Grid>
