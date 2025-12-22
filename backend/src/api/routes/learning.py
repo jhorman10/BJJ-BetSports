@@ -3,7 +3,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 
-from src.api.dependencies import get_learning_service, get_football_data_source, get_prediction_service
+from src.api.dependencies import get_learning_service, get_football_data_uk, get_prediction_service
 from src.domain.services.learning_service import LearningService
 from src.infrastructure.data_sources.football_data_uk import FootballDataUKSource
 from src.domain.services.prediction_service import PredictionService
@@ -29,7 +29,7 @@ async def run_training_session(
     request: BacktestRequest,
     background_tasks: BackgroundTasks,
     learning_service: LearningService = Depends(get_learning_service),
-    data_source: FootballDataUKSource = Depends(get_football_data_source),
+    data_source: FootballDataUKSource = Depends(get_football_data_uk),
     prediction_service: PredictionService = Depends(get_prediction_service)
 ):
     """
