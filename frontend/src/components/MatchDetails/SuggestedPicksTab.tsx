@@ -1,18 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
-import {
-  Box,
-  Typography,
-  Card,
-  CardContent,
-  Chip,
-  CircularProgress,
-} from "@mui/material";
-import {
-  TipsAndUpdates,
-  Star,
-  StarHalf,
-  StarOutline,
-} from "@mui/icons-material";
+import { Box, Typography, Chip, CircularProgress } from "@mui/material";
+import { TipsAndUpdates } from "@mui/icons-material";
 import {
   MatchPrediction,
   SuggestedPick,
@@ -25,37 +13,12 @@ interface SuggestedPicksTabProps {
 }
 
 /**
- * Get color scheme based on probability
+ * Get color based on probability
  */
-const getColorScheme = (
-  probability: number
-): {
-  border: string;
-  glow: string;
-  badge: string;
-  starColor: string;
-} => {
-  if (probability > 0.8) {
-    return {
-      border: "#22c55e",
-      glow: "0 0 24px rgba(34, 197, 94, 0.4), 0 0 48px rgba(34, 197, 94, 0.2)",
-      badge: "#22c55e",
-      starColor: "#22c55e",
-    };
-  } else if (probability > 0.6) {
-    return {
-      border: "#f59e0b",
-      glow: "0 0 24px rgba(245, 158, 11, 0.4), 0 0 48px rgba(245, 158, 11, 0.2)",
-      badge: "#f59e0b",
-      starColor: "#f59e0b",
-    };
-  }
-  return {
-    border: "#ef4444",
-    glow: "0 0 24px rgba(239, 68, 68, 0.4), 0 0 48px rgba(239, 68, 68, 0.2)",
-    badge: "#ef4444",
-    starColor: "#ef4444",
-  };
+const getPickColor = (probability: number): string => {
+  if (probability > 0.7) return "#22c55e";
+  if (probability > 0.5) return "#f59e0b";
+  return "#ef4444";
 };
 
 /**
@@ -85,172 +48,68 @@ const getMarketIcon = (marketType: string): string => {
 };
 
 /**
- * Star rating component
+ * Single row pick item - compact design
  */
-const StarRating: React.FC<{ probability: number; color: string }> = ({
-  probability,
-  color,
-}) => {
-  const stars = probability * 5;
-  const fullStars = Math.floor(stars);
-  const hasHalfStar = stars - fullStars >= 0.5;
-  const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+const PickRow: React.FC<{ pick: SuggestedPick }> = ({ pick }) => {
+  const color = getPickColor(pick.probability);
 
   return (
-    <Box display="flex" alignItems="center" gap={0.25}>
-      {[...Array(fullStars)].map((_, i) => (
-        <Star key={`full-${i}`} sx={{ fontSize: 18, color }} />
-      ))}
-      {hasHalfStar && <StarHalf sx={{ fontSize: 18, color }} />}
-      {[...Array(emptyStars)].map((_, i) => (
-        <StarOutline
-          key={`empty-${i}`}
-          sx={{ fontSize: 18, color: "rgba(255,255,255,0.2)" }}
-        />
-      ))}
-    </Box>
-  );
-};
-
-/**
- * Risk dots indicator
- */
-const RiskDots: React.FC<{ level: number; color: string }> = ({
-  level,
-  color,
-}) => {
-  return (
-    <Box display="flex" alignItems="center" gap={0.75}>
-      <Typography
-        variant="caption"
-        sx={{
-          color: "rgba(255,255,255,0.5)",
-          fontSize: "0.7rem",
-          fontWeight: 500,
-          letterSpacing: "0.5px",
-        }}
-      >
-        Risk:
-      </Typography>
-      {[1, 2, 3, 4, 5].map((dot) => (
-        <Box
-          key={dot}
-          sx={{
-            width: 10,
-            height: 10,
-            borderRadius: "50%",
-            bgcolor: dot <= level ? color : "rgba(255,255,255,0.15)",
-            transition: "all 0.3s ease",
-          }}
-        />
-      ))}
-    </Box>
-  );
-};
-
-/**
- * Pick Card Component - Displays data from backend
- */
-const PickCard: React.FC<{ pick: SuggestedPick }> = ({ pick }) => {
-  const colors = getColorScheme(pick.probability);
-  const confidenceText =
-    pick.probability > 0.8 ? "5" : pick.probability > 0.6 ? "4" : "3";
-
-  return (
-    <Card
+    <Box
       sx={{
-        mb: 2,
-        background:
-          "linear-gradient(145deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%)",
-        borderLeft: `4px solid ${colors.border}`,
-        borderRadius: "16px",
-        boxShadow: colors.glow,
-        overflow: "visible",
-        transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        py: 1,
+        px: 1.5,
+        borderLeft: `3px solid ${color}`,
+        bgcolor: `${color}15`,
+        borderRadius: "8px",
+        mb: 1,
+        transition: "all 0.2s ease",
         "&:hover": {
-          transform: "translateY(-3px) scale(1.01)",
-          boxShadow: `${colors.glow}, 0 16px 40px rgba(0,0,0,0.4)`,
+          bgcolor: `${color}25`,
+          transform: "translateX(2px)",
         },
       }}
     >
-      <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
-        {/* Header Row */}
-        <Box
-          display="flex"
-          justifyContent="space-between"
-          alignItems="flex-start"
-          mb={1.5}
-        >
-          <Box display="flex" alignItems="center" gap={1.5} flex={1}>
-            <Typography sx={{ fontSize: "1.4rem", lineHeight: 1 }}>
-              {getMarketIcon(pick.market_type)}
-            </Typography>
-            <Typography
-              variant="h6"
-              sx={{
-                fontWeight: 700,
-                fontSize: "1.1rem",
-                color: "#ffffff",
-                letterSpacing: "-0.02em",
-                fontFamily:
-                  "'Inter', 'SF Pro Display', -apple-system, sans-serif",
-              }}
-            >
-              {pick.market_label}
-            </Typography>
-          </Box>
-          <Chip
-            label={`${(pick.probability * 100).toFixed(0)}% Prob.`}
-            size="medium"
-            sx={{
-              bgcolor: colors.badge,
-              color: "white",
-              fontWeight: 700,
-              fontSize: "0.85rem",
-              height: 32,
-              px: 0.5,
-              borderRadius: "8px",
-              boxShadow: `0 4px 12px ${colors.badge}40`,
-            }}
-          />
-        </Box>
-
-        {/* Star Rating */}
-        <Box display="flex" alignItems="center" gap={1.5} mb={2}>
-          <StarRating probability={pick.probability} color={colors.starColor} />
-          <Typography
-            variant="caption"
-            sx={{ color: "rgba(255,255,255,0.5)", fontSize: "0.75rem" }}
-          >
-            {confidenceText}-star confidence
-          </Typography>
-        </Box>
-
-        {/* Description from backend */}
+      <Box display="flex" alignItems="center" gap={1} flex={1}>
+        <Typography sx={{ fontSize: "1rem" }}>
+          {getMarketIcon(pick.market_type)}
+        </Typography>
         <Typography
           variant="body2"
           sx={{
-            color: "rgba(255,255,255,0.7)",
-            fontSize: "0.875rem",
-            lineHeight: 1.6,
-            mb: 2,
+            fontWeight: 600,
+            color: "#ffffff",
+            fontSize: "0.85rem",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
           }}
         >
-          {pick.reasoning}
+          {pick.market_label}
         </Typography>
-
-        {/* Risk Indicator */}
-        <Box display="flex" justifyContent="flex-end">
-          <RiskDots level={pick.risk_level} color={colors.border} />
-        </Box>
-      </CardContent>
-    </Card>
+      </Box>
+      <Chip
+        label={`${(pick.probability * 100).toFixed(0)}%`}
+        size="small"
+        sx={{
+          bgcolor: color,
+          color: "white",
+          fontWeight: 700,
+          fontSize: "0.75rem",
+          height: 24,
+          minWidth: 45,
+          "& .MuiChip-label": { px: 1 },
+        }}
+      />
+    </Box>
   );
 };
 
 /**
  * Suggested Picks Tab Component
- * All data comes from the backend API - no local calculations
+ * All data comes from the backend API - compact single-row design
  */
 const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
   matchPrediction,
@@ -260,7 +119,7 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
   const [apiPicks, setApiPicks] = useState<MatchSuggestedPicks | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch picks from backend API (all calculations done server-side)
+  // Fetch picks from backend API
   useEffect(() => {
     const fetchPicks = async () => {
       try {
@@ -290,13 +149,10 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
 
   if (loading) {
     return (
-      <Box display="flex" flexDirection="column" alignItems="center" py={4}>
-        <CircularProgress size={40} sx={{ color: "#22c55e" }} />
-        <Typography
-          variant="body2"
-          sx={{ color: "rgba(255,255,255,0.6)", mt: 2 }}
-        >
-          Analizando estadísticas...
+      <Box display="flex" alignItems="center" justifyContent="center" py={3}>
+        <CircularProgress size={24} sx={{ color: "#22c55e", mr: 1 }} />
+        <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.6)" }}>
+          Cargando picks...
         </Typography>
       </Box>
     );
@@ -304,21 +160,21 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
 
   if (error || sortedPicks.length === 0) {
     return (
-      <Box textAlign="center" py={4}>
+      <Box display="flex" alignItems="center" justifyContent="center" py={2}>
         <TipsAndUpdates
-          sx={{ fontSize: 48, color: "rgba(255,255,255,0.3)", mb: 2 }}
+          sx={{ fontSize: 24, color: "rgba(255,255,255,0.3)", mr: 1 }}
         />
-        <Typography sx={{ color: "rgba(255,255,255,0.6)" }}>
-          {error || "No hay picks sugeridos disponibles."}
+        <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.5)" }}>
+          {error || "Sin picks disponibles"}
         </Typography>
       </Box>
     );
   }
 
   return (
-    <Box sx={{ mt: 1 }}>
+    <Box>
       {sortedPicks.map((pick, index) => (
-        <PickCard key={`pick-${index}`} pick={pick} />
+        <PickRow key={`pick-${index}`} pick={pick} />
       ))}
     </Box>
   );
