@@ -7,7 +7,6 @@ import {
   Chip,
   Alert,
   CircularProgress,
-  Divider,
 } from "@mui/material";
 import {
   TipsAndUpdates,
@@ -294,80 +293,10 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({ matchId }) => {
         </Alert>
       )}
 
-      {/* Legend */}
-      <Box
-        display="flex"
-        gap={3}
-        mb={3}
-        flexWrap="wrap"
-        justifyContent="center"
-        sx={{
-          p: 2,
-          borderRadius: 2,
-          bgcolor: "rgba(30, 41, 59, 0.5)",
-        }}
-      >
-        <Box display="flex" alignItems="center" gap={1}>
-          <Box
-            sx={{
-              width: 16,
-              height: 16,
-              bgcolor: "#4caf50",
-              borderRadius: 1,
-            }}
-          />
-          <Typography variant="caption" color="text.secondary">
-            &gt;80% Alta
-          </Typography>
-        </Box>
-        <Box display="flex" alignItems="center" gap={1}>
-          <Box
-            sx={{
-              width: 16,
-              height: 16,
-              bgcolor: "#ff9800",
-              borderRadius: 1,
-            }}
-          />
-          <Typography variant="caption" color="text.secondary">
-            60-80% Media
-          </Typography>
-        </Box>
-        <Box display="flex" alignItems="center" gap={1}>
-          <Box
-            sx={{
-              width: 16,
-              height: 16,
-              bgcolor: "#f44336",
-              borderRadius: 1,
-            }}
-          />
-          <Typography variant="caption" color="text.secondary">
-            &lt;60% Baja
-          </Typography>
-        </Box>
-      </Box>
-
-      <Divider sx={{ mb: 3 }} />
-
       {/* Pick Cards */}
       {sortedPicks.map((pick, index) => (
         <PickCard key={`pick-${index}`} pick={pick} />
       ))}
-
-      {/* Disclaimer */}
-      <Box mt={3} pt={2} borderTop="1px solid rgba(255,255,255,0.1)">
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          textAlign="center"
-          display="block"
-          sx={{ fontStyle: "italic" }}
-        >
-          ⚠️ Los picks sugeridos son solo orientativos. Basados en análisis
-          estadístico de datos históricos. No garantizan resultados.
-        </Typography>
-      </Box>
     </Box>
   );
 };
