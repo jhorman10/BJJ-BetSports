@@ -207,6 +207,46 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
               </Grid>
             </Paper>
 
+            {/* Estadísticas Proyectadas - Corners y Tarjetas */}
+            <Typography variant="subtitle1" gutterBottom sx={{ mb: 1 }}>
+              Estadísticas Proyectadas
+            </Typography>
+            <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+              <Grid container spacing={2}>
+                <Grid item xs={4} textAlign="center">
+                  <Typography variant="caption" color="text.secondary">
+                    ⚑ Córners
+                  </Typography>
+                  <Typography variant="h6" fontWeight="bold" color="info.main">
+                    {details.match.home_corners ?? "-"} -{" "}
+                    {details.match.away_corners ?? "-"}
+                  </Typography>
+                </Grid>
+                <Grid item xs={4} textAlign="center">
+                  <Typography variant="caption" color="text.secondary">
+                    🟨 T. Amarillas
+                  </Typography>
+                  <Typography
+                    variant="h6"
+                    fontWeight="bold"
+                    color="warning.main"
+                  >
+                    {details.match.home_yellow_cards ?? "-"} -{" "}
+                    {details.match.away_yellow_cards ?? "-"}
+                  </Typography>
+                </Grid>
+                <Grid item xs={4} textAlign="center">
+                  <Typography variant="caption" color="text.secondary">
+                    🟥 T. Rojas
+                  </Typography>
+                  <Typography variant="h6" fontWeight="bold" color="error.main">
+                    {details.match.home_red_cards ?? "-"} -{" "}
+                    {details.match.away_red_cards ?? "-"}
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Paper>
+
             {/* Recomendaciones y Confianza */}
             <Box mt={2}>
               <Typography variant="subtitle1" gutterBottom sx={{ mb: 1 }}>
