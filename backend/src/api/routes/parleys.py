@@ -5,7 +5,7 @@ import logging
 from ...domain.entities.parley import Parley
 from ...application.use_cases.get_parleys_use_case import GetParleysUseCase, GetParleysRequest
 from ...application.use_cases.use_cases import GetPredictionsUseCase
-from ...dependencies import get_prediction_service, get_parley_service, get_statistics_service, get_data_sources
+from src.api.dependencies import get_prediction_service, get_parley_service, get_statistics_service, get_data_sources
 
 router = APIRouter(prefix="/parleys", tags=["parleys"])
 logger = logging.getLogger(__name__)
