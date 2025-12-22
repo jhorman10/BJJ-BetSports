@@ -18,14 +18,14 @@ import { SportsSoccer, GetApp } from "@mui/icons-material";
 import LeagueSelector from "./components/LeagueSelector";
 import PredictionGrid from "./components/PredictionGrid";
 import TeamSearch from "./components/TeamSearch/TeamSearch";
-import LiveMatches from "./components/LiveMatches/LiveMatches";
-import api from "./services/api";
-import { MatchPrediction, Country } from "./types";
+
+import { Country } from "./types";
 import {
   useLeagues,
   usePredictions,
   useLeagueSelection,
 } from "./hooks/usePredictions";
+import { useTeamSearch } from "./hooks/useTeamSearch";
 
 // Extend window type for PWA install event
 declare global {
@@ -88,55 +88,14 @@ const App: React.FC = () => {
 
   // Sorting state
   const [sortBy, setSortBy] = useState<SortOption>("confidence");
-  // Search state
-  const [searchQuery, setSearchQuery] = useState<string>("");
-  const [searchMatches, setSearchMatches] = useState<MatchPrediction[]>([]);
-  const [searchLoading, setSearchLoading] = useState(false);
-
-  // Debounced search
-  useEffect(() => {
-    const delayDebounceFn = setTimeout(async () => {
-      if (searchQuery.length > 2) {
-        setSearchLoading(true);
-        // Deselect country/league
-        selectCountry(null);
-        selectLeague(null);
-        // Deselect country/league
-        selectCountry(null);
-        selectLeague(null);
-        try {
-          const matches = await api.getTeamMatches(searchQuery);
-          const predictions: MatchPrediction[] = matches.map((m) => ({
-            match: m,
-            prediction: {
-              match_id: m.id,
-              confidence: 0,
-              home_win_probability: 0,
-              draw_probability: 0,
-              away_win_probability: 0,
-              over_25_probability: 0,
-              under_25_probability: 0,
-              predicted_home_goals: 0,
-              predicted_away_goals: 0,
-              recommended_bet: "N/A",
-              over_under_recommendation: "N/A",
-              data_sources: [],
-              created_at: new Date().toISOString(),
-            },
-          }));
-          setSearchMatches(predictions);
-        } catch (e) {
-          console.error(e);
-        } finally {
-          setSearchLoading(false);
-        }
-      } else {
-        setSearchMatches([]);
-      }
-    }, 1000);
-
-    return () => clearTimeout(delayDebounceFn);
-  }, [searchQuery]);
+  // Search hook
+  const {
+    searchQuery,
+    setSearchQuery,
+    searchMatches,
+    loading: searchLoading,
+    resetSearch,
+  } = useTeamSearch();
 
   const {
     predictions,
@@ -151,8 +110,7 @@ const App: React.FC = () => {
 
   // Handle country selection
   const handleCountrySelect = (country: Country | null) => {
-    setSearchQuery(""); // Clear search when selecting country
-    setSearchMatches([]);
+    resetSearch(); // Clear search when selecting country
     selectCountry(country);
   };
 
@@ -245,11 +203,6 @@ const App: React.FC = () => {
             />
           </Box>
         )}
-
-        {/* Global Live Matches */}
-        <Box mb={4}>
-          <LiveMatches />
-        </Box>
 
         {/* Predictions Grid */}
         {(selectedLeague || searchQuery.length > 2) && (

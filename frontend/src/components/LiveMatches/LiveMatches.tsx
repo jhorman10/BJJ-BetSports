@@ -21,7 +21,7 @@ import {
   TrendingUp,
   AccessTime,
 } from "@mui/icons-material";
-import useLiveMatches from "../../hooks/useLiveMatches";
+import { useLiveMatches } from "../../hooks/useLiveMatches";
 import { LiveMatchPrediction } from "../../types";
 
 /**
@@ -67,11 +67,18 @@ const MatchCardSkeleton: React.FC = () => (
  * Single live match card with prediction
  */
 interface MatchCardProps {
-  matchData: LiveMatchPrediction;
+  matchData: LiveMatchPrediction | any;
 }
 
 const LiveMatchCard: React.FC<MatchCardProps> = ({ matchData }) => {
-  const { match, prediction } = matchData;
+  // Adaptation: The new hook returns flattened match objects (LiveMatch),
+  // but this component expects { match, prediction } structure (LiveMatchPrediction).
+  // We try to adapt if needed.
+
+  // Check if matchData has 'match' property (LiveMatchPrediction) or is itself the match (LiveMatch)
+  const match = "match" in matchData ? matchData.match : (matchData as any);
+  const prediction =
+    "prediction" in matchData ? matchData.prediction : undefined;
 
   // Determine the recommended result
   const getRecommendation = () => {
@@ -145,7 +152,7 @@ const LiveMatchCard: React.FC<MatchCardProps> = ({ matchData }) => {
                 height: 22,
                 fontSize: "0.7rem",
                 fontWeight: 600,
-                ml: 2, // Space for the pulsing dot
+                ml: 2,
               }}
             />
             <Typography
@@ -158,7 +165,7 @@ const LiveMatchCard: React.FC<MatchCardProps> = ({ matchData }) => {
                 whiteSpace: "nowrap",
               }}
             >
-              {match.league.name}
+              {match.league?.name || match.league_name || "Liga"}
             </Typography>
           </Box>
 
@@ -177,7 +184,7 @@ const LiveMatchCard: React.FC<MatchCardProps> = ({ matchData }) => {
                   whiteSpace: "nowrap",
                 }}
               >
-                {match.home_team.name}
+                {match.home_team?.name || match.home_team}
               </Typography>
             </Box>
 
@@ -192,7 +199,8 @@ const LiveMatchCard: React.FC<MatchCardProps> = ({ matchData }) => {
               }}
             >
               <Typography variant="h6" fontWeight="bold" color="primary.light">
-                {match.home_goals ?? 0} - {match.away_goals ?? 0}
+                {match.home_goals ?? match.home_score ?? 0} -{" "}
+                {match.away_goals ?? match.away_score ?? 0}
               </Typography>
             </Box>
 
@@ -205,7 +213,7 @@ const LiveMatchCard: React.FC<MatchCardProps> = ({ matchData }) => {
                   whiteSpace: "nowrap",
                 }}
               >
-                {match.away_team.name}
+                {match.away_team?.name || match.away_team}
               </Typography>
             </Box>
           </Box>
@@ -372,15 +380,12 @@ const LiveMatchCard: React.FC<MatchCardProps> = ({ matchData }) => {
  * Main LiveMatches Component
  */
 const LiveMatches: React.FC = () => {
-  const {
-    matches,
-    loading,
-    refreshing,
-    error,
-    processingMessage,
-    lastUpdated,
-    refresh,
-  } = useLiveMatches();
+  const { matches, loading, error, refresh } = useLiveMatches();
+
+  // Compat for old hook props
+  const refreshing = loading;
+  const processingMessage = "Actualizando marcadores...";
+  const lastUpdated = new Date();
 
   // Show processing message during initial load
   if (loading && processingMessage) {
@@ -490,7 +495,13 @@ const LiveMatches: React.FC = () => {
       {/* Matches Grid */}
       <Grid container spacing={2}>
         {matches.map((matchData) => (
-          <Grid item xs={12} md={6} lg={4} key={matchData.match.id}>
+          <Grid
+            item
+            xs={12}
+            md={6}
+            lg={4}
+            key={matchData.id || (matchData as any).match?.id}
+          >
             <LiveMatchCard matchData={matchData} />
           </Grid>
         ))}

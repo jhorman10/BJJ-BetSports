@@ -1,42 +1,14 @@
-/**
- * PredictionGrid Component
- *
- * Grid layout for displaying multiple match predictions.
- * Optimized with React.memo and lazy loading.
- */
-
 import React, { memo, useMemo, Suspense, lazy, useCallback } from "react";
-import {
-  Grid,
-  Box,
-  Typography,
-  CircularProgress,
-  Alert,
-  Skeleton,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  SelectChangeEvent,
-  ToggleButton,
-} from "@mui/material";
-import { SportsSoccer, Sort, LiveTv } from "@mui/icons-material";
+import { Box, Typography, CircularProgress, Alert } from "@mui/material";
+import { SportsSoccer } from "@mui/icons-material";
 import type { MatchPrediction, League } from "../../types";
+import PredictionGridHeader, { SortOption } from "./PredictionGridHeader";
+import PredictionGridList, { MatchCardSkeleton } from "./PredictionGridList";
 
-// Lazy load MatchCard for better initial load performance
-// Lazy load MatchCard and Modal for better initial load performance
-const MatchCard = lazy(() => import("../MatchCard"));
 const MatchDetailsModal = lazy(
   () => import("../MatchDetails/MatchDetailsModal")
 );
 const LiveMatchesList = lazy(() => import("../MatchDetails/LiveMatchesList"));
-
-// Sort options type
-type SortOption =
-  | "confidence"
-  | "date"
-  | "home_probability"
-  | "away_probability";
 
 interface PredictionGridProps {
   predictions: MatchPrediction[];
@@ -49,44 +21,6 @@ interface PredictionGridProps {
   onLiveToggle?: (isLive: boolean) => void;
 }
 
-// Sort option labels in Spanish
-const sortLabels: Record<SortOption, string> = {
-  confidence: "Confianza",
-  date: "Fecha",
-  home_probability: "Prob. Local",
-  away_probability: "Prob. Visitante",
-};
-
-// Skeleton component for loading states
-const MatchCardSkeleton: React.FC = memo(() => (
-  <Box
-    sx={{
-      p: 3,
-      borderRadius: 2,
-      bgcolor: "rgba(30, 41, 59, 0.5)",
-      border: "1px solid rgba(148, 163, 184, 0.1)",
-    }}
-  >
-    <Skeleton variant="text" width="40%" height={20} sx={{ mb: 2 }} />
-    <Skeleton variant="text" width="80%" height={28} sx={{ mb: 1 }} />
-    <Skeleton
-      variant="rectangular"
-      height={60}
-      sx={{ mb: 2, borderRadius: 1 }}
-    />
-    <Skeleton variant="text" width="100%" height={16} sx={{ mb: 1 }} />
-    <Skeleton variant="text" width="100%" height={16} sx={{ mb: 1 }} />
-    <Skeleton variant="text" width="100%" height={16} sx={{ mb: 2 }} />
-    <Box display="flex" gap={1}>
-      <Skeleton variant="rounded" width={80} height={24} />
-      <Skeleton variant="rounded" width={80} height={24} />
-    </Box>
-  </Box>
-));
-
-MatchCardSkeleton.displayName = "MatchCardSkeleton";
-
-// Empty state styles - defined outside component
 const emptyStateStyles = {
   border: "2px dashed rgba(148, 163, 184, 0.2)",
   borderRadius: 2,
@@ -109,16 +43,13 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
       React.useState<MatchPrediction | null>(null);
     const [modalOpen, setModalOpen] = React.useState(false);
 
-    // Handle sort change - triggers API refetch via parent
-    const handleSortChange = useCallback(
-      (event: SelectChangeEvent<SortOption>) => {
-        onSortChange(event.target.value as SortOption);
-      },
-      [onSortChange]
-    );
-
     // Filter predictions based on search and live status
     const filteredPredictions = useMemo(() => {
+      // If we are showing live only, filtered list is handled by LiveMatchesList component mostly,
+      // but for the 'grid' view logic below, we might want to know if there are matches.
+      // However, LiveMatchesList fetches its own data.
+
+      // Filter the PROPS predictions (standard predictions)
       return predictions.filter((p) => {
         const matchesSearch =
           searchQuery === "" ||
@@ -129,14 +60,12 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
             .toLowerCase()
             .includes(searchQuery.toLowerCase());
 
-        const isLive = ["1H", "2H", "HT", "LIVE", "ET", "P"].includes(
-          p.match.status
-        );
-        const matchesLive = !showLiveOnly || isLive;
-
-        return matchesSearch && matchesLive;
+        // Note: 'Live Only' now toggles the view to the LiveMatchesList component
+        // which fetches its own real-time data.
+        // We ensure we don't double filter if the user just wants to see the grid but searched.
+        return matchesSearch;
       });
-    }, [predictions, searchQuery, showLiveOnly]);
+    }, [predictions, searchQuery]);
 
     const handleMatchClick = useCallback((matchPrediction: MatchPrediction) => {
       setSelectedMatch(matchPrediction);
@@ -149,7 +78,7 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
     }, []);
 
     // Stable handler for live toggle
-    const handleLiveToggle = useCallback(() => {
+    const handleLiveChange = useCallback(() => {
       setShowLiveOnly((prev) => {
         const newState = !prev;
         if (onLiveToggle) onLiveToggle(newState);
@@ -157,49 +86,29 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
       });
     }, [onLiveToggle]);
 
-    // Memoize the prediction count text
-    const predictionCountText = useMemo(
-      () => `${predictions.length} partidos analizados`,
-      [predictions.length]
-    );
-
     // Sort predictions client-side to ensure visual consistency
-    // This runs efficiently on the small dataset (limit=10) and guarantees correct order
-    // regardless of backend response
-    // Sort predictions client-side to ensure visual consistency
-    // This runs efficiently on the small dataset (limit=10) and guarantees correct order
-    // regardless of backend response
     const sortedPredictions = useMemo(() => {
-      // Create a shallow copy to avoid mutating props
       const sorted = [...filteredPredictions];
 
       return sorted.sort((a, b) => {
         switch (sortBy) {
           case "confidence":
-            // Descending: Higher confidence first
             return b.prediction.confidence - a.prediction.confidence;
-
           case "date":
-            // Ascending: Closest date first
             return (
               new Date(a.match.match_date).getTime() -
               new Date(b.match.match_date).getTime()
             );
-
           case "home_probability":
-            // Descending: Higher probability first
             return (
               b.prediction.home_win_probability -
               a.prediction.home_win_probability
             );
-
           case "away_probability":
-            // Descending: Higher probability first
             return (
               b.prediction.away_win_probability -
               a.prediction.away_win_probability
             );
-
           default:
             return 0;
         }
@@ -216,13 +125,23 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
               Cargando predicciones...
             </Typography>
           </Box>
-          <Grid container spacing={3}>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                sm: "1fr 1fr",
+                lg: "1fr 1fr 1fr",
+              },
+              gap: 3,
+            }}
+          >
             {[...Array(6)].map((_, index) => (
-              <Grid item xs={12} sm={6} lg={4} key={index}>
+              <Box key={index}>
                 <MatchCardSkeleton />
-              </Grid>
+              </Box>
             ))}
-          </Grid>
+          </Box>
         </Box>
       );
     }
@@ -236,8 +155,8 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
       );
     }
 
-    // Empty state
-    if (predictions.length === 0) {
+    // Empty state (only if not searching/filtering live)
+    if (predictions.length === 0 && !loading && !searchQuery) {
       return (
         <Box
           display="flex"
@@ -267,69 +186,15 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
 
     return (
       <Box>
-        {/* Header */}
-        <Box
-          display="flex"
-          justifyContent="space-between"
-          alignItems="center"
-          mb={3}
-          flexWrap="wrap"
-          gap={2}
-        >
-          {league && (
-            <Box>
-              <Typography variant="h5" fontWeight={600}>
-                Predicciones: {league.name}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {predictionCountText}
-              </Typography>
-            </Box>
-          )}
+        <PredictionGridHeader
+          league={league}
+          predictionCount={predictions.length}
+          showLiveOnly={showLiveOnly}
+          onLiveToggle={handleLiveChange}
+          sortBy={sortBy}
+          onSortChange={onSortChange}
+        />
 
-          <Box display="flex" gap={2} flexWrap="wrap" alignItems="center">
-            {/* Search removed - hosted in App */}
-
-            {/* Live Toggle */}
-            <ToggleButton
-              value="check"
-              selected={showLiveOnly}
-              onChange={handleLiveToggle}
-              size="small"
-              color="error"
-              sx={{ borderRadius: 2 }}
-            >
-              <LiveTv fontSize="small" sx={{ mr: 1 }} />
-              EN VIVO
-            </ToggleButton>
-
-            {/* Sort Dropdown */}
-            <FormControl size="small" sx={{ minWidth: 150 }}>
-              <InputLabel id="sort-by-label">
-                <Box display="flex" alignItems="center" gap={0.5}>
-                  <Sort fontSize="small" />
-                  Ordenar por
-                </Box>
-              </InputLabel>
-              <Select
-                labelId="sort-by-label"
-                value={sortBy}
-                label="Ordenar por"
-                onChange={handleSortChange}
-              >
-                {(Object.entries(sortLabels) as [SortOption, string][]).map(
-                  ([value, label]) => (
-                    <MenuItem key={value} value={value}>
-                      {label}
-                    </MenuItem>
-                  )
-                )}
-              </Select>
-            </FormControl>
-          </Box>
-        </Box>
-
-        {/* Grid with Suspense for lazy loaded MatchCard */}
         {showLiveOnly ? (
           <Suspense
             fallback={
@@ -344,19 +209,10 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
             />
           </Suspense>
         ) : (
-          <Grid container spacing={3}>
-            {sortedPredictions.map((matchPrediction, index) => (
-              <Grid item xs={12} sm={6} lg={4} key={matchPrediction.match.id}>
-                <Suspense fallback={<MatchCardSkeleton />}>
-                  <MatchCard
-                    matchPrediction={matchPrediction}
-                    highlight={index === 0}
-                    onClick={() => handleMatchClick(matchPrediction)}
-                  />
-                </Suspense>
-              </Grid>
-            ))}
-          </Grid>
+          <PredictionGridList
+            predictions={sortedPredictions}
+            onMatchClick={handleMatchClick}
+          />
         )}
 
         {/* Modal */}

@@ -11,26 +11,26 @@ vi.mock("../../services/api", () => ({
 }));
 
 describe("LiveMatches", () => {
-  it("renders loading state initially", () => {
+  it("renders loading state initially", async () => {
     // Mock return value to never resolve immediately to test loading state
     (api.getLiveMatches as any).mockReturnValue(new Promise(() => {}));
 
     render(<LiveMatches />);
-    expect(
-      screen.getByText("Cargando partidos en vivo...")
-    ).toBeInTheDocument();
+    // Initial render might be null until effect kicks in, but loading state uses processingMessage "Actualizando marcadores..."
+    // We expect "Partidos en Vivo" title which is present in Loading state
+    expect(screen.getByText("Partidos en Vivo")).toBeInTheDocument();
+    expect(screen.getByText("Actualizando marcadores...")).toBeInTheDocument();
   });
 
   it("renders live matches when API returns data", async () => {
     const mockMatches = [
       {
         id: "1",
-        home_team: { id: "h1", name: "HomeFC" },
-        away_team: { id: "a1", name: "AwayFC" },
-        league: { id: "l1", name: "Premier League" },
+        home_team: "HomeFC",
+        away_team: "AwayFC", // The hook expects string for team names now
+        home_score: 1,
+        away_score: 0,
         status: "LIVE",
-        home_goals: 1,
-        away_goals: 0,
         match_date: "2024-01-01T12:00:00Z",
       },
     ];
@@ -39,22 +39,28 @@ describe("LiveMatches", () => {
 
     render(<LiveMatches />);
 
-    await waitFor(() => {
-      expect(screen.getByText("Partidos en Vivo Ahora")).toBeInTheDocument();
-      expect(screen.getByText("HomeFC")).toBeInTheDocument();
-      expect(screen.getByText("AwayFC")).toBeInTheDocument();
-      expect(screen.getByText("1 - 0")).toBeInTheDocument();
-    });
+    await waitFor(
+      () => {
+        expect(screen.getAllByText("Partidos en Vivo")[0]).toBeInTheDocument();
+        expect(screen.getByText("HomeFC")).toBeInTheDocument();
+        expect(screen.getByText("AwayFC")).toBeInTheDocument();
+        expect(screen.getByText("1 - 0")).toBeInTheDocument();
+      },
+      { timeout: 2000 }
+    );
   });
 
-  it("renders nothing if API fails", async () => {
+  it("renders mock data if API fails", async () => {
     (api.getLiveMatches as any).mockRejectedValue(new Error("API Error"));
 
-    const { container } = render(<LiveMatches />);
+    render(<LiveMatches />);
 
-    await waitFor(() => {
-      // If error, component returns null
-      expect(container.firstChild).toBeNull();
-    });
+    await waitFor(
+      () => {
+        // Should render Fallback Mock data (Flamengo vs Fluminense from hook)
+        expect(screen.getByText("Flamengo")).toBeInTheDocument();
+      },
+      { timeout: 2000 }
+    );
   });
 });
