@@ -5,20 +5,12 @@ import {
   Typography,
   Grid,
   Chip,
-  Button,
   Divider,
   CircularProgress,
   Card,
   CardContent,
-  Stack,
 } from "@mui/material";
-import {
-  LocalActivity,
-  TrendingUp,
-  AttachMoney,
-  CheckCircle,
-  SportsSoccer,
-} from "@mui/icons-material";
+import { LocalActivity, TrendingUp } from "@mui/icons-material";
 import { MatchPrediction } from "../../types";
 
 interface ParleySectionProps {
