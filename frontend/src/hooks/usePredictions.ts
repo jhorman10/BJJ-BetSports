@@ -64,6 +64,7 @@ type SortOption =
 /**
  * Hook for fetching predictions for a league
  * Automatically refetches when leagueId or sorting changes
+ * Uses AbortController to cancel pending requests for faster response
  */
 export function usePredictions(
   leagueId: string | null,
@@ -75,33 +76,56 @@ export function usePredictions(
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  const fetchPredictions = useCallback(async () => {
-    if (!leagueId) {
-      setData(null);
-      return;
-    }
+  const fetchPredictions = useCallback(
+    async (signal?: AbortSignal) => {
+      if (!leagueId) {
+        setData(null);
+        return;
+      }
 
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await api.getPredictions(
-        leagueId,
-        limit,
-        sortBy,
-        sortDesc
-      );
-      setData(response);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err : new Error("Error al cargar predicciones")
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [leagueId, limit, sortBy, sortDesc]);
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await api.getPredictions(
+          leagueId,
+          limit,
+          sortBy,
+          sortDesc
+        );
+
+        // Only update if request wasn't aborted
+        if (!signal?.aborted) {
+          setData(response);
+        }
+      } catch (err) {
+        // Ignore abort errors
+        if (err instanceof Error && err.name === "AbortError") {
+          return;
+        }
+        if (!signal?.aborted) {
+          setError(
+            err instanceof Error
+              ? err
+              : new Error("Error al cargar predicciones")
+          );
+        }
+      } finally {
+        if (!signal?.aborted) {
+          setLoading(false);
+        }
+      }
+    },
+    [leagueId, limit, sortBy, sortDesc]
+  );
 
   useEffect(() => {
-    fetchPredictions();
+    const abortController = new AbortController();
+    fetchPredictions(abortController.signal);
+
+    // Cleanup: abort previous request when dependencies change
+    return () => {
+      abortController.abort();
+    };
   }, [fetchPredictions]);
 
   // Memoize derived values
@@ -112,7 +136,7 @@ export function usePredictions(
     data,
     loading,
     error,
-    refetch: fetchPredictions,
+    refetch: () => fetchPredictions(),
     predictions,
     league,
   };

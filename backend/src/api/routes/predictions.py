@@ -37,12 +37,20 @@ async def get_league_predictions(
     """Get predictions for all upcoming matches in a league."""
     from src.application.use_cases.use_cases import GetPredictionsUseCase, DataSources
     from src.infrastructure.data_sources.football_data_uk import LEAGUES_METADATA
+    from src.infrastructure.cache.cache_service import get_cache_service
     
     if league_id not in LEAGUES_METADATA:
         raise HTTPException(
             status_code=404,
             detail=f"League not found: {league_id}. Available leagues: {list(LEAGUES_METADATA.keys())}",
         )
+    
+    # Check cache first
+    cache = get_cache_service()
+    cache_key = f"predictions:{league_id}:{limit}:{sort_by.value}:{sort_desc}"
+    cached_result = cache.get(cache_key)
+    if cached_result:
+        return cached_result
     
     data_sources = get_data_sources()
     prediction_service = get_prediction_service()
@@ -78,6 +86,9 @@ async def get_league_predictions(
                     key=lambda x: x.prediction.away_win_probability,
                     reverse=True  # Highest probability first
                 )
+        
+        # Cache the result for 5 minutes
+        cache.set(cache_key, result, cache.TTL_PREDICTIONS)
         
         return result
     except ValueError as e:
