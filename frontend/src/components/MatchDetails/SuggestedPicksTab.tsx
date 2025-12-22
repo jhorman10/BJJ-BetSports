@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, memo } from "react";
 import { Box, Typography, Chip, CircularProgress } from "@mui/material";
 import { TipsAndUpdates } from "@mui/icons-material";
 import {
@@ -50,7 +50,7 @@ const getMarketIcon = (marketType: string): string => {
 /**
  * Single row pick item - compact design
  */
-const PickRow: React.FC<{ pick: SuggestedPick }> = ({ pick }) => {
+const PickRow: React.FC<{ pick: SuggestedPick }> = memo(({ pick }) => {
   const color = getPickColor(pick.probability);
 
   return (
@@ -123,7 +123,7 @@ const PickRow: React.FC<{ pick: SuggestedPick }> = ({ pick }) => {
       )}
     </>
   );
-};
+});
 
 /**
  * Suggested Picks Tab Component

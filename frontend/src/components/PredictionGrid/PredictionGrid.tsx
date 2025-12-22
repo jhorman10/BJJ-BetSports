@@ -29,6 +29,7 @@ const MatchCard = lazy(() => import("../MatchCard"));
 const MatchDetailsModal = lazy(
   () => import("../MatchDetails/MatchDetailsModal")
 );
+const LiveMatchesList = lazy(() => import("../MatchDetails/LiveMatchesList"));
 
 // Sort options type
 type SortOption =
@@ -45,6 +46,7 @@ interface PredictionGridProps {
   sortBy: SortOption;
   onSortChange: (sortBy: SortOption) => void;
   searchQuery: string;
+  onLiveToggle?: (isLive: boolean) => void;
 }
 
 // Sort option labels in Spanish
@@ -99,6 +101,7 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
     sortBy,
     onSortChange,
     searchQuery,
+    onLiveToggle,
   }) => {
     // Local state for UI filters
     const [showLiveOnly, setShowLiveOnly] = React.useState(false);
@@ -144,6 +147,15 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
       setModalOpen(false);
       setSelectedMatch(null);
     }, []);
+
+    // Stable handler for live toggle
+    const handleLiveToggle = useCallback(() => {
+      setShowLiveOnly((prev) => {
+        const newState = !prev;
+        if (onLiveToggle) onLiveToggle(newState);
+        return newState;
+      });
+    }, [onLiveToggle]);
 
     // Memoize the prediction count text
     const predictionCountText = useMemo(
@@ -282,7 +294,7 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
             <ToggleButton
               value="check"
               selected={showLiveOnly}
-              onChange={() => setShowLiveOnly(!showLiveOnly)}
+              onChange={handleLiveToggle}
               size="small"
               color="error"
               sx={{ borderRadius: 2 }}
@@ -318,19 +330,34 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
         </Box>
 
         {/* Grid with Suspense for lazy loaded MatchCard */}
-        <Grid container spacing={3}>
-          {sortedPredictions.map((matchPrediction, index) => (
-            <Grid item xs={12} sm={6} lg={4} key={matchPrediction.match.id}>
-              <Suspense fallback={<MatchCardSkeleton />}>
-                <MatchCard
-                  matchPrediction={matchPrediction}
-                  highlight={index === 0}
-                  onClick={() => handleMatchClick(matchPrediction)}
-                />
-              </Suspense>
-            </Grid>
-          ))}
-        </Grid>
+        {showLiveOnly ? (
+          <Suspense
+            fallback={
+              <Box display="flex" justifyContent="center" p={4}>
+                <CircularProgress />
+              </Box>
+            }
+          >
+            <LiveMatchesList
+              selectedLeagueIds={league ? [league.id] : []}
+              selectedLeagueNames={league ? [league.name] : []}
+            />
+          </Suspense>
+        ) : (
+          <Grid container spacing={3}>
+            {sortedPredictions.map((matchPrediction, index) => (
+              <Grid item xs={12} sm={6} lg={4} key={matchPrediction.match.id}>
+                <Suspense fallback={<MatchCardSkeleton />}>
+                  <MatchCard
+                    matchPrediction={matchPrediction}
+                    highlight={index === 0}
+                    onClick={() => handleMatchClick(matchPrediction)}
+                  />
+                </Suspense>
+              </Grid>
+            ))}
+          </Grid>
+        )}
 
         {/* Modal */}
         <Suspense fallback={null}>
