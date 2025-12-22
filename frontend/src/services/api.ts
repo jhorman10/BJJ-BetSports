@@ -38,7 +38,10 @@ const createApiClient = (): AxiosInstance => {
   client.interceptors.response.use(
     (response) => response,
     (error) => {
-      console.error("API Error:", error.response?.data || error.message);
+      // Don't log 404s as errors globally - they are often expected "no data" states
+      if (error.response && error.response.status !== 404) {
+        console.error("API Error:", error.response?.data || error.message);
+      }
       throw error;
     }
   );

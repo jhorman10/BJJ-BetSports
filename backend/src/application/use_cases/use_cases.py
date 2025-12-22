@@ -9,6 +9,7 @@ from datetime import datetime
 from typing import Optional
 from dataclasses import dataclass
 import logging
+import asyncio
 
 from src.domain.entities.entities import Match, League, Prediction, TeamStatistics
 from src.domain.services.prediction_service import PredictionService
@@ -20,6 +21,7 @@ from src.infrastructure.data_sources.football_data_uk import (
 from src.infrastructure.data_sources.api_football import APIFootballSource
 from src.infrastructure.data_sources.football_data_org import FootballDataOrgSource
 from src.infrastructure.data_sources.openfootball import OpenFootballSource
+from src.infrastructure.data_sources.thesportsdb import TheSportsDBClient
 from src.application.dtos.dtos import (
     TeamDTO,
     LeagueDTO,
@@ -42,6 +44,7 @@ class DataSources:
     api_football: APIFootballSource
     football_data_org: FootballDataOrgSource
     openfootball: OpenFootballSource
+    thesportsdb: TheSportsDBClient
 
 
 class GetLeaguesUseCase:
@@ -54,6 +57,30 @@ class GetLeaguesUseCase:
         """Get all available leagues grouped by country."""
         leagues = self.data_sources.football_data_uk.get_available_leagues()
         
+        # Filter leagues by data sufficiency (>= 5 matches in current season)
+        # We do this concurrently to minimize latency
+        async def check_league_sufficiency(league_id: str) -> bool:
+            try:
+                matches = await self.data_sources.football_data_uk.get_historical_matches(
+                    league_id, 
+                    seasons=["2425"]
+                )
+                return len(matches) >= 5
+            except Exception:
+                return False
+
+        # Run checks in parallel
+        results = await asyncio.gather(*[check_league_sufficiency(l.id) for l in leagues])
+        
+        # Filter the leagues list
+        active_leagues = [
+            league for league, is_sufficient in zip(leagues, results) 
+            if is_sufficient
+        ]
+        
+        # Update generic leagues list to only include sufficient ones
+        leagues = active_leagues
+
         # Get active league IDs from API-Football to filter out empty ones
         active_api_ids = set()
         api_configured = self.data_sources.api_football.is_configured
@@ -100,15 +127,21 @@ class GetLeaguesUseCase:
                 if league.id in active_org_codes:
                     is_active = True
             
-            # Strict Filtering Logic:
-            # If ANY source is configured, we require the league to be active in ONE of them.
-            # If NO source is configured, we show nothing (strict "no mock data").
+            # Relaxed Filtering Logic:
+            # We show ALL leagues that we know about (from CSV metadata).
+            # We try to mark them as 'active' for API usage if possible, but we don't hide them.
+
+            if api_configured:
+                api_id = LEAGUE_ID_MAPPING.get(league.id)
+                if api_id and api_id in active_api_ids:
+                    is_active = True
             
-            if (api_configured or org_configured) and not is_active:
-                continue
-            elif not (api_configured or org_configured):
-                # No data sources available at all -> Show nothing
-                continue
+            if not is_active and org_configured:
+                if league.id in active_org_codes:
+                    is_active = True
+            
+            # Use 'is_active' logic to potentially tag leagues in the future, 
+            # but for now we include EVERYTHING from 'leagues' (which comes from metadata).
 
             if league.country not in countries_dict:
                 countries_dict[league.country] = []
@@ -221,6 +254,11 @@ class GetPredictionsUseCase:
                 historical_matches,
             )
             
+            # Data Sufficiency Filter:
+            # Both teams must have played at least 3 matches to generate a reliable prediction
+            if home_stats.matches_played < 3 or away_stats.matches_played < 3:
+                continue
+            
             # Generate prediction
             prediction = self.prediction_service.generate_prediction(
                 match=match,
@@ -285,6 +323,14 @@ class GetPredictionsUseCase:
             )
             if matches:
                 return matches[:limit]
+
+        # Try TheSportsDB (Free fallback)
+        try:
+            matches = await self.data_sources.thesportsdb.get_upcoming_fixtures(league_id, next_n=limit)
+            if matches:
+                 return matches
+        except Exception as e:
+             logger.warning(f"TheSportsDB fetch failed: {e}")
         
         # Try OpenFootball
         # We need league entity for mapping
@@ -373,6 +419,13 @@ class GetMatchDetailsUseCase:
         if not match and self.data_sources.football_data_org.is_configured:
             match = await self.data_sources.football_data_org.get_match_details(match_id)
             
+        # Try TheSportsDB if not found
+        if not match:
+            try:
+                match = await self.data_sources.thesportsdb.get_match_details(match_id)
+            except Exception:
+                pass
+            
         if not match:
             return None
 
@@ -459,8 +512,8 @@ class GetMatchDetailsUseCase:
         from src.application.dtos.dtos import TeamDTO, LeagueDTO
         return MatchDTO(
             id=match.id,
-            home_team=TeamDTO(id=match.home_team.id, name=match.home_team.name, country=match.home_team.country),
-            away_team=TeamDTO(id=match.away_team.id, name=match.away_team.name, country=match.away_team.country),
+            home_team=TeamDTO(id=match.home_team.id, name=match.home_team.name, country=match.home_team.country, logo_url=match.home_team.logo_url),
+            away_team=TeamDTO(id=match.away_team.id, name=match.away_team.name, country=match.away_team.country, logo_url=match.away_team.logo_url),
             league=LeagueDTO(id=match.league.id, name=match.league.name, country=match.league.country, season=match.league.season),
             match_date=match.match_date,
             home_goals=match.home_goals,

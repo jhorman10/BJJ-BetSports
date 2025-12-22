@@ -33,6 +33,7 @@ class Team:
     name: str
     short_name: Optional[str] = None
     country: Optional[str] = None
+    logo_url: Optional[str] = None
     
     def __post_init__(self):
         if not self.name:

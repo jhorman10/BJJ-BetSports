@@ -86,14 +86,14 @@ class GetSuggestedPicksUseCase:
                 data_sources=[],
             )
             
-            # Use default values if prediction has zeros (no data)
-            predicted_home = prediction.predicted_home_goals if prediction.predicted_home_goals > 0 else 1.5
-            predicted_away = prediction.predicted_away_goals if prediction.predicted_away_goals > 0 else 1.1
+            # Use actual prediction values (don't force defaults here, let service handle it)
+            predicted_home = prediction.predicted_home_goals
+            predicted_away = prediction.predicted_away_goals
             
-            # Get win probabilities (use defaults if zero)
-            home_win_prob = prediction.home_win_probability if prediction.home_win_probability > 0 else 0.4
-            draw_prob = prediction.draw_probability if prediction.draw_probability > 0 else 0.3
-            away_win_prob = prediction.away_win_probability if prediction.away_win_probability > 0 else 0.3
+            # Get win probabilities
+            home_win_prob = prediction.home_win_probability
+            draw_prob = prediction.draw_probability
+            away_win_prob = prediction.away_win_probability
             
             # 5. Generate suggested picks with all data
             suggested_picks = self.picks_service.generate_suggested_picks(
@@ -132,6 +132,7 @@ class GetSuggestedPicksUseCase:
             match = await self.data_sources.football_data_org.get_match_details(match_id)
             if match:
                 return match
+        
         
         return None
     

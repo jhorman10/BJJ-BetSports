@@ -53,9 +53,19 @@ class PicksService:
     # VA Handicap options
     VA_HANDICAPS = [1.0, 1.5, 2.0]
     
-    def __init__(self, learning_weights: Optional[LearningWeights] = None):
-        """Initialize with optional learning weights."""
+    def __init__(
+        self, 
+        learning_weights: Optional[LearningWeights] = None,
+        context_analyzer: Optional['ContextAnalyzer'] = None,
+        confidence_calculator: Optional['ConfidenceCalculator'] = None
+    ):
+        """Initialize with optional learning, context, and confidence services."""
+        from src.domain.services.context_analyzer import ContextAnalyzer
+        from src.domain.services.confidence_calculator import ConfidenceCalculator
+        
         self.learning_weights = learning_weights or LearningWeights()
+        self.context_analyzer = context_analyzer or ContextAnalyzer()
+        self.confidence_calculator = confidence_calculator or ConfidenceCalculator()
     
     def generate_suggested_picks(
         self,
@@ -71,63 +81,74 @@ class PicksService:
     ) -> MatchSuggestedPicks:
         """
         Generate suggested picks for a match using ONLY REAL DATA.
-        
-        STRICT POLICY: No picks are generated without real historical data.
-        Returns empty picks if data is insufficient.
-        
-        Args:
-            match: The match to generate picks for
-            home_stats: Home team historical statistics (required for picks)
-            away_stats: Away team historical statistics (required for picks)
-            predicted_home_goals: Expected goals (from real calculation)
-            predicted_away_goals: Expected goals (from real calculation)
-            home_win_prob: Real calculated probability
-            draw_prob: Real calculated probability
-            away_win_prob: Real calculated probability
-            
-        Returns:
-            MatchSuggestedPicks (empty if no real data)
+        Ahora potenciado con Contexto y Confianza Granular.
         """
         picks = MatchSuggestedPicks(match_id=match.id)
         
-        # STRICT: Require real statistics for both teams (min 3 matches)
-        has_home_stats = home_stats is not None and home_stats.matches_played >= 3
-        has_away_stats = away_stats is not None and away_stats.matches_played >= 3
-        has_prediction_data = predicted_home_goals > 0 and predicted_away_goals > 0
+        # Analyze Context
+        context = self.context_analyzer.analyze_match_context(match, home_stats, away_stats)
         
-        if not (has_home_stats and has_away_stats):
-            picks.combination_warning = "⚠️ Datos históricos insuficientes para generar picks confiables."
-            return picks
+        # RELAXED: We attempt to generate picks even with partial data
+        # but we track data quality to adjust confidence
+        has_home_stats = home_stats is not None and home_stats.matches_played > 0
+        has_away_stats = away_stats is not None and away_stats.matches_played > 0
+        has_prediction_data = predicted_home_goals > 0 or predicted_away_goals > 0
         
         # Check if this is a low-scoring context
-        is_low_scoring = self._is_low_scoring_context(
-            home_stats, away_stats, predicted_home_goals, predicted_away_goals
-        )
+        is_low_scoring = False
+        if has_home_stats and has_away_stats:
+            is_low_scoring = self._is_low_scoring_context(
+                home_stats, away_stats, predicted_home_goals, predicted_away_goals
+            )
         
-        # Generate corners picks (REAL data)
-        corners_picks = self._generate_corners_picks(
-            home_stats, away_stats, match
-        )
-        for pick in corners_picks:
-            picks.add_pick(pick)
+        if has_home_stats and has_away_stats:
+            corners_picks = self._generate_corners_picks(home_stats, away_stats, match)
+            for pick in corners_picks:
+                picks.add_pick(pick)
         
-        # Generate yellow cards picks (REAL data)
-        cards_picks = self._generate_cards_picks(
-            home_stats, away_stats, match
-        )
-        for pick in cards_picks:
-            picks.add_pick(pick)
+        # Always try individual team corners if we don't have enough combined data OR just to add variety
+        # But ensure we don't duplicate
+        if not picks.has_market(MarketType.CORNERS_OVER): 
+             if has_home_stats:
+                home_corners = self._generate_single_team_corners(home_stats, match, is_home=True)
+                if home_corners:
+                    picks.add_pick(home_corners)
+
+             if has_away_stats:
+                away_corners = self._generate_single_team_corners(away_stats, match, is_home=False)
+                if away_corners:
+                    picks.add_pick(away_corners)
         
-        # Generate red cards pick (REAL data)
-        red_cards_pick = self._generate_red_cards_pick(
-            home_stats, away_stats, match
-        )
-        if red_cards_pick:
-            picks.add_pick(red_cards_pick)
+        # 2. Generate yellow cards picks
+        if has_home_stats and has_away_stats:
+            cards_picks = self._generate_cards_picks(home_stats, away_stats, match)
+            for pick in cards_picks:
+                picks.add_pick(pick)
         
-        # Only generate prediction-based picks if we have real predictions
-        if has_prediction_data and home_win_prob > 0:
-            # Generate VA handicap picks
+        # Always try individual team cards if needed
+        if not picks.has_market(MarketType.CARDS_OVER):
+            if has_home_stats:
+                home_cards = self._generate_single_team_cards(home_stats, match, is_home=True)
+                if home_cards:
+                    picks.add_pick(home_cards)
+
+            if has_away_stats:
+                away_cards = self._generate_single_team_cards(away_stats, match, is_home=False)
+                if away_cards:
+                    picks.add_pick(away_cards)
+        
+        # 3. Generate red cards pick
+        if has_home_stats and has_away_stats:
+            red_cards_pick = self._generate_red_cards_pick(home_stats, away_stats, match)
+            if red_cards_pick:
+                picks.add_pick(red_cards_pick)
+        
+        # 4. Prediction-based picks
+        # 4. Prediction-based picks (Winner/Goals)
+        # We can generate winner picks if we have probability (even from odds), 
+        # but Goals picks require goal stats.
+        if home_win_prob > 0:
+            # Generate VA handicap picks (needs win prob)
             va_picks = self._generate_va_handicap_picks_v2(
                 match, predicted_home_goals, predicted_away_goals, 
                 home_win_prob, away_win_prob
@@ -141,7 +162,9 @@ class PicksService:
             )
             if winner_pick:
                 picks.add_pick(winner_pick)
-            
+        
+        # Only generate goals picks if we actually have goal predictions
+        if has_prediction_data:
             # Generate goals picks
             goals_picks = self._generate_goals_picks(
                 predicted_home_goals, predicted_away_goals, is_low_scoring
@@ -149,6 +172,11 @@ class PicksService:
             for pick in goals_picks:
                 picks.add_pick(pick)
         
+        if not picks.suggested_picks:
+            # We strictly respect "no invented data". 
+            # If no real stats generated picks, we return empty.
+            pass
+            
         return picks
     
     def _is_low_scoring_context(
@@ -256,7 +284,8 @@ class PicksService:
                     priority_score=priority_score,
                 )
                 picks.append(pick)
-                break  # Only add best threshold
+                # Removed break to allow multiple valid thresholds as requested
+
         
         return picks
     
@@ -302,7 +331,8 @@ class PicksService:
                     priority_score=priority_score,
                 )
                 picks.append(pick)
-                break
+                picks.append(pick)
+                # Removed break to allow multiple thresholds
         
         # Also generate team-specific card picks
         for team_name, team_avg, is_home in [
@@ -377,7 +407,8 @@ class PicksService:
                     priority_score=priority_score,
                 )
                 picks.append(pick)
-                break  # Only add best handicap option
+                picks.append(pick)
+                # Removed break to allow multiple handicap options
         
         return picks
     
@@ -671,3 +702,73 @@ class PicksService:
             is_recommended=max_prob > 0.50,
             priority_score=max_prob * self.MARKET_PRIORITY.get(MarketType.RESULT_1X2, 1.0),
         )
+
+    # Fallback pick removed to strictly comply with 'no invented data' policy
+
+    def _generate_single_team_corners(
+        self,
+        stats: TeamStatistics,
+        match: Match,
+        is_home: bool
+    ) -> Optional[SuggestedPick]:
+        """Generate corners pick for a single team."""
+        team_name = match.home_team.name if is_home else match.away_team.name
+        avg = stats.avg_corners_per_match
+        
+        # Thresholds for single team
+        thresholds = [3.5, 4.5, 5.5]
+        
+        for threshold in thresholds:
+            prob = self._poisson_over_probability(avg, threshold)
+            
+            # Simple adjustment
+            adjusted_prob = min(0.90, prob * 0.95)
+            
+            if adjusted_prob > 0.60:
+                confidence = SuggestedPick.get_confidence_level(adjusted_prob)
+                risk = self._calculate_risk_level(adjusted_prob)
+                
+                return SuggestedPick(
+                    market_type=MarketType.CORNERS_OVER,
+                    market_label=f"{team_name} - Más de {threshold} córners",
+                    probability=round(adjusted_prob, 3),
+                    confidence_level=confidence,
+                    reasoning=f"Estadística individual: {team_name} promedia {avg:.1f} córners.",
+                    risk_level=risk,
+                    is_recommended=adjusted_prob > 0.65,
+                    priority_score=adjusted_prob * 1.1,
+                )
+        return None
+
+    def _generate_single_team_cards(
+        self,
+        stats: TeamStatistics,
+        match: Match,
+        is_home: bool
+    ) -> Optional[SuggestedPick]:
+        """Generate cards pick for a single team."""
+        team_name = match.home_team.name if is_home else match.away_team.name
+        avg = stats.avg_yellow_cards_per_match
+        
+        thresholds = [1.5, 2.5]
+        
+        for threshold in thresholds:
+            prob = self._poisson_over_probability(avg, threshold)
+            
+            adjusted_prob = min(0.90, prob * 0.95)
+            
+            if adjusted_prob > 0.60:
+                confidence = SuggestedPick.get_confidence_level(adjusted_prob)
+                risk = self._calculate_risk_level(adjusted_prob)
+                
+                return SuggestedPick(
+                    market_type=MarketType.CARDS_OVER,
+                    market_label=f"{team_name} - Más de {threshold} tarjetas",
+                    probability=round(adjusted_prob, 3),
+                    confidence_level=confidence,
+                    reasoning=f"Estadística individual: {team_name} promedia {avg:.1f} tarjetas.",
+                    risk_level=risk,
+                    is_recommended=adjusted_prob > 0.65,
+                    priority_score=adjusted_prob * 1.1,
+                )
+        return None

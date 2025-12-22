@@ -197,20 +197,52 @@ const MatchCard: React.FC<MatchCardProps> = memo(
               alignItems="center"
               justifyContent="space-between"
               mb={1}
+              spacing={1}
             >
-              <Typography variant="h6" fontWeight={600} sx={{ flex: 1 }}>
-                {match.home_team.name}
-              </Typography>
+              {/* Home Team */}
+              <Box display="flex" alignItems="center" gap={1} sx={{ flex: 1 }}>
+                {match.home_team.logo_url && (
+                  <Box
+                    component="img"
+                    src={match.home_team.logo_url}
+                    alt={match.home_team.name}
+                    sx={{ width: 24, height: 24, objectFit: "contain" }}
+                  />
+                )}
+                <Typography variant="h6" fontWeight={600} noWrap>
+                  {match.home_team.name}
+                </Typography>
+              </Box>
+
               <Typography variant="body2" color="text.secondary" mx={1}>
                 vs
               </Typography>
-              <Typography
-                variant="h6"
-                fontWeight={600}
-                sx={{ flex: 1, textAlign: "right" }}
+
+              {/* Away Team */}
+              <Box
+                display="flex"
+                alignItems="center"
+                justifyContent="flex-end"
+                gap={1}
+                sx={{ flex: 1 }}
               >
-                {match.away_team.name}
-              </Typography>
+                <Typography
+                  variant="h6"
+                  fontWeight={600}
+                  sx={{ textAlign: "right" }}
+                  noWrap
+                >
+                  {match.away_team.name}
+                </Typography>
+                {match.away_team.logo_url && (
+                  <Box
+                    component="img"
+                    src={match.away_team.logo_url}
+                    alt={match.away_team.name}
+                    sx={{ width: 24, height: 24, objectFit: "contain" }}
+                  />
+                )}
+              </Box>
             </Stack>
 
             {/* Expected Goals */}

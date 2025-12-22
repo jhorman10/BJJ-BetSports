@@ -111,3 +111,7 @@ class MatchSuggestedPicks:
                       if p.market_type in goals_markets and p.is_recommended]
         
         return len(goals_picks) > 1
+    
+    def has_market(self, market_type: MarketType) -> bool:
+        """Check if a pick of a specific market type already exists."""
+        return any(p.market_type == market_type for p in self.suggested_picks)

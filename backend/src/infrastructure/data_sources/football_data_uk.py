@@ -346,14 +346,33 @@ class FootballDataUKSource:
         )
         
         all_matches = []
-        for season in seasons:
-            df = await self.download_csv(league_code, season)
+        tasks = [self.download_csv(league_code, season) for season in seasons]
+        dfs = await asyncio.gather(*tasks)
+        
+        all_matches = []
+        for df in dfs:
             if df is not None:
                 matches = self.parse_matches(df, league)
                 all_matches.extend(matches)
         
         return all_matches
     
+    def _normalize_name(self, name: str) -> str:
+        """Normalize team name for comparison."""
+        # Remove common prefixes/suffixes
+        remove = ["fc", "cf", "as", "sc", "ac", "inter", "real", "sporting", "club", "de", "le", "la"]
+        
+        cleaned = name.lower()
+        for word in remove:
+            # Remove isolated occurrences
+            cleaned = cleaned.replace(f" {word} ", " ")
+            if cleaned.startswith(f"{word} "):
+                cleaned = cleaned[len(word)+1:]
+            if cleaned.endswith(f" {word}"):
+                cleaned = cleaned[:-len(word)-1]
+                
+        return cleaned.strip().replace(" ", "")
+
     def calculate_team_statistics(
         self,
         team_name: str,
@@ -380,12 +399,18 @@ class FootballDataUKSource:
         away_wins = 0
         recent_results = []
         
+        target_norm = self._normalize_name(team_name)
+        
         for match in matches:
             if not match.is_played:
                 continue
             
-            is_home = match.home_team.name.lower() == team_name.lower()
-            is_away = match.away_team.name.lower() == team_name.lower()
+            home_norm = self._normalize_name(match.home_team.name)
+            away_norm = self._normalize_name(match.away_team.name)
+            
+            # Check for match (exact normalized or containment if substantial)
+            is_home = target_norm == home_norm or (len(target_norm) > 3 and target_norm in home_norm) or (len(home_norm) > 3 and home_norm in target_norm)
+            is_away = target_norm == away_norm or (len(target_norm) > 3 and target_norm in away_norm) or (len(away_norm) > 3 and away_norm in target_norm)
             
             if not (is_home or is_away):
                 continue
@@ -395,34 +420,30 @@ class FootballDataUKSource:
             
             matches_played += 1
             
-            if is_home:
-                goals_scored += match.home_goals
-                goals_conceded += match.away_goals
+            # Get stats based on role
+            goals_for = match.home_goals if is_home else match.away_goals
+            goals_against = match.away_goals if is_home else match.home_goals
+            
+            # Robustly handle None goals
+            if goals_for is None or goals_against is None:
+                continue
                 
-                if match.home_goals > match.away_goals:
-                    wins += 1
+            goals_scored += goals_for
+            goals_conceded += goals_against
+            
+            if goals_for > goals_against:
+                wins += 1
+                if is_home:
                     home_wins += 1
-                    recent_results.append('W')
-                elif match.home_goals < match.away_goals:
-                    losses += 1
-                    recent_results.append('L')
                 else:
-                    draws += 1
-                    recent_results.append('D')
-            else:
-                goals_scored += match.away_goals
-                goals_conceded += match.home_goals
-                
-                if match.away_goals > match.home_goals:
-                    wins += 1
                     away_wins += 1
-                    recent_results.append('W')
-                elif match.away_goals < match.home_goals:
-                    losses += 1
-                    recent_results.append('L')
-                else:
-                    draws += 1
-                    recent_results.append('D')
+                recent_results.append('W')
+            elif goals_for < goals_against:
+                losses += 1
+                recent_results.append('L')
+            else:
+                draws += 1
+                recent_results.append('D')
         
         # Get last 5 results for form
         recent_form = ''.join(recent_results[-5:]) if recent_results else ""

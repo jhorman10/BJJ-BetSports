@@ -127,9 +127,13 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
         setError(null);
         const data = await api.getSuggestedPicks(match.id);
         setApiPicks(data);
-      } catch (err) {
-        console.error("Error fetching suggested picks:", err);
-        setError("No se pudieron cargar los picks");
+      } catch (err: any) {
+        if (err.response && err.response.status === 404) {
+          setError("Datos insuficientes para generar picks");
+        } else {
+          console.error("Error fetching suggested picks:", err);
+          setError("No se pudieron cargar los picks");
+        }
         setApiPicks(null);
       } finally {
         setLoading(false);
@@ -172,7 +176,7 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
   }
 
   return (
-    <Box>
+    <Box sx={{ maxHeight: "350px", overflowY: "auto", pr: 0.5 }}>
       {sortedPicks.map((pick, index) => (
         <PickRow key={`pick-${index}`} pick={pick} />
       ))}

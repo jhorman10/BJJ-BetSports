@@ -492,6 +492,26 @@ class PredictionService:
         
         # If insufficient data, return empty prediction (no fake values)
         if home_played < 3 or away_played < 3 or not has_league_data:
+            # FALLBACK TO ODDS: If we have odds, use them as implied probability
+            if match.home_odds and match.draw_odds and match.away_odds:
+                odds = Odds(home=match.home_odds, draw=match.draw_odds, away=match.away_odds)
+                h_prob, d_prob, a_prob = odds.to_probabilities()
+                
+                # We can't predict exact goals reliably without stats, 
+                # but we can provide win probabilities which is better than nothing.
+                return Prediction(
+                    match_id=match.id,
+                    home_win_probability=round(h_prob, 4),
+                    draw_probability=round(d_prob, 4),
+                    away_win_probability=round(a_prob, 4),
+                    over_25_probability=0.0, # Cannot infer from simple 1X2 odds
+                    under_25_probability=0.0,
+                    predicted_home_goals=0.0,
+                    predicted_away_goals=0.0,
+                    confidence=0.3, # Low confidence as it's just market implied
+                    data_sources=["Mercado de Apuestas (Odds)"],
+                )
+
             return Prediction(
                 match_id=match.id,
                 home_win_probability=0.0,

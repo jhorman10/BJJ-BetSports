@@ -7,6 +7,7 @@ export interface Team {
   name: string;
   short_name?: string;
   country?: string;
+  logo_url?: string;
 }
 
 export interface League {

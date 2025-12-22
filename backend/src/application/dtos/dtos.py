@@ -50,6 +50,7 @@ class TeamDTO(BaseModel):
     name: str
     short_name: Optional[str] = None
     country: Optional[str] = None
+    logo_url: Optional[str] = None
     
     class Config:
         from_attributes = True
