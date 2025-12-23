@@ -334,38 +334,10 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
               </Box>
 
               {/* Match Result */}
-              <Box mb={2}>
+              <Box mb={3}>
                 <Typography variant="h6" fontWeight={700} color="white">
                   {match.home_team} {match.actual_home_goals} -{" "}
                   {match.actual_away_goals} {match.away_team}
-                </Typography>
-                <Typography variant="body2" color="#10b981" fontWeight={600}>
-                  Ganó:{" "}
-                  {getWinnerLabel(
-                    match.actual_winner,
-                    match.home_team,
-                    match.away_team
-                  )}
-                </Typography>
-              </Box>
-
-              {/* Model Prediction */}
-              <Box mb={1.5}>
-                <Typography variant="body2" color="text.secondary">
-                  <Typography
-                    component="span"
-                    color="text.disabled"
-                    variant="caption"
-                  >
-                    El modelo predijo:{" "}
-                  </Typography>
-                  {getWinnerLabel(
-                    match.predicted_winner,
-                    match.home_team,
-                    match.away_team
-                  )}{" "}
-                  ({match.predicted_home_goals.toFixed(1)} -{" "}
-                  {match.predicted_away_goals.toFixed(1)})
                 </Typography>
               </Box>
 
@@ -378,7 +350,7 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                       color="text.disabled"
                       variant="caption"
                     >
-                      Apuesta sugerida:{" "}
+                      Sugerencia:{" "}
                     </Typography>
                     <Typography
                       component="span"
