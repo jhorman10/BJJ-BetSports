@@ -83,12 +83,17 @@ async def run_training_session(
         # Sort by date to simulate timeline (Backtesting)
         all_matches.sort(key=lambda x: x.match_date)
         
-        # Process only completed matches (with results)
-        completed_matches = [m for m in all_matches if m.home_goals is not None and m.away_goals is not None]
+        # Filter matches from bot creation date onwards (December 15, 2024)
+        bot_creation_date = datetime(2024, 12, 15)
+        completed_matches = [
+            m for m in all_matches 
+            if m.home_goals is not None 
+            and m.away_goals is not None 
+            and m.match_date >= bot_creation_date
+        ]
         
-        # Limit processing based on days_back (but process recent matches first)
-        # Take the LAST N matches based on days_back approximation
-        max_matches_to_process = min(len(completed_matches), request.days_back // 3)  # ~3 matches per day approx
+        # Process recent matches (limit based on days_back for performance)
+        max_matches_to_process = min(len(completed_matches), request.days_back // 3)
         recent_matches = completed_matches[-max_matches_to_process:] if max_matches_to_process > 0 else completed_matches
         
         for i, match in enumerate(recent_matches):
@@ -218,6 +223,9 @@ async def run_training_session(
     accuracy = correct_predictions / matches_processed if matches_processed > 0 else 0.0
     profit = total_return - total_staked
     roi = (profit / total_staked * 100) if total_staked > 0 else 0.0
+    
+    # Reverse history to show newest matches first
+    match_history.reverse()
     
     return TrainingStatus(
         matches_processed=matches_processed,
