@@ -342,7 +342,6 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                   fontWeight={600}
                   mb={0.5}
                 >
-                  →{" "}
                   <Typography component="span" fontWeight={700}>
                     {getWinnerLabel(
                       match.actual_winner,
@@ -353,7 +352,7 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                   ganó
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  ◆ Predicción:{" "}
+                  Predicción:{" "}
                   <Typography component="span" fontWeight={600}>
                     {getWinnerLabel(
                       match.predicted_winner,
@@ -367,7 +366,7 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
               {/* Suggested Pick */}
               {match.suggested_pick && (
                 <Typography variant="body2" color="text.secondary">
-                  ⭐ {match.suggested_pick}
+                  {match.suggested_pick}
                   {match.expected_value && (
                     <Typography
                       component="span"
