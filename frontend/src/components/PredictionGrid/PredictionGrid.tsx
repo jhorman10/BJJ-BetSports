@@ -7,8 +7,6 @@ import PredictionGridList, { MatchCardSkeleton } from "./PredictionGridList";
 import MatchDetailsModal from "../MatchDetails/MatchDetailsModal";
 import { ParleyPickItem } from "../Parley/ParleySlip";
 
-import { ParleyPickItem } from "../Parley/ParleySlip";
-
 interface PredictionGridProps {
   predictions: MatchPrediction[];
   league: League | null;

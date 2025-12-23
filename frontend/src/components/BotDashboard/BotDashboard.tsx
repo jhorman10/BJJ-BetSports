@@ -1,24 +1,12 @@
-import React, { useState } from "react";
-import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  Button,
-  Grid,
-  LinearProgress,
-  Alert,
-  CircularProgress,
-} from "@mui/material";
+import React from "react";
+import { Box, Card, CardContent, Typography, Grid, Alert } from "@mui/material";
 import {
   SmartToy,
   TrendingUp,
   Assessment,
   History,
-  PlayArrow,
   AttachMoney,
 } from "@mui/icons-material";
-import { api } from "../../services/api";
 
 interface TrainingStatus {
   matches_processed: number;
