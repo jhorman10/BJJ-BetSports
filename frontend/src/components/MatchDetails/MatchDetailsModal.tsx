@@ -11,7 +11,9 @@ import {
   Chip,
   Divider,
   Paper,
+  Slide,
 } from "@mui/material";
+import { TransitionProps } from "@mui/material/transitions";
 import { MatchPrediction } from "../../types";
 import SuggestedPicksTab from "./SuggestedPicksTab";
 
@@ -36,6 +38,8 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
       onClose={onClose}
       maxWidth="sm"
       fullWidth
+      TransitionComponent={Slide}
+      TransitionProps={{ direction: "up" } as TransitionProps}
       PaperProps={{
         sx: {
           width: { xs: "95%", sm: "100%" },

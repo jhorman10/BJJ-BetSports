@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from "react";
-import { Grid, Box, Skeleton } from "@mui/material";
+import { Grid, Box, Skeleton, Grow } from "@mui/material";
 import { MatchPrediction } from "../../types";
 
 const MatchCard = lazy(() => import("../MatchCard"));
@@ -48,20 +48,31 @@ const PredictionGridList: React.FC<PredictionGridListProps> = ({
     <Grid container spacing={3}>
       {predictions.map((matchPrediction, index) => (
         <Grid item xs={12} sm={6} lg={4} key={matchPrediction.match.id}>
-          <Suspense fallback={<MatchCardSkeleton />}>
-            <MatchCard
-              matchPrediction={matchPrediction}
-              highlight={index === 0}
-              onClick={() => onMatchClick(matchPrediction)}
-              isSelected={selectedMatchIds.includes(matchPrediction.match.id)}
-              onToggleSelection={() =>
-                onToggleMatchSelection &&
-                onToggleMatchSelection(matchPrediction)
-              }
-            />
-          </Suspense>
+          <Grow
+            in
+            timeout={300 + index * 50}
+            style={{ transformOrigin: "0 0 0" }}
+          >
+            <Box>
+              <Suspense fallback={<MatchCardSkeleton />}>
+                <MatchCard
+                  matchPrediction={matchPrediction}
+                  highlight={index === 0}
+                  onClick={() => onMatchClick(matchPrediction)}
+                  isSelected={selectedMatchIds.includes(
+                    matchPrediction.match.id
+                  )}
+                  onToggleSelection={() =>
+                    onToggleMatchSelection &&
+                    onToggleMatchSelection(matchPrediction)
+                  }
+                />
+              </Suspense>
+            </Box>
+          </Grow>
         </Grid>
       ))}
+      \n{" "}
     </Grid>
   );
 };

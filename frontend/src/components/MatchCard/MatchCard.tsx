@@ -72,28 +72,32 @@ const getProbabilityColor = (value: number): string => {
 
 const getCardSx = (highlight?: boolean, clickable?: boolean) => ({
   height: "100%",
-  transition: "all 0.3s ease",
+  // GPU-accelerated properties only (transform, opacity)
+  transform: highlight ? "scale(1.02)" : "translateY(0)",
+  transition:
+    "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
   position: "relative" as const,
   cursor: clickable ? "pointer" : "default",
   ...(highlight
     ? {
         border: "2px solid #10b981",
         boxShadow: "0 0 20px rgba(16, 185, 129, 0.3)",
-        transform: "scale(1.02)",
       }
     : {}),
   "&:hover": {
     transform: highlight
       ? "scale(1.03)"
       : clickable
-      ? "translateY(-4px)"
-      : "none",
+      ? "translateY(-8px) scale(1.02)"
+      : "translateY(0)",
     boxShadow: highlight
       ? "0 0 30px rgba(16, 185, 129, 0.5)"
       : clickable
       ? "0 12px 24px rgba(0, 0, 0, 0.3)"
       : "none",
   },
+  // Hint to browser for performance
+  willChange: clickable || highlight ? "transform, box-shadow" : "auto",
 });
 
 const MatchCard: React.FC<MatchCardProps> = memo(
