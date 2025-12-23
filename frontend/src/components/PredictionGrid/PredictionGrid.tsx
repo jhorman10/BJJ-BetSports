@@ -1,15 +1,11 @@
-import React, { memo, useMemo, Suspense, lazy, useCallback } from "react";
+import React, { memo, useMemo, useCallback } from "react";
 import { Box, Typography, CircularProgress, Alert, Chip } from "@mui/material";
 import { SportsSoccer } from "@mui/icons-material";
 import type { MatchPrediction, League } from "../../types";
 import PredictionGridHeader, { SortOption } from "./PredictionGridHeader";
 import PredictionGridList, { MatchCardSkeleton } from "./PredictionGridList";
-import {
-  usePredictions,
-  useLeagues,
-  useLeagueSelection,
-} from "../../hooks/usePredictions";
 import MatchDetailsModal from "../MatchDetails/MatchDetailsModal";
+import { ParleyPickItem } from "../Parley/ParleySlip";
 
 import { ParleyPickItem } from "../Parley/ParleySlip";
 
@@ -297,13 +293,13 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
         />
 
         {/* Modal */}
-        <Suspense fallback={null}>
+        <React.Suspense fallback={null}>
           <MatchDetailsModal
             open={modalOpen}
             onClose={handleCloseModal}
             matchPrediction={selectedMatch}
           />
-        </Suspense>
+        </React.Suspense>
       </Box>
     );
   }
