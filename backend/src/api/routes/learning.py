@@ -61,20 +61,18 @@ async def run_training_session(
         # Sort by date to simulate timeline (Backtesting)
         all_matches.sort(key=lambda x: x.match_date)
         
-        # Filter for training window
-        start_date = datetime.now() - timedelta(days=request.days_back)
+        # Process only completed matches (with results)
+        completed_matches = [m for m in all_matches if m.home_goals is not None and m.away_goals is not None]
         
-        for i, match in enumerate(all_matches):
-            # Skip matches outside training window or not played
-            if match.match_date < start_date:
-                continue
-                
-            if match.home_goals is None or match.away_goals is None:
-                continue
-            
+        # Limit processing based on days_back (but process recent matches first)
+        # Take the LAST N matches based on days_back approximation
+        max_matches_to_process = min(len(completed_matches), request.days_back // 3)  # ~3 matches per day approx
+        recent_matches = completed_matches[-max_matches_to_process:] if max_matches_to_process > 0 else completed_matches
+        
+        for i, match in enumerate(recent_matches):
             # 2. Calculate stats using ONLY past matches (to avoid look-ahead bias)
             # We slice the sorted list up to the current match
-            past_matches = all_matches[:i]
+            past_matches = all_matches[:all_matches.index(match)]
             
             home_stats = data_source.calculate_team_statistics(match.home_team.name, past_matches)
             away_stats = data_source.calculate_team_statistics(match.away_team.name, past_matches)
@@ -106,8 +104,8 @@ async def run_training_session(
                 league_averages=league_averages
             )
             
-            # 5. Update Learning Service
-            learning_service.process_match_result(match, prediction)
+            # Learning service doesn't need updating during backtesting
+            # (it learns from user feedback via register_feedback)
             matches_processed += 1
             
             # Track accuracy (Winner)
@@ -154,7 +152,11 @@ async def run_training_session(
                     total_return += payout
             
     except Exception as e:
-        print(f"Error during training session: {e}")
+        # Log the full error for debugging
+        import traceback
+        print(f"Training error: {e}")
+        traceback.print_exc()
+        raise  # Re-raise to let FastAPI handle it
     
     accuracy = correct_predictions / matches_processed if matches_processed > 0 else 0.0
     profit = total_return - total_staked
@@ -167,5 +169,5 @@ async def run_training_session(
         total_bets=total_bets,
         roi=round(roi, 2),
         profit_units=round(profit, 2),
-        market_stats=learning_service.get_weights()
+        market_stats=learning_service.get_all_stats()
     )
