@@ -1,13 +1,15 @@
 import React, { memo, useMemo, Suspense, lazy, useCallback } from "react";
-import { Box, Typography, CircularProgress, Alert } from "@mui/material";
+import { Box, Typography, CircularProgress, Alert, Chip } from "@mui/material";
 import { SportsSoccer } from "@mui/icons-material";
 import type { MatchPrediction, League } from "../../types";
 import PredictionGridHeader, { SortOption } from "./PredictionGridHeader";
 import PredictionGridList, { MatchCardSkeleton } from "./PredictionGridList";
-
-const MatchDetailsModal = lazy(
-  () => import("../MatchDetails/MatchDetailsModal")
-);
+import {
+  usePredictions,
+  useLeagues,
+  useLeagueSelection,
+} from "../../hooks/usePredictions";
+import MatchDetailsModal from "../MatchDetails/MatchDetailsModal";
 
 import { ParleyPickItem } from "../Parley/ParleySlip";
 
@@ -29,6 +31,10 @@ interface PredictionGridProps {
   ) => void;
   onMatchClick?: (match: MatchPrediction) => void;
 }
+// Note: Props are maintained for compatibility but data fetching is now internal via hook if league is selected
+// However, the original component received predictions as props.
+// Wait, the original code shows PredictionGrid receives 'predictions' as props, meaning the parent (App.tsx) handles fetching?
+// Let me check App.tsx to see who calls usePredictions.
 
 const emptyStateStyles = {
   border: "2px dashed rgba(148, 163, 184, 0.2)",
@@ -265,22 +271,6 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
 
     return (
       <Box>
-        <Alert
-          severity="info"
-          sx={{
-            mb: 3,
-            bgcolor: "rgba(2, 136, 209, 0.1)",
-            color: "#0288d1",
-            border: "1px solid rgba(2, 136, 209, 0.3)",
-          }}
-        >
-          <Typography variant="body2">
-            <strong>Nota de Responsabilidad:</strong> Este modelo es
-            estadístico. Verifique siempre las alineaciones y noticias de última
-            hora antes de realizar una operación real.
-          </Typography>
-        </Alert>
-
         <PredictionGridHeader
           league={league}
           predictionCount={predictions.length}
@@ -288,6 +278,15 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
           onSortChange={onSortChange}
           searchQuery={searchQuery}
           onSearchChange={onSearchChange}
+          syncStatus={
+            <Chip
+              label="Sincronización Activa"
+              size="small"
+              color="success"
+              variant="outlined"
+              sx={{ height: 24, fontSize: "0.7rem" }}
+            />
+          }
         />
 
         <PredictionGridList

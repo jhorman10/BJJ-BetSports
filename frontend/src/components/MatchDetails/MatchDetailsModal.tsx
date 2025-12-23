@@ -14,7 +14,6 @@ import {
 } from "@mui/material";
 import { MatchPrediction } from "../../types";
 import SuggestedPicksTab from "./SuggestedPicksTab";
-import FundamentalAnalysis from "./FundamentalAnalysis";
 
 interface MatchDetailsModalProps {
   open: boolean;
@@ -115,10 +114,6 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                 🎯 Picks Destacados
               </Typography>
               <SuggestedPicksTab matchPrediction={details} />
-            </Box>
-
-            <Box mb={3}>
-              <FundamentalAnalysis />
             </Box>
 
             <Divider sx={{ mb: 2 }} />

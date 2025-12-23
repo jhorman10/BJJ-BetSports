@@ -120,7 +120,7 @@ const App: React.FC = () => {
     predictions,
     loading: predictionsLoading,
     error: predictionsError,
-  } = usePredictions(selectedLeague?.id || null, 10, sortBy, true);
+  } = usePredictions(selectedLeague?.id || null, 10, sortBy, true, 300000);
 
   // Handle sort change - this automatically triggers refetch via hook dependency
   const handleSortChange = (newSortBy: SortOption) => {

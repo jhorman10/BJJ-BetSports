@@ -70,20 +70,21 @@ export function usePredictions(
   leagueId: string | null,
   limit: number = 10,
   sortBy: SortOption = "confidence",
-  sortDesc: boolean = true
+  sortDesc: boolean = true,
+  pollingInterval: number | null = null
 ) {
   const [data, setData] = useState<PredictionsResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
   const fetchPredictions = useCallback(
-    async (signal?: AbortSignal) => {
+    async (signal?: AbortSignal, isPolling: boolean = false) => {
       if (!leagueId) {
         setData(null);
         return;
       }
 
-      setLoading(true);
+      if (!isPolling) setLoading(true);
       setError(null);
       try {
         const response = await api.getPredictions(
@@ -110,7 +111,7 @@ export function usePredictions(
           );
         }
       } finally {
-        if (!signal?.aborted) {
+        if (!signal?.aborted && !isPolling) {
           setLoading(false);
         }
       }
@@ -122,11 +123,20 @@ export function usePredictions(
     const abortController = new AbortController();
     fetchPredictions(abortController.signal);
 
+    let intervalId: NodeJS.Timeout;
+
+    if (pollingInterval && pollingInterval > 0) {
+      intervalId = setInterval(() => {
+        fetchPredictions(abortController.signal, true);
+      }, pollingInterval);
+    }
+
     // Cleanup: abort previous request when dependencies change
     return () => {
       abortController.abort();
+      if (intervalId) clearInterval(intervalId);
     };
-  }, [fetchPredictions]);
+  }, [fetchPredictions, pollingInterval]);
 
   // Memoize derived values
   const predictions = useMemo(() => data?.predictions || [], [data]);
