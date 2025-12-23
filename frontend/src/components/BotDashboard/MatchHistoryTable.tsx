@@ -250,11 +250,12 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
               sx={{
                 position: "absolute",
                 top: 8,
-                right: 8,
+                left: 0,
+                right: 0,
                 zIndex: 10,
                 display: "flex",
                 flexDirection: "column",
-                alignItems: "flex-end",
+                alignItems: "center",
                 gap: "5px",
               }}
             >
@@ -318,7 +319,13 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
             </Box>
             <CardContent>
               {/* Teams */}
-              <Typography variant="body2" fontWeight={600} color="white" mb={1}>
+              <Typography
+                variant="body2"
+                fontWeight={600}
+                color="white"
+                mb={1}
+                textAlign="center"
+              >
                 {match.home_team} vs {match.away_team}
               </Typography>
 
