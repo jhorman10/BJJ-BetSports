@@ -14,28 +14,7 @@ import {
   CardContent,
 } from "@mui/material";
 import { CheckCircle, Cancel } from "@mui/icons-material";
-
-interface MatchPredictionHistory {
-  match_id: string;
-  home_team: string;
-  away_team: string;
-  match_date: string;
-  predicted_winner: string;
-  actual_winner: string;
-  predicted_home_goals: number;
-  predicted_away_goals: number;
-  actual_home_goals: number;
-  actual_away_goals: number;
-  was_correct: boolean;
-  confidence: number;
-  suggested_pick?: string | null;
-  pick_was_correct?: boolean | null;
-  expected_value?: number | null;
-}
-
-interface MatchHistoryTableProps {
-  matches: MatchPredictionHistory[];
-}
+import { MatchHistoryTableProps } from "../../types";
 
 const formatDate = (dateString: string): string => {
   const date = new Date(dateString);
@@ -67,6 +46,19 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
       </Box>
     );
   }
+
+  const sortedMatches = React.useMemo(() => {
+    return [...matches].sort((a, b) => {
+      // Priorizar picks sugeridos (destacados)
+      const aHasPick = !!a.suggested_pick;
+      const bHasPick = !!b.suggested_pick;
+
+      if (aHasPick !== bHasPick) return aHasPick ? -1 : 1;
+
+      // Ordenar por confianza (probabilidad) de mayor a menor
+      return b.confidence - a.confidence;
+    });
+  }, [matches]);
 
   return (
     <>
@@ -110,7 +102,7 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {matches.map((match) => (
+              {sortedMatches.map((match) => (
                 <TableRow
                   key={match.match_id}
                   sx={{
@@ -177,7 +169,7 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                       match.pick_was_correct ? (
                         <Chip
                           icon={<CheckCircle />}
-                          label="Pick Ganador"
+                          label="Predicción Acertada"
                           color="success"
                           size="small"
                           sx={{
@@ -189,7 +181,7 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                       ) : (
                         <Chip
                           icon={<Cancel />}
-                          label="Pick Perdedor"
+                          label="Predicción Errada"
                           color="error"
                           size="small"
                           sx={{
@@ -203,7 +195,7 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                     match.was_correct ? (
                       <Chip
                         icon={<CheckCircle />}
-                        label="Acertada"
+                        label="Predicción Acertada"
                         color="success"
                         size="small"
                         variant="outlined"
@@ -216,7 +208,7 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                     ) : (
                       <Chip
                         icon={<Cancel />}
-                        label="Errada"
+                        label="Predicción Errada"
                         color="error"
                         size="small"
                         variant="outlined"
@@ -236,7 +228,7 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
       </Box>
 
       <Box sx={{ display: { xs: "block", md: "none" } }}>
-        {matches.map((match) => (
+        {sortedMatches.map((match) => (
           <Card
             key={match.match_id}
             sx={{
@@ -279,7 +271,7 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                     match.pick_was_correct ? (
                       <Chip
                         icon={<CheckCircle />}
-                        label="Pick Ganador"
+                        label="Predicción Acertada"
                         color="success"
                         size="small"
                         sx={{
@@ -291,7 +283,7 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                     ) : (
                       <Chip
                         icon={<Cancel />}
-                        label="Pick Perdedor"
+                        label="Predicción Errada"
                         color="error"
                         size="small"
                         sx={{
@@ -304,7 +296,7 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                   ) : match.was_correct ? (
                     <Chip
                       icon={<CheckCircle />}
-                      label="Acertada"
+                      label="Predicción Acertada"
                       color="success"
                       size="small"
                       variant="outlined"
@@ -317,7 +309,7 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                   ) : (
                     <Chip
                       icon={<Cancel />}
-                      label="Errada"
+                      label="Predicción Errada"
                       color="error"
                       size="small"
                       variant="outlined"

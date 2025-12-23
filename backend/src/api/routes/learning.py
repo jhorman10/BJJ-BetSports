@@ -83,8 +83,8 @@ async def run_training_session(
         # Sort by date to simulate timeline (Backtesting)
         all_matches.sort(key=lambda x: x.match_date)
         
-        # Filter matches from bot creation date onwards (December 15, 2024)
-        bot_creation_date = datetime(2024, 12, 15)
+        # Filter matches from bot creation date onwards (December 15, 2025)
+        bot_creation_date = datetime(2025, 12, 15)
         completed_matches = [
             m for m in all_matches 
             if m.home_goals is not None 

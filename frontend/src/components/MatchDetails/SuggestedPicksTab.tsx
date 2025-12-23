@@ -208,13 +208,8 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
       }
     }
 
-    // FIX: Use priority_score to respect backend's market weighting logic.
-    // If priority_score is missing, fallback to raw probability.
-    return picks.sort(
-      (a, b) =>
-        (b.priority_score || b.probability) -
-        (a.priority_score || a.probability)
-    );
+    // Sort by probability only (highest first)
+    return picks.sort((a, b) => b.probability - a.probability);
   }, [apiPicks, matchPrediction]);
 
   if (loading) {

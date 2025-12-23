@@ -1,14 +1,14 @@
 // Mock data for local development of picks
 // src/mock/predictionMock.ts
 
-import { MatchPredictionHistory } from "../components/BotDashboard/BotDashboard";
+import { MatchPredictionHistory } from "../types";
 
 export const mockMatchHistory: MatchPredictionHistory[] = [
   {
     match_id: "mock1",
     home_team: "Arsenal",
     away_team: "Chelsea",
-    match_date: "2024-12-20",
+    match_date: "2025-12-20",
     predicted_winner: "2",
     actual_winner: "2",
     predicted_home_goals: 0.8,
@@ -25,7 +25,7 @@ export const mockMatchHistory: MatchPredictionHistory[] = [
     match_id: "mock2",
     home_team: "Real Madrid",
     away_team: "Barcelona",
-    match_date: "2024-12-22",
+    match_date: "2025-12-22",
     predicted_winner: "X",
     actual_winner: "1",
     predicted_home_goals: 1.5,
@@ -42,7 +42,7 @@ export const mockMatchHistory: MatchPredictionHistory[] = [
     match_id: "mock3",
     home_team: "Bayern",
     away_team: "Dortmund",
-    match_date: "2024-12-25",
+    match_date: "2025-12-25",
     predicted_winner: "1",
     actual_winner: "1",
     predicted_home_goals: 2.1,

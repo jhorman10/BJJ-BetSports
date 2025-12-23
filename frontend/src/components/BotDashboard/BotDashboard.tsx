@@ -1,5 +1,15 @@
 import React from "react";
-import { Box, Card, CardContent, Typography, Grid, Alert } from "@mui/material";
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Grid,
+  Alert,
+  IconButton,
+  Tooltip,
+  CircularProgress,
+} from "@mui/material";
 import {
   SmartToy,
   TrendingUp,
@@ -9,35 +19,7 @@ import {
 } from "@mui/icons-material";
 import { api } from "../../services/api";
 import MatchHistoryTable from "./MatchHistoryTable";
-
-export interface MatchPredictionHistory {
-  match_id: string;
-  home_team: string;
-  away_team: string;
-  match_date: string;
-  predicted_winner: string;
-  actual_winner: string;
-  predicted_home_goals: number;
-  predicted_away_goals: number;
-  actual_home_goals: number;
-  actual_away_goals: number;
-  was_correct: boolean;
-  confidence: number;
-  suggested_pick?: string | null;
-  pick_was_correct?: boolean | null;
-  expected_value?: number | null;
-}
-
-interface TrainingStatus {
-  matches_processed: number;
-  correct_predictions: number;
-  accuracy: number;
-  total_bets: number;
-  roi: number;
-  profit_units: number;
-  market_stats: any;
-  match_history: MatchPredictionHistory[];
-}
+import { TrainingStatus } from "../../types";
 
 const StatCard: React.FC<{
   title: string;
@@ -115,28 +97,28 @@ const BotDashboard: React.FC = () => {
     }
   }, []);
 
-  // Load mock data if no stats are available (development mode only)
-  React.useEffect(() => {
-    if (!stats && !loading && import.meta.env.DEV) {
-      // Import mock data lazily to avoid bundling in production
-      import("../../mock/predictionMock").then(({ mockMatchHistory }) => {
-        const mockStats = {
-          matches_processed: mockMatchHistory.length,
-          correct_predictions: mockMatchHistory.filter((m) => m.was_correct)
-            .length,
-          accuracy:
-            mockMatchHistory.filter((m) => m.was_correct).length /
-            mockMatchHistory.length,
-          total_bets: mockMatchHistory.filter((m) => m.suggested_pick).length,
-          roi: 0, // placeholder
-          profit_units: 0, // placeholder
-          market_stats: {},
-          match_history: mockMatchHistory,
-        } as any;
-        setStats(mockStats);
-      });
-    }
-  }, [stats, loading]);
+  // Mock data disabled - always use real backend data
+  // React.useEffect(() => {
+  //   if (!stats && !loading && import.meta.env.DEV) {
+  //     // Import mock data lazily to avoid bundling in production
+  //     import("../../mock/predictionMock").then(({ mockMatchHistory }) => {
+  //       const mockStats = {
+  //         matches_processed: mockMatchHistory.length,
+  //         correct_predictions: mockMatchHistory.filter((m) => m.was_correct)
+  //           .length,
+  //         accuracy:
+  //           mockMatchHistory.filter((m) => m.was_correct).length /
+  //           mockMatchHistory.length,
+  //         total_bets: mockMatchHistory.filter((m) => m.suggested_pick).length,
+  //         roi: 0, // placeholder
+  //         profit_units: 0, // placeholder
+  //         market_stats: {},
+  //         match_history: mockMatchHistory,
+  //       } as any;
+  //       setStats(mockStats);
+  //     });
+  //   }
+  // }, [stats, loading]);
 
   // Run training analysis
   const runTraining = React.useCallback(async () => {
@@ -176,6 +158,20 @@ const BotDashboard: React.FC = () => {
     }
   }, []);
 
+  // Load cached data on mount
+  React.useEffect(() => {
+    const cached = localStorage.getItem("bot_training_stats");
+    if (cached) {
+      try {
+        const { data, timestamp } = JSON.parse(cached);
+        setStats(data);
+        setLastUpdate(new Date(timestamp));
+      } catch (error) {
+        console.error("Failed to load cached stats:", error);
+      }
+    }
+  }, []);
+
   // Auto-run training if needed
   React.useEffect(() => {
     if (needsTraining() && !loading && !stats) {
@@ -190,7 +186,23 @@ const BotDashboard: React.FC = () => {
   return (
     <Box>
       <Box display="flex" alignItems="center" gap={2} mb={4}>
-        <SmartToy sx={{ fontSize: 40, color: "#fbbf24" }} />
+        <Box position="relative">
+          {loading ? (
+            <CircularProgress size={40} sx={{ color: "#fbbf24" }} />
+          ) : (
+            <Tooltip title="Recalcular data del modelo">
+              <IconButton onClick={runTraining} sx={{ p: 0 }}>
+                <SmartToy
+                  sx={{
+                    fontSize: 40,
+                    color: stats ? "#fbbf24" : "rgba(255, 255, 255, 0.3)",
+                    transition: "color 0.3s ease",
+                  }}
+                />
+              </IconButton>
+            </Tooltip>
+          )}
+        </Box>
         <Box>
           <Typography variant="h4" fontWeight={700} color="white">
             Estadísticas del Modelo

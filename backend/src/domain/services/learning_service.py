@@ -42,7 +42,14 @@ class LearningService:
             weights_path: Path to JSON file for persisting weights
         """
         self.weights_path = weights_path or self.DEFAULT_WEIGHTS_PATH
-        self.learning_weights = self._load_weights()
+        self._learning_weights: Optional[LearningWeights] = None
+    
+    @property
+    def learning_weights(self) -> LearningWeights:
+        """Lazily load and return the learning weights."""
+        if self._learning_weights is None:
+            self._learning_weights = self._load_weights()
+        return self._learning_weights
     
     def _load_weights(self) -> LearningWeights:
         """Load learning weights from JSON file."""

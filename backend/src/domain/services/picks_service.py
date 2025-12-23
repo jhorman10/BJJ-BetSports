@@ -45,14 +45,6 @@ class PicksService:
         MarketType.RESULT_1X2: 1.0,
     }
     
-    # Thresholds for corner predictions
-    CORNER_THRESHOLDS = [5.5, 6.5, 7.5, 8.5, 9.5, 10.5]
-    
-    # Thresholds for card predictions
-    CARD_THRESHOLDS = [1.5, 2.5, 3.5, 4.5]
-    
-    # VA Handicap options
-    VA_HANDICAPS = [1.0, 1.5, 2.0]
     
     def __init__(
         self, 
@@ -121,12 +113,12 @@ class PicksService:
         # We can generate winner picks if we have probability (even from odds), 
         # but Goals picks require goal stats.
         if home_win_prob > 0:
-            # Generate VA handicap picks (needs win prob)
-            va_picks = self._generate_va_handicap_picks_v2(
+            # Generate handicap picks (needs win prob)
+            handicap_picks = self._generate_handicap_picks(
                 match, predicted_home_goals, predicted_away_goals, 
                 home_win_prob, away_win_prob
             )
-            for pick in va_picks:
+            for pick in handicap_picks:
                 picks.add_pick(pick)
             
             # Generate winner pick
@@ -175,7 +167,8 @@ class PicksService:
             if fallback_picks:
                 # Seleccionar el mejor pick individual disponible
                 fallback_picks.sort(key=lambda x: x.probability, reverse=True)
-                picks.add_pick(fallback_picks[0])
+        # Finally, sort all generated picks by probability in descending order
+        picks.suggested_picks.sort(key=lambda p: p.probability, reverse=True)
 
         return picks
     
@@ -246,52 +239,68 @@ class PicksService:
         away_stats: TeamStatistics,
         match: Match,
     ) -> list[SuggestedPick]:
-        """Generate corner-based picks."""
+        """
+        Generate DYNAMIC corner-based picks based on match data.
+        """
         picks = []
-        
         home_avg = home_stats.avg_corners_per_match
         away_avg = away_stats.avg_corners_per_match
         total_avg = home_avg + away_avg
-        
-        if total_avg == 0:
+
+        if total_avg <= 0:
             return picks
-        
-        # Find best threshold for over corners
-        for threshold in self.CORNER_THRESHOLDS:
-            probability = self._poisson_over_probability(total_avg, threshold)
-            
-            # Apply learning weight adjustment
+
+        # Generate a dynamic main line and an alternative
+        main_line = math.floor(total_avg - 0.5) + 0.5
+        alternative_line = main_line + 1.0
+
+        lines_to_check = sorted(list(set([main_line, alternative_line])))
+
+        for line in lines_to_check:
+            if line <= 0: continue
+
+            # --- OVER PICK ---
+            over_prob = self._poisson_over_probability(total_avg, line)
             adj = self.learning_weights.get_market_adjustment(MarketType.CORNERS_OVER.value)
-            adjusted_prob = min(1.0, probability * adj)
-            
-            # Apply market priority
-            priority_boost = self.MARKET_PRIORITY[MarketType.CORNERS_OVER]
-            priority_score = adjusted_prob * priority_boost
-            
-            if adjusted_prob > 0.55:  # Only suggest if reasonable probability
-                confidence = SuggestedPick.get_confidence_level(adjusted_prob)
-                risk = self._calculate_risk_level(adjusted_prob)
-                
+            adjusted_over_prob = min(1.0, over_prob * adj)
+
+            if adjusted_over_prob > 0.58:
+                confidence = SuggestedPick.get_confidence_level(adjusted_over_prob)
+                risk = self._calculate_risk_level(adjusted_over_prob)
                 pick = SuggestedPick(
                     market_type=MarketType.CORNERS_OVER,
-                    market_label=f"Más de {threshold} córners",
-                    probability=round(adjusted_prob, 3),
+                    market_label=f"Más de {line} córners",
+                    probability=round(adjusted_over_prob, 3),
                     confidence_level=confidence,
-                    reasoning=f"Promedio combinado: {total_avg:.1f} córners/partido. "
-                             f"Local: {home_avg:.1f}, Visitante: {away_avg:.1f}",
+                    reasoning=f"Promedio de córners: {total_avg:.2f}. "
+                                f"Local promedia {home_avg:.2f}, Visitante {away_avg:.2f}.",
                     risk_level=risk,
-                    is_recommended=adjusted_prob > 0.60,
-                    priority_score=priority_score,
+                    is_recommended=adjusted_over_prob > 0.65,
+                    priority_score=adjusted_over_prob * self.MARKET_PRIORITY[MarketType.CORNERS_OVER],
+                )
+                picks.append(pick)
+            
+            # --- UNDER PICK ---
+            under_prob = 1 - over_prob
+            adj_under = self.learning_weights.get_market_adjustment(MarketType.CORNERS_UNDER.value)
+            adjusted_under_prob = min(1.0, under_prob * adj_under)
+
+            if adjusted_under_prob > 0.58:
+                confidence = SuggestedPick.get_confidence_level(adjusted_under_prob)
+                risk = self._calculate_risk_level(adjusted_under_prob)
+                pick = SuggestedPick(
+                    market_type=MarketType.CORNERS_UNDER,
+                    market_label=f"Menos de {line} córners",
+                    probability=round(adjusted_under_prob, 3),
+                    confidence_level=confidence,
+                    reasoning=f"Línea de {line} córners es alta para el promedio de {total_avg:.2f} del partido.",
+                    risk_level=risk,
+                    is_recommended=adjusted_under_prob > 0.65,
+                    priority_score=adjusted_under_prob * self.MARKET_PRIORITY[MarketType.CORNERS_UNDER],
                 )
                 picks.append(pick)
         
-        # User Request: Return ONLY the pick with highest probability
-        if picks:
-            # Sort by probability descending
-            picks.sort(key=lambda x: x.probability, reverse=True)
-            return [picks[0]]
-            
-        return []
+        return picks
     
     def _generate_cards_picks(
         self,
@@ -299,126 +308,69 @@ class PicksService:
         away_stats: TeamStatistics,
         match: Match,
     ) -> list[SuggestedPick]:
-        """Generate card-based picks."""
+        """
+        Generate DYNAMIC card-based picks for a given match.
+        """
         picks = []
-        
         home_avg = home_stats.avg_yellow_cards_per_match
         away_avg = away_stats.avg_yellow_cards_per_match
         total_avg = home_avg + away_avg
-        
-        if total_avg == 0:
+
+        if total_avg <= 0:
             return picks
-            
-        potential_picks = []
+
+        # Dynamic main line for cards
+        main_line = math.floor(total_avg - 0.5) + 0.5
         
-        # Find best threshold
-        for threshold in self.CARD_THRESHOLDS:
-            probability = self._poisson_over_probability(total_avg, threshold)
-            
+        lines_to_check = [main_line]
+        # Add a more aggressive line if the main one is not too high
+        if main_line < 4.5:
+            lines_to_check.append(main_line + 1.0)
+
+        for line in sorted(list(set(lines_to_check))):
+            if line <= 0: continue
+
+            # --- OVER PICK ---
+            over_prob = self._poisson_over_probability(total_avg, line)
             adj = self.learning_weights.get_market_adjustment(MarketType.CARDS_OVER.value)
-            adjusted_prob = min(1.0, probability * adj)
-            
-            priority_boost = self.MARKET_PRIORITY[MarketType.CARDS_OVER]
-            priority_score = adjusted_prob * priority_boost
-            
-            if adjusted_prob > 0.55:
-                confidence = SuggestedPick.get_confidence_level(adjusted_prob)
-                risk = self._calculate_risk_level(adjusted_prob)
-                
+            adjusted_over_prob = min(1.0, over_prob * adj)
+
+            if adjusted_over_prob > 0.60:
+                confidence = SuggestedPick.get_confidence_level(adjusted_over_prob)
+                risk = self._calculate_risk_level(adjusted_over_prob)
                 pick = SuggestedPick(
                     market_type=MarketType.CARDS_OVER,
-                    market_label=f"Más de {threshold} tarjetas amarillas",
-                    probability=round(adjusted_prob, 3),
+                    market_label=f"Más de {line} tarjetas",
+                    probability=round(adjusted_over_prob, 3),
                     confidence_level=confidence,
-                    reasoning=f"Promedio combinado: {total_avg:.1f} tarjetas/partido. "
-                             f"Local: {home_avg:.1f}, Visitante: {away_avg:.1f}",
+                    reasoning=f"Promedio de tarjetas: {total_avg:.2f}. "
+                                f"Local: {home_avg:.2f}, Visitante: {away_avg:.2f}.",
                     risk_level=risk,
-                    is_recommended=adjusted_prob > 0.60,
-                    priority_score=priority_score,
-                )
-                potential_picks.append(pick)
-        
-        # Select best overall card pick
-        if potential_picks:
-            potential_picks.sort(key=lambda x: x.probability, reverse=True)
-            picks.append(potential_picks[0])
-        
-        # Also generate team-specific card picks
-        for team_name, team_avg, is_home in [
-            (match.home_team.name, home_avg, True),
-            (match.away_team.name, away_avg, False),
-        ]:
-            for threshold in [1.5, 2.5]:
-                probability = self._poisson_over_probability(team_avg, threshold)
-                adj = self.learning_weights.get_market_adjustment(MarketType.CARDS_OVER.value)
-                adjusted_prob = min(1.0, probability * adj)
-                
-                if adjusted_prob > 0.65:  # Higher threshold for team-specific
-                    confidence = SuggestedPick.get_confidence_level(adjusted_prob)
-                    risk = self._calculate_risk_level(adjusted_prob)
-                    
-                    pick = SuggestedPick(
-                        market_type=MarketType.CARDS_OVER,
-                        market_label=f"{team_name} - Más de {threshold} tarjetas",
-                        probability=round(adjusted_prob, 3),
-                        confidence_level=confidence,
-                        reasoning=f"Promedio del equipo: {team_avg:.1f} tarjetas/partido",
-                        risk_level=risk,
-                        is_recommended=adjusted_prob > 0.70,
-                        priority_score=adjusted_prob * self.MARKET_PRIORITY[MarketType.CARDS_OVER],
-                    )
-                    picks.append(pick)
-                    break
-        
-        return picks
-    
-    def _generate_va_handicap_picks(
-        self,
-        dominant_team: str,
-        predicted_home: float,
-        predicted_away: float,
-        match: Match,
-    ) -> list[SuggestedPick]:
-        """Generate VA handicap picks for dominant teams."""
-        picks = []
-        
-        if dominant_team == "home":
-            team_name = match.home_team.name
-            goal_diff = predicted_home - predicted_away
-        else:
-            team_name = match.away_team.name
-            goal_diff = predicted_away - predicted_home
-        
-        for handicap in self.VA_HANDICAPS:
-            # Calculate probability of covering handicap
-            # VA (+X) means team can lose by up to X-1 goals
-            total_expected = predicted_home + predicted_away
-            probability = self._calculate_va_probability(goal_diff, handicap, total_expected)
-            
-            adj = self.learning_weights.get_market_adjustment(MarketType.VA_HANDICAP.value)
-            adjusted_prob = min(1.0, probability * adj)
-            
-            priority_boost = self.MARKET_PRIORITY[MarketType.VA_HANDICAP]
-            priority_score = adjusted_prob * priority_boost
-            
-            if adjusted_prob > 0.65:
-                confidence = SuggestedPick.get_confidence_level(adjusted_prob)
-                risk = self._calculate_risk_level(adjusted_prob)
-                
-                pick = SuggestedPick(
-                    market_type=MarketType.VA_HANDICAP,
-                    market_label=f"Hándicap VA (+{handicap}) - {team_name}",
-                    probability=round(adjusted_prob, 3),
-                    confidence_level=confidence,
-                    reasoning=f"Equipo dominante con diferencia de goles esperada de {goal_diff:.1f}. "
-                             f"VA (+{handicap}) es más seguro que resultado directo.",
-                    risk_level=risk,
-                    is_recommended=adjusted_prob > 0.70,
-                    priority_score=priority_score,
+                    is_recommended=adjusted_over_prob > 0.68,
+                    priority_score=adjusted_over_prob * self.MARKET_PRIORITY[MarketType.CARDS_OVER],
                 )
                 picks.append(pick)
-                # Removed break to allow multiple handicap options
-        
+
+            # --- UNDER PICK ---
+            under_prob = 1 - over_prob
+            adj_under = self.learning_weights.get_market_adjustment(MarketType.CARDS_UNDER.value)
+            adjusted_under_prob = min(1.0, under_prob * adj_under)
+
+            if adjusted_under_prob > 0.60:
+                confidence = SuggestedPick.get_confidence_level(adjusted_under_prob)
+                risk = self._calculate_risk_level(adjusted_under_prob)
+                pick = SuggestedPick(
+                    market_type=MarketType.CARDS_UNDER,
+                    market_label=f"Menos de {line} tarjetas",
+                    probability=round(adjusted_under_prob, 3),
+                    confidence_level=confidence,
+                    reasoning=f"Línea de {line} tarjetas es alta para el promedio de {total_avg:.2f} del partido.",
+                    risk_level=risk,
+                    is_recommended=adjusted_under_prob > 0.68,
+                    priority_score=adjusted_under_prob * self.MARKET_PRIORITY[MarketType.CARDS_UNDER],
+                )
+                picks.append(pick)
+
         return picks
     
     def _generate_goals_picks(
@@ -427,72 +379,87 @@ class PicksService:
         predicted_away: float,
         is_low_scoring: bool,
     ) -> list[SuggestedPick]:
-        """Generate goals picks with penalties for low-scoring contexts."""
+        """
+        Generate goals picks with DYNAMIC thresholds based on match data.
+        This creates more specific, less repetitive picks.
+        """
         picks = []
-        
         total_expected = predicted_home + predicted_away
+
+        if total_expected <= 0:
+            return picks
+
+        # Determine the main betting line (e.g., 2.8 total -> 2.5 line)
+        main_line = math.floor(total_expected - 0.25) + 0.5
+
+        # Also check an alternative, more aggressive line
+        alternative_line = main_line + 1.0
         
-        # Over 2.5 goals
-        over_25_prob = self._poisson_over_probability(total_expected, 2.5)
-        
-        # Apply learning adjustment
-        adj = self.learning_weights.get_market_adjustment(MarketType.GOALS_OVER.value)
-        adjusted_prob = over_25_prob * adj
-        
-        # Apply low-scoring penalty
-        if is_low_scoring:
-            adjusted_prob *= 0.75  # 25% penalty
-            penalty_note = " ⚠️ Penalizado por contexto defensivo."
-        else:
-            penalty_note = ""
-        
-        adjusted_prob = min(1.0, adjusted_prob)
-        
-        priority_boost = self.MARKET_PRIORITY[MarketType.GOALS_OVER]
-        priority_score = adjusted_prob * priority_boost
-        
-        confidence = SuggestedPick.get_confidence_level(adjusted_prob)
-        risk = self._calculate_risk_level(adjusted_prob)
-        
-        pick = SuggestedPick(
-            market_type=MarketType.GOALS_OVER,
-            market_label="Más de 2.5 goles",
-            probability=round(adjusted_prob, 3),
-            confidence_level=confidence,
-            reasoning=f"Goles esperados totales: {total_expected:.1f}.{penalty_note}",
-            risk_level=risk + (1 if is_low_scoring else 0),  # Increase risk if low-scoring
-            # PROFITABILITY FIX: Increase threshold to 0.70 since we often lack O/U odds to verify EV
-            is_recommended=adjusted_prob > 0.70 and not is_low_scoring,
-            priority_score=priority_score,
-        )
-        picks.append(pick)
-        
-        # Under 2.5 goals (favored in low-scoring context)
-        under_25_prob = 1 - over_25_prob
-        adj_under = self.learning_weights.get_market_adjustment(MarketType.GOALS_UNDER.value)
-        adjusted_under = under_25_prob * adj_under
-        
-        if is_low_scoring:
-            adjusted_under *= 1.1  # 10% boost
-        
-        adjusted_under = min(1.0, adjusted_under)
-        
-        if adjusted_under > 0.55:
-            confidence = SuggestedPick.get_confidence_level(adjusted_under)
-            risk = self._calculate_risk_level(adjusted_under)
+        # Define lines to check: main line, and alternative if it's different
+        lines_to_check = [main_line]
+        if alternative_line != main_line:
+            lines_to_check.append(alternative_line)
+
+        for line in lines_to_check:
+            # --- OVER PICK ---
+            over_prob = self._poisson_over_probability(total_expected, line)
             
-            pick = SuggestedPick(
-                market_type=MarketType.GOALS_UNDER,
-                market_label="Menos de 2.5 goles",
-                probability=round(adjusted_under, 3),
-                confidence_level=confidence,
-                reasoning=f"Goles esperados totales: {total_expected:.1f}. "
-                         f"{'Favorecido por contexto defensivo.' if is_low_scoring else ''}",
-                risk_level=risk,
-                is_recommended=adjusted_under > 0.60,
-                priority_score=adjusted_under * self.MARKET_PRIORITY[MarketType.GOALS_UNDER],
-            )
-            picks.append(pick)
+            # Apply learning adjustment
+            adj_over = self.learning_weights.get_market_adjustment(MarketType.GOALS_OVER.value)
+            adjusted_over_prob = over_prob * adj_over
+            
+            penalty_note = ""
+            if is_low_scoring:
+                adjusted_over_prob *= 0.8  # Stronger penalty for dynamic lines
+                penalty_note = " ⚠️ Penalizado por contexto defensivo."
+
+            adjusted_over_prob = min(1.0, adjusted_over_prob)
+            
+            # Only add if the probability is reasonable
+            if adjusted_over_prob > 0.58:
+                confidence = SuggestedPick.get_confidence_level(adjusted_over_prob)
+                risk = self._calculate_risk_level(adjusted_over_prob)
+                
+                pick = SuggestedPick(
+                    market_type=MarketType.GOALS_OVER,
+                    market_label=f"Más de {line} goles",
+                    probability=round(adjusted_over_prob, 3),
+                    confidence_level=confidence,
+                    reasoning=f"Goles esperados: {total_expected:.2f}. La línea de {line} se basa en esta predicción.{penalty_note}",
+                    risk_level=risk,
+                    is_recommended=adjusted_over_prob > 0.65 and not is_low_scoring,
+                    priority_score=adjusted_over_prob * self.MARKET_PRIORITY[MarketType.GOALS_OVER],
+                )
+                picks.append(pick)
+
+            # --- UNDER PICK ---
+            under_prob = 1 - over_prob
+            
+            adj_under = self.learning_weights.get_market_adjustment(MarketType.GOALS_UNDER.value)
+            adjusted_under_prob = under_prob * adj_under
+            
+            boost_note = ""
+            if is_low_scoring:
+                adjusted_under_prob *= 1.15  # Stronger boost for dynamic lines
+                boost_note = " ✅ Favorecido por contexto defensivo."
+            
+            adjusted_under_prob = min(1.0, adjusted_under_prob)
+
+            if adjusted_under_prob > 0.58:
+                confidence = SuggestedPick.get_confidence_level(adjusted_under_prob)
+                risk = self._calculate_risk_level(adjusted_under_prob)
+                
+                pick = SuggestedPick(
+                    market_type=MarketType.GOALS_UNDER,
+                    market_label=f"Menos de {line} goles",
+                    probability=round(adjusted_under_prob, 3),
+                    confidence_level=confidence,
+                    reasoning=f"Goles esperados: {total_expected:.2f}. Contexto del partido apoya un resultado con pocos goles.{boost_note}",
+                    risk_level=risk,
+                    is_recommended=adjusted_under_prob > 0.65,
+                    priority_score=adjusted_under_prob * self.MARKET_PRIORITY[MarketType.GOALS_UNDER],
+                )
+                picks.append(pick)
         
         return picks
     
@@ -517,7 +484,7 @@ class PicksService:
     
     @staticmethod
     @functools.lru_cache(maxsize=1024)
-    def _calculate_va_probability(goal_diff: float, handicap: float, total_expected: float = 2.5) -> float:
+    def _calculate_handicap_probability(goal_diff: float, handicap: float, total_expected: float = 2.5) -> float:
         """
         Calculate probability of covering VA handicap.
         
@@ -579,7 +546,7 @@ class PicksService:
             )
         return None
     
-    def _generate_va_handicap_picks_v2(
+    def _generate_handicap_picks(
         self,
         match: Match,
         predicted_home: float,
@@ -587,58 +554,109 @@ class PicksService:
         home_win_prob: float,
         away_win_prob: float,
     ) -> list[SuggestedPick]:
-        """Generate VA handicap picks based on win probabilities."""
+        """
+        Generate DYNAMIC Asian Handicap picks (positive and negative) based on match data.
+        """
         picks = []
         
-        goal_diff = predicted_home - predicted_away
-        
-        # Determine dominant team and align goal_diff relative to that team
-        if home_win_prob > away_win_prob + 0.10:
-            team_name = match.home_team.name
-            # Goal diff relative to Home is already set
-        elif away_win_prob > home_win_prob + 0.10:
-            team_name = match.away_team.name
-            # Goal diff relative to Away
-            goal_diff = -goal_diff
-        else:
-            # Balanced match - pick the one with positive diff, or Home if 0
-            if goal_diff >= 0:
-                team_name = match.home_team.name
-            else:
-                team_name = match.away_team.name
-                goal_diff = -goal_diff
-        
-        total_expected = predicted_home + predicted_away
-        
-        # Iterate over all available handicaps instead of hardcoding 2.0
-        for handicap in self.VA_HANDICAPS:
-            # FIX: Use signed goal_diff, not abs(). 
-            # If selected team is actually underdog (negative diff), we want that reflected.
-            va_prob = self._calculate_va_probability(goal_diff, handicap, total_expected)
-            
-            # Use the calculated probability directly, but cap it slightly to account for uncertainty
-            adjusted_prob = min(0.95, va_prob)
-            adjusted_prob = max(0.55, adjusted_prob)
-            
-            if adjusted_prob > 0.60:
-                confidence = SuggestedPick.get_confidence_level(adjusted_prob)
-                risk = self._calculate_risk_level(adjusted_prob)
+        # Determine the favorite and the underdog
+        if home_win_prob > away_win_prob + 0.1:
+            favorite, underdog = match.home_team, match.away_team
+            goal_diff = predicted_home - predicted_away # From favorite's perspective
+        elif away_win_prob > home_win_prob + 0.1:
+            favorite, underdog = match.away_team, match.home_team
+            goal_diff = predicted_away - predicted_home # From favorite's perspective
+        else: # Balanced match, no clear favorite
+            # In this case, we can still offer +0.5 on either team
+            for team, prob in [(match.home_team, home_win_prob), (match.away_team, away_win_prob)]:
+                # Simplified goal_diff for balanced match
+                bal_goal_diff = (predicted_home - predicted_away) if team == match.home_team else (predicted_away - predicted_home)
                 
-                pick = SuggestedPick(
-                    market_type=MarketType.VA_HANDICAP,
-                    market_label=f"Hándicap VA (+{handicap}) - {team_name.split()[0]}",
-                    probability=round(adjusted_prob, 3),
-                    confidence_level=confidence,
-                    reasoning=f"Ventaja para {team_name} con hándicap asiático. "
-                              f"Diferencia de goles esperada: {abs(goal_diff):.1f}",
-                    risk_level=risk,
-                    is_recommended=adjusted_prob > 0.65,
-                    priority_score=adjusted_prob * self.MARKET_PRIORITY[MarketType.VA_HANDICAP],
-                )
-                picks.append(pick)
+                # Test +0.5 for this team
+                handicap = 0.5
+                prob_cover = self._calculate_handicap_probability(bal_goal_diff, handicap, predicted_home + predicted_away)
+                
+                if prob_cover > 0.60:
+                    picks.append(self._create_handicap_pick(
+                        team_name=team.name,
+                        handicap=handicap,
+                        probability=prob_cover,
+                        goal_diff=bal_goal_diff,
+                    ))
+            return picks
+
+        # If there's a clear favorite, proceed here
+        total_expected_goals = predicted_home + predicted_away
+
+        # DYNAMIC HANDICAPS based on goal difference
+        # Round goal_diff to nearest 0.25 to create realistic handicap lines
+        base_handicap = round(goal_diff * 4) / 4
+
+        handicaps_to_test = {
+            # For Favorite (negative handicaps)
+            "fav": [base_handicap - 0.25, base_handicap, base_handicap + 0.25],
+            # For Underdog (positive handicaps)
+            "und": [-base_handicap - 0.25, -base_handicap, -base_handicap + 0.25]
+        }
         
+        # Test handicaps for the FAVORITE (e.g., -0.5, -1.0)
+        for handicap in sorted(list(set(h for h in handicaps_to_test["fav"] if h < 0))):
+            prob_fav_covers = self._calculate_handicap_probability(goal_diff, handicap, total_expected_goals)
+            
+            if prob_fav_covers > 0.60:
+                picks.append(self._create_handicap_pick(
+                    team_name=favorite.name,
+                    handicap=handicap,
+                    probability=prob_fav_covers,
+                    goal_diff=goal_diff,
+                ))
+
+        # Test handicaps for the UNDERDOG (e.g., +0.5, +1.0)
+        for handicap in sorted(list(set(h for h in handicaps_to_test["und"] if h > 0))):
+            # For underdog, the goal_diff perspective is negative
+            prob_und_covers = self._calculate_handicap_probability(-goal_diff, handicap, total_expected_goals)
+            
+            if prob_und_covers > 0.60:
+                 picks.append(self._create_handicap_pick(
+                    team_name=underdog.name,
+                    handicap=handicap,
+                    probability=prob_und_covers,
+                    goal_diff=-goal_diff,
+                ))
+
         return picks
     
+    def _create_handicap_pick(
+        self, team_name: str, handicap: float, probability: float, goal_diff: float
+    ) -> SuggestedPick:
+        """Helper to create a SuggestedPick for handicaps."""
+        
+        # Format handicap sign and value
+        handicap_str = f"+{handicap}" if handicap > 0 else str(handicap)
+        
+        # Adjust reasoning based on handicap type
+        if handicap < 0:
+            reason = f"{team_name} es favorito. Se espera que gane por un margen de ~{goal_diff:.2f} goles."
+        else:
+            reason = f"Margen de seguridad para {team_name}. Se espera que no pierda por más de {handicap-0.5} goles."
+
+        adj_prob = min(0.95, probability) # Cap probability
+        adj_prob = max(0.55, adj_prob)
+
+        confidence = SuggestedPick.get_confidence_level(adj_prob)
+        risk = self._calculate_risk_level(adj_prob)
+
+        return SuggestedPick(
+            market_type=MarketType.VA_HANDICAP,
+            market_label=f"Hándicap Asiático {handicap_str} - {team_name.split()[0]}",
+            probability=round(adj_prob, 3),
+            confidence_level=confidence,
+            reasoning=reason,
+            risk_level=risk,
+            is_recommended=adj_prob > 0.65,
+            priority_score=adj_prob * self.MARKET_PRIORITY[MarketType.VA_HANDICAP],
+        )
+
     def _generate_winner_pick(
         self,
         match: Match,

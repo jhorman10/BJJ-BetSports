@@ -72,7 +72,6 @@ const PredictionGridList: React.FC<PredictionGridListProps> = ({
           </Grow>
         </Grid>
       ))}
-      \n{" "}
     </Grid>
   );
 };

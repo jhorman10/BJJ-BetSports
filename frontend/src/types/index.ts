@@ -192,3 +192,6 @@ export interface LearningStatsResponse {
   total_feedback_count: number;
   last_updated: string;
 }
+
+// Export all component props and types
+export * from "./components";
