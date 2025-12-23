@@ -7,6 +7,7 @@ import {
   MatchSuggestedPicks,
 } from "../../types";
 import api from "../../services/api";
+import { generateFallbackPicks } from "@/utils/predictionUtils";
 
 interface SuggestedPicksTabProps {
   matchPrediction: MatchPrediction;
@@ -28,9 +29,13 @@ const getMarketIcon = (marketType: string): string => {
   switch (marketType) {
     case "corners_over":
     case "corners_under":
+    case "home_corners_over":
+    case "away_corners_over":
       return "⚑";
     case "cards_over":
     case "cards_under":
+    case "home_cards_over":
+    case "away_cards_over":
       return "🟨";
     case "red_cards":
       return "🟥";
@@ -38,13 +43,29 @@ const getMarketIcon = (marketType: string): string => {
       return "⚖️";
     case "winner":
       return "🏆";
-    case "goals_over":
-      return "⚽";
-    case "goals_under":
+    case "double_chance":
       return "🛡️";
+    case "draw":
+      return "🤝";
+    case "goals_over":
+    case "goals_under":
+      return "⚽";
+    case "btts_yes":
+    case "btts_no":
+      return "🥅";
     default:
       return "📊";
   }
+};
+
+const getUniquePicks = (picks: SuggestedPick[]) => {
+  const seen = new Set();
+  return picks.filter((pick) => {
+    const key = `${pick.market_type}-${pick.market_label}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 };
 
 /**
@@ -168,45 +189,11 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
     // Fallback Frontend: Si el backend no devolvió picks pero tenemos predicción,
     // generamos un pick basado en la data visible (probabilidades).
     if (apiPicks && picks.length === 0 && matchPrediction.prediction) {
-      const { prediction, match } = matchPrediction;
-
-      // 1. Intentar sugerir Ganador si hay probabilidad decente (>50%)
-      const maxWinProb = Math.max(
-        prediction.home_win_probability,
-        prediction.away_win_probability
-      );
-      if (maxWinProb > 0.5) {
-        const isHome =
-          prediction.home_win_probability > prediction.away_win_probability;
-        picks.push({
-          market_type: "winner",
-          market_label: isHome
-            ? `Victoria ${match.home_team.name}`
-            : `Victoria ${match.away_team.name}`,
-          probability: maxWinProb,
-          confidence_level: 2,
-          reasoning:
-            "Sugerencia basada en probabilidades del modelo (Data de Card).",
-          risk_level: 3,
-          is_recommended: true,
-          priority_score: 1,
-        } as any);
-      }
-      // 2. Si no, intentar sugerir Goles (+2.5)
-      else if (prediction.over_25_probability > 0.55) {
-        picks.push({
-          market_type: "goals_over",
-          market_label: "Más de 2.5 Goles",
-          probability: prediction.over_25_probability,
-          confidence_level: 2,
-          reasoning:
-            "Sugerencia basada en probabilidades del modelo (Data de Card).",
-          risk_level: 3,
-          is_recommended: true,
-          priority_score: 1,
-        } as any);
-      }
+      picks = generateFallbackPicks(matchPrediction);
     }
+
+    // Filter duplicates to ensure unique picks
+    picks = getUniquePicks(picks);
 
     // Sort by probability only (highest first)
     return picks.sort((a, b) => b.probability - a.probability);

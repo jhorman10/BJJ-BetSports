@@ -36,6 +36,7 @@ export interface LeagueSelectorProps {
   showLive: boolean;
   onLiveToggle: () => void;
   loading?: boolean;
+  hasLiveMatches?: boolean;
 }
 
 const LeagueSelector: React.FC<LeagueSelectorProps> = ({
@@ -47,6 +48,7 @@ const LeagueSelector: React.FC<LeagueSelectorProps> = ({
   showLive,
   onLiveToggle,
   loading = false,
+  hasLiveMatches = false,
 }) => {
   const handleCountryChange = (event: SelectChangeEvent<string>) => {
     const countryName = event.target.value;
@@ -115,29 +117,31 @@ const LeagueSelector: React.FC<LeagueSelectorProps> = ({
             </Typography>
           </Box>
 
-          {/* Live Toggle - Top Right */}
-          <ToggleButton
-            value="check"
-            selected={showLive}
-            onChange={onLiveToggle}
-            size="small"
-            color="error"
-            sx={{
-              borderRadius: 2,
-              ml: "auto !important",
-              border: "1px solid rgba(239, 68, 68, 0.5)",
-              "&.Mui-selected": {
-                backgroundColor: "rgba(239, 68, 68, 0.2)",
-                color: "#ef4444",
-                "&:hover": {
-                  backgroundColor: "rgba(239, 68, 68, 0.3)",
+          {/* Live Toggle - Top Right - Only show when there are live matches */}
+          {hasLiveMatches && (
+            <ToggleButton
+              value="check"
+              selected={showLive}
+              onChange={onLiveToggle}
+              size="small"
+              color="error"
+              sx={{
+                borderRadius: 2,
+                ml: "auto !important",
+                border: "1px solid rgba(239, 68, 68, 0.5)",
+                "&.Mui-selected": {
+                  backgroundColor: "rgba(239, 68, 68, 0.2)",
+                  color: "#ef4444",
+                  "&:hover": {
+                    backgroundColor: "rgba(239, 68, 68, 0.3)",
+                  },
                 },
-              },
-            }}
-          >
-            <LiveTv fontSize="small" sx={{ mr: 1 }} />
-            EN VIVO
-          </ToggleButton>
+              }}
+            >
+              <LiveTv fontSize="small" sx={{ mr: 1 }} />
+              EN VIVO
+            </ToggleButton>
+          )}
         </Box>
 
         {/* Selectors Row */}

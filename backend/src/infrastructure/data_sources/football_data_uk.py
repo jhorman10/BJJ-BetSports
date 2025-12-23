@@ -400,6 +400,12 @@ class FootballDataUKSource:
         goals_conceded = 0
         home_wins = 0
         away_wins = 0
+        
+        # New stats for picks
+        total_corners = 0
+        total_yellow_cards = 0
+        total_red_cards = 0
+        
         recent_results = []
         
         target_norm = self._normalize_name(team_name)
@@ -447,6 +453,19 @@ class FootballDataUKSource:
             else:
                 draws += 1
                 recent_results.append('D')
+                
+            # Accumulate corners/cards
+            if match.home_corners is not None and match.away_corners is not None:
+                total_corners += match.home_corners if is_home else match.away_corners
+                
+            # Accumulate cards
+            y_cards = match.home_yellow_cards if is_home else match.away_yellow_cards
+            r_cards = match.home_red_cards if is_home else match.away_red_cards
+            
+            if y_cards is not None:
+                total_yellow_cards += y_cards
+            if r_cards is not None:
+                total_red_cards += r_cards
         
         # Get last 5 results for form
         recent_form = ''.join(recent_results[-5:]) if recent_results else ""
@@ -465,6 +484,9 @@ class FootballDataUKSource:
             goals_conceded=goals_conceded,
             home_wins=home_wins,
             away_wins=away_wins,
+            total_corners=total_corners,
+            total_yellow_cards=total_yellow_cards,
+            total_red_cards=total_red_cards,
             recent_form=recent_form,
             data_updated_at=last_updated,
         )

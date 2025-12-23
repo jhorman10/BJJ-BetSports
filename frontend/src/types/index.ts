@@ -135,6 +135,11 @@ export interface SuggestedPick {
   risk_level: number;
   is_recommended: boolean;
   priority_score: number;
+  // Historical/result properties
+  was_correct?: boolean;
+  expected_value?: number;
+  confidence?: number;
+  is_contrarian?: boolean;
 }
 
 /**

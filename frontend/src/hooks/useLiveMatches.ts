@@ -113,7 +113,7 @@ const fetchPublicLiveMatches = async (): Promise<LiveMatch[]> => {
     return publicApiCache.data;
   }
 
-  // Slugs de ligas en ESPN
+  // Slugs de ligas en ESPN (solo las que funcionan correctamente)
   const leagues = [
     "eng.1",
     "eng.2",
@@ -136,12 +136,9 @@ const fetchPublicLiveMatches = async (): Promise<LiveMatch[]> => {
     "tur.1", // Turquía
     "chn.1", // China
     "jpn.1", // Japón
-    "kor.1", // Corea del Sur
-    "sau.1", // Arabia Saudita
     "rus.1", // Rusia
     "bel.1", // Bélgica
     "aut.1", // Austria
-    "swi.1", // Suiza
     "den.1", // Dinamarca
     "swe.1", // Suecia
     "nor.1", // Noruega

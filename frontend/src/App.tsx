@@ -4,7 +4,7 @@
  * Football Betting Prediction Bot - Frontend
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Container,
   Box,
@@ -30,6 +30,7 @@ import {
   useLeagueSelection,
 } from "./hooks/usePredictions";
 import { useTeamSearch } from "./hooks/useTeamSearch";
+import { useLiveMatches } from "./hooks/useLiveMatches";
 
 // Extend window type for PWA install event
 declare global {
@@ -102,6 +103,14 @@ const App: React.FC = () => {
   const { selectedCountry, selectedLeague, selectCountry, selectLeague } =
     useLeagueSelection();
 
+  // Live matches detection
+  const { matches: liveMatches, loading: liveLoading } = useLiveMatches();
+
+  // Determine if there are live matches available
+  const hasLiveMatches = useMemo(() => {
+    return !liveLoading && liveMatches.length > 0;
+  }, [liveMatches, liveLoading]);
+
   // Sorting state
   const [sortBy, setSortBy] = useState<SortOption>("confidence");
   // Live view state
@@ -122,11 +131,53 @@ const App: React.FC = () => {
     error: predictionsError,
   } = usePredictions(selectedLeague?.id || null, 10, sortBy, true, 300000);
 
+  // Filter countries to show only those with leagues that have predictions
+  // We'll track which leagues have data by checking if predictions were successfully fetched
+  const [leaguesWithData, setLeaguesWithData] = useState<Set<string>>(
+    new Set()
+  );
+
+  // Update leaguesWithData when predictions are successfully loaded
+  useEffect(() => {
+    if (selectedLeague?.id && predictions.length > 0) {
+      setLeaguesWithData((prev) => new Set(prev).add(selectedLeague.id));
+    }
+  }, [selectedLeague?.id, predictions.length]);
+
+  // Filter countries to only show those with leagues that have data
+  const filteredCountries = useMemo(() => {
+    if (leaguesLoading || !countries || countries.length === 0)
+      return countries;
+
+    // If no leagues have been checked yet, show all countries initially
+    if (leaguesWithData.size === 0) return countries;
+
+    // Filter to only show countries where at least one league has data
+    return countries
+      .filter((country) => {
+        return country.leagues.some((league) => leaguesWithData.has(league.id));
+      })
+      .map((country) => ({
+        ...country,
+        // Also filter the leagues within each country
+        leagues: country.leagues.filter((league) =>
+          leaguesWithData.has(league.id)
+        ),
+      }));
+  }, [countries, leaguesWithData, leaguesLoading]);
+
   // Check if bot dashboard data is available
   const [hasBotData, setHasBotData] = useState(false);
 
   useEffect(() => {
     const checkBotData = () => {
+      // In development, always show bot dashboard (uses real JSON data)
+      if (import.meta.env.DEV) {
+        setHasBotData(true);
+        return;
+      }
+
+      // In production, check localStorage
       const cached = localStorage.getItem("bot_training_stats");
       if (cached) {
         try {
@@ -271,7 +322,7 @@ const App: React.FC = () => {
               </Alert>
             ) : (
               <LeagueSelector
-                countries={countries}
+                countries={filteredCountries}
                 selectedCountry={selectedCountry}
                 selectedLeague={selectedLeague}
                 onCountryChange={handleCountrySelect}
@@ -279,6 +330,7 @@ const App: React.FC = () => {
                 loading={leaguesLoading}
                 showLive={showLive}
                 onLiveToggle={() => setShowLive(!showLive)}
+                hasLiveMatches={hasLiveMatches}
               />
             )}
 

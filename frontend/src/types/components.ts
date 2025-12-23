@@ -3,7 +3,21 @@
  * This file contains all prop interfaces for React components
  */
 
-import { MatchPrediction, League, LiveMatchPrediction } from "./index";
+import {
+  MatchPrediction,
+  League,
+  LiveMatchPrediction,
+  SuggestedPick,
+} from "./index";
+
+// Multiple picks per match
+export interface PickDetail {
+  event_type: string; // "Resultado", "Total Goles", etc.
+  pick: string; // "1 (Real Madrid)", "Over 2.5", etc.
+  was_correct: boolean;
+  expected_value: number;
+  confidence: number;
+}
 
 // BotDashboard related types
 export interface MatchPredictionHistory {
@@ -19,7 +33,8 @@ export interface MatchPredictionHistory {
   actual_away_goals: number;
   was_correct: boolean;
   confidence: number;
-  suggested_pick?: string | null;
+  picks: SuggestedPick[]; // Multiple picks
+  suggested_pick?: string | null; // Legacy
   pick_was_correct?: boolean | null;
   expected_value?: number | null;
 }
