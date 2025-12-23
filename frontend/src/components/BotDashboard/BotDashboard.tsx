@@ -72,7 +72,6 @@ const StatCard: React.FC<{
 const BotDashboard: React.FC = () => {
   const [loading, setLoading] = React.useState(false);
   const [stats, setStats] = React.useState<TrainingStatus | null>(null);
-  const [error, setError] = React.useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = React.useState<Date | null>(null);
 
   // Check if we need to run training (once per day)
@@ -113,7 +112,6 @@ const BotDashboard: React.FC = () => {
   // Run training analysis
   const runTraining = React.useCallback(async () => {
     setLoading(true);
-    setError(null);
 
     try {
       const data = await api.post<TrainingStatus>("/train", {
@@ -142,11 +140,8 @@ const BotDashboard: React.FC = () => {
         });
       }
     } catch (err: any) {
-      setError(
-        err?.response?.data?.message ||
-          "Error al ejecutar el análisis. Intenta nuevamente más tarde."
-      );
       console.error("Training error:", err);
+      // Error is silently caught - user will see cached data or nothing
     } finally {
       setLoading(false);
     }
