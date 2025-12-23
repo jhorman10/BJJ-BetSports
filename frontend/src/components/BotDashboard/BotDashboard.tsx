@@ -152,12 +152,16 @@ const BotDashboard: React.FC = () => {
     }
   }, []);
 
-  // Auto-run training if needed (DISABLED - backend endpoint needs fixing)
-  // React.useEffect(() => {
-  //   if (needsTraining() && !loading && !stats) {
-  //     runTraining();
-  //   }
-  // }, [needsTraining, loading, stats, runTraining]);
+  // Auto-run training if needed
+  React.useEffect(() => {
+    if (needsTraining() && !loading && !stats) {
+      // Request notification permission
+      if ("Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission();
+      }
+      runTraining();
+    }
+  }, [needsTraining, loading, stats, runTraining]);
 
   return (
     <Box>
