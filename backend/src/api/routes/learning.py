@@ -15,6 +15,22 @@ class BacktestRequest(BaseModel):
     days_back: int = 365
     reset_weights: bool = False
 
+class MatchPredictionHistory(BaseModel):
+    """Individual match prediction result for verification."""
+    match_id: str
+    home_team: str
+    away_team: str
+    match_date: str
+    predicted_winner: str  # "home", "away", "draw"
+    actual_winner: str
+    predicted_home_goals: float
+    predicted_away_goals: float
+    actual_home_goals: int
+    actual_away_goals: int
+    was_correct: bool
+    confidence: float
+
+
 class TrainingStatus(BaseModel):
     matches_processed: int
     correct_predictions: int
@@ -23,6 +39,7 @@ class TrainingStatus(BaseModel):
     roi: float
     profit_units: float
     market_stats: dict
+    match_history: List[MatchPredictionHistory] = []
 
 @router.post("/train", response_model=TrainingStatus)
 async def run_training_session(
@@ -46,6 +63,7 @@ async def run_training_session(
     total_bets = 0
     total_staked = 0.0
     total_return = 0.0
+    match_history = []  # Track individual match predictions
     
     try:
         # 1. Determine leagues and fetch data
@@ -124,6 +142,23 @@ async def run_training_session(
             if actual_winner == predicted_winner:
                 correct_predictions += 1
             
+            # Store match prediction for history (limit to last 50 for performance)
+            if len(match_history) < 50:
+                match_history.append(MatchPredictionHistory(
+                    match_id=match.id,
+                    home_team=match.home_team.name,
+                    away_team=match.away_team.name,
+                    match_date=match.match_date.isoformat(),
+                    predicted_winner=predicted_winner,
+                    actual_winner=actual_winner,
+                    predicted_home_goals=round(prediction.predicted_home_goals, 2),
+                    predicted_away_goals=round(prediction.predicted_away_goals, 2),
+                    actual_home_goals=match.home_goals,
+                    actual_away_goals=match.away_goals,
+                    was_correct=(actual_winner == predicted_winner),
+                    confidence=round(prediction.confidence, 3)
+                ))
+            
             # --- ROI CALCULATION (Real Viability Test) ---
             # Simulate betting 1 unit on Value Bets (EV > 2%)
             if match.home_odds and match.draw_odds and match.away_odds:
@@ -169,5 +204,6 @@ async def run_training_session(
         total_bets=total_bets,
         roi=round(roi, 2),
         profit_units=round(profit, 2),
-        market_stats=learning_service.get_all_stats()
+        market_stats=learning_service.get_all_stats(),
+        match_history=match_history
     )

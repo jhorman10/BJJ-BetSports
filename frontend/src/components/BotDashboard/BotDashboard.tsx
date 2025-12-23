@@ -8,6 +8,22 @@ import {
   AttachMoney,
 } from "@mui/icons-material";
 import { api } from "../../services/api";
+import MatchHistoryTable from "./MatchHistoryTable";
+
+interface MatchPredictionHistory {
+  match_id: string;
+  home_team: string;
+  away_team: string;
+  match_date: string;
+  predicted_winner: string;
+  actual_winner: string;
+  predicted_home_goals: number;
+  predicted_away_goals: number;
+  actual_home_goals: number;
+  actual_away_goals: number;
+  was_correct: boolean;
+  confidence: number;
+}
 
 interface TrainingStatus {
   matches_processed: number;
@@ -17,6 +33,7 @@ interface TrainingStatus {
   roi: number;
   profit_units: number;
   market_stats: any;
+  match_history: MatchPredictionHistory[];
 }
 
 const StatCard: React.FC<{
@@ -237,6 +254,20 @@ const BotDashboard: React.FC = () => {
             />
           </Grid>
         </Grid>
+      )}
+
+      {/* Match History Section */}
+      {stats && stats.match_history && stats.match_history.length > 0 && (
+        <Box mt={4}>
+          <Typography variant="h5" fontWeight={700} color="white" gutterBottom>
+            Histórico de Predicciones
+          </Typography>
+          <Typography variant="body2" color="text.secondary" mb={2}>
+            Últimos {stats.match_history.length} partidos procesados durante el
+            backtesting
+          </Typography>
+          <MatchHistoryTable matches={stats.match_history} />
+        </Box>
       )}
     </Box>
   );
