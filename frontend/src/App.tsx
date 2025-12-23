@@ -21,7 +21,7 @@ import LeagueSelector from "./components/LeagueSelector";
 import PredictionGrid from "./components/PredictionGrid";
 import LiveMatchesList from "./components/MatchDetails/LiveMatchesList";
 import ParleySlip, { ParleyPickItem } from "./components/Parley/ParleySlip";
-import BotDashboard from "./BotDashboard";
+import BotDashboard from "./components/BotDashboard/BotDashboard";
 
 import { Country } from "./types";
 import {

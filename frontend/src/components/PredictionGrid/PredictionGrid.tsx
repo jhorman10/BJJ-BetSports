@@ -228,7 +228,7 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
     // Error state
     if (error) {
       return (
-        <Alert severity="error">
+        <Alert severity="error" sx={{ mb: 3 }}>
           Error al cargar predicciones: {error.message}
         </Alert>
       );
@@ -265,6 +265,22 @@ const PredictionGrid: React.FC<PredictionGridProps> = memo(
 
     return (
       <Box>
+        <Alert
+          severity="info"
+          sx={{
+            mb: 3,
+            bgcolor: "rgba(2, 136, 209, 0.1)",
+            color: "#0288d1",
+            border: "1px solid rgba(2, 136, 209, 0.3)",
+          }}
+        >
+          <Typography variant="body2">
+            <strong>Nota de Responsabilidad:</strong> Este modelo es
+            estadístico. Verifique siempre las alineaciones y noticias de última
+            hora antes de realizar una operación real.
+          </Typography>
+        </Alert>
+
         <PredictionGridHeader
           league={league}
           predictionCount={predictions.length}

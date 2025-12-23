@@ -9,6 +9,7 @@ import {
   Collapse,
   IconButton,
   Tooltip,
+  Chip,
 } from "@mui/material";
 import {
   FactCheck,
@@ -20,12 +21,15 @@ import {
 
 const CHECKLIST_ITEMS = [
   {
-    id: "lineups",
-    label: "Alineaciones Confirmadas (Jugadores Clave Presentes)",
+    id: "lineups_confirmed",
+    label: "Alineaciones Confirmadas (Oficiales)",
   },
-  { id: "injuries", label: "Sin Lesiones de Última Hora en Titulares" },
-  { id: "weather", label: "Condiciones Climáticas Favorables / Cancha OK" },
-  { id: "motivation", label: "Motivación Alta (No es partido trámite)" },
+  { id: "key_players", label: "Sin bajas de Goleadores/Portero titular" },
+  {
+    id: "market_sentiment",
+    label: "Movimiento de Cuotas estable (Sin caídas drásticas en contra)",
+  },
+  { id: "fatigue", label: "Descanso suficiente (>72h desde último partido)" },
 ];
 
 const FundamentalAnalysis: React.FC = () => {
@@ -99,8 +103,8 @@ const FundamentalAnalysis: React.FC = () => {
       <Collapse in={expanded} timeout="auto" unmountOnExit={false}>
         <Box mt={2}>
           <Typography variant="body2" color="text.secondary" paragraph>
-            El modelo es estadístico. Verifica estos factores humanos/externos
-            para confirmar la apuesta.
+            <strong>Elimina los datos ciegos:</strong> Verifica estos factores
+            fundamentales que el modelo estadístico puro podría no ver.
           </Typography>
 
           <Box display="flex" flexDirection="column" gap={1}>
@@ -148,8 +152,5 @@ const FundamentalAnalysis: React.FC = () => {
     </Paper>
   );
 };
-
-// Start importing Chip to fix build error in the boolean expression above
-import { Chip } from "@mui/material";
 
 export default FundamentalAnalysis;

@@ -133,6 +133,8 @@ class PredictionService:
         home_strength: TeamStrength,
         away_strength: TeamStrength,
         league_averages: LeagueAverages,
+        home_lineup_factor: float = 1.0,
+        away_lineup_factor: float = 1.0,
     ) -> tuple[float, float]:
         """
         Calculate expected goals for both teams.
@@ -141,22 +143,27 @@ class PredictionService:
             home_strength: Home team's strength
             away_strength: Away team's strength
             league_averages: League average goals
+            home_lineup_factor: 0.0-1.0 factor representing squad availability (1.0 = Full Squad)
+            away_lineup_factor: 0.0-1.0 factor representing squad availability
             
         Returns:
             Tuple of (expected_home_goals, expected_away_goals)
         """
         # Expected home goals = home attack * away defense weakness * league average
+        # Adjusted by lineup availability (if key players missing, attack drops)
         home_expected = (
             home_strength.attack_strength *
             away_strength.defense_strength *
-            league_averages.avg_home_goals
+            league_averages.avg_home_goals *
+            home_lineup_factor
         )
         
         # Expected away goals = away attack * home defense weakness * league average
         away_expected = (
             away_strength.attack_strength *
             home_strength.defense_strength *
-            league_averages.avg_away_goals
+            league_averages.avg_away_goals *
+            away_lineup_factor
         )
         
         return (home_expected, away_expected)
@@ -332,6 +339,29 @@ class PredictionService:
         # KL ~1 = significant disagreement (score ~0.37)
         return math.exp(-kl_div)
     
+    def _calculate_market_sentiment(
+        self,
+        current_odds: Optional[Odds],
+        opening_odds: Optional[Odds] = None,
+    ) -> float:
+        """
+        Calculate market sentiment factor based on dropping odds.
+        If odds drop, probability increases.
+        
+        Returns:
+            Factor to adjust probability (1.0 = Neutral, >1.0 = Market likes this outcome)
+        """
+        if not current_odds or not opening_odds:
+            return 1.0
+            
+        # Example: Home odds drop from 2.0 to 1.8 -> Market supports Home
+        # Factor = Opening / Current
+        # 2.0 / 1.8 = 1.11 (11% boost to probability)
+        
+        # We cap the impact to avoid overreacting to volatility
+        sentiment = opening_odds.home / current_odds.home
+        return max(0.8, min(1.2, sentiment))
+
     def _calculate_form_consistency(
         self,
         home_stats: Optional[TeamStatistics],
@@ -544,6 +574,9 @@ class PredictionService:
         away_stats: Optional[TeamStatistics],
         league_averages: Optional[LeagueAverages] = None,
         data_sources: Optional[list[str]] = None,
+        home_missing_players: int = 0,
+        away_missing_players: int = 0,
+        opening_odds: Optional[Odds] = None,
     ) -> Prediction:
         """
         Generate a prediction for a match using ONLY real data.
@@ -557,6 +590,9 @@ class PredictionService:
             away_stats: Historical stats for away team (None if unavailable)
             league_averages: League average goals (None if unavailable)
             data_sources: List of data sources used
+            home_missing_players: Count of key players missing (Injuries/Suspensions)
+            away_missing_players: Count of key players missing
+            opening_odds: Odds when market opened (to detect dropping odds)
             
         Returns:
             Prediction object (with zeros if no data available)
@@ -648,9 +684,37 @@ class PredictionService:
             away_stats, league_averages, is_home=False
         )
         
+        # 1. LINEUP FACTOR: Penalize for missing players
+        # Heuristic: Each missing key player reduces effectiveness by ~7%
+        # Cap at 30% reduction (0.7) to avoid over-penalizing without knowing who exactly
+        home_lineup_factor = max(0.7, 1.0 - (home_missing_players * 0.07))
+        away_lineup_factor = max(0.7, 1.0 - (away_missing_players * 0.07))
+
+        # 2. MARKET SENTIMENT: Adjust based on Dropping Odds
+        # If opening odds are available, compare with current odds
+        market_factor_home = 1.0
+        market_factor_away = 1.0
+        
+        if opening_odds and match.home_odds and match.away_odds:
+            current_odds = Odds(home=match.home_odds, draw=match.draw_odds, away=match.away_odds)
+            
+            # Home Sentiment: If odds drop (e.g. 2.0 -> 1.8), factor > 1 (Positive)
+            if current_odds.home > 0 and opening_odds.home > 0:
+                sentiment = opening_odds.home / current_odds.home
+                # Cap impact to avoid overreaction (0.85 to 1.15)
+                market_factor_home = max(0.85, min(1.15, sentiment))
+                
+            # Away Sentiment
+            if current_odds.away > 0 and opening_odds.away > 0:
+                sentiment = opening_odds.away / current_odds.away
+                market_factor_away = max(0.85, min(1.15, sentiment))
+
         # Calculate expected goals
+        # We combine lineup penalty and market sentiment into the calculation
         home_expected, away_expected = self.calculate_expected_goals(
-            home_strength, away_strength, league_averages
+            home_strength, away_strength, league_averages,
+            home_lineup_factor=home_lineup_factor * market_factor_home,
+            away_lineup_factor=away_lineup_factor * market_factor_away
         )
         
         # Calculate outcome probabilities
