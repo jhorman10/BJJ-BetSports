@@ -333,17 +333,14 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                 </Box>
               </Box>
 
-              {/* Score */}
-              <Typography variant="h6" fontWeight={700} color="#10b981" mb={2}>
-                {match.actual_home_goals} - {match.actual_away_goals}
-              </Typography>
-
-              {/* Actual Winner */}
-              <Box mb={1}>
-                <Typography variant="caption" color="text.disabled">
-                  Resultado Real:
+              {/* Match Result */}
+              <Box mb={2}>
+                <Typography variant="h6" fontWeight={700} color="white">
+                  {match.home_team} {match.actual_home_goals} -{" "}
+                  {match.actual_away_goals} {match.away_team}
                 </Typography>
                 <Typography variant="body2" color="#10b981" fontWeight={600}>
+                  Ganó:{" "}
                   {getWinnerLabel(
                     match.actual_winner,
                     match.home_team,
@@ -352,12 +349,16 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                 </Typography>
               </Box>
 
-              {/* Prediction */}
-              <Box mb={1}>
-                <Typography variant="caption" color="text.disabled">
-                  Predicción del Modelo:
-                </Typography>
+              {/* Model Prediction */}
+              <Box mb={1.5}>
                 <Typography variant="body2" color="text.secondary">
+                  <Typography
+                    component="span"
+                    color="text.disabled"
+                    variant="caption"
+                  >
+                    El modelo predijo:{" "}
+                  </Typography>
                   {getWinnerLabel(
                     match.predicted_winner,
                     match.home_team,
@@ -370,24 +371,33 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
 
               {/* Suggested Pick */}
               {match.suggested_pick && (
-                <Box mb={1}>
-                  <Typography variant="caption" color="text.disabled">
-                    Pick Sugerido:
-                  </Typography>
-                  <Box display="flex" alignItems="center" gap={1}>
+                <Box>
+                  <Typography variant="body2">
                     <Typography
-                      variant="body2"
+                      component="span"
+                      color="text.disabled"
+                      variant="caption"
+                    >
+                      Apuesta sugerida:{" "}
+                    </Typography>
+                    <Typography
+                      component="span"
                       fontWeight={600}
                       color="#fbbf24"
                     >
                       {match.suggested_pick}
                     </Typography>
                     {match.expected_value && (
-                      <Typography variant="caption" color="text.disabled">
-                        EV: +{match.expected_value.toFixed(1)}%
+                      <Typography
+                        component="span"
+                        variant="caption"
+                        color="text.disabled"
+                        sx={{ ml: 1 }}
+                      >
+                        (EV: +{match.expected_value.toFixed(1)}%)
                       </Typography>
                     )}
-                  </Box>
+                  </Typography>
                 </Box>
               )}
             </CardContent>
