@@ -275,8 +275,9 @@ class PicksService:
                     reasoning=f"Promedio de córners: {total_avg:.2f}. "
                                 f"Local promedia {home_avg:.2f}, Visitante {away_avg:.2f}.",
                     risk_level=risk,
-                    is_recommended=adjusted_over_prob > 0.65,
+                    is_recommended=adjusted_over_prob > 0.68,
                     priority_score=adjusted_over_prob * self.MARKET_PRIORITY[MarketType.CORNERS_OVER],
+                    expected_value=0.0,
                 )
                 picks.append(pick)
             
@@ -295,8 +296,9 @@ class PicksService:
                     confidence_level=confidence,
                     reasoning=f"Línea de {line} córners es alta para el promedio de {total_avg:.2f} del partido.",
                     risk_level=risk,
-                    is_recommended=adjusted_under_prob > 0.65,
+                    is_recommended=adjusted_under_prob > 0.68,
                     priority_score=adjusted_under_prob * self.MARKET_PRIORITY[MarketType.CORNERS_UNDER],
+                    expected_value=0.0,
                 )
                 picks.append(pick)
         
@@ -348,6 +350,7 @@ class PicksService:
                     risk_level=risk,
                     is_recommended=adjusted_over_prob > 0.68,
                     priority_score=adjusted_over_prob * self.MARKET_PRIORITY[MarketType.CARDS_OVER],
+                    expected_value=0.0,
                 )
                 picks.append(pick)
 
@@ -368,6 +371,7 @@ class PicksService:
                     risk_level=risk,
                     is_recommended=adjusted_under_prob > 0.68,
                     priority_score=adjusted_under_prob * self.MARKET_PRIORITY[MarketType.CARDS_UNDER],
+                    expected_value=0.0,
                 )
                 picks.append(pick)
 
@@ -429,6 +433,7 @@ class PicksService:
                     risk_level=risk,
                     is_recommended=adjusted_over_prob > 0.65 and not is_low_scoring,
                     priority_score=adjusted_over_prob * self.MARKET_PRIORITY[MarketType.GOALS_OVER],
+                    expected_value=0.0,
                 )
                 picks.append(pick)
 
@@ -458,6 +463,7 @@ class PicksService:
                     risk_level=risk,
                     is_recommended=adjusted_under_prob > 0.65,
                     priority_score=adjusted_under_prob * self.MARKET_PRIORITY[MarketType.GOALS_UNDER],
+                    expected_value=0.0,
                 )
                 picks.append(pick)
         
@@ -543,6 +549,7 @@ class PicksService:
                 risk_level=5,  # Red cards are always high risk
                 is_recommended=False,  # Never recommend due to rarity
                 priority_score=probability * 0.5,  # Low priority
+                expected_value=0.0,
             )
         return None
     
@@ -655,6 +662,7 @@ class PicksService:
             risk_level=risk,
             is_recommended=adj_prob > 0.65,
             priority_score=adj_prob * self.MARKET_PRIORITY[MarketType.VA_HANDICAP],
+            expected_value=0.0,
         )
 
     def _generate_winner_pick(
@@ -735,6 +743,7 @@ class PicksService:
             is_recommended=should_recommend,
             # PROFITABILITY FIX: Use EV as priority score component if available
             priority_score=(ev if is_value_bet else max_prob) * self.MARKET_PRIORITY.get(MarketType.RESULT_1X2, 1.0) * priority_mult,
+            expected_value=ev if is_value_bet else 0.0,
         )
 
     # Fallback pick removed to strictly comply with 'no invented data' policy
@@ -771,6 +780,7 @@ class PicksService:
                     risk_level=risk,
                     is_recommended=adjusted_prob > 0.65,
                     priority_score=adjusted_prob * 1.1,
+                    expected_value=0.0,
                 )
         return None
 
@@ -804,5 +814,6 @@ class PicksService:
                     risk_level=risk,
                     is_recommended=adjusted_prob > 0.65,
                     priority_score=adjusted_prob * 1.1,
+                    expected_value=0.0,
                 )
         return None

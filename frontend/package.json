@@ -18,7 +18,8 @@
     "@mui/material": "^6.4.5",
     "axios": "^1.7.9",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "zustand": "^5.0.9"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",

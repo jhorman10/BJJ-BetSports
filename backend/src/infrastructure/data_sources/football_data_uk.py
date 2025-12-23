@@ -18,6 +18,8 @@ import pandas as pd
 from io import StringIO
 
 from src.domain.entities.entities import Match, Team, League, TeamStatistics
+from src.domain.constants import LEAGUES_METADATA
+from src.domain.services.statistics_service import StatisticsService
 
 
 logger = logging.getLogger(__name__)
@@ -89,39 +91,7 @@ LEAGUE_CSV_PATHS = {
     "SUD": "international/sudamericana",       # Copa Sudamericana (Placeholder)
 }
 
-# League metadata
-LEAGUES_METADATA = {
-    "E0": {"name": "Premier League", "country": "England"},
-    "E1": {"name": "Championship", "country": "England"},
-    "E_FA": {"name": "FA Cup", "country": "England"},
-    "SP1": {"name": "La Liga", "country": "Spain"},
-    "SP2": {"name": "Segunda División", "country": "Spain"},
-    "SP_C": {"name": "Copa del Rey", "country": "Spain"},
-    "D1": {"name": "Bundesliga", "country": "Germany"},
-    "D2": {"name": "2. Bundesliga", "country": "Germany"},
-    "I1": {"name": "Serie A", "country": "Italy"},
-    "I2": {"name": "Serie B", "country": "Italy"},
-    "F1": {"name": "Ligue 1", "country": "France"},
-    "F2": {"name": "Ligue 2", "country": "France"},
-    "N1": {"name": "Eredivisie", "country": "Netherlands"},
-    "N2": {"name": "Eerste Divisie", "country": "Netherlands"},
-    "B1": {"name": "Jupiler Pro League", "country": "Belgium"},
-    "B2": {"name": "Challenger Pro League", "country": "Belgium"},
-    "P1": {"name": "Primeira Liga", "country": "Portugal"},
-    "P2": {"name": "Liga Portugal 2", "country": "Portugal"},
-    "T1": {"name": "Süper Lig", "country": "Turkey"},
-    "T2": {"name": "1. Lig", "country": "Turkey"},
-    "G1": {"name": "Super League", "country": "Greece"},
-    "G2": {"name": "Super League 2", "country": "Greece"},
-    "SC0": {"name": "Premiership", "country": "Scotland"},
-    "SC1": {"name": "Championship", "country": "Scotland"},
-    "UCL": {"name": "Champions League", "country": "International"},
-    "UEL": {"name": "Europa League", "country": "International"},
-    "UECL": {"name": "Conference League", "country": "International"},
-    "EURO": {"name": "Euro Championship", "country": "International"},
-    "LIB": {"name": "Copa Libertadores", "country": "International"},
-    "SUD": {"name": "Copa Sudamericana", "country": "International"},
-}
+
 
 
 class FootballDataUKSource:
@@ -360,22 +330,6 @@ class FootballDataUKSource:
         
         return all_matches
     
-    def _normalize_name(self, name: str) -> str:
-        """Normalize team name for comparison."""
-        # Remove common prefixes/suffixes
-        remove = ["fc", "cf", "as", "sc", "ac", "inter", "real", "sporting", "club", "de", "le", "la"]
-        
-        cleaned = name.lower()
-        for word in remove:
-            # Remove isolated occurrences
-            cleaned = cleaned.replace(f" {word} ", " ")
-            if cleaned.startswith(f"{word} "):
-                cleaned = cleaned[len(word)+1:]
-            if cleaned.endswith(f" {word}"):
-                cleaned = cleaned[:-len(word)-1]
-                
-        return cleaned.strip().replace(" ", "")
-
     def calculate_team_statistics(
         self,
         team_name: str,
@@ -383,113 +337,9 @@ class FootballDataUKSource:
     ) -> TeamStatistics:
         """
         Calculate statistics for a team from match history.
-        
-        Args:
-            team_name: Team name
-            matches: List of historical matches
-            
-        Returns:
-            TeamStatistics for the team
+        Delegates to StatisticsService.
         """
-        team_id = None
-        matches_played = 0
-        wins = 0
-        draws = 0
-        losses = 0
-        goals_scored = 0
-        goals_conceded = 0
-        home_wins = 0
-        away_wins = 0
-        
-        # New stats for picks
-        total_corners = 0
-        total_yellow_cards = 0
-        total_red_cards = 0
-        
-        recent_results = []
-        
-        target_norm = self._normalize_name(team_name)
-        
-        for match in matches:
-            if not match.is_played:
-                continue
-            
-            home_norm = self._normalize_name(match.home_team.name)
-            away_norm = self._normalize_name(match.away_team.name)
-            
-            # Check for match (exact normalized or containment if substantial)
-            is_home = target_norm == home_norm or (len(target_norm) > 3 and target_norm in home_norm) or (len(home_norm) > 3 and home_norm in target_norm)
-            is_away = target_norm == away_norm or (len(target_norm) > 3 and target_norm in away_norm) or (len(away_norm) > 3 and away_norm in target_norm)
-            
-            if not (is_home or is_away):
-                continue
-            
-            if team_id is None:
-                team_id = match.home_team.id if is_home else match.away_team.id
-            
-            matches_played += 1
-            
-            # Get stats based on role
-            goals_for = match.home_goals if is_home else match.away_goals
-            goals_against = match.away_goals if is_home else match.home_goals
-            
-            # Robustly handle None goals
-            if goals_for is None or goals_against is None:
-                continue
-                
-            goals_scored += goals_for
-            goals_conceded += goals_against
-            
-            if goals_for > goals_against:
-                wins += 1
-                if is_home:
-                    home_wins += 1
-                else:
-                    away_wins += 1
-                recent_results.append('W')
-            elif goals_for < goals_against:
-                losses += 1
-                recent_results.append('L')
-            else:
-                draws += 1
-                recent_results.append('D')
-                
-            # Accumulate corners/cards
-            if match.home_corners is not None and match.away_corners is not None:
-                total_corners += match.home_corners if is_home else match.away_corners
-                
-            # Accumulate cards
-            y_cards = match.home_yellow_cards if is_home else match.away_yellow_cards
-            r_cards = match.home_red_cards if is_home else match.away_red_cards
-            
-            if y_cards is not None:
-                total_yellow_cards += y_cards
-            if r_cards is not None:
-                total_red_cards += r_cards
-        
-        # Get last 5 results for form
-        recent_form = ''.join(recent_results[-5:]) if recent_results else ""
-        
-        # Calculate data freshness
-        timestamps = [m.data_fetched_at for m in matches if hasattr(m, 'data_fetched_at') and m.data_fetched_at]
-        last_updated = max(timestamps) if timestamps else None
-        
-        return TeamStatistics(
-            team_id=team_id or team_name.lower().replace(" ", "_"),
-            matches_played=matches_played,
-            wins=wins,
-            draws=draws,
-            losses=losses,
-            goals_scored=goals_scored,
-            goals_conceded=goals_conceded,
-            home_wins=home_wins,
-            away_wins=away_wins,
-            total_corners=total_corners,
-            total_yellow_cards=total_yellow_cards,
-            total_red_cards=total_red_cards,
-            recent_form=recent_form,
-            data_updated_at=last_updated,
-        )
+        return StatisticsService.calculate_team_statistics(team_name, matches)
     
     def get_available_leagues(self) -> list[League]:
         """Get list of available leagues."""

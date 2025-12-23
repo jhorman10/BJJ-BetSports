@@ -1,211 +1,164 @@
 import { MatchPrediction, SuggestedPick } from "../types";
 
 /**
- * Generate fallback suggested picks based on match prediction data
- * This is used when the backend doesn't return suggested picks
+ * Genera picks sugeridos basados en las probabilidades de la predicción
+ * cuando no hay picks disponibles desde el backend.
  */
-export function generateFallbackPicks(
+export const generateFallbackPicks = (
   matchPrediction: MatchPrediction
-): SuggestedPick[] {
-  const { prediction } = matchPrediction;
-  if (!prediction) return [];
-
+): SuggestedPick[] => {
   const picks: SuggestedPick[] = [];
+  const { prediction, match } = matchPrediction;
 
-  // Winner pick - highest probability
-  const winnerProbs = [
-    {
-      type: "winner",
-      label: "Victoria Local",
-      prob: prediction.home_win_probability,
-    },
-    { type: "draw", label: "Empate", prob: prediction.draw_probability },
-    {
-      type: "winner",
-      label: "Victoria Visitante",
-      prob: prediction.away_win_probability,
-    },
-  ];
+  if (!prediction) return picks;
 
-  const highestWinner = winnerProbs.reduce((max, current) =>
-    current.prob > max.prob ? current : max
-  );
-
-  picks.push({
-    market_type: highestWinner.type,
-    market_label: highestWinner.label,
-    probability: highestWinner.prob,
-    confidence_level:
-      highestWinner.prob > 0.6
-        ? "high"
-        : highestWinner.prob > 0.45
-        ? "medium"
-        : "low",
-    reasoning: `Probabilidad basada en análisis histórico`,
-    risk_level: 1 - highestWinner.prob,
-    is_recommended: highestWinner.prob > 0.5,
-    priority_score: highestWinner.prob,
-  });
-
-  // Over/Under 2.5 goals
-  const isOver =
-    prediction.over_25_probability > prediction.under_25_probability;
-  picks.push({
-    market_type: isOver ? "goals_over" : "goals_under",
-    market_label: isOver ? "Más de 2.5 Goles" : "Menos de 2.5 Goles",
-    probability: isOver
-      ? prediction.over_25_probability
-      : prediction.under_25_probability,
-    confidence_level:
-      Math.max(
-        prediction.over_25_probability,
-        prediction.under_25_probability
-      ) > 0.6
-        ? "high"
-        : "medium",
-    reasoning: `${prediction.predicted_home_goals.toFixed(
-      1
-    )} - ${prediction.predicted_away_goals.toFixed(1)} goles esperados`,
-    risk_level:
-      1 -
-      Math.max(prediction.over_25_probability, prediction.under_25_probability),
-    is_recommended:
-      Math.max(
-        prediction.over_25_probability,
-        prediction.under_25_probability
-      ) > 0.5,
-    priority_score: Math.max(
-      prediction.over_25_probability,
-      prediction.under_25_probability
-    ),
-  });
-
-  // Corners if available
-  if (
-    prediction.over_95_corners_probability !== undefined &&
-    prediction.under_95_corners_probability !== undefined
-  ) {
-    const cornersOver =
-      prediction.over_95_corners_probability >
-      prediction.under_95_corners_probability;
+  // 1. Ganador (Winner)
+  if (prediction.home_win_probability > 0.5) {
     picks.push({
-      market_type: cornersOver ? "corners_over" : "corners_under",
-      market_label: cornersOver ? "Más de 9.5 Corners" : "Menos de 9.5 Corners",
-      probability: cornersOver
-        ? prediction.over_95_corners_probability
-        : prediction.under_95_corners_probability,
+      market_type: "winner",
+      market_label: `Victoria ${match.home_team.name}`,
+      pick_code: "1",
+      probability: prediction.home_win_probability,
       confidence_level:
-        Math.max(
-          prediction.over_95_corners_probability,
-          prediction.under_95_corners_probability
-        ) > 0.6
-          ? "high"
-          : "medium",
-      reasoning: "Basado en estadísticas de corners",
-      risk_level:
-        1 -
-        Math.max(
-          prediction.over_95_corners_probability,
-          prediction.under_95_corners_probability
-        ),
-      is_recommended:
-        Math.max(
-          prediction.over_95_corners_probability,
-          prediction.under_95_corners_probability
-        ) > 0.5,
-      priority_score: Math.max(
-        prediction.over_95_corners_probability,
-        prediction.under_95_corners_probability
-      ),
-    });
+        prediction.home_win_probability > 0.65 ? "high" : "medium",
+      reasoning: "Probabilidad favorable para el equipo local.",
+      risk_level: 2,
+      is_recommended: true,
+      priority_score: 1,
+      expected_value: 0,
+      is_contrarian: false,
+    } as any);
+  } else if (prediction.away_win_probability > 0.5) {
+    picks.push({
+      market_type: "winner",
+      market_label: `Victoria ${match.away_team.name}`,
+      pick_code: "2",
+      probability: prediction.away_win_probability,
+      confidence_level:
+        prediction.away_win_probability > 0.65 ? "high" : "medium",
+      reasoning: "Probabilidad favorable para el equipo visitante.",
+      risk_level: 2,
+      is_recommended: true,
+      priority_score: 1,
+      expected_value: 0,
+      is_contrarian: false,
+    } as any);
   }
 
-  // Cards if available
-  if (
-    prediction.over_45_cards_probability !== undefined &&
-    prediction.under_45_cards_probability !== undefined
-  ) {
-    const cardsOver =
-      prediction.over_45_cards_probability >
-      prediction.under_45_cards_probability;
+  // 2. Doble Oportunidad (Double Chance)
+  const prob1X = prediction.home_win_probability + prediction.draw_probability;
+  const probX2 = prediction.away_win_probability + prediction.draw_probability;
+
+  if (prob1X > 0.75 && prediction.home_win_probability < 0.85) {
     picks.push({
-      market_type: cardsOver ? "cards_over" : "cards_under",
-      market_label: cardsOver ? "Más de 4.5 Tarjetas" : "Menos de 4.5 Tarjetas",
-      probability: cardsOver
-        ? prediction.over_45_cards_probability
-        : prediction.under_45_cards_probability,
-      confidence_level:
-        Math.max(
-          prediction.over_45_cards_probability,
-          prediction.under_45_cards_probability
-        ) > 0.6
-          ? "high"
-          : "medium",
-      reasoning: "Basado en estadísticas de tarjetas",
-      risk_level:
-        1 -
-        Math.max(
-          prediction.over_45_cards_probability,
-          prediction.under_45_cards_probability
-        ),
-      is_recommended:
-        Math.max(
-          prediction.over_45_cards_probability,
-          prediction.under_45_cards_probability
-        ) > 0.5,
-      priority_score: Math.max(
-        prediction.over_45_cards_probability,
-        prediction.under_45_cards_probability
-      ),
-    });
+      market_type: "double_chance",
+      market_label: `Gana ${match.home_team.name} o Empata`,
+      pick_code: "1X",
+      probability: prob1X,
+      confidence_level: "high",
+      reasoning: "Opción segura cubriendo el empate (1X).",
+      risk_level: 1,
+      is_recommended: true,
+      priority_score: 2,
+      expected_value: 0,
+      is_contrarian: false,
+    } as any);
   }
 
-  // Handicap if available
-  if (
-    prediction.handicap_line !== undefined &&
-    prediction.handicap_home_probability !== undefined &&
-    prediction.handicap_away_probability !== undefined
-  ) {
-    const handicapHome =
-      prediction.handicap_home_probability >
-      prediction.handicap_away_probability;
+  if (probX2 > 0.75 && prediction.away_win_probability < 0.85) {
     picks.push({
-      market_type: "va_handicap",
-      market_label: handicapHome
-        ? `Local ${prediction.handicap_line > 0 ? "+" : ""}${
-            prediction.handicap_line
-          }`
-        : `Visitante ${
-            -prediction.handicap_line > 0 ? "+" : ""
-          }${-prediction.handicap_line}`,
-      probability: handicapHome
-        ? prediction.handicap_home_probability
-        : prediction.handicap_away_probability,
+      market_type: "double_chance",
+      market_label: `Gana ${match.away_team.name} o Empata`,
+      pick_code: "X2",
+      probability: probX2,
+      confidence_level: "high",
+      reasoning: "Opción segura cubriendo el empate (X2).",
+      risk_level: 1,
+      is_recommended: true,
+      priority_score: 2,
+      expected_value: 0,
+      is_contrarian: false,
+    } as any);
+  }
+
+  // 3. Goles (Over/Under 2.5)
+  if (prediction.over_25_probability > 0.55) {
+    picks.push({
+      market_type: "goals_over",
+      market_label: "Más de 2.5 Goles",
+      pick_code: "O2.5",
+      probability: prediction.over_25_probability,
       confidence_level:
-        Math.max(
-          prediction.handicap_home_probability,
-          prediction.handicap_away_probability
-        ) > 0.6
-          ? "high"
-          : "medium",
-      reasoning: "Ventaja/Desventaja calculada",
-      risk_level:
-        1 -
-        Math.max(
-          prediction.handicap_home_probability,
-          prediction.handicap_away_probability
-        ),
-      is_recommended:
-        Math.max(
-          prediction.handicap_home_probability,
-          prediction.handicap_away_probability
-        ) > 0.55,
-      priority_score: Math.max(
-        prediction.handicap_home_probability,
-        prediction.handicap_away_probability
-      ),
-    });
+        prediction.over_25_probability > 0.65 ? "high" : "medium",
+      reasoning: "El modelo sugiere un partido con goles.",
+      risk_level: 2,
+      is_recommended: true,
+      priority_score: 1,
+      expected_value: 0,
+      is_contrarian: false,
+    } as any);
+  } else if (prediction.under_25_probability > 0.55) {
+    picks.push({
+      market_type: "goals_under",
+      market_label: "Menos de 2.5 Goles",
+      pick_code: "U2.5",
+      probability: prediction.under_25_probability,
+      confidence_level:
+        prediction.under_25_probability > 0.65 ? "high" : "medium",
+      reasoning: "El modelo sugiere un partido cerrado.",
+      risk_level: 2,
+      is_recommended: true,
+      priority_score: 1,
+      expected_value: 0,
+      is_contrarian: false,
+    } as any);
+  }
+
+  // 4. Ambos Marcan (BTTS) - Fallback logic matching backend approximation
+  if (prediction.predicted_home_goals && prediction.predicted_away_goals) {
+    // P(score) = 1 - e^(-lambda)
+    const probHome = 1 - Math.exp(-prediction.predicted_home_goals);
+    const probAway = 1 - Math.exp(-prediction.predicted_away_goals);
+    const probBTTS = probHome * probAway;
+
+    if (probBTTS > 0.6) {
+      picks.push({
+        market_type: "btts_yes",
+        market_label: "Ambos Marcan: Sí",
+        pick_code: "BTTS-Y",
+        probability: probBTTS,
+        confidence_level: probBTTS > 0.7 ? "high" : "medium",
+        reasoning: "Alta probabilidad estadística de goles para ambos equipos.",
+        risk_level: 2,
+        is_recommended: true,
+        priority_score: 1.5,
+        expected_value: 0,
+        is_contrarian: false,
+      } as any);
+    }
   }
 
   return picks;
-}
+};
+
+/**
+ * Obtiene el mejor pick disponible para una predicción.
+ * Retorna el pick con mayor probabilidad, igual a como se muestra en el modal de detalles.
+ */
+export const getBestPick = (
+  matchPrediction: MatchPrediction,
+  existingPicks: SuggestedPick[] = []
+): SuggestedPick | null => {
+  let picks = [...existingPicks];
+
+  // Si no hay picks existentes, intentamos generarlos
+  if (picks.length === 0) {
+    picks = generateFallbackPicks(matchPrediction);
+  }
+
+  if (picks.length === 0) return null;
+
+  // Ordenar por probabilidad descendente y retornar el primero
+  // Esto coincide con el orden mostrado en el modal de SuggestedPicksTab
+  return picks.sort((a, b) => b.probability - a.probability)[0];
+};

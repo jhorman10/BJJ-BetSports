@@ -57,6 +57,7 @@ class SuggestedPick:
     risk_level: int  # 1-5 scale
     is_recommended: bool = True
     priority_score: float = 0.0
+    expected_value: float = 0.0
     
     def __post_init__(self):
         """Validate probability and risk level."""

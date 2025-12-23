@@ -1,20 +1,32 @@
 """
-Statistics Service Module
+Statistics Domain Service
 
-This module provides logic to calculate TeamStatistics from a list of Match entities.
-It is source-agnostic, meaning it can process matches from any data source.
+Handles calculation of team statistics from match history.
 """
 
-from typing import List
+from typing import List, Optional
 from src.domain.entities.entities import Match, TeamStatistics
-from src.domain.value_objects.value_objects import LeagueAverages
-
 
 class StatisticsService:
-    """Service for calculating team statistics."""
+    @staticmethod
+    def _normalize_name(name: str) -> str:
+        """Normalize team name for comparison."""
+        # Remove common prefixes/suffixes
+        remove = ["fc", "cf", "as", "sc", "ac", "inter", "real", "sporting", "club", "de", "le", "la"]
+        
+        cleaned = name.lower()
+        for word in remove:
+            # Remove isolated occurrences
+            cleaned = cleaned.replace(f" {word} ", " ")
+            if cleaned.startswith(f"{word} "):
+                cleaned = cleaned[len(word)+1:]
+            if cleaned.endswith(f" {word}"):
+                cleaned = cleaned[:-len(word)-1]
+                
+        return cleaned.strip().replace(" ", "")
 
+    @staticmethod
     def calculate_team_statistics(
-        self,
         team_name: str,
         matches: List[Match],
     ) -> TeamStatistics:
@@ -28,7 +40,7 @@ class StatisticsService:
         Returns:
             TeamStatistics for the team
         """
-        team_id = None
+        team_id: Optional[str] = None
         matches_played = 0
         wins = 0
         draws = 0
@@ -37,40 +49,26 @@ class StatisticsService:
         goals_conceded = 0
         home_wins = 0
         away_wins = 0
+        
+        # New stats for picks
+        total_corners = 0
+        total_yellow_cards = 0
+        total_red_cards = 0
+        
         recent_results = []
         
-        # Stats accumulators
-        total_corners = 0
-        total_yellows = 0
-        total_reds = 0
+        target_norm = StatisticsService._normalize_name(team_name)
         
         for match in matches:
             if not match.is_played:
                 continue
             
-            # Extract team names (case insensitive)
-            home_name = match.home_team.name.lower()
-            away_name = match.away_team.name.lower()
-            target_name = team_name.lower()
-
-            is_home = home_name == target_name
-            is_away = away_name == target_name
+            home_norm = StatisticsService._normalize_name(match.home_team.name)
+            away_norm = StatisticsService._normalize_name(match.away_team.name)
             
-            # Robust fuzzy matching
-            if not (is_home or is_away):
-                # check target in match names
-                cond1_home = target_name in home_name
-                cond1_away = target_name in away_name
-                
-                # check match names in target (e.g. "Chelsea" in "Chelsea FC")
-                # We filter out very short strings to avoid false positives with abbreviations like "FC"
-                cond2_home = (len(home_name) > 3 and home_name in target_name)
-                cond2_away = (len(away_name) > 3 and away_name in target_name)
-                
-                if cond1_home or cond2_home:
-                    is_home = True
-                elif cond1_away or cond2_away:
-                    is_away = True
+            # Check for match (exact normalized or containment if substantial)
+            is_home = target_norm == home_norm or (len(target_norm) > 3 and target_norm in home_norm) or (len(home_norm) > 3 and home_norm in target_norm)
+            is_away = target_norm == away_norm or (len(target_norm) > 3 and target_norm in away_norm) or (len(away_norm) > 3 and away_norm in target_norm)
             
             if not (is_home or is_away):
                 continue
@@ -80,51 +78,50 @@ class StatisticsService:
             
             matches_played += 1
             
-            # Goals
-            h_goals = match.home_goals if match.home_goals is not None else 0
-            a_goals = match.away_goals if match.away_goals is not None else 0
+            # Get stats based on role
+            goals_for = match.home_goals if is_home else match.away_goals
+            goals_against = match.away_goals if is_home else match.home_goals
             
-            # Accumulate Stats (if available)
-            if is_home:
-                if match.home_corners is not None: total_corners += match.home_corners
-                if match.home_yellow_cards is not None: total_yellows += match.home_yellow_cards
-                if match.home_red_cards is not None: total_reds += match.home_red_cards
-            else:
-                if match.away_corners is not None: total_corners += match.away_corners
-                if match.away_yellow_cards is not None: total_yellows += match.away_yellow_cards
-                if match.away_red_cards is not None: total_reds += match.away_red_cards
-            
-            if is_home:
-                goals_scored += h_goals
-                goals_conceded += a_goals
+            # Robustly handle None goals
+            if goals_for is None or goals_against is None:
+                continue
                 
-                if h_goals > a_goals:
-                    wins += 1
+            goals_scored += goals_for
+            goals_conceded += goals_against
+            
+            if goals_for > goals_against:
+                wins += 1
+                if is_home:
                     home_wins += 1
-                    recent_results.append('W')
-                elif h_goals < a_goals:
-                    losses += 1
-                    recent_results.append('L')
                 else:
-                    draws += 1
-                    recent_results.append('D')
-            else:
-                goals_scored += a_goals
-                goals_conceded += h_goals
-                
-                if a_goals > h_goals:
-                    wins += 1
                     away_wins += 1
-                    recent_results.append('W')
-                elif a_goals < h_goals:
-                    losses += 1
-                    recent_results.append('L')
-                else:
-                    draws += 1
-                    recent_results.append('D')
+                recent_results.append('W')
+            elif goals_for < goals_against:
+                losses += 1
+                recent_results.append('L')
+            else:
+                draws += 1
+                recent_results.append('D')
+                
+            # Accumulate corners/cards
+            if match.home_corners is not None and match.away_corners is not None:
+                total_corners += match.home_corners if is_home else match.away_corners
+                
+            # Accumulate cards
+            y_cards = match.home_yellow_cards if is_home else match.away_yellow_cards
+            r_cards = match.home_red_cards if is_home else match.away_red_cards
+            
+            if y_cards is not None:
+                total_yellow_cards += y_cards
+            if r_cards is not None:
+                total_red_cards += r_cards
         
         # Get last 5 results for form
         recent_form = ''.join(recent_results[-5:]) if recent_results else ""
+        
+        # Calculate data freshness
+        timestamps = [m.data_fetched_at for m in matches if hasattr(m, 'data_fetched_at') and m.data_fetched_at]
+        last_updated = max(timestamps) if timestamps else None
         
         return TeamStatistics(
             team_id=team_id or team_name.lower().replace(" ", "_"),
@@ -136,50 +133,57 @@ class StatisticsService:
             goals_conceded=goals_conceded,
             home_wins=home_wins,
             away_wins=away_wins,
-            recent_form=recent_form,
             total_corners=total_corners,
-            total_yellow_cards=total_yellows,
-            total_red_cards=total_reds,
+            total_yellow_cards=total_yellow_cards,
+            total_red_cards=total_red_cards,
+            recent_form=recent_form,
+            data_updated_at=last_updated,
         )
 
-    def calculate_league_averages(self, matches: List[Match]) -> LeagueAverages:
+    @staticmethod
+    def calculate_league_averages(matches: List[Match]) -> 'LeagueAverages':
         """
-        Calculate average stats for the league from historical matches.
+        Calculate league-wide averages from match history.
         
         Args:
-            matches: List of matches to analyze
+            matches: List of historical matches
             
         Returns:
-            LeagueAverages object with calculated means
+            LeagueAverages value object with computed averages
         """
-
+        from src.domain.value_objects.value_objects import LeagueAverages
         
-        total_home = 0
-        total_away = 0
-        count = 0
-        
-        for m in matches:
-            if m.is_played:
-                # Use strict extraction to avoid NoneType errors
-                h = m.home_goals if m.home_goals is not None else 0
-                a = m.away_goals if m.away_goals is not None else 0
-                total_home += h
-                total_away += a
-                count += 1
-                
-        if count == 0:
-            # Fallback to defaults if no history
+        if not matches:
+            # Return default averages when no data
             return LeagueAverages(
-                avg_home_goals=1.5,
+                avg_home_goals=1.4,
                 avg_away_goals=1.1,
-                avg_total_goals=2.6
+                avg_total_goals=2.5,
             )
-            
-        avg_home = total_home / count
-        avg_away = total_away / count
+        
+        total_home_goals = 0
+        total_away_goals = 0
+        matches_with_goals = 0
+        
+        for match in matches:
+            if not match.is_played:
+                continue
+                
+            # Goals
+            if match.home_goals is not None and match.away_goals is not None:
+                total_home_goals += match.home_goals
+                total_away_goals += match.away_goals
+                matches_with_goals += 1
+        
+        # Calculate averages with fallbacks
+        avg_home = total_home_goals / matches_with_goals if matches_with_goals > 0 else 1.4
+        avg_away = total_away_goals / matches_with_goals if matches_with_goals > 0 else 1.1
+        avg_total = avg_home + avg_away
         
         return LeagueAverages(
             avg_home_goals=avg_home,
             avg_away_goals=avg_away,
-            avg_total_goals=avg_home + avg_away
+            avg_total_goals=avg_total,
         )
+
+
