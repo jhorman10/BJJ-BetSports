@@ -122,6 +122,32 @@ const App: React.FC = () => {
     error: predictionsError,
   } = usePredictions(selectedLeague?.id || null, 10, sortBy, true, 300000);
 
+  // Check if bot dashboard data is available
+  const [hasBotData, setHasBotData] = useState(false);
+
+  useEffect(() => {
+    const checkBotData = () => {
+      const cached = localStorage.getItem("bot_training_stats");
+      if (cached) {
+        try {
+          const { data } = JSON.parse(cached);
+          const hasData = data?.match_history && data.match_history.length > 0;
+          setHasBotData(hasData);
+        } catch {
+          setHasBotData(false);
+        }
+      } else {
+        setHasBotData(false);
+      }
+    };
+
+    checkBotData();
+    // Check periodically in case data gets loaded
+    const interval = setInterval(checkBotData, 30000); // Check every 30s
+
+    return () => clearInterval(interval);
+  }, []);
+
   // Handle sort change - this automatically triggers refetch via hook dependency
   const handleSortChange = (newSortBy: SortOption) => {
     setSortBy(newSortBy);
@@ -159,25 +185,27 @@ const App: React.FC = () => {
             BJJ - BetSports
           </Typography>
 
-          {/* View Switcher */}
-          <Tooltip
-            title={
-              currentView === "predictions"
-                ? "Ir al Bot de Inversión"
-                : "Ver Predicciones"
-            }
-          >
-            <IconButton
-              onClick={() =>
-                setCurrentView(
-                  currentView === "predictions" ? "bot" : "predictions"
-                )
+          {/* View Switcher - Only show if bot data available */}
+          {hasBotData && (
+            <Tooltip
+              title={
+                currentView === "predictions"
+                  ? "Ir al Bot de Inversión"
+                  : "Ver Predicciones"
               }
-              sx={{ color: "white", mr: 1 }}
             >
-              {currentView === "predictions" ? <SmartToy /> : <Dashboard />}
-            </IconButton>
-          </Tooltip>
+              <IconButton
+                onClick={() =>
+                  setCurrentView(
+                    currentView === "predictions" ? "bot" : "predictions"
+                  )
+                }
+                sx={{ color: "white", mr: 1 }}
+              >
+                {currentView === "predictions" ? <SmartToy /> : <Dashboard />}
+              </IconButton>
+            </Tooltip>
+          )}
 
           {/* PWA Install Button */}
           {installPrompt && !isInstalled && (
