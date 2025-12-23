@@ -115,9 +115,9 @@ const BotDashboard: React.FC = () => {
     }
   }, []);
 
-  // Load mock data if no stats are available (development mode)
+  // Load mock data if no stats are available (development mode only)
   React.useEffect(() => {
-    if (!stats && !loading) {
+    if (!stats && !loading && import.meta.env.DEV) {
       // Import mock data lazily to avoid bundling in production
       import("../../mock/predictionMock").then(({ mockMatchHistory }) => {
         const mockStats = {
