@@ -84,10 +84,18 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("⚠ Football-Data.org not configured (optional)")
     
+    # Start the scheduler for daily training
+    from src.scheduler import get_scheduler
+    scheduler = get_scheduler()
+    scheduler.start()
+    logger.info("✓ Daily training scheduler started (8:00 AM Colombia time)")
+    
     yield
     
     # Shutdown
     logger.info("Shutting down...")
+    scheduler.shutdown()
+    logger.info("✓ Scheduler shutdown complete")
 
 
 # Create FastAPI app

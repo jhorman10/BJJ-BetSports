@@ -16,6 +16,9 @@ scipy>=1.11.0
 httpx>=0.25.0
 aiohttp>=3.9.0
 
+# Task scheduling
+apscheduler>=3.10.0
+
 
 # Environment management
 python-dotenv==1.0.0
