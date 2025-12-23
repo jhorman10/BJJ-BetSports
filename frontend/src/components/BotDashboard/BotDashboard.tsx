@@ -201,14 +201,13 @@ const BotDashboard: React.FC = () => {
         </Box>
       </Box>
 
-      <Alert severity="warning" sx={{ mb: 3 }}>
-        <Typography variant="body2">
-          <strong>⚠️ Configuración Pendiente:</strong> El análisis de
-          backtesting requiere configuración en el backend. Esta funcionalidad
-          debería ejecutarse como tarea programada (cron job) en el servidor
-          para evitar timeouts.
-        </Typography>
-      </Alert>
+      {loading && (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          <Typography variant="body2">
+            ⏳ Se están calculando los datos del modelo...
+          </Typography>
+        </Alert>
+      )}
 
       {lastUpdate && stats && (
         <Alert severity="success" sx={{ mb: 3 }}>
