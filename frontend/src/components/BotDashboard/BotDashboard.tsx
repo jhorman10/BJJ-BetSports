@@ -18,6 +18,7 @@ import {
   PlayArrow,
   AttachMoney,
 } from "@mui/icons-material";
+import { api } from "../../services/api";
 
 interface TrainingStatus {
   matches_processed: number;
@@ -88,21 +89,11 @@ const BotDashboard: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      // Usamos fetch directo ya que api.ts no está expuesto en el contexto
-      // En producción, esto debería ir en services/api.ts
-      const response = await fetch("http://localhost:8000/api/v1/train", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          league_ids: ["E0", "SP1", "D1", "I1", "F1"], // Ligas Top 5
-          days_back: 365, // Último año
-          reset_weights: true,
-        }),
+      const data = await api.post<TrainingStatus>("/train", {
+        league_ids: ["E0", "SP1", "D1", "I1", "F1"], // Ligas Top 5
+        days_back: 365, // Último año
+        reset_weights: true,
       });
-
-      if (!response.ok) throw new Error("Error en la simulación");
-
-      const data = await response.json();
       setStats(data);
     } catch (err) {
       setError("No se pudo conectar con el servidor de Backtesting.");

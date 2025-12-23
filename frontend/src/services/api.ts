@@ -184,6 +184,14 @@ export const api = {
     );
     return response.data;
   },
+
+  /**
+   * Generic POST method for flexibility
+   */
+  async post<T>(endpoint: string, data?: any): Promise<T> {
+    const response = await apiClient.post<T>(`/api/v1${endpoint}`, data);
+    return response.data;
+  },
 };
 
 export default api;
