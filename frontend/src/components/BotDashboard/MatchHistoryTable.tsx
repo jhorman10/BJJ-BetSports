@@ -233,34 +233,90 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
         </TableContainer>
       </Box>
 
-      {/* Mobile Card View */}
       <Box sx={{ display: { xs: "block", md: "none" } }}>
         {matches.map((match) => (
           <Card
             key={match.match_id}
             sx={{
               mb: 2,
+              position: "relative",
               bgcolor: "rgba(30, 41, 59, 0.6)",
               backdropFilter: "blur(10px)",
               border: "1px solid rgba(148, 163, 184, 0.1)",
             }}
           >
+            {/* Status Chip and Date positioned top‑right */}
+            <Box
+              sx={{
+                position: "absolute",
+                top: 8,
+                right: 8,
+                zIndex: 10,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "flex-end",
+                gap: "5px",
+              }}
+            >
+              {match.suggested_pick ? (
+                match.pick_was_correct ? (
+                  <Chip
+                    icon={<CheckCircle />}
+                    label="Pick Ganador"
+                    color="success"
+                    size="small"
+                    sx={{
+                      bgcolor: "rgba(34, 197, 94, 0.2)",
+                      color: "#10b981",
+                      fontWeight: 600,
+                    }}
+                  />
+                ) : (
+                  <Chip
+                    icon={<Cancel />}
+                    label="Pick Perdedor"
+                    color="error"
+                    size="small"
+                    sx={{
+                      bgcolor: "rgba(239, 68, 68, 0.2)",
+                      color: "#ef4444",
+                      fontWeight: 600,
+                    }}
+                  />
+                )
+              ) : match.was_correct ? (
+                <Chip
+                  icon={<CheckCircle />}
+                  label="Acertada"
+                  color="success"
+                  size="small"
+                  variant="outlined"
+                  sx={{
+                    borderColor: "rgba(34, 197, 94, 0.3)",
+                    color: "#10b981",
+                    fontWeight: 600,
+                  }}
+                />
+              ) : (
+                <Chip
+                  icon={<Cancel />}
+                  label="Errada"
+                  color="error"
+                  size="small"
+                  variant="outlined"
+                  sx={{
+                    borderColor: "rgba(239, 68, 68, 0.3)",
+                    color: "#ef4444",
+                    fontWeight: 600,
+                  }}
+                />
+              )}
+              {/* Date below chip */}
+              <Typography variant="caption" color="text.secondary">
+                {formatDate(match.match_date)}
+              </Typography>
+            </Box>
             <CardContent>
-              {/* Header: Teams and Date */}
-              <Box
-                display="flex"
-                justifyContent="space-between"
-                alignItems="center"
-                mb={1}
-              >
-                <Typography variant="body2" fontWeight={600} color="white">
-                  {match.home_team} vs {match.away_team}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {formatDate(match.match_date)}
-                </Typography>
-              </Box>
-
               {/* Score */}
               <Typography variant="h6" fontWeight={700} color="#10b981" mb={1}>
                 {match.actual_home_goals} - {match.actual_away_goals}
@@ -304,63 +360,6 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                   </Box>
                 </Box>
               )}
-
-              {/* Status */}
-              <Box mt={2}>
-                {match.suggested_pick ? (
-                  match.pick_was_correct ? (
-                    <Chip
-                      icon={<CheckCircle />}
-                      label="Pick Ganador"
-                      color="success"
-                      size="small"
-                      sx={{
-                        bgcolor: "rgba(34, 197, 94, 0.2)",
-                        color: "#10b981",
-                        fontWeight: 600,
-                      }}
-                    />
-                  ) : (
-                    <Chip
-                      icon={<Cancel />}
-                      label="Pick Perdedor"
-                      color="error"
-                      size="small"
-                      sx={{
-                        bgcolor: "rgba(239, 68, 68, 0.2)",
-                        color: "#ef4444",
-                        fontWeight: 600,
-                      }}
-                    />
-                  )
-                ) : match.was_correct ? (
-                  <Chip
-                    icon={<CheckCircle />}
-                    label="Acertada"
-                    color="success"
-                    size="small"
-                    variant="outlined"
-                    sx={{
-                      borderColor: "rgba(34, 197, 94, 0.3)",
-                      color: "#10b981",
-                      fontWeight: 600,
-                    }}
-                  />
-                ) : (
-                  <Chip
-                    icon={<Cancel />}
-                    label="Errada"
-                    color="error"
-                    size="small"
-                    variant="outlined"
-                    sx={{
-                      borderColor: "rgba(239, 68, 68, 0.3)",
-                      color: "#ef4444",
-                      fontWeight: 600,
-                    }}
-                  />
-                )}
-              </Box>
             </CardContent>
           </Card>
         ))}

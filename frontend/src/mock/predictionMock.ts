@@ -1,0 +1,58 @@
+// Mock data for local development of picks
+// src/mock/predictionMock.ts
+
+import { MatchPredictionHistory } from "../components/BotDashboard/BotDashboard";
+
+export const mockMatchHistory: MatchPredictionHistory[] = [
+  {
+    match_id: "mock1",
+    home_team: "Arsenal",
+    away_team: "Chelsea",
+    match_date: "2024-12-20",
+    predicted_winner: "2",
+    actual_winner: "2",
+    predicted_home_goals: 0.8,
+    predicted_away_goals: 1.2,
+    actual_home_goals: 0,
+    actual_away_goals: 3,
+    was_correct: true,
+    confidence: 0.78,
+    suggested_pick: "2 (Chelsea)",
+    pick_was_correct: true,
+    expected_value: 5.4,
+  },
+  {
+    match_id: "mock2",
+    home_team: "Real Madrid",
+    away_team: "Barcelona",
+    match_date: "2024-12-22",
+    predicted_winner: "X",
+    actual_winner: "1",
+    predicted_home_goals: 1.5,
+    predicted_away_goals: 1.5,
+    actual_home_goals: 2,
+    actual_away_goals: 1,
+    was_correct: false,
+    confidence: 0.62,
+    suggested_pick: "1 (Real Madrid)",
+    pick_was_correct: false,
+    expected_value: 3.2,
+  },
+  {
+    match_id: "mock3",
+    home_team: "Bayern",
+    away_team: "Dortmund",
+    match_date: "2024-12-25",
+    predicted_winner: "1",
+    actual_winner: "1",
+    predicted_home_goals: 2.1,
+    predicted_away_goals: 1.0,
+    actual_home_goals: 2,
+    actual_away_goals: 0,
+    was_correct: true,
+    confidence: 0.85,
+    suggested_pick: null,
+    pick_was_correct: null,
+    expected_value: null,
+  },
+];
