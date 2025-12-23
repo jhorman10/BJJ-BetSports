@@ -23,6 +23,9 @@ interface MatchPredictionHistory {
   actual_away_goals: number;
   was_correct: boolean;
   confidence: number;
+  suggested_pick?: string | null;
+  pick_was_correct?: boolean | null;
+  expected_value?: number | null;
 }
 
 interface TrainingStatus {

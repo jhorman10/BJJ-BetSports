@@ -26,6 +26,9 @@ interface MatchPredictionHistory {
   actual_away_goals: number;
   was_correct: boolean;
   confidence: number;
+  suggested_pick?: string | null;
+  pick_was_correct?: boolean | null;
+  expected_value?: number | null;
 }
 
 interface MatchHistoryTableProps {
@@ -88,6 +91,9 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
             <TableCell sx={{ color: "text.secondary", fontWeight: 600 }}>
               Predicción
             </TableCell>
+            <TableCell sx={{ color: "text.secondary", fontWeight: 600 }}>
+              Pick Sugerido
+            </TableCell>
             <TableCell
               align="center"
               sx={{ color: "text.secondary", fontWeight: 600 }}
@@ -136,15 +142,66 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                   {match.predicted_away_goals.toFixed(1)})
                 </Typography>
               </TableCell>
+              <TableCell>
+                {match.suggested_pick ? (
+                  <Box>
+                    <Typography
+                      variant="body2"
+                      fontWeight={600}
+                      color="#fbbf24"
+                    >
+                      {match.suggested_pick}
+                    </Typography>
+                    {match.expected_value && (
+                      <Typography variant="caption" color="text.disabled">
+                        EV: +{match.expected_value.toFixed(1)}%
+                      </Typography>
+                    )}
+                  </Box>
+                ) : (
+                  <Typography variant="caption" color="text.disabled">
+                    No pick
+                  </Typography>
+                )}
+              </TableCell>
               <TableCell align="center">
-                {match.was_correct ? (
+                {match.suggested_pick ? (
+                  // Show pick status if there was a value bet
+                  match.pick_was_correct ? (
+                    <Chip
+                      icon={<CheckCircle />}
+                      label="Pick Ganador"
+                      color="success"
+                      size="small"
+                      sx={{
+                        bgcolor: "rgba(34, 197, 94, 0.2)",
+                        color: "#10b981",
+                        fontWeight: 600,
+                      }}
+                    />
+                  ) : (
+                    <Chip
+                      icon={<Cancel />}
+                      label="Pick Perdedor"
+                      color="error"
+                      size="small"
+                      sx={{
+                        bgcolor: "rgba(239, 68, 68, 0.2)",
+                        color: "#ef4444",
+                        fontWeight: 600,
+                      }}
+                    />
+                  )
+                ) : // Show prediction status if no value bet
+                match.was_correct ? (
                   <Chip
                     icon={<CheckCircle />}
                     label="Acertada"
                     color="success"
                     size="small"
+                    variant="outlined"
                     sx={{
-                      bgcolor: "rgba(34, 197, 94, 0.2)",
+                      borderColor: "rgba(34, 197, 94, 0.3)",
                       color: "#10b981",
                       fontWeight: 600,
                     }}
@@ -155,8 +212,9 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                     label="Errada"
                     color="error"
                     size="small"
+                    variant="outlined"
                     sx={{
-                      bgcolor: "rgba(239, 68, 68, 0.2)",
+                      borderColor: "rgba(239, 68, 68, 0.3)",
                       color: "#ef4444",
                       fontWeight: 600,
                     }}

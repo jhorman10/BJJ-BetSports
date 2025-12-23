@@ -29,6 +29,10 @@ class MatchPredictionHistory(BaseModel):
     actual_away_goals: int
     was_correct: bool
     confidence: float
+    # Value bet information
+    suggested_pick: Optional[str] = None  # "Home Win", "Over 2.5", etc.
+    pick_was_correct: Optional[bool] = None
+    expected_value: Optional[float] = None
 
 
 class TrainingStatus(BaseModel):
@@ -142,25 +146,12 @@ async def run_training_session(
             if actual_winner == predicted_winner:
                 correct_predictions += 1
             
-            # Store match prediction for history (limit to last 50 for performance)
-            if len(match_history) < 50:
-                match_history.append(MatchPredictionHistory(
-                    match_id=match.id,
-                    home_team=match.home_team.name,
-                    away_team=match.away_team.name,
-                    match_date=match.match_date.isoformat(),
-                    predicted_winner=predicted_winner,
-                    actual_winner=actual_winner,
-                    predicted_home_goals=round(prediction.predicted_home_goals, 2),
-                    predicted_away_goals=round(prediction.predicted_away_goals, 2),
-                    actual_home_goals=match.home_goals,
-                    actual_away_goals=match.away_goals,
-                    was_correct=(actual_winner == predicted_winner),
-                    confidence=round(prediction.confidence, 3)
-                ))
-            
             # --- ROI CALCULATION (Real Viability Test) ---
             # Simulate betting 1 unit on Value Bets (EV > 2%)
+            suggested_pick = None
+            pick_was_correct = None
+            max_ev_value = None
+            
             if match.home_odds and match.draw_odds and match.away_odds:
                 # Calculate EV for 1X2 Market
                 ev_home = (prediction.home_win_probability * match.home_odds) - 1
@@ -177,14 +168,45 @@ async def run_training_session(
                     total_staked += stake
                     
                     payout = 0.0
-                    if ev_home == max_ev and actual_winner == "home":
-                        payout = stake * match.home_odds
-                    elif ev_away == max_ev and actual_winner == "away":
-                        payout = stake * match.away_odds
-                    elif ev_draw == max_ev and actual_winner == "draw":
-                        payout = stake * match.draw_odds
+                    # Determine which pick was suggested and if it won
+                    if ev_home == max_ev:
+                        suggested_pick = f"1 ({match.home_team.name})"
+                        pick_was_correct = (actual_winner == "home")
+                        if actual_winner == "home":
+                            payout = stake * match.home_odds
+                    elif ev_away == max_ev:
+                        suggested_pick = f"2 ({match.away_team.name})"
+                        pick_was_correct = (actual_winner == "away")
+                        if actual_winner == "away":
+                            payout = stake * match.away_odds
+                    elif ev_draw == max_ev:
+                        suggested_pick = "X (Empate)"
+                        pick_was_correct = (actual_winner == "draw")
+                        if actual_winner == "draw":
+                            payout = stake * match.draw_odds
                     
+                    max_ev_value = round(max_ev * 100, 2)  # Convert to percentage
                     total_return += payout
+            
+            # Store match prediction for history (limit to last 50 for performance)
+            if len(match_history) < 50:
+                match_history.append(MatchPredictionHistory(
+                    match_id=match.id,
+                    home_team=match.home_team.name,
+                    away_team=match.away_team.name,
+                    match_date=match.match_date.isoformat(),
+                    predicted_winner=predicted_winner,
+                    actual_winner=actual_winner,
+                    predicted_home_goals=round(prediction.predicted_home_goals, 2),
+                    predicted_away_goals=round(prediction.predicted_away_goals, 2),
+                    actual_home_goals=match.home_goals,
+                    actual_away_goals=match.away_goals,
+                    was_correct=(actual_winner == predicted_winner),
+                    confidence=round(prediction.confidence, 3),
+                    suggested_pick=suggested_pick,
+                    pick_was_correct=pick_was_correct,
+                    expected_value=max_ev_value
+                ))
             
     except Exception as e:
         # Log the full error for debugging
