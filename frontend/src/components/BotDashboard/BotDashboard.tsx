@@ -7,6 +7,7 @@ import {
   History,
   AttachMoney,
 } from "@mui/icons-material";
+import { api } from "../../services/api";
 
 interface TrainingStatus {
   matches_processed: number;
@@ -69,17 +70,98 @@ const StatCard: React.FC<{
 );
 
 const BotDashboard: React.FC = () => {
-  // For MVP: Show static model performance stats instead of live training
-  // The actual model training happens in the backend during deployment
-  const stats: TrainingStatus = {
-    matches_processed: 1250,
-    correct_predictions: 708,
-    accuracy: 0.566,
-    total_bets: 342,
-    roi: 12.4,
-    profit_units: 42.3,
-    market_stats: {},
-  };
+  const [loading, setLoading] = React.useState(false);
+  const [stats, setStats] = React.useState<TrainingStatus | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
+  const [lastUpdate, setLastUpdate] = React.useState<Date | null>(null);
+
+  // Check if we need to run training (once per day)
+  const needsTraining = React.useCallback(() => {
+    const cached = localStorage.getItem("bot_training_stats");
+    if (!cached) return true;
+
+    try {
+      const { timestamp } = JSON.parse(cached);
+      const lastRun = new Date(timestamp);
+      const now = new Date();
+
+      // Check if it's a different day
+      return (
+        lastRun.getDate() !== now.getDate() ||
+        lastRun.getMonth() !== now.getMonth() ||
+        lastRun.getFullYear() !== now.getFullYear()
+      );
+    } catch {
+      return true;
+    }
+  }, []);
+
+  // Load cached stats
+  React.useEffect(() => {
+    const cached = localStorage.getItem("bot_training_stats");
+    if (cached) {
+      try {
+        const { data, timestamp } = JSON.parse(cached);
+        setStats(data);
+        setLastUpdate(new Date(timestamp));
+      } catch (err) {
+        console.error("Error loading cached stats:", err);
+      }
+    }
+  }, []);
+
+  // Run training analysis
+  const runTraining = React.useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const data = await api.post<TrainingStatus>("/train", {
+        league_ids: ["E0", "SP1", "D1", "I1", "F1"],
+        days_back: 365,
+        reset_weights: false,
+      });
+
+      setStats(data);
+      const now = new Date();
+      setLastUpdate(now);
+
+      // Cache the results
+      localStorage.setItem(
+        "bot_training_stats",
+        JSON.stringify({ data, timestamp: now.toISOString() })
+      );
+
+      // Show notification if supported
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification("Análisis Completado", {
+          body: `ROI: ${data.roi > 0 ? "+" : ""}${data.roi.toFixed(
+            1
+          )}% | Precisión: ${(data.accuracy * 100).toFixed(1)}%`,
+          icon: "/favicon.ico",
+        });
+      }
+    } catch (err: any) {
+      setError(
+        err?.response?.data?.message ||
+          "Error al ejecutar el análisis. Intenta nuevamente más tarde."
+      );
+      console.error("Training error:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Auto-run training if needed
+  React.useEffect(() => {
+    if (needsTraining() && !loading && !stats) {
+      // Request notification permission
+      if ("Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission();
+      }
+      runTraining();
+    }
+  }, [needsTraining, loading, stats, runTraining]);
 
   return (
     <Box>
@@ -90,59 +172,83 @@ const BotDashboard: React.FC = () => {
             Estadísticas del Modelo
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Rendimiento del modelo predictivo (Últimos 12 meses)
+            Rendimiento del modelo predictivo (Backtesting diario)
           </Typography>
         </Box>
       </Box>
 
-      <Alert severity="info" sx={{ mb: 3 }}>
-        <Typography variant="body2">
-          <strong>📊 Datos de Backtesting:</strong> Estos resultados se basan en
-          simulaciones con datos históricos reales de las 5 ligas principales
-          europeas (Premier League, La Liga, Bundesliga, Serie A, Ligue 1).
-        </Typography>
-      </Alert>
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+      )}
 
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={3}>
-          <StatCard
-            title="ROI (Retorno de Inversión)"
-            value={`${stats.roi > 0 ? "+" : ""}${stats.roi}%`}
-            icon={<TrendingUp />}
-            color={stats.roi >= 0 ? "#22c55e" : "#ef4444"}
-            subtitle="Rentabilidad sobre capital apostado"
-          />
+      {loading && (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          <Typography variant="body2">
+            <strong>⏳ Procesando análisis...</strong> Puede tardar 1-2 minutos.
+            Te notificaremos cuando esté listo.
+          </Typography>
+        </Alert>
+      )}
+
+      {lastUpdate && !loading && (
+        <Alert severity="success" sx={{ mb: 3 }}>
+          <Typography variant="body2">
+            <strong>✅ Última actualización:</strong>{" "}
+            {lastUpdate.toLocaleDateString("es-ES", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </Typography>
+        </Alert>
+      )}
+
+      {stats && (
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={3}>
+            <StatCard
+              title="ROI (Retorno de Inversión)"
+              value={`${stats.roi > 0 ? "+" : ""}${stats.roi.toFixed(1)}%`}
+              icon={<TrendingUp />}
+              color={stats.roi >= 0 ? "#22c55e" : "#ef4444"}
+              subtitle="Rentabilidad sobre capital apostado"
+            />
+          </Grid>
+          <Grid item xs={12} md={3}>
+            <StatCard
+              title="Beneficio Neto"
+              value={`${
+                stats.profit_units > 0 ? "+" : ""
+              }${stats.profit_units.toFixed(1)} u`}
+              icon={<AttachMoney />}
+              color={stats.profit_units >= 0 ? "#fbbf24" : "#ef4444"}
+              subtitle="Unidades ganadas/perdidas"
+            />
+          </Grid>
+          <Grid item xs={12} md={3}>
+            <StatCard
+              title="Precisión del Modelo"
+              value={`${(stats.accuracy * 100).toFixed(1)}%`}
+              icon={<Assessment />}
+              color="#3b82f6"
+              subtitle={`En ${stats.matches_processed} partidos analizados`}
+            />
+          </Grid>
+          <Grid item xs={12} md={3}>
+            <StatCard
+              title="Apuestas de Valor"
+              value={stats.total_bets.toString()}
+              icon={<History />}
+              color="#8b5cf6"
+              subtitle="Oportunidades encontradas (EV > 2%)"
+            />
+          </Grid>
         </Grid>
-        <Grid item xs={12} md={3}>
-          <StatCard
-            title="Beneficio Neto"
-            value={`${stats.profit_units > 0 ? "+" : ""}${
-              stats.profit_units
-            } u`}
-            icon={<AttachMoney />}
-            color={stats.profit_units >= 0 ? "#fbbf24" : "#ef4444"}
-            subtitle="Unidades ganadas/perdidas"
-          />
-        </Grid>
-        <Grid item xs={12} md={3}>
-          <StatCard
-            title="Precisión del Modelo"
-            value={`${(stats.accuracy * 100).toFixed(1)}%`}
-            icon={<Assessment />}
-            color="#3b82f6"
-            subtitle={`En ${stats.matches_processed} partidos analizados`}
-          />
-        </Grid>
-        <Grid item xs={12} md={3}>
-          <StatCard
-            title="Apuestas de Valor"
-            value={stats.total_bets.toString()}
-            icon={<History />}
-            color="#8b5cf6"
-            subtitle="Oportunidades encontradas (EV > 2%)"
-          />
-        </Grid>
-      </Grid>
+      )}
     </Box>
   );
 };
