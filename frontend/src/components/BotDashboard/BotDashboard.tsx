@@ -525,7 +525,7 @@ const BotDashboard: React.FC = () => {
   );
 
   const handleYearToggle = (
-    event: React.MouseEvent<HTMLElement>,
+    _event: React.MouseEvent<HTMLElement>,
     newMode: "current" | "previous" | null
   ) => {
     if (newMode !== null) {
