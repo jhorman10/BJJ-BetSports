@@ -152,16 +152,12 @@ const BotDashboard: React.FC = () => {
     }
   }, []);
 
-  // Auto-run training if needed
-  React.useEffect(() => {
-    if (needsTraining() && !loading && !stats) {
-      // Request notification permission
-      if ("Notification" in window && Notification.permission === "default") {
-        Notification.requestPermission();
-      }
-      runTraining();
-    }
-  }, [needsTraining, loading, stats, runTraining]);
+  // Auto-run training if needed (DISABLED - backend endpoint needs fixing)
+  // React.useEffect(() => {
+  //   if (needsTraining() && !loading && !stats) {
+  //     runTraining();
+  //   }
+  // }, [needsTraining, loading, stats, runTraining]);
 
   return (
     <Box>
@@ -172,27 +168,21 @@ const BotDashboard: React.FC = () => {
             Estadísticas del Modelo
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Rendimiento del modelo predictivo (Backtesting diario)
+            Rendimiento del modelo predictivo (Backtesting)
           </Typography>
         </Box>
       </Box>
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {error}
-        </Alert>
-      )}
+      <Alert severity="warning" sx={{ mb: 3 }}>
+        <Typography variant="body2">
+          <strong>⚠️ Configuración Pendiente:</strong> El análisis de
+          backtesting requiere configuración en el backend. Esta funcionalidad
+          debería ejecutarse como tarea programada (cron job) en el servidor
+          para evitar timeouts.
+        </Typography>
+      </Alert>
 
-      {loading && (
-        <Alert severity="info" sx={{ mb: 3 }}>
-          <Typography variant="body2">
-            <strong>⏳ Procesando análisis...</strong> Puede tardar 1-2 minutos.
-            Te notificaremos cuando esté listo.
-          </Typography>
-        </Alert>
-      )}
-
-      {lastUpdate && !loading && (
+      {lastUpdate && stats && (
         <Alert severity="success" sx={{ mb: 3 }}>
           <Typography variant="body2">
             <strong>✅ Última actualización:</strong>{" "}
