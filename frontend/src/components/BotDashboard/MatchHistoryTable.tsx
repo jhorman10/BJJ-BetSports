@@ -334,43 +334,54 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
               </Box>
 
               {/* Match Result */}
-              <Box mb={3}>
+              <Box mb={2}>
                 <Typography variant="h6" fontWeight={700} color="white">
                   {match.home_team} {match.actual_home_goals} -{" "}
                   {match.actual_away_goals} {match.away_team}
                 </Typography>
               </Box>
 
+              {/* Winner and Prediction - Simple format */}
+              <Box mb={1.5} sx={{ fontSize: "0.9rem", lineHeight: 1.6 }}>
+                <Typography
+                  variant="body2"
+                  color="#10b981"
+                  fontWeight={600}
+                  mb={0.5}
+                >
+                  →{" "}
+                  {getWinnerLabel(
+                    match.actual_winner,
+                    match.home_team,
+                    match.away_team
+                  )}{" "}
+                  ganó
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  ◆ Predicción:{" "}
+                  {getWinnerLabel(
+                    match.predicted_winner,
+                    match.home_team,
+                    match.away_team
+                  )}
+                </Typography>
+              </Box>
+
               {/* Suggested Pick */}
               {match.suggested_pick && (
-                <Box>
-                  <Typography variant="body2">
+                <Typography variant="body2" color="text.secondary">
+                  ⭐ {match.suggested_pick}
+                  {match.expected_value && (
                     <Typography
                       component="span"
-                      color="text.disabled"
                       variant="caption"
-                    >
-                      Sugerencia:{" "}
-                    </Typography>
-                    <Typography
-                      component="span"
-                      fontWeight={600}
                       color="#fbbf24"
+                      sx={{ ml: 0.5 }}
                     >
-                      {match.suggested_pick}
+                      +{match.expected_value.toFixed(1)}%
                     </Typography>
-                    {match.expected_value && (
-                      <Typography
-                        component="span"
-                        variant="caption"
-                        color="text.disabled"
-                        sx={{ ml: 1 }}
-                      >
-                        (EV: +{match.expected_value.toFixed(1)}%)
-                      </Typography>
-                    )}
-                  </Typography>
-                </Box>
+                  )}
+                </Typography>
               )}
             </CardContent>
           </Card>
