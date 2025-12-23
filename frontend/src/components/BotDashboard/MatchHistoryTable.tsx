@@ -257,14 +257,15 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                 flexWrap="wrap"
                 gap={1}
               >
-                {/* Teams */}
+                {/* Teams with Score */}
                 <Typography
                   variant="body2"
                   fontWeight={600}
                   color="white"
                   textAlign="left"
                 >
-                  {match.home_team} vs {match.away_team}
+                  {match.home_team} {match.actual_home_goals} -{" "}
+                  {match.actual_away_goals} {match.away_team}
                 </Typography>
 
                 {/* Chip and Date */}
@@ -331,14 +332,6 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                     {formatDate(match.match_date)}
                   </Typography>
                 </Box>
-              </Box>
-
-              {/* Match Result */}
-              <Box mb={2}>
-                <Typography variant="h6" fontWeight={700} color="white">
-                  {match.home_team} {match.actual_home_goals} -{" "}
-                  {match.actual_away_goals} {match.away_team}
-                </Typography>
               </Box>
 
               {/* Winner and Prediction - Simple format */}
