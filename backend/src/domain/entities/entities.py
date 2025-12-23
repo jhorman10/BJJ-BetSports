@@ -147,21 +147,30 @@ class Prediction:
     under_25_probability: float
     predicted_home_goals: float
     predicted_away_goals: float
+    
+    # New Projected Stats
+    predicted_home_corners: float = 0.0
+    predicted_away_corners: float = 0.0
+    predicted_home_yellow_cards: float = 0.0
+    predicted_away_yellow_cards: float = 0.0
+    predicted_home_red_cards: float = 0.0
+    predicted_away_red_cards: float = 0.0
+    
     # New Standard Probabilities
-    over_95_corners_probability: float
-    under_95_corners_probability: float
-    over_45_cards_probability: float
-    under_45_cards_probability: float
+    over_95_corners_probability: float = 0.0
+    under_95_corners_probability: float = 0.0
+    over_45_cards_probability: float = 0.0
+    under_45_cards_probability: float = 0.0
     # Dynamic Handicap
-    handicap_line: float
-    handicap_home_probability: float
-    handicap_away_probability: float
+    handicap_line: float = 0.0
+    handicap_home_probability: float = 0.0
+    handicap_away_probability: float = 0.0
     
     # Value Bet Fields
-    expected_value: float
-    is_value_bet: bool
+    expected_value: float = 0.0
+    is_value_bet: bool = False
     
-    confidence: float
+    confidence: float = 0.0
     data_sources: list[str] = field(default_factory=list)
     created_at: datetime = field(default_factory=datetime.utcnow)
     data_updated_at: Optional[datetime] = None

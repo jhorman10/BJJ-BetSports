@@ -15,6 +15,7 @@ export interface League {
   name: string;
   country: string;
   season?: string;
+  flag?: string;
 }
 
 export interface Match {
@@ -140,6 +141,7 @@ export interface SuggestedPick {
   expected_value?: number;
   confidence?: number;
   is_contrarian?: boolean;
+  pick_code?: string; // Short code like '1', 'X', '2', 'O2.5'
 }
 
 /**

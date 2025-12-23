@@ -101,6 +101,14 @@ class PredictionDTO(BaseModel):
     under_25_probability: float = Field(..., ge=0, le=1)
     predicted_home_goals: float = Field(..., ge=0)
     predicted_away_goals: float = Field(..., ge=0)
+    
+    predicted_home_corners: float = Field(default=0.0, ge=0)
+    predicted_away_corners: float = Field(default=0.0, ge=0)
+    predicted_home_yellow_cards: float = Field(default=0.0, ge=0)
+    predicted_away_yellow_cards: float = Field(default=0.0, ge=0)
+    predicted_home_red_cards: float = Field(default=0.0, ge=0)
+    predicted_away_red_cards: float = Field(default=0.0, ge=0)
+    
     confidence: float = Field(..., ge=0, le=1)
     data_sources: list[str] = Field(default_factory=list)
     recommended_bet: str

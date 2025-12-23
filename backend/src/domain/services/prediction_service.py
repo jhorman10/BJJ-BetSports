@@ -406,48 +406,77 @@ class PredictionService:
         self,
         home_stats: Optional[TeamStatistics],
         away_stats: Optional[TeamStatistics],
-    ) -> tuple[float, float]:
-        """Calculate prob for Over/Under 9.5 corners."""
+    ) -> tuple[float, float, float, float]:
+        """
+        Calculate prob for Over/Under 9.5 corners AND expected values.
+        Returns: (over_prob, under_prob, home_expected, away_expected)
+        """
         # PROFITABILITY FIX: Require at least 6 matches for reliable corner stats
         if not home_stats or not away_stats or home_stats.matches_played < 6 or away_stats.matches_played < 6:
-            return (0.0, 0.0)
+            return (0.0, 0.0, 0.0, 0.0)
             
         # Estimate expected corners (Heuristic: Home Avg + Away Avg)
         # Global approx average is ~10.
-        avg_corners = home_stats.avg_corners_per_match + away_stats.avg_corners_per_match
-        if avg_corners == 0: avg_corners = 9.5 # Fallback
+        # We split the total expected between home and away based on their relative contribution
+        home_avg = home_stats.avg_corners_per_match
+        away_avg = away_stats.avg_corners_per_match
+        
+        total_expected = home_avg + away_avg
+        if total_expected == 0: total_expected = 9.5 # Fallback
+        
+        # Simple proportional split
+        if (home_avg + away_avg) > 0:
+            home_expected = total_expected * (home_avg / (home_avg + away_avg))
+            away_expected = total_expected * (away_avg / (home_avg + away_avg))
+        else:
+            home_expected = total_expected / 2
+            away_expected = total_expected / 2
         
         # Use Poisson for > 9.5
         under = 0.0
-        probs = self._get_poisson_distribution(avg_corners, 20)
+        probs = self._get_poisson_distribution(total_expected, 20)
         for k in range(10): # 0 to 9
             under += probs[k]
             
         over = 1.0 - under
-        return (round(over, 4), round(under, 4))
+        return (round(over, 4), round(under, 4), round(home_expected, 1), round(away_expected, 1))
 
     def calculate_card_probabilities(
         self,
         home_stats: Optional[TeamStatistics],
         away_stats: Optional[TeamStatistics],
-    ) -> tuple[float, float]:
-        """Calculate prob for Over/Under 4.5 yellow cards."""
+    ) -> tuple[float, float, float, float]:
+        """
+        Calculate prob for Over/Under 4.5 yellow cards AND expected values.
+        Returns: (over_prob, under_prob, home_expected, away_expected)
+        """
         # PROFITABILITY FIX: Require at least 6 matches for reliable card stats
         if not home_stats or not away_stats or home_stats.matches_played < 6 or away_stats.matches_played < 6:
-            return (0.0, 0.0)
+            return (0.0, 0.0, 0.0, 0.0)
             
         # Estimate expected cards
-        avg_cards = home_stats.avg_yellow_cards_per_match + away_stats.avg_yellow_cards_per_match
-        if avg_cards == 0: avg_cards = 4.0 # Fallback
+        home_avg = home_stats.avg_yellow_cards_per_match
+        away_avg = away_stats.avg_yellow_cards_per_match
+        
+        total_expected = home_avg + away_avg
+        if total_expected == 0: total_expected = 4.0 # Fallback
+        
+        # Simple proportional split
+        if (home_avg + away_avg) > 0:
+            home_expected = total_expected * (home_avg / (home_avg + away_avg))
+            away_expected = total_expected * (away_avg / (home_avg + away_avg))
+        else:
+            home_expected = total_expected / 2
+            away_expected = total_expected / 2
         
         # Use Poisson for > 4.5
         under = 0.0
-        probs = self._get_poisson_distribution(avg_cards, 15)
+        probs = self._get_poisson_distribution(total_expected, 15)
         for k in range(5): # 0 to 4
             under += probs[k]
             
         over = 1.0 - under
-        return (round(over, 4), round(under, 4))
+        return (round(over, 4), round(under, 4), round(home_expected, 1), round(away_expected, 1))
         
     def calculate_handicap_probabilities(
         self,
@@ -732,11 +761,11 @@ class PredictionService:
         if match.home_odds and match.draw_odds and match.away_odds:
             odds_obj = Odds(home=match.home_odds, draw=match.draw_odds, away=match.away_odds)
         
-        # Calculate Over/Under Corners (9.5)
-        over_95_corners, under_95_corners = self.calculate_corner_probabilities(home_stats, away_stats)
+        # Calculate Over/Under Corners (9.5) and Expected Values
+        over_95_corners, under_95_corners, exp_home_corners, exp_away_corners = self.calculate_corner_probabilities(home_stats, away_stats)
         
-        # Calculate Over/Under Cards (4.5)
-        over_45_cards, under_45_cards = self.calculate_card_probabilities(home_stats, away_stats)
+        # Calculate Over/Under Cards (4.5) and Expected Values
+        over_45_cards, under_45_cards, exp_home_cards, exp_away_cards = self.calculate_card_probabilities(home_stats, away_stats)
         
         # Calculate Handicap
         handicap_line, handicap_home, handicap_away = self.calculate_handicap_probabilities(home_expected, away_expected)
@@ -789,7 +818,15 @@ class PredictionService:
             predicted_home_goals=round(home_expected, 2),
             predicted_away_goals=round(away_expected, 2),
             
-            # New Fields
+            # New Projected Stats
+            predicted_home_corners=exp_home_corners,
+            predicted_away_corners=exp_away_corners,
+            predicted_home_yellow_cards=exp_home_cards,
+            predicted_away_yellow_cards=exp_away_cards,
+            predicted_home_red_cards=0.1, # Default low expectation for reds
+            predicted_away_red_cards=0.1,
+            
+            # Standard Probabilities
             over_95_corners_probability=over_95_corners,
             under_95_corners_probability=under_95_corners,
             over_45_cards_probability=over_45_cards,

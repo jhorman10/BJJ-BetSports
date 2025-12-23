@@ -2,9 +2,10 @@
  * Main Application Component
  *
  * Football Betting Prediction Bot - Frontend
+ * Refactored to use Zustand for state management
  */
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Container,
   Box,
@@ -15,22 +16,22 @@ import {
   Button,
   IconButton,
   Tooltip,
+  Snackbar,
 } from "@mui/material";
 import { SportsSoccer, GetApp, SmartToy, Dashboard } from "@mui/icons-material";
-import LeagueSelector from "./components/LeagueSelector";
-import PredictionGrid from "./components/PredictionGrid";
-import LiveMatchesList from "./components/MatchDetails/LiveMatchesList";
-import ParleySlip, { ParleyPickItem } from "./components/Parley/ParleySlip";
-import BotDashboard from "./components/BotDashboard/BotDashboard";
 
-import { Country } from "./types";
-import {
-  useLeagues,
-  usePredictions,
-  useLeagueSelection,
-} from "./hooks/usePredictions";
-import { useTeamSearch } from "./hooks/useTeamSearch";
-import { useLiveMatches } from "./hooks/useLiveMatches";
+// Presentation Components
+import LeagueSelector from "./presentation/components/LeagueSelector";
+import PredictionGrid from "./presentation/components/PredictionGrid";
+import LiveMatchesList from "./presentation/components/MatchDetails/LiveMatchesList";
+import ParleySlip from "./presentation/components/Parley/ParleySlip";
+import BotDashboard from "./presentation/components/BotDashboard/BotDashboard";
+import LiveMatchDetailsModal from "./presentation/components/MatchDetails/LiveMatchDetailsModal";
+
+// Zustand Stores
+import { useUIStore } from "./application/stores/useUIStore";
+import { usePredictionStore } from "./application/stores/usePredictionStore";
+import { useLiveStore } from "./application/stores/useLiveStore";
 
 // Extend window type for PWA install event
 declare global {
@@ -43,32 +44,81 @@ declare global {
   }
 }
 
-// Sort options type
-type SortOption =
-  | "confidence"
-  | "date"
-  | "home_probability"
-  | "away_probability";
-
 const App: React.FC = () => {
-  // Parley State
-  const [selectedParleyPicks, setSelectedParleyPicks] = useState<
-    Map<string, ParleyPickItem>
-  >(new Map());
-  const [isParleySlipOpen, setIsParleySlipOpen] = useState(false);
+  // UI Store
+  const {
+    currentView,
+    setView,
+    showLive,
+    goalToast,
+    closeGoalToast,
+    showGoalToast,
+  } = useUIStore();
 
-  // View State (Predictions vs Bot Dashboard)
-  const [currentView, setCurrentView] = useState<"predictions" | "bot">(
-    "predictions"
-  );
+  // Prediction Store - Fetch leagues on mount
+  const { fetchLeagues, leaguesError, selectedLeague } = usePredictionStore();
+
+  // Live Store
+  const {
+    matches: liveMatches,
+    loading: liveLoading,
+    startPolling,
+    stopPolling,
+  } = useLiveStore();
 
   // PWA Install state
   const [installPrompt, setInstallPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
-  // ... (rest of the code follows)
   const [isInstalled, setIsInstalled] = useState(false);
 
-  // Capture the install prompt event
+  // Goal detection ref
+  const prevScoresRef = useRef<Map<string, { home: number; away: number }>>(
+    new Map()
+  );
+
+  // Initialize data on mount
+  useEffect(() => {
+    fetchLeagues();
+    startPolling(60000); // Poll every 60 seconds
+
+    return () => {
+      stopPolling();
+    };
+  }, [fetchLeagues, startPolling, stopPolling]);
+
+  // Detect goals in live matches
+  useEffect(() => {
+    if (liveLoading) return;
+
+    let goalDetected = false;
+    let message = "";
+
+    liveMatches.forEach((matchPred) => {
+      const match = matchPred.match;
+      const prev = prevScoresRef.current.get(match.id);
+
+      if (prev) {
+        if ((match.home_goals ?? 0) > prev.home) {
+          goalDetected = true;
+          message = `⚽ ¡GOL de ${match.home_team.name}! (${match.home_goals}-${match.away_goals})`;
+        } else if ((match.away_goals ?? 0) > prev.away) {
+          goalDetected = true;
+          message = `⚽ ¡GOL de ${match.away_team.name}! (${match.home_goals}-${match.away_goals})`;
+        }
+      }
+
+      prevScoresRef.current.set(match.id, {
+        home: match.home_goals ?? 0,
+        away: match.away_goals ?? 0,
+      });
+    });
+
+    if (goalDetected) {
+      showGoalToast(message);
+    }
+  }, [liveMatches, liveLoading, showGoalToast]);
+
+  // PWA event handlers
   useEffect(() => {
     const handler = (e: BeforeInstallPromptEvent) => {
       e.preventDefault();
@@ -76,7 +126,6 @@ const App: React.FC = () => {
     };
     window.addEventListener("beforeinstallprompt", handler);
 
-    // Check if already installed
     if (window.matchMedia("(display-mode: standalone)").matches) {
       setIsInstalled(true);
     }
@@ -94,158 +143,17 @@ const App: React.FC = () => {
     setInstallPrompt(null);
   };
 
-  // State and data hooks
-  const {
-    countries,
-    loading: leaguesLoading,
-    error: leaguesError,
-  } = useLeagues();
-  const { selectedCountry, selectedLeague, selectCountry, selectLeague } =
-    useLeagueSelection();
+  // Compute if current league has live matches
+  const currentLeagueHasLiveMatches = useMemo(() => {
+    if (!selectedLeague || liveMatches.length === 0) return false;
 
-  // Live matches detection
-  const { matches: liveMatches, loading: liveLoading } = useLiveMatches();
-
-  // Determine if there are live matches available (filtered by selected league or supported list)
-  const hasLiveMatches = useMemo(() => {
-    if (liveLoading || liveMatches.length === 0) return false;
-
-    // 1. Contextual Check: If a specific league is selected, ONLY show if THAT league has matches
-    if (selectedLeague) {
-      // Try strict ID match
-      const hasIdMatch = liveMatches.some(
-        (m) => m.league_id === selectedLeague.id
-      );
-      if (hasIdMatch) return true;
-
-      // Try Name match
-      return liveMatches.some(
-        (m) =>
-          m.league_name
-            .toLowerCase()
-            .includes(selectedLeague.name.toLowerCase()) ||
-          selectedLeague.name
-            .toLowerCase()
-            .includes(m.league_name.toLowerCase())
-      );
-    }
-
-    // 2. Global Check: If no league selected, ONLY show if match belongs to a supported league
-    // (One of the countries/leagues in our selector)
-    if (!countries || countries.length === 0) return false;
-
-    return liveMatches.some((match) => {
-      return countries.some((country) =>
-        country.leagues.some((league) => {
-          // ID Match
-          if (league.id === match.league_id) return true;
-          // Name Match
-          const lName = league.name.toLowerCase();
-          const mName = match.league_name.toLowerCase();
-          return mName.includes(lName) || lName.includes(mName);
-        })
-      );
+    return liveMatches.some((m) => {
+      if (m.match.league?.id === selectedLeague.id) return true;
+      const lName = selectedLeague.name.toLowerCase();
+      const mName = (m.match.league?.name || "").toLowerCase();
+      return mName.includes(lName) || lName.includes(mName);
     });
-  }, [liveMatches, liveLoading, selectedLeague, countries]);
-
-  // Sorting state
-  const [sortBy, setSortBy] = useState<SortOption>("confidence");
-  // Live view state
-  const [showLive, setShowLive] = useState(false);
-
-  // Search hook
-  const {
-    searchQuery,
-    setSearchQuery,
-    searchMatches,
-    loading: searchLoading,
-    resetSearch,
-  } = useTeamSearch();
-
-  const {
-    predictions,
-    loading: predictionsLoading,
-    error: predictionsError,
-  } = usePredictions(selectedLeague?.id || null, 10, sortBy, true, 300000);
-
-  // Filter countries to show only those with leagues that have predictions
-  // We'll track which leagues have data by checking if predictions were successfully fetched
-  const [leaguesWithData, setLeaguesWithData] = useState<Set<string>>(
-    new Set()
-  );
-
-  // Update leaguesWithData when predictions are successfully loaded
-  useEffect(() => {
-    if (selectedLeague?.id && predictions.length > 0) {
-      setLeaguesWithData((prev) => new Set(prev).add(selectedLeague.id));
-    }
-  }, [selectedLeague?.id, predictions.length]);
-
-  // Filter countries to only show those with leagues that have data
-  const filteredCountries = useMemo(() => {
-    if (leaguesLoading || !countries || countries.length === 0)
-      return countries;
-
-    // If no leagues have been checked yet, show all countries initially
-    if (leaguesWithData.size === 0) return countries;
-
-    // Filter to only show countries where at least one league has data
-    return countries
-      .filter((country) => {
-        return country.leagues.some((league) => leaguesWithData.has(league.id));
-      })
-      .map((country) => ({
-        ...country,
-        // Also filter the leagues within each country
-        leagues: country.leagues.filter((league) =>
-          leaguesWithData.has(league.id)
-        ),
-      }));
-  }, [countries, leaguesWithData, leaguesLoading]);
-
-  // Check if bot dashboard data is available
-  const [hasBotData, setHasBotData] = useState(false);
-
-  useEffect(() => {
-    const checkBotData = () => {
-      // In development, always show bot dashboard (uses real JSON data)
-      if (import.meta.env.DEV) {
-        setHasBotData(true);
-        return;
-      }
-
-      // In production, check localStorage
-      const cached = localStorage.getItem("bot_training_stats");
-      if (cached) {
-        try {
-          const { data } = JSON.parse(cached);
-          const hasData = data?.match_history && data.match_history.length > 0;
-          setHasBotData(hasData);
-        } catch {
-          setHasBotData(false);
-        }
-      } else {
-        setHasBotData(false);
-      }
-    };
-
-    checkBotData();
-    // Check periodically in case data gets loaded
-    const interval = setInterval(checkBotData, 30000); // Check every 30s
-
-    return () => clearInterval(interval);
-  }, []);
-
-  // Handle sort change - this automatically triggers refetch via hook dependency
-  const handleSortChange = (newSortBy: SortOption) => {
-    setSortBy(newSortBy);
-  };
-
-  // Handle country selection
-  const handleCountrySelect = (country: Country | null) => {
-    resetSearch(); // Clear search when selecting country
-    selectCountry(country);
-  };
+  }, [selectedLeague, liveMatches]);
 
   return (
     <Box
@@ -273,29 +181,23 @@ const App: React.FC = () => {
             BJJ - BetSports
           </Typography>
 
-          {/* View Switcher - Only show if bot data available */}
-          {hasBotData && (
-            <Tooltip
-              title={
-                currentView === "predictions"
-                  ? "Ir al Bot de Inversión"
-                  : "Ver Predicciones"
+          <Tooltip
+            title={
+              currentView === "predictions"
+                ? "Ir al Bot de Inversión"
+                : "Ver Predicciones"
+            }
+          >
+            <IconButton
+              onClick={() =>
+                setView(currentView === "predictions" ? "bot" : "predictions")
               }
+              sx={{ color: "white", mr: 1 }}
             >
-              <IconButton
-                onClick={() =>
-                  setCurrentView(
-                    currentView === "predictions" ? "bot" : "predictions"
-                  )
-                }
-                sx={{ color: "white", mr: 1 }}
-              >
-                {currentView === "predictions" ? <SmartToy /> : <Dashboard />}
-              </IconButton>
-            </Tooltip>
-          )}
+              {currentView === "predictions" ? <SmartToy /> : <Dashboard />}
+            </IconButton>
+          </Tooltip>
 
-          {/* PWA Install Button */}
           {installPrompt && !isInstalled && (
             <Button
               variant="outlined"
@@ -354,88 +256,64 @@ const App: React.FC = () => {
                   </Button>
                 }
               >
-                Error al cargar las ligas: {leaguesError.message}. El servidor
-                puede estar iniciándose.
+                Error al cargar las ligas: {leaguesError}. El servidor puede
+                estar iniciándose.
               </Alert>
             ) : (
-              <LeagueSelector
-                countries={filteredCountries}
-                selectedCountry={selectedCountry}
-                selectedLeague={selectedLeague}
-                onCountryChange={handleCountrySelect}
-                onLeagueChange={selectLeague}
-                loading={leaguesLoading}
-                showLive={showLive}
-                onLiveToggle={() => setShowLive(!showLive)}
-                hasLiveMatches={hasLiveMatches}
-              />
+              <LeagueSelector />
             )}
 
             {showLive ? (
               <Box mb={4}>
                 <LiveMatchesList
-                  selectedLeagueIds={selectedLeague ? [selectedLeague.id] : []}
+                  selectedLeagueIds={
+                    selectedLeague && currentLeagueHasLiveMatches
+                      ? [selectedLeague.id]
+                      : []
+                  }
                   selectedLeagueNames={
-                    selectedLeague ? [selectedLeague.name] : []
+                    selectedLeague && currentLeagueHasLiveMatches
+                      ? [selectedLeague.name]
+                      : []
                   }
                 />
               </Box>
             ) : (
               <>
-                {/* Parley Slip replaces auto ParleySection */}
-                <ParleySlip
-                  items={Array.from(selectedParleyPicks.values())}
-                  onRemove={(id) => {
-                    const newMap = new Map(selectedParleyPicks);
-                    newMap.delete(id);
-                    setSelectedParleyPicks(newMap);
-                  }}
-                  onClear={() => setSelectedParleyPicks(new Map())}
-                  isOpen={isParleySlipOpen}
-                  onToggle={() => setIsParleySlipOpen(!isParleySlipOpen)}
-                />
-
-                {/* Predictions Grid */}
-                {(selectedLeague || searchQuery.length > 2) && (
-                  <PredictionGrid
-                    predictions={
-                      searchQuery.length > 2 ? searchMatches : predictions
-                    }
-                    league={selectedLeague}
-                    loading={
-                      searchQuery.length > 2
-                        ? searchLoading
-                        : predictionsLoading
-                    }
-                    error={searchQuery.length > 2 ? null : predictionsError}
-                    sortBy={sortBy}
-                    onSortChange={handleSortChange}
-                    searchQuery={searchQuery}
-                    onSearchChange={setSearchQuery}
-                    selectedMatchIds={Array.from(selectedParleyPicks.keys())}
-                    onToggleMatchSelection={(match, pick) => {
-                      const newMap = new Map(selectedParleyPicks);
-                      if (newMap.has(match.match.id)) {
-                        newMap.delete(match.match.id);
-                      } else {
-                        if (newMap.size >= 10) {
-                          alert("Máximo 10 selecciones permitidas");
-                          return;
-                        }
-
-                        if (pick) {
-                          newMap.set(match.match.id, pick);
-                          if (!isParleySlipOpen) setIsParleySlipOpen(true);
-                        }
-                      }
-                      setSelectedParleyPicks(newMap);
-                    }}
-                  />
-                )}
+                <ParleySlip />
+                <PredictionGrid />
               </>
             )}
           </>
         )}
+
+        {/* Live Match Details Modal - Now uses internal store */}
+        <React.Suspense fallback={null}>
+          <LiveMatchDetailsModal />
+        </React.Suspense>
+
+        {/* Goal Notification Toast */}
+        <Snackbar
+          open={goalToast.open}
+          autoHideDuration={5000}
+          onClose={closeGoalToast}
+          anchorOrigin={{ vertical: "top", horizontal: "right" }}
+        >
+          <Alert
+            onClose={closeGoalToast}
+            severity="success"
+            variant="filled"
+            sx={{
+              width: "100%",
+              bgcolor: "#10b981",
+              color: "white",
+              fontWeight: 700,
+            }}
+            icon={<SportsSoccer fontSize="inherit" />}
+          >
+            {goalToast.message}
+          </Alert>
+        </Snackbar>
 
         {/* Footer */}
         <Box

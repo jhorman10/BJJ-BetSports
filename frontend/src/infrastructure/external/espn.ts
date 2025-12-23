@@ -1,27 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
-import api from "../services/api";
-import { MatchPrediction } from "../types";
-
-// Local interface until backend adds new fields
-export interface LiveMatch {
-  id: string;
-  home_team: string;
-  away_team: string;
-  home_score: number;
-  away_score: number;
-  minute: number;
-  league_id: string;
-  league_name: string;
-  league_flag?: string;
-  status: "LIVE" | "HT" | "FT" | "BREAK";
-  home_corners: number;
-  away_corners: number;
-  home_yellow_cards: number;
-  away_yellow_cards: number;
-  home_red_cards: number;
-  away_red_cards: number;
-  prediction?: MatchPrediction["prediction"];
-}
+import { LiveMatchPrediction } from "../../domain/entities";
 
 // --- Interfaces for ESPN API ---
 interface ESPNTeam {
@@ -89,7 +66,8 @@ interface MatchToEnrich {
 }
 
 // --- Cache Simple para API Pública ---
-let publicApiCache: { data: LiveMatch[]; timestamp: number } | null = null;
+let publicApiCache: { data: LiveMatchPrediction[]; timestamp: number } | null =
+  null;
 const CACHE_DURATION = 10000; // 10 segundos de caché para mayor precisión
 
 // Helper para extraer estadísticas del boxscore (Summary API)
@@ -109,7 +87,9 @@ const extractStat = (
 };
 
 // --- API Pública de Respaldo (ESPN) ---
-const fetchPublicLiveMatches = async (): Promise<LiveMatch[]> => {
+export const fetchESPNLiveMatches = async (): Promise<
+  LiveMatchPrediction[]
+> => {
   const now = Date.now();
   if (publicApiCache && now - publicApiCache.timestamp < CACHE_DURATION) {
     return publicApiCache.data;
@@ -164,7 +144,7 @@ const fetchPublicLiveMatches = async (): Promise<LiveMatch[]> => {
     );
 
     const responses = await Promise.all(requests);
-    const liveMatches: LiveMatch[] = [];
+    const liveMatches: LiveMatchPrediction[] = [];
     const matchesToEnrich: MatchToEnrich[] = [];
     const detailRequests: Promise<ESPNSummaryResponse | null>[] = [];
 
@@ -208,29 +188,63 @@ const fetchPublicLiveMatches = async (): Promise<LiveMatch[]> => {
 
       if (home && away) {
         const status = event.status?.type?.state;
+
+        // Construct the LiveMatchPrediction object manually to match domain entity
         liveMatches.push({
-          id: event.id,
-          home_team: home.team?.displayName || "Local",
-          away_team: away.team?.displayName || "Visitante",
-          home_score: parseInt(home.score || "0"),
-          away_score: parseInt(away.score || "0"),
-          minute: parseInt(event.status?.displayClock?.replace("'", "") || "0"),
-          league_id: leagueId,
-          league_name: leagueName,
-          status: status === "ht" ? "HT" : "LIVE",
-          // Extraer estadísticas del boxscore (summary)
-          home_corners: extractStat(boxscore, home.team.id, [
-            "corners",
-            "wonCorners",
-          ]),
-          away_corners: extractStat(boxscore, away.team.id, [
-            "corners",
-            "wonCorners",
-          ]),
-          home_yellow_cards: extractStat(boxscore, home.team.id, "yellowCards"),
-          away_yellow_cards: extractStat(boxscore, away.team.id, "yellowCards"),
-          home_red_cards: extractStat(boxscore, home.team.id, "redCards"),
-          away_red_cards: extractStat(boxscore, away.team.id, "redCards"),
+          match: {
+            id: event.id,
+            home_team: {
+              id: home.team.id,
+              name: home.team?.displayName || "Local",
+            },
+            away_team: {
+              id: away.team.id,
+              name: away.team?.displayName || "Visitante",
+            },
+            league: { id: leagueId, name: leagueName, country: "" },
+            match_date: new Date().toISOString(), // Approximation
+            home_goals: parseInt(home.score || "0"),
+            away_goals: parseInt(away.score || "0"),
+            status: status === "ht" ? "HT" : "LIVE",
+            home_corners: extractStat(boxscore, home.team.id, [
+              "corners",
+              "wonCorners",
+            ]),
+            away_corners: extractStat(boxscore, away.team.id, [
+              "corners",
+              "wonCorners",
+            ]),
+            home_yellow_cards: extractStat(
+              boxscore,
+              home.team.id,
+              "yellowCards"
+            ),
+            away_yellow_cards: extractStat(
+              boxscore,
+              away.team.id,
+              "yellowCards"
+            ),
+            home_red_cards: extractStat(boxscore, home.team.id, "redCards"),
+            away_red_cards: extractStat(boxscore, away.team.id, "redCards"),
+          },
+          prediction: {
+            match_id: event.id,
+            home_win_probability: 0,
+            draw_probability: 0,
+            away_win_probability: 0,
+            over_25_probability: 0,
+            under_25_probability: 0,
+            predicted_home_goals: 0,
+            predicted_away_goals: 0,
+            confidence: 0,
+            data_sources: ["ESPN"],
+            recommended_bet: "N/A",
+            over_under_recommendation: "N/A",
+            created_at: new Date().toISOString(),
+          },
+          // Custom property for minute if we want to add it to domain later, or check if Match already supports it.
+          // The Match entity doesn't have 'minute', maybe we should add it or use status.
+          // For now, let's keep it simple.
         });
       }
     });
@@ -241,74 +255,4 @@ const fetchPublicLiveMatches = async (): Promise<LiveMatch[]> => {
     console.error("Error consultando API pública:", error);
     return [];
   }
-};
-
-export const useLiveMatches = () => {
-  const [matches, setMatches] = useState<LiveMatch[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchLiveMatches = useCallback(async () => {
-    setLoading(true);
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 600));
-
-      console.log("Iniciando carga de partidos en vivo...");
-
-      try {
-        if (typeof api.getLiveMatches !== "function")
-          throw new Error("API method missing");
-
-        const data = await api.getLiveMatches();
-
-        let liveMatches: LiveMatch[] = Array.isArray(data)
-          ? data.map((match: any) => ({
-              id: match.id,
-              home_team: match.home_team?.name || match.home_team || "Local",
-              away_team:
-                match.away_team?.name || match.away_team || "Visitante",
-              home_score: match.home_goals ?? match.home_score ?? 0,
-              away_score: match.away_goals ?? match.away_score ?? 0,
-              minute: match.minute || 0,
-              league_id: match.league?.id || "unknown",
-              league_name: match.league?.name || "Liga Desconocida",
-              league_flag: match.league?.flag || match.league?.logo || null,
-              status: (match.status as LiveMatch["status"]) || "LIVE",
-              home_corners: match.home_corners || 0,
-              away_corners: match.away_corners || 0,
-              home_yellow_cards: match.home_yellow_cards || 0,
-              away_yellow_cards: match.away_yellow_cards || 0,
-              home_red_cards: match.home_red_cards || 0,
-              away_red_cards: match.away_red_cards || 0,
-              prediction: match.prediction,
-            }))
-          : [];
-
-        if (liveMatches.length === 0) {
-          console.log("Backend vacío. Buscando en API pública (ESPN)...");
-          const publicMatches = await fetchPublicLiveMatches();
-          liveMatches = publicMatches;
-        }
-
-        setMatches(liveMatches);
-        setError(null);
-      } catch (err) {
-        console.error("Error cargando partidos en vivo:", err);
-        setMatches([]); // En caso de error, mostrar vacío en lugar de datos falsos
-        setError(null);
-      } finally {
-        setLoading(false);
-      }
-    } catch (e) {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchLiveMatches();
-    const interval = setInterval(fetchLiveMatches, 60000);
-    return () => clearInterval(interval);
-  }, [fetchLiveMatches]);
-
-  return { matches, loading, error, refresh: fetchLiveMatches };
 };
