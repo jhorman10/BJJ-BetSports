@@ -317,6 +317,11 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
               </Typography>
             </Box>
             <CardContent>
+              {/* Teams */}
+              <Typography variant="body2" fontWeight={600} color="white" mb={1}>
+                {match.home_team} vs {match.away_team}
+              </Typography>
+
               {/* Score */}
               <Typography variant="h6" fontWeight={700} color="#10b981" mb={1}>
                 {match.actual_home_goals} - {match.actual_away_goals}
