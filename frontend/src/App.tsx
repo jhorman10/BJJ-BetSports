@@ -106,10 +106,47 @@ const App: React.FC = () => {
   // Live matches detection
   const { matches: liveMatches, loading: liveLoading } = useLiveMatches();
 
-  // Determine if there are live matches available
+  // Determine if there are live matches available (filtered by selected league or supported list)
   const hasLiveMatches = useMemo(() => {
-    return !liveLoading && liveMatches.length > 0;
-  }, [liveMatches, liveLoading]);
+    if (liveLoading || liveMatches.length === 0) return false;
+
+    // 1. Contextual Check: If a specific league is selected, ONLY show if THAT league has matches
+    if (selectedLeague) {
+      // Try strict ID match
+      const hasIdMatch = liveMatches.some(
+        (m) => m.league_id === selectedLeague.id
+      );
+      if (hasIdMatch) return true;
+
+      // Try Name match
+      return liveMatches.some(
+        (m) =>
+          m.league_name
+            .toLowerCase()
+            .includes(selectedLeague.name.toLowerCase()) ||
+          selectedLeague.name
+            .toLowerCase()
+            .includes(m.league_name.toLowerCase())
+      );
+    }
+
+    // 2. Global Check: If no league selected, ONLY show if match belongs to a supported league
+    // (One of the countries/leagues in our selector)
+    if (!countries || countries.length === 0) return false;
+
+    return liveMatches.some((match) => {
+      return countries.some((country) =>
+        country.leagues.some((league) => {
+          // ID Match
+          if (league.id === match.league_id) return true;
+          // Name Match
+          const lName = league.name.toLowerCase();
+          const mName = match.league_name.toLowerCase();
+          return mName.includes(lName) || lName.includes(mName);
+        })
+      );
+    });
+  }, [liveMatches, liveLoading, selectedLeague, countries]);
 
   // Sorting state
   const [sortBy, setSortBy] = useState<SortOption>("confidence");
