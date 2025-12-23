@@ -343,20 +343,24 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                   mb={0.5}
                 >
                   →{" "}
-                  {getWinnerLabel(
-                    match.actual_winner,
-                    match.home_team,
-                    match.away_team
-                  )}{" "}
+                  <Typography component="span" fontWeight={700}>
+                    {getWinnerLabel(
+                      match.actual_winner,
+                      match.home_team,
+                      match.away_team
+                    )}
+                  </Typography>{" "}
                   ganó
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   ◆ Predicción:{" "}
-                  {getWinnerLabel(
-                    match.predicted_winner,
-                    match.home_team,
-                    match.away_team
-                  )}
+                  <Typography component="span" fontWeight={600}>
+                    {getWinnerLabel(
+                      match.predicted_winner,
+                      match.home_team,
+                      match.away_team
+                    )}
+                  </Typography>
                 </Typography>
               </Box>
 
