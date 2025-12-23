@@ -246,7 +246,7 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
             }}
           >
             <CardContent>
-              {/* Header: Chip (left) and Teams (right) */}
+              {/* Header: Teams (left) and Chip (right) */}
               <Box
                 display="flex"
                 justifyContent="space-between"
@@ -255,8 +255,23 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                 flexWrap="wrap"
                 gap={1}
               >
+                {/* Teams */}
+                <Typography
+                  variant="body2"
+                  fontWeight={600}
+                  color="white"
+                  textAlign="left"
+                >
+                  {match.home_team} vs {match.away_team}
+                </Typography>
+
                 {/* Chip and Date */}
-                <Box display="flex" flexDirection="column" gap="5px">
+                <Box
+                  display="flex"
+                  flexDirection="column"
+                  gap="5px"
+                  alignItems="flex-end"
+                >
                   {match.suggested_pick ? (
                     match.pick_was_correct ? (
                       <Chip
@@ -314,16 +329,6 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                     {formatDate(match.match_date)}
                   </Typography>
                 </Box>
-
-                {/* Teams */}
-                <Typography
-                  variant="body2"
-                  fontWeight={600}
-                  color="white"
-                  textAlign="right"
-                >
-                  {match.home_team} vs {match.away_team}
-                </Typography>
               </Box>
 
               {/* Score */}
