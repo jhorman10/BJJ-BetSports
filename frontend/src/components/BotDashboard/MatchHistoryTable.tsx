@@ -10,6 +10,8 @@ import {
   Chip,
   Typography,
   Box,
+  Card,
+  CardContent,
 } from "@mui/material";
 import { CheckCircle, Cancel } from "@mui/icons-material";
 
@@ -65,86 +67,228 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
   }
 
   return (
-    <TableContainer
-      component={Paper}
-      sx={{
-        bgcolor: "rgba(30, 41, 59, 0.6)",
-        backdropFilter: "blur(10px)",
-        border: "1px solid rgba(148, 163, 184, 0.1)",
-      }}
-    >
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            <TableCell sx={{ color: "text.secondary", fontWeight: 600 }}>
-              Fecha
-            </TableCell>
-            <TableCell sx={{ color: "text.secondary", fontWeight: 600 }}>
-              Partido
-            </TableCell>
-            <TableCell
-              align="center"
-              sx={{ color: "text.secondary", fontWeight: 600 }}
-            >
-              Resultado
-            </TableCell>
-            <TableCell sx={{ color: "text.secondary", fontWeight: 600 }}>
-              Predicción
-            </TableCell>
-            <TableCell sx={{ color: "text.secondary", fontWeight: 600 }}>
-              Pick Sugerido
-            </TableCell>
-            <TableCell
-              align="center"
-              sx={{ color: "text.secondary", fontWeight: 600 }}
-            >
-              Estado
-            </TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {matches.map((match) => (
-            <TableRow
-              key={match.match_id}
-              sx={{
-                "&:hover": {
-                  bgcolor: "rgba(148, 163, 184, 0.05)",
-                },
-              }}
-            >
-              <TableCell sx={{ color: "white" }}>
-                {formatDate(match.match_date)}
-              </TableCell>
-              <TableCell sx={{ color: "white" }}>
-                <Typography variant="body2" fontWeight={500}>
+    <>
+      {/* Desktop Table View */}
+      <Box sx={{ display: { xs: "none", md: "block" } }}>
+        <TableContainer
+          component={Paper}
+          sx={{
+            bgcolor: "rgba(30, 41, 59, 0.6)",
+            backdropFilter: "blur(10px)",
+            border: "1px solid rgba(148, 163, 184, 0.1)",
+          }}
+        >
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ color: "text.secondary", fontWeight: 600 }}>
+                  Fecha
+                </TableCell>
+                <TableCell sx={{ color: "text.secondary", fontWeight: 600 }}>
+                  Partido
+                </TableCell>
+                <TableCell
+                  align="center"
+                  sx={{ color: "text.secondary", fontWeight: 600 }}
+                >
+                  Resultado
+                </TableCell>
+                <TableCell sx={{ color: "text.secondary", fontWeight: 600 }}>
+                  Predicción
+                </TableCell>
+                <TableCell sx={{ color: "text.secondary", fontWeight: 600 }}>
+                  Pick Sugerido
+                </TableCell>
+                <TableCell
+                  align="center"
+                  sx={{ color: "text.secondary", fontWeight: 600 }}
+                >
+                  Estado
+                </TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {matches.map((match) => (
+                <TableRow
+                  key={match.match_id}
+                  sx={{
+                    "&:hover": {
+                      bgcolor: "rgba(148, 163, 184, 0.05)",
+                    },
+                  }}
+                >
+                  <TableCell sx={{ color: "white" }}>
+                    {formatDate(match.match_date)}
+                  </TableCell>
+                  <TableCell sx={{ color: "white" }}>
+                    <Typography variant="body2" fontWeight={500}>
+                      {match.home_team} vs {match.away_team}
+                    </Typography>
+                  </TableCell>
+                  <TableCell align="center">
+                    <Typography
+                      variant="body2"
+                      fontWeight={700}
+                      sx={{ color: "#10b981" }}
+                    >
+                      {match.actual_home_goals} - {match.actual_away_goals}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" color="text.secondary">
+                      {getWinnerLabel(
+                        match.predicted_winner,
+                        match.home_team,
+                        match.away_team
+                      )}
+                    </Typography>
+                    <Typography variant="caption" color="text.disabled">
+                      ({match.predicted_home_goals.toFixed(1)} -{" "}
+                      {match.predicted_away_goals.toFixed(1)})
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    {match.suggested_pick ? (
+                      <Box>
+                        <Typography
+                          variant="body2"
+                          fontWeight={600}
+                          color="#fbbf24"
+                        >
+                          {match.suggested_pick}
+                        </Typography>
+                        {match.expected_value && (
+                          <Typography variant="caption" color="text.disabled">
+                            EV: +{match.expected_value.toFixed(1)}%
+                          </Typography>
+                        )}
+                      </Box>
+                    ) : (
+                      <Typography variant="caption" color="text.disabled">
+                        No pick
+                      </Typography>
+                    )}
+                  </TableCell>
+                  <TableCell align="center">
+                    {match.suggested_pick ? (
+                      // Show pick status if there was a value bet
+                      match.pick_was_correct ? (
+                        <Chip
+                          icon={<CheckCircle />}
+                          label="Pick Ganador"
+                          color="success"
+                          size="small"
+                          sx={{
+                            bgcolor: "rgba(34, 197, 94, 0.2)",
+                            color: "#10b981",
+                            fontWeight: 600,
+                          }}
+                        />
+                      ) : (
+                        <Chip
+                          icon={<Cancel />}
+                          label="Pick Perdedor"
+                          color="error"
+                          size="small"
+                          sx={{
+                            bgcolor: "rgba(239, 68, 68, 0.2)",
+                            color: "#ef4444",
+                            fontWeight: 600,
+                          }}
+                        />
+                      )
+                    ) : // Show prediction status if no value bet
+                    match.was_correct ? (
+                      <Chip
+                        icon={<CheckCircle />}
+                        label="Acertada"
+                        color="success"
+                        size="small"
+                        variant="outlined"
+                        sx={{
+                          borderColor: "rgba(34, 197, 94, 0.3)",
+                          color: "#10b981",
+                          fontWeight: 600,
+                        }}
+                      />
+                    ) : (
+                      <Chip
+                        icon={<Cancel />}
+                        label="Errada"
+                        color="error"
+                        size="small"
+                        variant="outlined"
+                        sx={{
+                          borderColor: "rgba(239, 68, 68, 0.3)",
+                          color: "#ef4444",
+                          fontWeight: 600,
+                        }}
+                      />
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Box>
+
+      {/* Mobile Card View */}
+      <Box sx={{ display: { xs: "block", md: "none" } }}>
+        {matches.map((match) => (
+          <Card
+            key={match.match_id}
+            sx={{
+              mb: 2,
+              bgcolor: "rgba(30, 41, 59, 0.6)",
+              backdropFilter: "blur(10px)",
+              border: "1px solid rgba(148, 163, 184, 0.1)",
+            }}
+          >
+            <CardContent>
+              {/* Header: Teams and Date */}
+              <Box
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+                mb={1}
+              >
+                <Typography variant="body2" fontWeight={600} color="white">
                   {match.home_team} vs {match.away_team}
                 </Typography>
-              </TableCell>
-              <TableCell align="center">
-                <Typography
-                  variant="body2"
-                  fontWeight={700}
-                  sx={{ color: "#10b981" }}
-                >
-                  {match.actual_home_goals} - {match.actual_away_goals}
+                <Typography variant="caption" color="text.secondary">
+                  {formatDate(match.match_date)}
                 </Typography>
-              </TableCell>
-              <TableCell>
+              </Box>
+
+              {/* Score */}
+              <Typography variant="h6" fontWeight={700} color="#10b981" mb={1}>
+                {match.actual_home_goals} - {match.actual_away_goals}
+              </Typography>
+
+              {/* Prediction */}
+              <Box mb={1}>
+                <Typography variant="caption" color="text.disabled">
+                  Predicción:
+                </Typography>
                 <Typography variant="body2" color="text.secondary">
                   {getWinnerLabel(
                     match.predicted_winner,
                     match.home_team,
                     match.away_team
-                  )}
-                </Typography>
-                <Typography variant="caption" color="text.disabled">
+                  )}{" "}
                   ({match.predicted_home_goals.toFixed(1)} -{" "}
                   {match.predicted_away_goals.toFixed(1)})
                 </Typography>
-              </TableCell>
-              <TableCell>
-                {match.suggested_pick ? (
-                  <Box>
+              </Box>
+
+              {/* Suggested Pick */}
+              {match.suggested_pick && (
+                <Box mb={1}>
+                  <Typography variant="caption" color="text.disabled">
+                    Pick Sugerido:
+                  </Typography>
+                  <Box display="flex" alignItems="center" gap={1}>
                     <Typography
                       variant="body2"
                       fontWeight={600}
@@ -158,15 +302,12 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                       </Typography>
                     )}
                   </Box>
-                ) : (
-                  <Typography variant="caption" color="text.disabled">
-                    No pick
-                  </Typography>
-                )}
-              </TableCell>
-              <TableCell align="center">
+                </Box>
+              )}
+
+              {/* Status */}
+              <Box mt={2}>
                 {match.suggested_pick ? (
-                  // Show pick status if there was a value bet
                   match.pick_was_correct ? (
                     <Chip
                       icon={<CheckCircle />}
@@ -192,8 +333,7 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                       }}
                     />
                   )
-                ) : // Show prediction status if no value bet
-                match.was_correct ? (
+                ) : match.was_correct ? (
                   <Chip
                     icon={<CheckCircle />}
                     label="Acertada"
@@ -220,12 +360,12 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                     }}
                   />
                 )}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
+              </Box>
+            </CardContent>
+          </Card>
+        ))}
+      </Box>
+    </>
   );
 };
 
