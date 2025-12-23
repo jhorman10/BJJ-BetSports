@@ -532,7 +532,10 @@ const BotDashboard: React.FC = () => {
       setYearMode(newMode);
       const currentYear = new Date().getFullYear();
       const targetYear = newMode === "current" ? currentYear : currentYear - 1;
-      setStartDate(`${targetYear}-01-01`);
+
+      // Mantener el mes y día actuales si es posible, o resetear a inicio de año
+      const currentMonthDay = startDate.substring(5); // "-11-01"
+      setStartDate(`${targetYear}${currentMonthDay}`);
     }
   };
 
