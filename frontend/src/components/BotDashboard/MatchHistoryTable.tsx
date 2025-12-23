@@ -50,8 +50,10 @@ const getWinnerLabel = (
   homeTeam: string,
   awayTeam: string
 ): string => {
-  if (winner === "home") return homeTeam;
-  if (winner === "away") return awayTeam;
+  // Backend sends "1" (home), "X" (draw), "2" (away)
+  if (winner === "1" || winner === "home") return homeTeam;
+  if (winner === "2" || winner === "away") return awayTeam;
+  if (winner === "X" || winner === "draw") return "Empate";
   return "Empate";
 };
 
