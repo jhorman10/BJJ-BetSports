@@ -139,52 +139,81 @@ const BotDashboard: React.FC = () => {
     [startDate]
   );
 
-  // Run training analysis
-  const runTraining = React.useCallback(async () => {
-    setLoading(true);
+  // Run training analysis - try cached first, then calculate if needed
+  const runTraining = React.useCallback(
+    async (forceRecalculate = false) => {
+      setLoading(true);
 
-    const daysBack = getDaysBack();
+      const daysBack = getDaysBack();
 
-    try {
-      const data = await api.post<TrainingStatus>("/train", {
-        league_ids: ["E0", "SP1", "D1", "I1", "F1"],
-        days_back: daysBack,
-        start_date: startDate,
-        reset_weights: false,
-      });
+      try {
+        // First, try to get cached results (instant)
+        if (!forceRecalculate) {
+          try {
+            const cachedResponse = await api.get<{
+              cached: boolean;
+              data: TrainingStatus | null;
+              last_update: string | null;
+            }>("/train/cached");
 
-      setStats(data);
-      const now = new Date();
-      setLastUpdate(now);
+            if (cachedResponse.cached && cachedResponse.data) {
+              setStats(cachedResponse.data);
+              setLastUpdate(
+                cachedResponse.last_update
+                  ? new Date(cachedResponse.last_update)
+                  : new Date()
+              );
+              setLoading(false);
+              return; // Use cached data
+            }
+          } catch {
+            // Cache endpoint failed, continue to POST /train
+            console.log("No cached training data, calculating...");
+          }
+        }
 
-      // Cache the results
-      localStorage.setItem(
-        "bot_training_stats",
-        JSON.stringify({ data, timestamp: now.toISOString() })
-      );
-
-      // Show notification if supported
-      if ("Notification" in window && Notification.permission === "granted") {
-        new Notification("Análisis Completado", {
-          body: `ROI: ${data.roi > 0 ? "+" : ""}${data.roi.toFixed(
-            1
-          )}% | Precisión: ${(data.accuracy * 100).toFixed(1)}%`,
-          icon: "/favicon.ico",
+        // No cache or force recalculate - run full training
+        const data = await api.post<TrainingStatus>("/train", {
+          league_ids: ["E0", "SP1", "D1", "I1", "F1"],
+          days_back: daysBack,
+          start_date: startDate,
+          reset_weights: false,
         });
-      }
-    } catch (err: any) {
-      console.error("Training error:", err);
 
-      // Fallback to mock data in DEV if API fails
-      if (import.meta.env.DEV) {
-        const mockStats = await generateMockData(daysBack);
-        setStats(mockStats);
-        setLastUpdate(new Date());
+        setStats(data);
+        const now = new Date();
+        setLastUpdate(now);
+
+        // Cache the results locally too
+        localStorage.setItem(
+          "bot_training_stats",
+          JSON.stringify({ data, timestamp: now.toISOString() })
+        );
+
+        // Show notification if supported
+        if ("Notification" in window && Notification.permission === "granted") {
+          new Notification("Análisis Completado", {
+            body: `ROI: ${data.roi > 0 ? "+" : ""}${data.roi.toFixed(
+              1
+            )}% | Precisión: ${(data.accuracy * 100).toFixed(1)}%`,
+            icon: "/favicon.ico",
+          });
+        }
+      } catch (err: unknown) {
+        console.error("Training error:", err);
+
+        // Fallback to mock data in DEV if API fails
+        if (import.meta.env.DEV) {
+          const mockStats = await generateMockData(daysBack);
+          setStats(mockStats);
+          setLastUpdate(new Date());
+        }
+      } finally {
+        setLoading(false);
       }
-    } finally {
-      setLoading(false);
-    }
-  }, [getDaysBack, generateMockData, startDate]);
+    },
+    [getDaysBack, generateMockData, startDate]
+  );
 
   // Auto-run training when date changes
   React.useEffect(() => {
@@ -216,7 +245,7 @@ const BotDashboard: React.FC = () => {
               <CircularProgress size={40} sx={{ color: "#fbbf24" }} />
             ) : (
               <Tooltip title="Recalcular data del modelo">
-                <IconButton onClick={runTraining} sx={{ p: 0 }}>
+                <IconButton onClick={() => runTraining(true)} sx={{ p: 0 }}>
                   <SmartToy
                     sx={{
                       fontSize: 40,

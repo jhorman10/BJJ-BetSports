@@ -189,7 +189,7 @@ export const api = {
    * Generic POST method for flexibility
    * Automatically increases timeout for /train endpoint (5 minutes)
    */
-  async post<T>(endpoint: string, data?: any): Promise<T> {
+  async post<T>(endpoint: string, data?: unknown): Promise<T> {
     // Use extended timeout for training endpoint (only runs once per day)
     const config = endpoint === "/train" ? { timeout: 300000 } : {}; // 5 minutes for /train
     const response = await apiClient.post<T>(
@@ -197,6 +197,14 @@ export const api = {
       data,
       config
     );
+    return response.data;
+  },
+
+  /**
+   * Generic GET method for flexibility
+   */
+  async get<T>(endpoint: string): Promise<T> {
+    const response = await apiClient.get<T>(`/api/v1${endpoint}`);
     return response.data;
   },
 };
