@@ -14,6 +14,10 @@ from src.application.dtos.dtos import (
 )
 from src.api.dependencies import get_data_sources, get_prediction_service
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 
 router = APIRouter(prefix="/predictions", tags=["Predictions"])
 
@@ -50,10 +54,34 @@ async def get_league_predictions(
             return PredictionsResponseDTO(**cached_result)
         return cached_result
     
-    raise HTTPException(
-        status_code=404, 
-        detail=f"No pre-calculated forecasts available for league {league_id} for today ({today_str})."
-    )
+    # FALLBACK: Calculate predictions in real-time if no pre-calculated data
+    logger.info(f"No pre-calculated data for {league_id}. Calculating in real-time...")
+    
+    from src.api.dependencies import get_data_sources, get_prediction_service
+    from src.domain.services.statistics_service import StatisticsService
+    from src.application.use_cases.use_cases import GetPredictionsUseCase
+    
+    try:
+        data_sources = get_data_sources()
+        prediction_service = get_prediction_service()
+        statistics_service = StatisticsService()
+        
+        use_case = GetPredictionsUseCase(data_sources, prediction_service, statistics_service)
+        result = await use_case.execute(league_id, limit=30)
+        
+        # Cache the result for future requests
+        cache.set(cache_key, result.model_dump(), cache.TTL_PREDICTIONS)
+        
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to calculate predictions for {league_id}: {e}")
+        raise HTTPException(
+            status_code=404, 
+            detail=f"No predictions available for league {league_id}. Error: {str(e)}"
+        )
+
 
 
 @router.get(
