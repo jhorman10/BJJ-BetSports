@@ -457,7 +457,24 @@ const MatchCard: React.FC<MatchCardProps> = memo(
             <Typography variant="subtitle2" color="text.secondary" mb={1}>
               Recomendación
             </Typography>
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            <Stack
+              direction="row"
+              spacing={1}
+              flexWrap="wrap"
+              useFlexGap
+              sx={{
+                gap: 1,
+                "& .MuiChip-root": {
+                  maxWidth: "100%",
+                  height: "auto",
+                  "& .MuiChip-label": {
+                    whiteSpace: "normal",
+                    wordBreak: "break-word",
+                    padding: "6px 10px",
+                  },
+                },
+              }}
+            >
               <Chip
                 label={prediction.recommended_bet}
                 color="primary"

@@ -745,12 +745,18 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                                 alignItems: "center",
                                 gap: 0.5,
                                 flexWrap: "wrap",
+                                wordBreak: "break-word",
+                                overflowWrap: "break-word",
                               }}
                             >
-                              <span style={{ fontSize: "1.2em" }}>
+                              <span
+                                style={{ fontSize: "1.2em", flexShrink: 0 }}
+                              >
                                 {getMarketIcon(pick.market_type)}
                               </span>{" "}
-                              {pick.market_type?.replace(/_/g, " ")}
+                              <span style={{ wordBreak: "break-word" }}>
+                                {pick.market_type?.replace(/_/g, " ")}
+                              </span>
                               {pick.is_contrarian && (
                                 <Chip
                                   label="VALUE BET"
@@ -762,6 +768,7 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                                     height: 20,
                                     fontWeight: 700,
                                     border: "1px solid rgba(139, 92, 246, 0.3)",
+                                    flexShrink: 0,
                                   }}
                                 />
                               )}
@@ -787,6 +794,11 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                             fontWeight={700}
                             color={pick.was_correct ? "#10b981" : "#ef4444"}
                             mb={1}
+                            sx={{
+                              wordBreak: "break-word",
+                              overflowWrap: "break-word",
+                              hyphens: "auto",
+                            }}
                           >
                             {pick.market_label}
                           </Typography>

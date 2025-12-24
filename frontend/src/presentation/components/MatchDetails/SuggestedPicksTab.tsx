@@ -57,9 +57,8 @@ const PickRow: React.FC<{ pick: SuggestedPick }> = memo(({ pick }) => {
               fontWeight: 600,
               color: "#ffffff",
               fontSize: "0.85rem",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
+              wordBreak: "break-word",
+              overflowWrap: "break-word",
             }}
           >
             {pick.market_label}
