@@ -7,13 +7,13 @@ import {
   CircularProgress,
   Stack,
   Chip,
-  Grid,
   LinearProgress,
   Skeleton,
   Tooltip,
   IconButton,
   Fade,
 } from "@mui/material";
+import Grid from "@mui/material/Grid";
 import {
   LiveTv,
   Refresh,
@@ -421,7 +421,7 @@ const LiveMatches: React.FC = () => {
         {/* Skeleton Grid */}
         <Grid container spacing={2}>
           {[...Array(3)].map((_, i) => (
-            <Grid item xs={12} md={6} lg={4} key={i}>
+            <Grid size={{ xs: 12, md: 6, lg: 4 }} key={i}>
               <MatchCardSkeleton />
             </Grid>
           ))}
@@ -496,10 +496,7 @@ const LiveMatches: React.FC = () => {
       <Grid container spacing={2}>
         {matches.map((matchData) => (
           <Grid
-            item
-            xs={12}
-            md={6}
-            lg={4}
+            size={{ xs: 12, md: 6, lg: 4 }}
             key={matchData.id || (matchData as any).match?.id}
           >
             <LiveMatchCard matchData={matchData} />

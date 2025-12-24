@@ -3,11 +3,47 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { useLiveMatches } from "../../../hooks/useLiveMatches";
 import api from "../../../services/api";
 
-vi.mock("../../services/api", () => ({
-  default: {
-    getLiveMatches: vi.fn(),
-  },
-}));
+vi.mock("../../../services/api", () => {
+  return {
+    __esModule: true,
+    api: {
+      getLiveMatches: vi.fn(),
+    },
+    default: {
+      getLiveMatches: vi.fn(),
+    },
+  };
+});
+
+// Mock global fetch
+global.fetch = vi.fn().mockResolvedValue({
+  ok: true,
+  json: async () => ({
+    leagues: [{ name: "Test League", slug: "test-league" }],
+    events: [
+      {
+        id: "test-event",
+        status: { type: { state: "in" }, displayClock: "10'" },
+        competitions: [
+          {
+            competitors: [
+              {
+                homeAway: "home",
+                team: { id: "1", displayName: "Home" },
+                score: "1",
+              },
+              {
+                homeAway: "away",
+                team: { id: "2", displayName: "Away" },
+                score: "0",
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  }),
+});
 
 describe("useLiveMatches Hook", () => {
   beforeEach(() => {

@@ -1,5 +1,6 @@
 import React, { lazy, Suspense } from "react";
-import { Grid, Box, Skeleton, Grow } from "@mui/material";
+import { Box, Skeleton, Grow } from "@mui/material";
+import Grid from "@mui/material/Grid";
 import { MatchPrediction } from "../../../types";
 
 const MatchCard = lazy(() => import("../MatchCard"));
@@ -49,7 +50,7 @@ const PredictionGridList: React.FC<PredictionGridListProps> = ({
   return (
     <Grid container spacing={3}>
       {predictions.map((matchPrediction, index) => (
-        <Grid item xs={12} sm={6} lg={4} key={matchPrediction.match.id}>
+        <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={matchPrediction.match.id}>
           <Grow
             in
             timeout={300 + index * 50}

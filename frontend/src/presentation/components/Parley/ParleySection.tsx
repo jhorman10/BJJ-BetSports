@@ -3,13 +3,13 @@ import {
   Box,
   Paper,
   Typography,
-  Grid,
   Chip,
   Divider,
   CircularProgress,
   Card,
   CardContent,
 } from "@mui/material";
+import Grid from "@mui/material/Grid";
 import { LocalActivity, TrendingUp } from "@mui/icons-material";
 import { MatchPrediction } from "../../../types";
 
@@ -108,7 +108,7 @@ const ParleySection: React.FC<ParleySectionProps> = ({
       />
 
       <Grid container spacing={3} alignItems="center">
-        <Grid item xs={12} md={4}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
             <LocalActivity sx={{ color: "#8b5cf6", fontSize: 32, mr: 2 }} />
             <Box>
@@ -145,10 +145,10 @@ const ParleySection: React.FC<ParleySectionProps> = ({
           </Box>
         </Grid>
 
-        <Grid item xs={12} md={8}>
+        <Grid size={{ xs: 12, md: 8 }}>
           <Grid container spacing={2}>
             {parleyPicks.map((pick) => (
-              <Grid item xs={12} sm={4} key={pick.match.id}>
+              <Grid size={{ xs: 12, sm: 4 }} key={pick.match.id}>
                 <Card
                   sx={{
                     background: "rgba(255, 255, 255, 0.03)",

@@ -1,12 +1,6 @@
 import React from "react";
-import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  Grid,
-  Skeleton,
-} from "@mui/material";
+import { Box, Card, CardContent, Typography, Skeleton } from "@mui/material";
+import Grid from "@mui/material/Grid";
 
 const DashboardSkeleton: React.FC = () => {
   return (
@@ -73,7 +67,7 @@ const DashboardSkeleton: React.FC = () => {
       {/* Stats Grid Skeleton */}
       <Grid container spacing={3} mb={4}>
         {[1, 2, 3, 4].map((i) => (
-          <Grid item xs={12} md={3} key={i}>
+          <Grid size={{ xs: 12, md: 3 }} key={i}>
             <Card
               sx={{
                 height: "100%",

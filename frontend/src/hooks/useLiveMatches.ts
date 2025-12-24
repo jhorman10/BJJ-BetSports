@@ -251,8 +251,6 @@ export const useLiveMatches = () => {
   const fetchLiveMatches = useCallback(async () => {
     setLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 600));
-
       // Iniciar carga de partidos en vivo
 
       try {
@@ -292,8 +290,17 @@ export const useLiveMatches = () => {
         setMatches(liveMatches);
         setError(null);
       } catch (err) {
-        console.error("Error cargando partidos en vivo:", err);
-        setMatches([]); // En caso de error, mostrar vacío en lugar de datos falsos
+        console.error(
+          "Error cargando partidos en vivo (API Backend), intentando Api Pública:",
+          err
+        );
+        try {
+          const publicMatches = await fetchPublicLiveMatches();
+          setMatches(publicMatches);
+        } catch (publicApiErr) {
+          console.error("Error también en API pública:", publicApiErr);
+          setMatches([]);
+        }
         setError(null);
       } finally {
         setLoading(false);

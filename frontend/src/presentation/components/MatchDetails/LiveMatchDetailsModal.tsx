@@ -7,13 +7,13 @@ import {
   Button,
   Box,
   Typography,
-  Grid,
   Chip,
   Divider,
   Paper,
   Slide,
   IconButton,
 } from "@mui/material";
+import Grid from "@mui/material/Grid";
 import { TransitionProps } from "@mui/material/transitions";
 import { Close, SportsSoccer, Timer } from "@mui/icons-material";
 import { useUIStore } from "../../../application/stores/useUIStore";
@@ -134,7 +134,7 @@ const LiveMatchDetailsModal: React.FC = () => {
 
         {/* Live Stats Grid */}
         <Grid container spacing={2} sx={{ mb: 3 }}>
-          <Grid item xs={6}>
+          <Grid size={6}>
             <Paper
               sx={{ p: 2, bgcolor: "rgba(0,0,0,0.2)", textAlign: "center" }}
             >
@@ -164,7 +164,7 @@ const LiveMatchDetailsModal: React.FC = () => {
               </Box>
             </Paper>
           </Grid>
-          <Grid item xs={6}>
+          <Grid size={6}>
             <Paper
               sx={{ p: 2, bgcolor: "rgba(0,0,0,0.2)", textAlign: "center" }}
             >
@@ -246,7 +246,7 @@ const LiveMatchDetailsModal: React.FC = () => {
               }}
             >
               <Grid container spacing={2}>
-                <Grid item xs={12}>
+                <Grid size={12}>
                   <Box display="flex" justifyContent="space-between" mb={1}>
                     <Typography variant="body2" color="text.secondary">
                       Probabilidad Local
@@ -273,7 +273,7 @@ const LiveMatchDetailsModal: React.FC = () => {
                     />
                   </Box>
                 </Grid>
-                <Grid item xs={12}>
+                <Grid size={12}>
                   <Box display="flex" justifyContent="space-between" mb={1}>
                     <Typography variant="body2" color="text.secondary">
                       Probabilidad Visitante

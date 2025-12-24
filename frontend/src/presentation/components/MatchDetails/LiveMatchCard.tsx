@@ -4,11 +4,11 @@ import {
   Typography,
   Card,
   CardContent,
-  Grid,
   styled,
   Chip,
   Divider,
 } from "@mui/material";
+import Grid from "@mui/material/Grid";
 import { Flag } from "@mui/icons-material";
 import { LiveMatchRaw } from "../../../utils/matchMatching";
 import { getLeagueName } from "../LeagueSelector/constants";
@@ -64,7 +64,7 @@ interface LiveMatchCardProps {
 const LiveMatchCard: React.FC<LiveMatchCardProps> = memo(
   ({ match, onMatchClick }) => {
     return (
-      <Grid item xs={12} sm={6} md={6} lg={4}>
+      <Grid size={{ xs: 12, sm: 6, md: 6, lg: 4 }}>
         <MatchCard onClick={() => onMatchClick?.(match)}>
           <CardContent sx={{ p: "20px !important" }}>
             {/* Header: Liga + Bandera + Tiempo */}

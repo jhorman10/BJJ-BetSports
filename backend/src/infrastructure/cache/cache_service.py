@@ -1,3 +1,4 @@
+import os
 from datetime import datetime, timedelta
 from typing import Any, Optional, Dict, TypeVar, Generic
 import threading
@@ -97,6 +98,33 @@ class CacheService:
         with self._lock:
             self._memory_cache.clear()
             logger.info("Cache cleared")
+    
+    # --- Helper methods for specific cache types ---
+    
+    def get_live_matches(self, key: str) -> Optional[Any]:
+        """Get live matches from cache."""
+        return self.get(f"live_matches:{key}")
+    
+    def set_live_matches(self, data: Any, key: str) -> None:
+        """Set live matches in cache with short TTL."""
+        self.set(f"live_matches:{key}", data, self.TTL_LIVE_MATCHES)
+    
+    def get_predictions(self, match_id: str) -> Optional[Any]:
+        """Get predictions for a match from cache."""
+        return self.get(f"predictions:{match_id}")
+    
+    def set_predictions(self, match_id: str, data: Any) -> None:
+        """Set predictions for a match in cache."""
+        self.set(f"predictions:{match_id}", data, self.TTL_PREDICTIONS)
+    
+    def get_historical(self, league_code: str, seasons_key: str) -> Optional[Any]:
+        """Get historical data from cache."""
+        return self.get(f"historical:{league_code}:{seasons_key}")
+    
+    def set_historical(self, league_code: str, seasons_key: str, data: Any) -> None:
+        """Set historical data in cache."""
+        self.set(f"historical:{league_code}:{seasons_key}", data, self.TTL_HISTORICAL)
+
 
 # Singleton instance
 _cache_instance: Optional[CacheService] = None

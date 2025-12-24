@@ -1,66 +1,64 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import LiveMatches from "./LiveMatches";
-import api from "../../../services/api"; // We will mock this
+import * as useLiveMatchesHook from "../../../hooks/useLiveMatches";
 
-// Mock the API module
-vi.mock("../../services/api", () => ({
-  default: {
-    getLiveMatches: vi.fn(),
-  },
+// Mock the hook
+vi.mock("../../../hooks/useLiveMatches", () => ({
+  useLiveMatches: vi.fn(),
 }));
 
 describe("LiveMatches", () => {
-  it("renders loading state initially", async () => {
-    // Mock return value to never resolve immediately to test loading state
-    (api.getLiveMatches as any).mockReturnValue(new Promise(() => {}));
+  it("renders loading state initially", () => {
+    (useLiveMatchesHook.useLiveMatches as any).mockReturnValue({
+      matches: [],
+      loading: true,
+      error: null,
+      refresh: vi.fn(),
+    });
 
     render(<LiveMatches />);
-    // Initial render might be null until effect kicks in, but loading state uses processingMessage "Actualizando marcadores..."
-    // We expect "Partidos en Vivo" title which is present in Loading state
     expect(screen.getByText("Partidos en Vivo")).toBeInTheDocument();
     expect(screen.getByText("Actualizando marcadores...")).toBeInTheDocument();
   });
 
-  it("renders live matches when API returns data", async () => {
+  it("renders live matches when data is present", () => {
     const mockMatches = [
       {
         id: "1",
         home_team: "HomeFC",
-        away_team: "AwayFC", // The hook expects string for team names now
+        away_team: "AwayFC",
         home_score: 1,
         away_score: 0,
         status: "LIVE",
-        match_date: "2024-01-01T12:00:00Z",
+        minute: 10,
+        league_id: "L1",
+        league_name: "Test League",
       },
     ];
 
-    (api.getLiveMatches as any).mockResolvedValue(mockMatches);
+    (useLiveMatchesHook.useLiveMatches as any).mockReturnValue({
+      matches: mockMatches,
+      loading: false,
+      error: null,
+      refresh: vi.fn(),
+    });
 
     render(<LiveMatches />);
-
-    await waitFor(
-      () => {
-        expect(screen.getAllByText("Partidos en Vivo")[0]).toBeInTheDocument();
-        expect(screen.getByText("HomeFC")).toBeInTheDocument();
-        expect(screen.getByText("AwayFC")).toBeInTheDocument();
-        expect(screen.getByText("1 - 0")).toBeInTheDocument();
-      },
-      { timeout: 2000 }
-    );
+    expect(screen.getByText("HomeFC")).toBeInTheDocument();
+    expect(screen.getByText("AwayFC")).toBeInTheDocument();
+    expect(screen.getByText("1 - 0")).toBeInTheDocument();
   });
 
-  it("renders mock data if API fails", async () => {
-    (api.getLiveMatches as any).mockRejectedValue(new Error("API Error"));
+  it("hides section on error or empty matches", () => {
+    (useLiveMatchesHook.useLiveMatches as any).mockReturnValue({
+      matches: [],
+      loading: false,
+      error: "API Error",
+      refresh: vi.fn(),
+    });
 
-    render(<LiveMatches />);
-
-    await waitFor(
-      () => {
-        // Should render Fallback Mock data (Flamengo vs Fluminense from hook)
-        expect(screen.getByText("Flamengo")).toBeInTheDocument();
-      },
-      { timeout: 2000 }
-    );
+    const { container } = render(<LiveMatches />);
+    expect(container.firstChild).toBeNull();
   });
 });

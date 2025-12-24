@@ -7,12 +7,12 @@ import {
   Button,
   Box,
   Typography,
-  Grid,
   Chip,
   Divider,
   Paper,
   Slide,
 } from "@mui/material";
+import Grid from "@mui/material/Grid";
 import { TransitionProps } from "@mui/material/transitions";
 import { MatchPrediction } from "../../../types";
 import SuggestedPicksTab from "./SuggestedPicksTab";
@@ -162,7 +162,7 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                 </Box>
               ) : (
                 <Grid container spacing={2}>
-                  <Grid item xs={4} textAlign="center">
+                  <Grid size={4} textAlign="center">
                     <Typography variant="body2" color="text.secondary">
                       Local (1)
                     </Typography>
@@ -173,7 +173,7 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                       %
                     </Typography>
                   </Grid>
-                  <Grid item xs={4} textAlign="center">
+                  <Grid size={4} textAlign="center">
                     <Typography variant="body2" color="text.secondary">
                       Empate (X)
                     </Typography>
@@ -185,7 +185,7 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                       {(details.prediction.draw_probability * 100).toFixed(0)}%
                     </Typography>
                   </Grid>
-                  <Grid item xs={4} textAlign="center">
+                  <Grid size={4} textAlign="center">
                     <Typography variant="body2" color="text.secondary">
                       Visitante (2)
                     </Typography>
@@ -206,7 +206,7 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
             </Typography>
             <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
               <Grid container spacing={2}>
-                <Grid item xs={6} textAlign="center">
+                <Grid size={6} textAlign="center">
                   <Typography variant="body2" color="text.secondary">
                     {details.match.home_team.name}
                   </Typography>
@@ -214,7 +214,7 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                     {details.prediction.predicted_home_goals.toFixed(1)}
                   </Typography>
                 </Grid>
-                <Grid item xs={6} textAlign="center">
+                <Grid size={6} textAlign="center">
                   <Typography variant="body2" color="text.secondary">
                     {details.match.away_team.name}
                   </Typography>
@@ -231,7 +231,7 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
             </Typography>
             <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
               <Grid container spacing={2}>
-                <Grid item xs={6} textAlign="center">
+                <Grid size={6} textAlign="center">
                   <Typography variant="body2" color="text.secondary">
                     Más de 2.5
                   </Typography>
@@ -247,7 +247,7 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                     {(details.prediction.over_25_probability * 100).toFixed(0)}%
                   </Typography>
                 </Grid>
-                <Grid item xs={6} textAlign="center">
+                <Grid size={6} textAlign="center">
                   <Typography variant="body2" color="text.secondary">
                     Menos de 2.5
                   </Typography>
@@ -410,7 +410,7 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
               </Typography>
               <Paper variant="outlined" sx={{ p: 2 }}>
                 <Grid container spacing={2}>
-                  <Grid item xs={6}>
+                  <Grid size={6}>
                     <Typography variant="caption" color="text.secondary">
                       Apuesta Recomendada
                     </Typography>
@@ -421,7 +421,7 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                       sx={{ display: "block", mt: 0.5 }}
                     />
                   </Grid>
-                  <Grid item xs={6}>
+                  <Grid size={6}>
                     <Typography variant="caption" color="text.secondary">
                       Over/Under
                     </Typography>
@@ -433,7 +433,7 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                       sx={{ display: "block", mt: 0.5 }}
                     />
                   </Grid>
-                  <Grid item xs={12}>
+                  <Grid size={12}>
                     <Divider sx={{ my: 1 }} />
                     <Typography variant="caption" color="text.secondary">
                       Índice de Confianza

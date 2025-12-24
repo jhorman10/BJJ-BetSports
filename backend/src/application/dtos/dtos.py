@@ -8,7 +8,7 @@ They use Pydantic for validation and serialization.
 from datetime import datetime
 from typing import Optional
 from enum import Enum
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 # ============================================================
@@ -52,8 +52,7 @@ class TeamDTO(BaseModel):
     country: Optional[str] = None
     logo_url: Optional[str] = None
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class LeagueDTO(BaseModel):
@@ -63,8 +62,7 @@ class LeagueDTO(BaseModel):
     country: str
     season: Optional[str] = None
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MatchDTO(BaseModel):
@@ -87,8 +85,7 @@ class MatchDTO(BaseModel):
     draw_odds: Optional[float] = None
     away_odds: Optional[float] = None
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PredictionDTO(BaseModel):
@@ -116,8 +113,7 @@ class PredictionDTO(BaseModel):
     suggested_picks: list["SuggestedPickDTO"] = Field(default_factory=list) # Full list of picks
     created_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MatchPredictionDTO(BaseModel):
@@ -125,8 +121,7 @@ class MatchPredictionDTO(BaseModel):
     match: MatchDTO
     prediction: PredictionDTO
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CountryDTO(BaseModel):
@@ -179,8 +174,7 @@ class SuggestedPickDTO(BaseModel):
     is_recommended: bool = True
     priority_score: float = 0.0
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MatchSuggestedPicksDTO(BaseModel):
@@ -190,8 +184,7 @@ class MatchSuggestedPicksDTO(BaseModel):
     combination_warning: Optional[str] = None
     generated_at: datetime = Field(default_factory=datetime.utcnow)
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================================
@@ -228,8 +221,7 @@ class MarketPerformanceDTO(BaseModel):
     confidence_adjustment: float
     last_updated: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class LearningStatsResponseDTO(BaseModel):

@@ -4,7 +4,6 @@ import {
   Card,
   CardContent,
   Typography,
-  Grid,
   Alert,
   IconButton,
   Tooltip,
@@ -13,6 +12,7 @@ import {
   ToggleButton,
   ToggleButtonGroup,
 } from "@mui/material";
+import Grid from "@mui/material/Grid";
 import {
   SmartToy,
   TrendingUp,
@@ -801,7 +801,7 @@ const BotDashboard: React.FC = () => {
 
         {stats && (
           <Grid container spacing={3} sx={{ mt: 1 }}>
-            <Grid item xs={12} md={3}>
+            <Grid size={{ xs: 12, md: 3 }}>
               <StatCard
                 title="ROI (Retorno de Inversión)"
                 value={`${stats.roi > 0 ? "+" : ""}${stats.roi.toFixed(1)}%`}
@@ -810,7 +810,7 @@ const BotDashboard: React.FC = () => {
                 subtitle="Rentabilidad sobre capital apostado"
               />
             </Grid>
-            <Grid item xs={12} md={3}>
+            <Grid size={{ xs: 12, md: 3 }}>
               <StatCard
                 title="Beneficio Neto"
                 value={`${
@@ -821,7 +821,7 @@ const BotDashboard: React.FC = () => {
                 subtitle="Unidades ganadas/perdidas"
               />
             </Grid>
-            <Grid item xs={12} md={3}>
+            <Grid size={{ xs: 12, md: 3 }}>
               <StatCard
                 title="Precisión del Modelo"
                 value={`${(stats.accuracy * 100).toFixed(1)}%`}
@@ -830,7 +830,7 @@ const BotDashboard: React.FC = () => {
                 subtitle={`En ${stats.matches_processed} partidos analizados`}
               />
             </Grid>
-            <Grid item xs={12} md={3}>
+            <Grid size={{ xs: 12, md: 3 }}>
               <StatCard
                 title="Apuestas de Valor"
                 value={stats.total_bets.toString()}
@@ -849,7 +849,7 @@ const BotDashboard: React.FC = () => {
             <Box mt={6}>
               <Grid container spacing={3}>
                 {/* ROI Chart */}
-                <Grid item xs={12} md={8}>
+                <Grid size={{ xs: 12, md: 8 }}>
                   <Card
                     sx={{
                       height: 350,
@@ -886,7 +886,7 @@ const BotDashboard: React.FC = () => {
                 </Grid>
 
                 {/* Market Performance Chart */}
-                <Grid item xs={12} md={4}>
+                <Grid size={{ xs: 12, md: 4 }}>
                   <Card
                     sx={{
                       height: 350,
