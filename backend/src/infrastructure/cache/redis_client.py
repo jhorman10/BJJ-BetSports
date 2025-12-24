@@ -24,27 +24,41 @@ class RedisClient:
         password: Optional[str] = None,
         decode_responses: bool = True
     ):
-        self.host = host or os.getenv("REDIS_HOST", "localhost")
-        self.port = port or int(os.getenv("REDIS_PORT", 6379))
-        self.password = password or os.getenv("REDIS_PASSWORD", None)
-        self.db = db
+        # Support REDIS_URL (Render format: redis://user:password@host:port)
+        redis_url = os.getenv("REDIS_URL")
         
         try:
-            self._redis = redis.Redis(
-                host=self.host,
-                port=self.port,
-                db=self.db,
-                password=self.password,
-                decode_responses=decode_responses,
-                socket_timeout=5,
-                retry_on_timeout=True
-            )
+            if redis_url:
+                # Use URL-based connection (Render provides this)
+                self._redis = redis.Redis.from_url(
+                    redis_url,
+                    decode_responses=decode_responses,
+                    socket_timeout=5,
+                )
+                logger.info(f"Connected to Redis via REDIS_URL")
+            else:
+                # Fallback to individual env vars (local development)
+                self.host = host or os.getenv("REDIS_HOST", "localhost")
+                self.port = port or int(os.getenv("REDIS_PORT", 6379))
+                self.password = password or os.getenv("REDIS_PASSWORD", None)
+                self.db = db
+                
+                self._redis = redis.Redis(
+                    host=self.host,
+                    port=self.port,
+                    db=self.db,
+                    password=self.password,
+                    decode_responses=decode_responses,
+                    socket_timeout=5,
+                )
+                logger.info(f"Connected to Redis at {self.host}:{self.port}")
+            
             # Test connection
             self._redis.ping()
-            logger.info(f"Connected to Redis at {self.host}:{self.port}")
         except Exception as e:
-            logger.error(f"Failed to connect to Redis: {e}")
+            logger.warning(f"Redis not available: {e}. Using in-memory fallback.")
             self._redis = None
+
 
     @property
     def is_connected(self) -> bool:
