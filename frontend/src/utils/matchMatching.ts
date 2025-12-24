@@ -1,4 +1,5 @@
 import { MatchPrediction } from "../domain/entities";
+import { normalizeName } from "./searchUtils";
 
 export interface LiveMatchRaw {
   id: string;
@@ -31,18 +32,10 @@ export const matchLiveWithPrediction = (
   if (!prediction) {
     const foundPrediction = predictions.find((p) => {
       // Normalize: remove special chars, extra spaces, lowercase
-      const normalize = (str: string) =>
-        str
-          .toLowerCase()
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "")
-          .replace(/[^a-z0-9 ]/g, "")
-          .trim();
-
-      const pHome = normalize(p.match.home_team.name);
-      const pAway = normalize(p.match.away_team.name);
-      const lHome = normalize(liveMatch.home_team);
-      const lAway = normalize(liveMatch.away_team);
+      const pHome = normalizeName(p.match.home_team.name);
+      const pAway = normalizeName(p.match.away_team.name);
+      const lHome = normalizeName(liveMatch.home_team);
+      const lAway = normalizeName(liveMatch.away_team);
 
       // Word-level matching for better flexibility (e.g. "Man City" vs "Manchester City")
       const wordsMatch = (str1: string, str2: string) => {
@@ -60,7 +53,6 @@ export const matchLiveWithPrediction = (
     });
 
     if (foundPrediction) {
-      console.log("Found matching prediction for live match:", foundPrediction);
       prediction = foundPrediction.prediction;
     }
   }

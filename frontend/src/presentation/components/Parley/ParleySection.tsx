@@ -59,7 +59,7 @@ const ParleySection: React.FC<ParleySectionProps> = ({
     return picksWithScore
       .filter((p) => p.score > 0.02 || p.prediction.confidence > 65) // Filter for Value (>2% edge) or High Confidence
       .sort((a, b) => b.score - a.score) // Sort by Value (EV) descending
-      .slice(0, 3); // Top 3 picks
+      .slice(0, 3); // Top 3 picks for the parley
   }, [predictions]);
 
   if (loading) {

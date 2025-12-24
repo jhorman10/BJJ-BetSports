@@ -6,6 +6,7 @@
  */
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Routes, Route, Link, useLocation } from "react-router-dom";
 import {
   Container,
   Box,
@@ -46,14 +47,7 @@ declare global {
 
 const App: React.FC = () => {
   // UI Store
-  const {
-    currentView,
-    setView,
-    showLive,
-    goalToast,
-    closeGoalToast,
-    showGoalToast,
-  } = useUIStore();
+  const { showLive, goalToast, closeGoalToast, showGoalToast } = useUIStore();
 
   // Prediction Store - Fetch leagues on mount
   const { fetchLeagues, leaguesError, selectedLeague } = usePredictionStore();
@@ -155,137 +149,145 @@ const App: React.FC = () => {
     });
   }, [selectedLeague, liveMatches]);
 
+  const location = useLocation();
+  const isPredictions = location.pathname === "/";
+
   return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-        background: "linear-gradient(180deg, #0f172a 0%, #1e293b 100%)",
-      }}
-    >
-      {/* Navigation */}
-      <AppBar
-        position="static"
-        elevation={0}
+    <>
+      <Box
         sx={{
-          background: "transparent",
-          borderBottom: "1px solid rgba(148, 163, 184, 0.1)",
+          minHeight: "100vh",
+          background: "linear-gradient(180deg, #0f172a 0%, #1e293b 100%)",
         }}
       >
-        <Toolbar>
-          <SportsSoccer sx={{ mr: 2, color: "primary.main" }} />
-          <Typography
-            variant="h6"
-            component="h1"
-            sx={{ flexGrow: 1, fontWeight: 700 }}
-          >
-            BJJ - BetSports
-          </Typography>
-
-          <Tooltip
-            title={
-              currentView === "predictions"
-                ? "Ir al Bot de Inversión"
-                : "Ver Predicciones"
-            }
-          >
-            <IconButton
-              onClick={() =>
-                setView(currentView === "predictions" ? "bot" : "predictions")
+        {/* Navigation */}
+        <AppBar
+          position="static"
+          elevation={0}
+          sx={{
+            background: "transparent",
+            borderBottom: "1px solid rgba(148, 163, 184, 0.1)",
+          }}
+        >
+          <Toolbar>
+            <SportsSoccer sx={{ mr: 2, color: "primary.main" }} />
+            <Typography
+              variant="h6"
+              component="h1"
+              sx={{ flexGrow: 1, fontWeight: 700 }}
+            >
+              BJJ - BetSports
+            </Typography>
+            <Tooltip
+              title={
+                isPredictions ? "Ir al Bot de Inversión" : "Ver Predicciones"
               }
-              sx={{ color: "white", mr: 1 }}
             >
-              {currentView === "predictions" ? <SmartToy /> : <Dashboard />}
-            </IconButton>
-          </Tooltip>
-
-          {installPrompt && !isInstalled && (
-            <Button
-              variant="outlined"
-              color="primary"
-              size="small"
-              startIcon={<GetApp />}
-              onClick={handleInstallClick}
-              sx={{ ml: 2 }}
-            >
-              Instalar App
-            </Button>
-          )}
-        </Toolbar>
-      </AppBar>
-
-      {/* Main Content */}
-      <Container maxWidth="xl" sx={{ py: 4 }}>
-        {currentView === "bot" ? (
-          <BotDashboard />
-        ) : (
-          <>
-            {/* Header */}
-            <Box mb={4}>
-              <Typography
-                variant="h3"
-                fontWeight={700}
-                sx={{
-                  background:
-                    "linear-gradient(90deg, #6366f1 0%, #10b981 100%)",
-                  backgroundClip: "text",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                  mb: 1,
-                }}
+              <Link
+                to={isPredictions ? "/bot" : "/"}
+                style={{ textDecoration: "none" }}
               >
-                Predicciones de Fútbol
-              </Typography>
-              <Typography variant="body1" color="text.secondary" maxWidth={600}>
-                Análisis estadístico de partidos de fútbol basado en datos
-                históricos, distribución de Poisson y algoritmos de machine
-                learning.
-              </Typography>
-            </Box>
+                <IconButton sx={{ color: "white", mr: 1 }}>
+                  {isPredictions ? <SmartToy /> : <Dashboard />}
+                </IconButton>
+              </Link>
+            </Tooltip>
 
-            {leaguesError ? (
-              <Alert
-                severity="error"
-                sx={{ mb: 4 }}
-                action={
-                  <Button
-                    color="inherit"
-                    size="small"
-                    onClick={() => window.location.reload()}
-                  >
-                    Reintentar
-                  </Button>
-                }
+            {installPrompt && !isInstalled && (
+              <Button
+                variant="outlined"
+                color="primary"
+                size="small"
+                startIcon={<GetApp />}
+                onClick={handleInstallClick}
+                sx={{ ml: 2 }}
               >
-                Error al cargar las ligas: {leaguesError}. El servidor puede
-                estar iniciándose.
-              </Alert>
-            ) : (
-              <LeagueSelector />
+                Instalar App
+              </Button>
             )}
+          </Toolbar>
+        </AppBar>
 
-            {showLive ? (
-              <Box mb={4}>
-                <LiveMatchesList
-                  selectedLeagueIds={
-                    selectedLeague && currentLeagueHasLiveMatches
-                      ? [selectedLeague.id]
-                      : []
-                  }
-                  selectedLeagueNames={
-                    selectedLeague && currentLeagueHasLiveMatches
-                      ? [selectedLeague.name]
-                      : []
-                  }
-                />
-              </Box>
-            ) : (
-              <>
-                <ParleySlip />
-                <PredictionGrid />
-              </>
-            )}
-          </>
-        )}
+        {/* Main Content */}
+        <Container maxWidth="xl" sx={{ py: 4 }}>
+          <Routes>
+            <Route
+              path="/"
+              element={
+                <>
+                  {/* Header */}
+                  <Box mb={4}>
+                    <Typography
+                      variant="h3"
+                      fontWeight={700}
+                      sx={{
+                        background:
+                          "linear-gradient(90deg, #6366f1 0%, #10b981 100%)",
+                        backgroundClip: "text",
+                        WebkitBackgroundClip: "text",
+                        WebkitTextFillColor: "transparent",
+                        mb: 1,
+                      }}
+                    >
+                      Predicciones de Fútbol
+                    </Typography>
+                    <Typography
+                      variant="body1"
+                      color="text.secondary"
+                      maxWidth={600}
+                    >
+                      Análisis estadístico de partidos de fútbol basado en datos
+                      históricos, distribución de Poisson y algoritmos de
+                      machine learning.
+                    </Typography>
+                  </Box>
+                  {leaguesError ? (
+                    <Alert
+                      severity="error"
+                      sx={{ mb: 4 }}
+                      action={
+                        <Button
+                          color="inherit"
+                          size="small"
+                          onClick={() => window.location.reload()}
+                        >
+                          Reintentar
+                        </Button>
+                      }
+                    >
+                      Error al cargar las ligas: {leaguesError}. El servidor
+                      puede estar iniciándose.
+                    </Alert>
+                  ) : (
+                    <LeagueSelector />
+                  )}
+                  {showLive ? (
+                    <Box mb={4}>
+                      <LiveMatchesList
+                        selectedLeagueIds={
+                          selectedLeague && currentLeagueHasLiveMatches
+                            ? [selectedLeague.id]
+                            : []
+                        }
+                        selectedLeagueNames={
+                          selectedLeague && currentLeagueHasLiveMatches
+                            ? [selectedLeague.name]
+                            : []
+                        }
+                      />
+                    </Box>
+                  ) : (
+                    <>
+                      <ParleySlip />
+                      <PredictionGrid />
+                    </>
+                  )}
+                </>
+              }
+            />
+            <Route path="/bot" element={<BotDashboard />} />
+          </Routes>
+        </Container>
 
         {/* Live Match Details Modal - Now uses internal store */}
         <React.Suspense fallback={null}>
@@ -321,25 +323,31 @@ const App: React.FC = () => {
           sx={{
             mt: 8,
             pt: 4,
+            pb: 4,
             borderTop: "1px solid rgba(148, 163, 184, 0.1)",
             textAlign: "center",
           }}
         >
-          <Typography variant="body2" color="text.secondary">
-            Datos de Football-Data.co.uk, API-Football, TheSportsDB, ESPN y
-            Football-Data.org
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            Modelos predictivos basados en datos estadísticos de alto
+            rendimiento.
           </Typography>
           <Typography
             variant="caption"
             color="text.disabled"
-            display="block"
-            mt={1}
+            sx={{ display: "block", mb: 2, maxWidth: 800, mx: "auto" }}
           >
+            Fuentes de datos: Football-Data.org, API-Football,
+            Football-Data.co.uk, TheSportsDB y ESPN. Las predicciones son
+            probabilísticas y no garantizan resultados. Juegue con
+            responsabilidad.
+          </Typography>
+          <Typography variant="caption" color="text.disabled" display="block">
             © 2024 BJJ - BetSports
           </Typography>
         </Box>
-      </Container>
-    </Box>
+      </Box>
+    </>
   );
 };
 

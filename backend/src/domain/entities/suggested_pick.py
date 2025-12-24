@@ -25,8 +25,30 @@ class MarketType(str, Enum):
     TEAM_GOALS_OVER = "team_goals_over"
     TEAM_GOALS_UNDER = "team_goals_under"
     RESULT_1X2 = "result_1x2"
+    DOUBLE_CHANCE_1X = "double_chance_1x"
+    DOUBLE_CHANCE_X2 = "double_chance_x2"
+    DOUBLE_CHANCE_12 = "double_chance_12"
     BTTS_YES = "btts_yes"
     BTTS_NO = "btts_no"
+    GOALS_OVER_0_5 = "goals_over_0_5"
+    GOALS_OVER_1_5 = "goals_over_1_5"
+    GOALS_OVER_2_5 = "goals_over_2_5"
+    GOALS_OVER_3_5 = "goals_over_3_5"
+    GOALS_UNDER_0_5 = "goals_under_0_5"
+    GOALS_UNDER_1_5 = "goals_under_1_5"
+    GOALS_UNDER_2_5 = "goals_under_2_5"
+    GOALS_UNDER_3_5 = "goals_under_3_5"
+    
+    # Team Props
+    HOME_CORNERS_OVER = "home_corners_over"
+    HOME_CORNERS_UNDER = "home_corners_under"
+    AWAY_CORNERS_OVER = "away_corners_over"
+    AWAY_CORNERS_UNDER = "away_corners_under"
+    
+    HOME_CARDS_OVER = "home_cards_over"
+    HOME_CARDS_UNDER = "home_cards_under"
+    AWAY_CARDS_OVER = "away_cards_over"
+    AWAY_CARDS_UNDER = "away_cards_under"
 
 
 class ConfidenceLevel(str, Enum):

@@ -84,7 +84,7 @@ export const api = {
    */
   async getPredictions(
     leagueId: string,
-    limit: number = 10,
+    limit: number = 30,
     sortBy:
       | "date"
       | "confidence"

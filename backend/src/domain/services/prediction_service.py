@@ -32,12 +32,48 @@ class PredictionService:
     Uses a combination of Poisson distribution for expected goals
     and statistical analysis for match outcomes.
     
-    STRICT: Only uses REAL data. Returns zeros when insufficient data.
+    STRICT POLICY: 
+    - NO MOCK DATA ALLOWED.
+    - Only uses REAL historical and real-time data from verified sources.
+    - If data is insufficient, returns zero results/empty predictions.
+    - Prohibited to use placeholders or simulated data for probabilities.
     """
     
     def __init__(self):
         """Initialize the prediction service."""
         pass
+    
+    def adjust_with_odds(
+        self,
+        calculated_probs: tuple[float, float, float],
+        odds: Odds,
+        weight: float = 0.5,
+    ) -> tuple[float, float, float]:
+        """
+        Adjust calculated probabilities using market odds.
+        
+        Args:
+            calculated_probs: Model's predicted probabilities
+            odds: Bookmaker odds
+            weight: Weight to give to bookmaker odds (0-1)
+            
+        Returns:
+            Adjusted probabilities
+        """
+        if weight <= 0:
+            return calculated_probs
+        if weight >= 1:
+            return odds.to_probabilities()
+        
+        odds_probs = odds.to_probabilities()
+        
+        home = (calculated_probs[0] * (1 - weight)) + (odds_probs[0] * weight)
+        draw = (calculated_probs[1] * (1 - weight)) + (odds_probs[1] * weight)
+        away = (calculated_probs[2] * (1 - weight)) + (odds_probs[2] * weight)
+        
+        # Normalize
+        total = home + draw + away
+        return (home / total, draw / total, away / total)
     
     def calculate_team_strength(
         self,
@@ -72,15 +108,29 @@ class PredictionService:
             avg_goals_scored = league_averages.avg_home_goals if league_averages.avg_home_goals > 0 else 1.5
             # Home Defense vs League Avg Away Goals (what visitors usually score)
             avg_goals_conceded = league_averages.avg_away_goals if league_averages.avg_away_goals > 0 else 1.2
+            
+            # Use granular home stats if we have at least 3 home matches
+            if team_stats.home_matches_played >= 3:
+                attack = team_stats.home_goals_per_match / avg_goals_scored
+                defense = team_stats.home_goals_conceded_per_match / avg_goals_conceded
+            else:
+                # Fallback to overall stats but slightly penalized for lack of venue data
+                attack = team_stats.goals_per_match / avg_goals_scored
+                defense = team_stats.goals_conceded_per_match / avg_goals_conceded
         else:
             # Away Attack vs League Avg Away Goals
             avg_goals_scored = league_averages.avg_away_goals if league_averages.avg_away_goals > 0 else 1.2
             # Away Defense vs League Avg Home Goals (what hosts usually score)
             avg_goals_conceded = league_averages.avg_home_goals if league_averages.avg_home_goals > 0 else 1.5
             
-        attack = team_stats.goals_per_match / avg_goals_scored
-        defense = team_stats.goals_conceded_per_match / avg_goals_conceded
-        
+            # Use granular away stats if we have at least 3 away matches
+            if team_stats.away_matches_played >= 3:
+                attack = team_stats.away_goals_per_match / avg_goals_scored
+                defense = team_stats.away_goals_conceded_per_match / avg_goals_conceded
+            else:
+                attack = team_stats.goals_per_match / avg_goals_scored
+                defense = team_stats.goals_conceded_per_match / avg_goals_conceded
+            
         return TeamStrength(
             attack_strength=max(0.1, attack),
             defense_strength=max(0.1, defense),

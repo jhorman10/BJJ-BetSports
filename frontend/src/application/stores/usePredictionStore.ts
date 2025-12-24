@@ -79,7 +79,13 @@ export const usePredictionStore = create<PredictionState>((set, get) => ({
   },
 
   selectLeague: (league) => {
-    set({ selectedLeague: league });
+    set({
+      selectedLeague: league,
+      predictions: [], // Clear previous league matches
+      predictionsError: null,
+      searchQuery: "", // Clear search when changing league
+      searchMatches: [],
+    });
     if (league) {
       get().fetchPredictions();
     }
@@ -96,7 +102,7 @@ export const usePredictionStore = create<PredictionState>((set, get) => ({
     try {
       const response = await predictionsApi.getPredictions(
         selectedLeague.id,
-        10,
+        30,
         sortBy,
         sortDesc
       );
@@ -120,25 +126,7 @@ export const usePredictionStore = create<PredictionState>((set, get) => ({
   performSearch: async (query) => {
     set({ searchLoading: true });
     try {
-      const matches = await predictionsApi.getTeamMatches(query);
-      const matchPredictions: MatchPrediction[] = matches.map((m) => ({
-        match: m,
-        prediction: {
-          match_id: m.id,
-          home_win_probability: 0,
-          draw_probability: 0,
-          away_win_probability: 0,
-          over_25_probability: 0,
-          under_25_probability: 0,
-          predicted_home_goals: 0,
-          predicted_away_goals: 0,
-          confidence: 0,
-          data_sources: [],
-          recommended_bet: "N/A",
-          over_under_recommendation: "N/A",
-          created_at: new Date().toISOString(),
-        },
-      }));
+      const matchPredictions = await predictionsApi.getTeamMatches(query);
       set({ searchMatches: matchPredictions });
     } catch (err) {
       console.error("Search error", err);

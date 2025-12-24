@@ -195,7 +195,8 @@ class FootballDataOrgSource:
             return []
         
         comp_code = COMPETITION_CODE_MAPPING[league_code]
-        params = {"status": "SCHEDULED"}
+        # Only fetch matches that are scheduled or have a set time (avoiding finished games)
+        params = {"status": "SCHEDULED,TIMED"}
         
         if matchday:
             params["matchday"] = matchday
@@ -419,3 +420,55 @@ class FootballDataOrgSource:
         except Exception as e:
             logger.error(f"Error parsing match details from football-data.org: {e}")
             return None
+            
+    async def get_live_matches(self) -> list[Match]:
+        """
+        Get all live matches globally.
+        
+        Returns:
+            List of Match entities currently in play
+        """
+        if not self.is_configured:
+            return []
+            
+        await self._wait_for_rate_limit()
+        
+        # Status 'LIVE' or 'IN_PLAY'
+        data = await self._make_request("/matches", {"status": "LIVE"})
+        
+        if not data or not data.get("matches"):
+            # Try IN_PLAY if LIVE returns nothing (API specific)
+            data = await self._make_request("/matches", {"status": "IN_PLAY"})
+            
+        if not data or not data.get("matches"):
+            return []
+            
+        matches = []
+        for match_data in data["matches"]:
+            try:
+                # Need league info
+                competition = match_data.get("competition", {})
+                comp_code = competition.get("code")
+                
+                # Internal mapping
+                league_code = "UNKNOWN"
+                for internal, external in COMPETITION_CODE_MAPPING.items():
+                    if external == comp_code:
+                        league_code = internal
+                        break
+                
+                league = League(
+                    id=league_code, # Use internal if found, or UNKNOWN
+                    name=competition.get("name", "Unknown"),
+                    country=competition.get("area", {}).get("name", "Unknown"),
+                )
+                
+                match = self._parse_match(match_data, league)
+                if match:
+                    matches.append(match)
+            except Exception as e:
+                logger.debug(f"Error parsing live match: {e}")
+                continue
+                
+        logger.info(f"Football-Data.org: Found {len(matches)} live matches")
+        return matches

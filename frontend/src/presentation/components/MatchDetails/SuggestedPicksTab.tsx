@@ -16,6 +16,7 @@ import {
 
 interface SuggestedPicksTabProps {
   matchPrediction: MatchPrediction;
+  onPicksCount?: (count: number) => void;
 }
 
 // Utility functions imported from ../../../utils/marketUtils
@@ -104,6 +105,7 @@ const PickRow: React.FC<{ pick: SuggestedPick }> = memo(({ pick }) => {
  */
 const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
   matchPrediction,
+  onPicksCount,
 }) => {
   const { match } = matchPrediction;
   const [loading, setLoading] = useState(true);
@@ -150,6 +152,13 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
     // Sort by probability only (highest first)
     return picks.sort((a, b) => b.probability - a.probability);
   }, [apiPicks, matchPrediction]);
+
+  // Report count to parent if callback exists
+  useEffect(() => {
+    if (onPicksCount) {
+      onPicksCount(sortedPicks.length);
+    }
+  }, [sortedPicks.length, onPicksCount]);
 
   if (loading) {
     return (

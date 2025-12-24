@@ -77,6 +77,7 @@ class TrainingStatus(BaseModel):
     market_stats: dict
     match_history: List[MatchPredictionHistory] = []
     roi_evolution: List[RoiEvolutionPoint] = []
+    pick_efficiency: List[dict] = [] # Granular stats per pick type
     team_stats: dict = {} # Consolidated team stats after training, for live predictions use
 
 def _verify_pick(pick: SuggestedPick, match: Match) -> PickDetail:
@@ -252,9 +253,13 @@ def _validate_pick(pick: SuggestedPick, match: Match, actual_winner: str) -> tup
     # Determine if it was a value bet based on expected value
     is_value_bet = pick.expected_value > 0.0
     
+    market_type_val = pick.market_type.value if hasattr(pick.market_type, "value") else str(pick.market_type)
+    
     # 1. 1X2 Market
-    if pick.market_type.value in ["winner", "draw"]:
-        if pick.expected_value <= 0.02:
+    if market_type_val in ["winner", "draw", "result_1x2"]:
+        # Only count specifically for ROI if it passes EV threshold, 
+        # but for HISTORY show everything decent
+        if pick.expected_value <= -0.1: # Allow low EV in history but skip deep negative
             return None, 0.0
             
         is_won = False
@@ -265,98 +270,135 @@ def _validate_pick(pick: SuggestedPick, match: Match, actual_winner: str) -> tup
             if is_won:
                 odds = match.home_odds if predicted_side == "home" else match.away_odds
                 payout = odds if odds else 0.0
-        elif "Empate" in pick.market_label:
+        elif "Empate" in pick.market_label or "(X)" in pick.market_label:
             is_won = (actual_winner == "draw")
             if is_won:
                 payout = match.draw_odds if match.draw_odds else 0.0
         
         return PickDetail(
-            market_type="winner", # Unifying 1x2 as 'winner' for history table
+            market_type="winner",
             market_label=pick.market_label,
             was_correct=is_won,
             probability=pick.probability,
             expected_value=pick.expected_value * 100,
-            confidence=float(0.8 if pick.confidence_level.value == "high" else 0.6),
+            confidence=float(pick.probability),
             is_contrarian=is_value_bet
         ), payout
 
-    # 2. Props Markets (Corners/Cards/Goals)
+    # 2. Double Chance
+    if market_type_val.startswith("double_chance"):
+        is_won = False
+        if market_type_val == "double_chance_1x":
+            is_won = actual_winner in ["home", "draw"]
+        elif market_type_val == "double_chance_x2":
+            is_won = actual_winner in ["away", "draw"]
+        elif market_type_val == "double_chance_12":
+            is_won = actual_winner in ["home", "away"]
+            
+        return PickDetail(
+            market_type=market_type_val,
+            market_label=pick.market_label,
+            was_correct=is_won,
+            probability=pick.probability,
+            expected_value=pick.expected_value * 100,
+            confidence=float(pick.probability),
+            is_contrarian=is_value_bet
+        ), 0.0
+
+    # 3. Props Markets (Corners/Cards/Goals)
     is_won = False
     threshold = 0.0
     
     # Extract threshold
-    threshold_match = re.search(r"(?:Más|Menos) de (\d+\.?\d*)", pick.market_label)
+    # Also handle labels like "+2.5 goles" or "Over 2.5"
+    threshold_match = re.search(r"((?:\+|-)?\d+\.?\d*)", pick.market_label)
     if threshold_match:
-        threshold = float(threshold_match.group(1))
+        threshold = float(threshold_match.group(1).replace("+", ""))
     else:
-        # Fallback or skip if no threshold found for these markets
-        return None, 0.0
+        # Special case for BTTS or Red Cards which don't have numeric thresholds in label
+        pass
 
-    if pick.market_type.value == "corners_over":
+    # Goals (Unified handling)
+    if market_type_val.startswith("goals_over") or market_type_val == "goals_over":
+        if match.home_goals is None or match.away_goals is None: return None, 0.0
+        is_won = (match.home_goals + match.away_goals) > threshold
+    elif market_type_val.startswith("goals_under") or market_type_val == "goals_under":
+        if match.home_goals is None or match.away_goals is None: return None, 0.0
+        is_won = (match.home_goals + match.away_goals) < threshold
+        
+    # Corners (Unified handling)
+    elif market_type_val == "corners_over":
         if match.home_corners is None or match.away_corners is None: return None, 0.0
         is_won = (match.home_corners + match.away_corners) > threshold
-        
-    elif pick.market_type.value == "corners_under":
+    elif market_type_val == "corners_under":
         if match.home_corners is None or match.away_corners is None: return None, 0.0
         is_won = (match.home_corners + match.away_corners) < threshold
         
-    elif pick.market_type.value == "cards_over":
+    # Cards (Unified handling)
+    elif market_type_val == "cards_over":
         if match.home_yellow_cards is None or match.away_yellow_cards is None: return None, 0.0
         total_cards = (match.home_yellow_cards + match.away_yellow_cards + 
                       (match.home_red_cards or 0) + (match.away_red_cards or 0))
         is_won = total_cards > threshold
-        
-    elif pick.market_type.value == "cards_under":
+    elif market_type_val == "cards_under":
         if match.home_yellow_cards is None or match.away_yellow_cards is None: return None, 0.0
         total_cards = (match.home_yellow_cards + match.away_yellow_cards + 
                       (match.home_red_cards or 0) + (match.away_red_cards or 0))
         is_won = total_cards < threshold
         
-    elif pick.market_type.value == "goals_over":
-        if match.home_goals is None or match.away_goals is None: return None, 0.0
-        is_won = (match.home_goals + match.away_goals) > threshold
-
-    elif pick.market_type.value == "goals_under":
-        if match.home_goals is None or match.away_goals is None: return None, 0.0
-        is_won = (match.home_goals + match.away_goals) < threshold
-
-    elif pick.market_type.value == "btts_yes":
+    # BTTS
+    elif market_type_val == "btts_yes":
         if match.home_goals is None or match.away_goals is None: return None, 0.0
         is_won = (match.home_goals > 0 and match.away_goals > 0)
-
-    elif pick.market_type.value == "btts_no":
+    elif market_type_val == "btts_no":
         if match.home_goals is None or match.away_goals is None: return None, 0.0
         is_won = not (match.home_goals > 0 and match.away_goals > 0)
+        
+    # Team Goals
+    elif market_type_val == "team_goals_over":
+        # Determine team from label
+        is_home = match.home_team.name.split()[0].lower() in pick.market_label.lower()
+        actual = match.home_goals if is_home else match.away_goals
+        if actual is None: return None, 0.0
+        is_won = actual > threshold
+    elif market_type_val == "team_goals_under":
+        is_home = match.home_team.name.split()[0].lower() in pick.market_label.lower()
+        actual = match.home_goals if is_home else match.away_goals
+        if actual is None: return None, 0.0
+        is_won = actual < threshold
 
-    elif pick.market_type.value == "red_cards":
-        if match.home_red_cards is None or match.away_red_cards is None: return None, 0.0
-        is_won = (match.home_red_cards > 0 or match.away_red_cards > 0)
-
-    elif pick.market_type.value == "home_corners_over":
+    # Team Corners
+    elif market_type_val == "home_corners_over":
         if match.home_corners is None: return None, 0.0
         is_won = match.home_corners > threshold
-
-    elif pick.market_type.value == "away_corners_over":
+    elif market_type_val == "away_corners_over":
         if match.away_corners is None: return None, 0.0
         is_won = match.away_corners > threshold
-
-    elif pick.market_type.value == "home_cards_over":
+        
+    # Team Cards
+    elif market_type_val == "home_cards_over":
         if match.home_yellow_cards is None: return None, 0.0
-        # Assuming threshold is for yellow cards primarily based on picks_service logic
         is_won = match.home_yellow_cards > threshold
-
-    elif pick.market_type.value == "away_cards_over":
+    elif market_type_val == "away_cards_over":
         if match.away_yellow_cards is None: return None, 0.0
         is_won = match.away_yellow_cards > threshold
 
-    elif pick.market_type.value == "va_handicap":
+    # Red Cards
+    elif market_type_val == "red_cards":
+        if match.home_red_cards is None or match.away_red_cards is None: return None, 0.0
+        is_won = (match.home_red_cards > 0 or match.away_red_cards > 0)
+
+    # VA Handicap
+    elif market_type_val == "va_handicap":
         if match.home_goals is None or match.away_goals is None: return None, 0.0
-        # Extract handicap value and team from label
-        # Format: "Hándicap Asiático +0.5 - TeamName" or "-1.5"
         try:
-            handicap_val = float(re.findall(r"[-+]?\d*\.\d+|\d+", pick.market_label)[0])
-            # Determine if handicap is for home or away based on label text matching team name
-            is_home_handicap = match.home_team.name.split()[0] in pick.market_label
+            # Better regex for handicap: find + or - followed by number
+            h_match = re.search(r"([+-]\d+\.?\d*)", pick.market_label)
+            if not h_match: return None, 0.0
+            handicap_val = float(h_match.group(1))
+            
+            # Determine team
+            is_home_handicap = match.home_team.name.split()[0].lower() in pick.market_label.lower()
             
             score_diff = match.home_goals - match.away_goals if is_home_handicap else match.away_goals - match.home_goals
             is_won = (score_diff + handicap_val) > 0
@@ -364,7 +406,18 @@ def _validate_pick(pick: SuggestedPick, match: Match, actual_winner: str) -> tup
             return None, 0.0
 
     else:
+        # Unknown market type
         return None, 0.0
+
+    return PickDetail(
+        market_type=market_type_val,
+        market_label=pick.market_label,
+        was_correct=is_won,
+        probability=pick.probability,
+        expected_value=pick.expected_value * 100,
+        confidence=float(pick.probability),
+        is_contrarian=is_value_bet
+    ), 0.0
 
     return PickDetail(
         market_type=pick.market_type.value,
@@ -714,6 +767,17 @@ async def run_training_session(
                              suggested_pick = pick.market_label
                              pick_was_correct = pick_detail.was_correct
                              max_ev_value = pick.expected_value
+                        
+                    # Update daily stats for ROI evolution (outside market-specific if)
+                    date_key = match.match_date.strftime("%Y-%m-%d")
+                    if date_key not in daily_stats:
+                        daily_stats[date_key] = {'staked': 0.0, 'return': 0.0, 'count': 0}
+                    
+                    # We only count it for ROI if it has a payout or we consider it a 'bet'
+                    # For backtest, let's treat any high-probability pick as a units-bet
+                    daily_stats[date_key]['staked'] += 1.0
+                    daily_stats[date_key]['return'] += payout
+                    daily_stats[date_key]['count'] += 1
 
             # Store match prediction with picks
             match_history.append(MatchPredictionHistory(
@@ -771,9 +835,43 @@ async def run_training_session(
             profit=round(current_profit, 2)
         ))
     
-    # Reverse history to show newest matches first
-    match_history.reverse()
+    # Calculate pick efficiency
+    # Collect all picks from all matches
+    all_picks_flat = []
+    for match in match_history:
+        for pick in match.picks:
+            # AnalyticsService expects objects with .status and .pick_type
+            # We can create a simple container or just calculate it here directly for speed
+            all_picks_flat.append(pick)
+            
+    # Calculate efficiency using internal helper
+    pick_type_stats = {}
+    for pick in all_picks_flat:
+        ptype = pick.market_type
+        if ptype not in pick_type_stats:
+            pick_type_stats[ptype] = {"won": 0, "lost": 0, "void": 0, "total": 0}
+        
+        pick_type_stats[ptype]["total"] += 1
+        if pick.was_correct:
+            pick_type_stats[ptype]["won"] += 1
+        else:
+            pick_type_stats[ptype]["lost"] += 1
+            
+    pick_efficiency_list = []
+    for ptype, data in pick_type_stats.items():
+        efficiency = (data["won"] / (data["won"] + data["lost"]) * 100) if (data["won"] + data["lost"]) > 0 else 0.0
+        pick_efficiency_list.append({
+            "pick_type": ptype,
+            "won": data["won"],
+            "lost": data["lost"],
+            "void": data["void"],
+            "total": data["total"],
+            "efficiency": round(efficiency, 2)
+        })
     
+    # Sort by efficiency descending
+    pick_efficiency_list.sort(key=lambda x: x["efficiency"], reverse=True)
+
     result = TrainingStatus(
         matches_processed=matches_processed,
         correct_predictions=correct_predictions,
@@ -784,6 +882,7 @@ async def run_training_session(
         market_stats=learning_service.get_all_stats(),
         match_history=match_history,
         roi_evolution=roi_evolution,
+        pick_efficiency=pick_efficiency_list,
         team_stats=team_stats_cache
     )
     

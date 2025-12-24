@@ -30,8 +30,8 @@ def test_generate_dynamic_goals_picks(picks_service, sample_match):
     predicted goals, not a fixed 2.5 line.
     """
     # High-scoring context: expecting lines like 3.5, 4.5
-    home_stats = TeamStatistics(team_id="team1", matches_played=10, goals_per_match=2.5)
-    away_stats = TeamStatistics(team_id="team2", matches_played=10, goals_per_match=1.8)
+    home_stats = TeamStatistics(team_id="team1", matches_played=10, wins=0, draws=0, losses=0, goals_scored=25, goals_conceded=0)
+    away_stats = TeamStatistics(team_id="team2", matches_played=10, wins=0, draws=0, losses=0, goals_scored=18, goals_conceded=0)
     
     picks = picks_service.generate_suggested_picks(
         match=sample_match,
@@ -64,8 +64,8 @@ def test_generate_dynamic_corners_picks(picks_service, sample_match):
     Test that corner picks use dynamic thresholds based on team averages.
     """
     # High-corner context
-    home_stats = TeamStatistics(team_id="team1", matches_played=10, avg_corners_per_match=7.2)
-    away_stats = TeamStatistics(team_id="team2", matches_played=10, avg_corners_per_match=4.1) # Total avg: 11.3
+    home_stats = TeamStatistics(team_id="team1", matches_played=10, wins=0, draws=0, losses=0, goals_scored=0, goals_conceded=0, total_corners=72)
+    away_stats = TeamStatistics(team_id="team2", matches_played=10, wins=0, draws=0, losses=0, goals_scored=0, goals_conceded=0, total_corners=41) # Total avg: 11.3
     
     picks = picks_service.generate_suggested_picks(
         match=sample_match,
@@ -93,8 +93,8 @@ def test_generate_dynamic_cards_picks(picks_service, sample_match):
     Test that card picks use dynamic thresholds.
     """
     # High-card context
-    home_stats = TeamStatistics(team_id="team1", matches_played=10, avg_yellow_cards_per_match=2.8)
-    away_stats = TeamStatistics(team_id="team2", matches_played=10, avg_yellow_cards_per_match=2.1) # Total avg: 4.9
+    home_stats = TeamStatistics(team_id="team1", matches_played=10, wins=0, draws=0, losses=0, goals_scored=0, goals_conceded=0, total_yellow_cards=28)
+    away_stats = TeamStatistics(team_id="team2", matches_played=10, wins=0, draws=0, losses=0, goals_scored=0, goals_conceded=0, total_yellow_cards=21) # Total avg: 4.9
     
     picks = picks_service.generate_suggested_picks(
         match=sample_match,
@@ -122,8 +122,8 @@ def test_generate_dynamic_handicap_picks(picks_service, sample_match):
     Test that handicap picks are dynamic and can be negative for favorites.
     """
     # Clear favorite context
-    home_stats = TeamStatistics(team_id="team1", matches_played=10)
-    away_stats = TeamStatistics(team_id="team2", matches_played=10)
+    home_stats = TeamStatistics(team_id="team1", matches_played=10, wins=0, draws=0, losses=0, goals_scored=0, goals_conceded=0)
+    away_stats = TeamStatistics(team_id="team2", matches_played=10, wins=0, draws=0, losses=0, goals_scored=0, goals_conceded=0)
     
     picks = picks_service.generate_suggested_picks(
         match=sample_match,
@@ -163,16 +163,20 @@ def test_picks_are_sorted_by_probability(picks_service, sample_match):
     home_stats = TeamStatistics(
         team_id="team1", 
         matches_played=10, 
-        goals_per_match=2.5, 
-        avg_corners_per_match=7.2,
-        avg_yellow_cards_per_match=2.8
+        wins=0, draws=0, losses=0,
+        goals_scored=25, 
+        goals_conceded=0,
+        total_corners=72,
+        total_yellow_cards=28
     )
     away_stats = TeamStatistics(
         team_id="team2", 
         matches_played=10, 
-        goals_per_match=1.8,
-        avg_corners_per_match=4.1,
-        avg_yellow_cards_per_match=2.1
+        wins=0, draws=0, losses=0,
+        goals_scored=18,
+        goals_conceded=0,
+        total_corners=41,
+        total_yellow_cards=21
     )
     
     picks_result = picks_service.generate_suggested_picks(

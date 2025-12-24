@@ -30,7 +30,7 @@ router = APIRouter(prefix="/predictions", tags=["Predictions"])
 )
 async def get_league_predictions(
     league_id: str,
-    limit: int = Query(default=10, ge=1, le=50, description="Maximum matches to return"),
+    limit: int = Query(default=20, ge=1, le=50, description="Maximum matches to return"),
     sort_by: SortBy = Query(default=SortBy.CONFIDENCE, description="Field to sort by"),
     sort_desc: bool = Query(default=True, description="Sort in descending order (highest first)"),
 ) -> PredictionsResponseDTO:

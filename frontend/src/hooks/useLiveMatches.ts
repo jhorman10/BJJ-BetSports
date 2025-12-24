@@ -253,7 +253,7 @@ export const useLiveMatches = () => {
     try {
       await new Promise((resolve) => setTimeout(resolve, 600));
 
-      console.log("Iniciando carga de partidos en vivo...");
+      // Iniciar carga de partidos en vivo
 
       try {
         if (typeof api.getLiveMatches !== "function")
@@ -285,7 +285,6 @@ export const useLiveMatches = () => {
           : [];
 
         if (liveMatches.length === 0) {
-          console.log("Backend vacío. Buscando en API pública (ESPN)...");
           const publicMatches = await fetchPublicLiveMatches();
           liveMatches = publicMatches;
         }

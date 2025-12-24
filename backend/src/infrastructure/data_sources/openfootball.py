@@ -31,6 +31,10 @@ LEAGUE_FILE_MAPPING = {
     "SP1": "es.1",
     "I1": "it.1",
     "F1": "fr.1",
+    "B1": "be.1",
+    "G1": "gr.1",
+    "T1": "tr.1",
+    "SC0": "sco.1",
     # Add more as discovered
 }
 

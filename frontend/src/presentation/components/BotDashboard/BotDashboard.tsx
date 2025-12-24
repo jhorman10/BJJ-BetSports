@@ -917,6 +917,8 @@ const BotDashboard: React.FC = () => {
                     </CardContent>
                   </Card>
                 </Grid>
+
+                {/* Granular Pick Efficiency Chart removed as requested */}
               </Grid>
             </Box>
           )}

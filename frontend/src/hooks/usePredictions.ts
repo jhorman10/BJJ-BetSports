@@ -68,7 +68,7 @@ type SortOption =
  */
 export function usePredictions(
   leagueId: string | null,
-  limit: number = 10,
+  limit: number = 30,
   sortBy: SortOption = "confidence",
   sortDesc: boolean = true,
   pollingInterval: number | null = null

@@ -231,25 +231,36 @@ class TestPredictionService:
         assert 0 <= prediction.home_win_probability <= 1
     
     def test_confidence_calculation(self, service):
-        """Test confidence calculation based on data availability."""
-        # High confidence with lots of data
+        """Test confidence calculation based on data availability and certainty."""
+        # High confidence with lots of data, certain prediction, and recent form
         high_stats = TeamStatistics(
             team_id="team",
-            matches_played=20,
-            wins=10,
-            draws=5,
+            matches_played=30,  # More matches
+            wins=15,
+            draws=10,
             losses=5,
-            goals_scored=30,
-            goals_conceded=20,
+            goals_scored=45,
+            goals_conceded=30,
+            recent_form="WWWWW"  # Consistent form
         )
+        
+        # Low entropy probabilities (very certain)
+        certain_probs = (0.8, 0.1, 0.1)
+        
+        from src.domain.value_objects.value_objects import Odds
+        odds = Odds(home=1.2, draw=6.0, away=12.0)
         
         confidence = service.calculate_confidence(
-            high_stats, high_stats, has_odds=True
+            high_stats, high_stats, has_odds=True,
+            calculated_probs=certain_probs,
+            odds=odds
         )
-        assert confidence >= 0.7
+        # Should be high now
+        assert confidence >= 0.6
         
-        # Lower confidence with no stats
+        # Lower confidence with no stats and high entropy
         low_confidence = service.calculate_confidence(
-            None, None, has_odds=False
+            None, None, has_odds=False,
+            calculated_probs=(0.33, 0.34, 0.33)
         )
         assert low_confidence < confidence

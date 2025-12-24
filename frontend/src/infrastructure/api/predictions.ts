@@ -6,7 +6,6 @@ import {
   BettingFeedbackRequest,
   BettingFeedbackResponse,
   LearningStatsResponse,
-  Match,
 } from "../../domain/entities";
 import { API_ENDPOINTS, APP_CONFIG } from "../../config/constants";
 
@@ -87,8 +86,8 @@ export const predictionsApi = {
   /**
    * Get matches for a specific team
    */
-  async getTeamMatches(teamName: string): Promise<Match[]> {
-    const response = await apiClient.get<Match[]>(
+  async getTeamMatches(teamName: string): Promise<MatchPrediction[]> {
+    const response = await apiClient.get<MatchPrediction[]>(
       API_ENDPOINTS.MATCHES_BY_TEAM(teamName)
     );
     return response.data;

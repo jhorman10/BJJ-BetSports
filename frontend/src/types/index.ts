@@ -68,6 +68,7 @@ export interface Prediction {
   recommended_bet: string;
   over_under_recommendation: string;
   created_at: string;
+  suggested_picks?: import("./index").SuggestedPick[];
   data_updated_at?: string;
   fundamental_analysis?: Record<string, boolean>;
 }

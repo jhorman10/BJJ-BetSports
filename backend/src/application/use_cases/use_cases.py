@@ -13,6 +13,7 @@ import asyncio
 
 from src.domain.entities.entities import Match, League, Prediction, TeamStatistics
 from src.domain.services.prediction_service import PredictionService
+from src.domain.services.picks_service import PicksService
 from src.domain.value_objects.value_objects import LeagueAverages
 from src.infrastructure.data_sources.football_data_uk import (
     FootballDataUKSource,
@@ -191,8 +192,9 @@ class GetPredictionsUseCase:
         self.data_sources = data_sources
         self.prediction_service = prediction_service
         self.statistics_service = statistics_service
+        self.picks_service = PicksService()
     
-    async def execute(self, league_id: str, limit: int = 10) -> PredictionsResponseDTO:
+    async def execute(self, league_id: str, limit: int = 20) -> PredictionsResponseDTO:
         """
         Get predictions for upcoming matches in a league.
         
@@ -215,14 +217,38 @@ class GetPredictionsUseCase:
         )
         
         # Get historical data
+        # 1. Dynamic Season Calculation
+        # Instead of hardcoding "2425", we calculate based on current date
+        now = datetime.now()
+        current_year = now.year
+        
+        # Football seasons usually run from July to June
+        if now.month < 7:
+            # We are in the second half of a season (e.g. Feb 2025 -> 24/25)
+            s1_start = current_year - 1
+            s1_end = current_year
+            s2_start = current_year - 2
+            s2_end = current_year - 1
+        else:
+            # We are in the first half of a season (e.g. Sep 2025 -> 25/26)
+            s1_start = current_year
+            s1_end = current_year + 1
+            s2_start = current_year - 1
+            s2_end = current_year
+            
+        current_season = f"{str(s1_start)[-2:]}{str(s1_end)[-2:]}"
+        prev_season = f"{str(s2_start)[-2:]}{str(s2_end)[-2:]}"
+        seasons = [current_season, prev_season]
+        
+        logger.info(f"Fetching historical matches for {league_id} - Seasons: {seasons}")
+        
         # 1. Try Football-Data.co.uk (CSV) - Preferred for stats
         historical_matches = await self.data_sources.football_data_uk.get_historical_matches(
             league_id,
-            seasons=["2425", "2324"],
+            seasons=seasons,
         )
         
         # 2. If no data, try OpenFootball (JSON) - Fallback
-        # Note: We need a League entity, which we created above ('league')
         if not historical_matches:
             logger.info(f"No CSV data for {league_id}, trying OpenFootball...")
             try:
@@ -236,7 +262,23 @@ class GetPredictionsUseCase:
         league_averages = self.statistics_service.calculate_league_averages(historical_matches)
         
         # Get upcoming fixtures
-        upcoming_matches = await self._get_upcoming_matches(league_id, limit)
+        upcoming_matches = await self._get_upcoming_matches(league_id, limit=1000)
+        
+        # Strict Date Filter: Only show matches in the future
+        now = datetime.now()
+        upcoming_matches = [m for m in upcoming_matches if m.match_date > now]
+        
+        if not upcoming_matches:
+            logger.info(f"No upcoming future matches found for {league_id}")
+            return PredictionsResponseDTO(
+                league=LeagueDTO(
+                    id=league_id,
+                    name=meta["name"],
+                    country=meta["country"],
+                ),
+                predictions=[],
+                generated_at=datetime.utcnow()
+            )
         
         # Build predictions
         predictions = []
@@ -260,11 +302,6 @@ class GetPredictionsUseCase:
                 historical_matches,
             )
             
-            # Data Sufficiency Filter:
-            # Both teams must have played at least 3 matches to generate a reliable prediction
-            if home_stats.matches_played < 3 or away_stats.matches_played < 3:
-                continue
-            
             # Generate prediction
             prediction = self.prediction_service.generate_prediction(
                 match=match,
@@ -273,6 +310,27 @@ class GetPredictionsUseCase:
                 league_averages=league_averages,
                 data_sources=data_sources_used,
             )
+            
+            # Generate suggested picks
+            suggested_picks = self.picks_service.generate_suggested_picks(
+                match=match,
+                home_stats=home_stats,
+                away_stats=away_stats,
+                league_averages=league_averages,
+                predicted_home_goals=prediction.predicted_home_goals,
+                predicted_away_goals=prediction.predicted_away_goals,
+                home_win_prob=prediction.home_win_probability,
+                draw_prob=prediction.draw_probability,
+                away_win_prob=prediction.away_win_probability,
+            )
+            
+            # Filter: Check if we actually have something to show
+            is_valid_prediction = (prediction.home_win_probability + prediction.draw_probability + prediction.away_win_probability) > 0
+            has_picks = len(suggested_picks.suggested_picks) > 0
+            
+            if not (is_valid_prediction or has_picks):
+                logger.debug(f"Skipping match {match.id} due to lack of prediction/picks")
+                continue
             
             # Convert to DTOs
             match_dto = self._match_to_dto(match)
@@ -288,7 +346,7 @@ class GetPredictionsUseCase:
                     match_dto.away_yellow_cards = int(round(away_stats.avg_yellow_cards_per_match))
                     match_dto.away_red_cards = int(round(away_stats.avg_red_cards_per_match))
             
-            prediction_dto = self._prediction_to_dto(prediction)
+            prediction_dto = self._prediction_to_dto(prediction, suggested_picks.suggested_picks)
             
             predictions.append(MatchPredictionDTO(
                 match=match_dto,
@@ -381,8 +439,25 @@ class GetPredictionsUseCase:
             away_odds=match.away_odds,
         )
 
-    def _prediction_to_dto(self, prediction: Prediction) -> PredictionDTO:
-         from src.application.dtos.dtos import PredictionDTO
+    def _prediction_to_dto(self, prediction: Prediction, picks: list = None) -> PredictionDTO:
+         from src.application.dtos.dtos import PredictionDTO, SuggestedPickDTO
+         
+         pick_dtos = []
+         if picks:
+             pick_dtos = [
+                 SuggestedPickDTO(
+                     market_type=p.market_type.value if hasattr(p.market_type, 'value') else p.market_type,
+                     market_label=p.market_label,
+                     probability=p.probability,
+                     confidence_level=p.confidence_level.value if hasattr(p.confidence_level, 'value') else p.confidence_level,
+                     reasoning=p.reasoning,
+                     risk_level=p.risk_level,
+                     is_recommended=p.is_recommended,
+                     priority_score=p.priority_score,
+                 )
+                 for p in picks
+             ]
+
          return PredictionDTO(
             match_id=prediction.match_id,
             home_win_probability=prediction.home_win_probability,
@@ -396,6 +471,7 @@ class GetPredictionsUseCase:
             data_sources=prediction.data_sources,
             recommended_bet=prediction.recommended_bet,
             over_under_recommendation=prediction.over_under_recommendation,
+            suggested_picks=pick_dtos,
             created_at=prediction.created_at,
         )
 
@@ -412,6 +488,7 @@ class GetMatchDetailsUseCase:
         self.data_sources = data_sources
         self.prediction_service = prediction_service
         self.statistics_service = statistics_service
+        self.picks_service = PicksService()
 
     async def execute(self, match_id: str) -> MatchPredictionDTO:
         # 1. Get match details
@@ -574,6 +651,19 @@ class GetMatchDetailsUseCase:
             league_averages=None, # Will use defaults
             data_sources=[APIFootballSource.SOURCE_NAME] + ([FootballDataUKSource.SOURCE_NAME] if historical_matches else []),
         )
+
+        # Generate suggested picks
+        suggested_picks = self.picks_service.generate_suggested_picks(
+            match=match,
+            home_stats=home_stats,
+            away_stats=away_stats,
+            league_averages=None,
+            predicted_home_goals=prediction.predicted_home_goals,
+            predicted_away_goals=prediction.predicted_away_goals,
+            home_win_prob=prediction.home_win_probability,
+            draw_prob=prediction.draw_probability,
+            away_win_prob=prediction.away_win_probability,
+        )
         
         # Enhanced Match DTO with projected stats if NS
         match_dto = self._match_to_dto(match)
@@ -591,7 +681,7 @@ class GetMatchDetailsUseCase:
 
         return MatchPredictionDTO(
             match=match_dto,
-            prediction=self._prediction_to_dto(prediction),
+            prediction=self._prediction_to_dto(prediction, suggested_picks.suggested_picks),
         )
 
     def _match_to_dto(self, match: Match) -> MatchDTO:
@@ -617,8 +707,26 @@ class GetMatchDetailsUseCase:
             away_odds=match.away_odds,
         )
 
-    def _prediction_to_dto(self, prediction: Prediction) -> PredictionDTO:
-         from src.application.dtos.dtos import PredictionDTO
+    def _prediction_to_dto(self, prediction: Prediction, picks: list = None) -> PredictionDTO:
+         # Same logic as above, but keeping it inside the class for now
+         from src.application.dtos.dtos import PredictionDTO, SuggestedPickDTO
+         
+         pick_dtos = []
+         if picks:
+             pick_dtos = [
+                 SuggestedPickDTO(
+                     market_type=p.market_type.value if hasattr(p.market_type, 'value') else p.market_type,
+                     market_label=p.market_label,
+                     probability=p.probability,
+                     confidence_level=p.confidence_level.value if hasattr(p.confidence_level, 'value') else p.confidence_level,
+                     reasoning=p.reasoning,
+                     risk_level=p.risk_level,
+                     is_recommended=p.is_recommended,
+                     priority_score=p.priority_score,
+                 )
+                 for p in picks
+             ]
+
          return PredictionDTO(
             match_id=prediction.match_id,
             home_win_probability=prediction.home_win_probability,
@@ -632,7 +740,341 @@ class GetMatchDetailsUseCase:
             data_sources=prediction.data_sources,
             recommended_bet=prediction.recommended_bet,
             over_under_recommendation=prediction.over_under_recommendation,
+            suggested_picks=pick_dtos,
             created_at=prediction.created_at,
         )
         
 
+
+class GetTeamPredictionsUseCase:
+    """Use case for getting matches for a specific team with predictions."""
+    
+    def __init__(
+        self,
+        data_sources: DataSources,
+        prediction_service: PredictionService,
+        statistics_service: StatisticsService,
+    ):
+        self.data_sources = data_sources
+        self.prediction_service = prediction_service
+        self.statistics_service = statistics_service
+        self.picks_service = PicksService()
+        
+    async def execute(self, team_name: str) -> list[MatchPredictionDTO]:
+        """
+        Get matches for a specific team with predictions.
+        
+        Args:
+            team_name: Name of the team to search for
+            
+        Returns:
+            List of MatchPredictionDTOs
+        """
+        # 1. Get matches
+        matches = await self.data_sources.api_football.get_team_matches(team_name)
+        
+        if not matches:
+            return []
+            
+        match_prediction_dtos = []
+        
+        # 2. Setup helpers for historical data
+        from src.infrastructure.data_sources.api_football import LEAGUE_ID_MAPPING
+        api_id_to_code = {v: k for k, v in LEAGUE_ID_MAPPING.items()}
+        
+        # Process each match
+        for match in matches:
+            try:
+                # 3. Try to get historical context
+                historical_matches = []
+                internal_league_code = None
+                
+                try:
+                    # Try to map league ID
+                    if match.league.id and match.league.id.isdigit():
+                        lid = int(match.league.id)
+                        if lid in api_id_to_code:
+                            internal_league_code = api_id_to_code[lid]
+                except Exception:
+                    pass
+                    
+                if internal_league_code:
+                    try:
+                        # Fetch history (cached by service potentially)
+                        historical_matches = await self.data_sources.football_data_uk.get_historical_matches(
+                            internal_league_code,
+                            seasons=["2425", "2324"], 
+                        )
+                    except Exception:
+                        pass
+                
+                # 4. Calculate stats
+                home_stats = self.statistics_service.calculate_team_statistics(match.home_team.name, historical_matches)
+                away_stats = self.statistics_service.calculate_team_statistics(match.away_team.name, historical_matches)
+                
+                # 5. Generate prediction
+                prediction = self.prediction_service.generate_prediction(
+                    match=match,
+                    home_stats=home_stats,
+                    away_stats=away_stats,
+                    league_averages=None,
+                    data_sources=["API-Football", "Football-Data.co.uk"] if historical_matches else ["API-Football"],
+                )
+                
+                # Generate suggested picks
+                suggested_picks = self.picks_service.generate_suggested_picks(
+                    match=match,
+                    home_stats=home_stats,
+                    away_stats=away_stats,
+                    league_averages=None,
+                    predicted_home_goals=prediction.predicted_home_goals,
+                    predicted_away_goals=prediction.predicted_away_goals,
+                    home_win_prob=prediction.home_win_probability,
+                    draw_prob=prediction.draw_probability,
+                    away_win_prob=prediction.away_win_probability,
+                )
+                
+                # 6. Create DTOs
+                match_dto = self._match_to_dto(match)
+                
+                # Inject projected stats if NS
+                if match.status in ["NS", "TIMED", "SCHEDULED"] and historical_matches:
+                     if home_stats and home_stats.matches_played > 0:
+                         match_dto.home_corners = int(round(home_stats.avg_corners_per_match))
+                         match_dto.home_yellow_cards = int(round(home_stats.avg_yellow_cards_per_match))
+                         match_dto.home_red_cards = int(round(home_stats.avg_red_cards_per_match))
+                     if away_stats and away_stats.matches_played > 0:
+                         match_dto.away_corners = int(round(away_stats.avg_corners_per_match))
+                         match_dto.away_yellow_cards = int(round(away_stats.avg_yellow_cards_per_match))
+                         match_dto.away_red_cards = int(round(away_stats.avg_red_cards_per_match))
+                
+                prediction_dto = self._prediction_to_dto(prediction, suggested_picks.suggested_picks)
+                
+                match_prediction_dtos.append(MatchPredictionDTO(
+                    match=match_dto,
+                    prediction=prediction_dto
+                ))
+                
+            except Exception as e:
+                logger.warning(f"Error processing team match {match.id}: {e}")
+                continue
+
+        return match_prediction_dtos
+        
+    def _match_to_dto(self, match: Match) -> MatchDTO:
+        # Duplicated helper for now to avoid cross-cutting refactor
+        from src.application.dtos.dtos import TeamDTO, LeagueDTO
+        return MatchDTO(
+            id=match.id,
+            home_team=TeamDTO(id=match.home_team.id, name=match.home_team.name, country=match.home_team.country, logo_url=match.home_team.logo_url),
+            away_team=TeamDTO(id=match.away_team.id, name=match.away_team.name, country=match.away_team.country, logo_url=match.away_team.logo_url),
+            league=LeagueDTO(id=match.league.id, name=match.league.name, country=match.league.country, season=match.league.season),
+            match_date=match.match_date,
+            home_goals=match.home_goals,
+            away_goals=match.away_goals,
+            status=match.status,
+            home_corners=match.home_corners,
+            away_corners=match.away_corners,
+            home_yellow_cards=match.home_yellow_cards,
+            away_yellow_cards=match.away_yellow_cards,
+            home_red_cards=match.home_red_cards,
+            away_red_cards=match.away_red_cards,
+            home_odds=match.home_odds,
+            draw_odds=match.draw_odds,
+            away_odds=match.away_odds,
+        )
+
+    def _prediction_to_dto(self, prediction: Prediction, picks: list = None) -> PredictionDTO:
+         from src.application.dtos.dtos import PredictionDTO, SuggestedPickDTO
+         
+         pick_dtos = []
+         if picks:
+             pick_dtos = [
+                 SuggestedPickDTO(
+                     market_type=p.market_type.value if hasattr(p.market_type, 'value') else p.market_type,
+                     market_label=p.market_label,
+                     probability=p.probability,
+                     confidence_level=p.confidence_level.value if hasattr(p.confidence_level, 'value') else p.confidence_level,
+                     reasoning=p.reasoning,
+                     risk_level=p.risk_level,
+                     is_recommended=p.is_recommended,
+                     priority_score=p.priority_score,
+                 )
+                 for p in picks
+             ]
+
+         return PredictionDTO(
+            match_id=prediction.match_id,
+            home_win_probability=prediction.home_win_probability,
+            draw_probability=prediction.draw_probability,
+            away_win_probability=prediction.away_win_probability,
+            over_25_probability=prediction.over_25_probability,
+            under_25_probability=prediction.under_25_probability,
+            predicted_home_goals=prediction.predicted_home_goals,
+            predicted_away_goals=prediction.predicted_away_goals,
+            confidence=prediction.confidence,
+            data_sources=prediction.data_sources,
+            recommended_bet=prediction.recommended_bet,
+            over_under_recommendation=prediction.over_under_recommendation,
+            suggested_picks=pick_dtos,
+            created_at=prediction.created_at,
+        )
+
+
+
+class GetGlobalLiveMatchesUseCase:
+    """
+    Use case for getting all live matches globally from ALL available sources.
+    
+    STRICT POLICY:
+    - ONLY returns REAL data from external APIs.
+    - NO mock data or simulated matches allowed.
+    - Aggregates and deduplicates data to provide the most complete picture.
+    """
+    
+    def __init__(self, data_sources: DataSources):
+        self.data_sources = data_sources
+        
+    async def execute(self) -> list[MatchDTO]:
+        """
+        Execute the use case.
+        
+        Returns:
+            List of unique live matches from all sources.
+        """
+        tasks = []
+        
+        # 1. API-Football (Primary)
+        if self.data_sources.api_football.is_configured:
+            tasks.append(self.data_sources.api_football.get_live_matches())
+            
+        # 2. Football-Data.org (Secondary)
+        if self.data_sources.football_data_org.is_configured:
+            tasks.append(self.data_sources.football_data_org.get_live_matches())
+            
+        # Execute in parallel
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        all_matches = []
+        for res in results:
+            if isinstance(res, list):
+                all_matches.extend(res)
+            elif isinstance(res, Exception):
+                logger.error(f"Error fetching live matches from source: {res}")
+                
+        # Deduplication Strategy
+        # We prefer API-Football data as it usually has more stats (corners, cards)
+        # Key: (HomeTeamName, AwayTeamName) - Normalized
+        unique_matches = {}
+        
+        for match in all_matches:
+            # Create a simple unique key
+            # Normalize names: lowercase, remove special chars could be better but basic string match ok for now
+            key = f"{match.home_team.name.lower()}-{match.away_team.name.lower()}"
+            
+            if key not in unique_matches:
+                unique_matches[key] = match
+            else:
+                # If we already have it, keep the one with more info?
+                # For now, simplest is first-come-first-served (API-Football was first in tasks)
+                # But verify if the new one has stats and the old one doesn't
+                existing = unique_matches[key]
+                if (match.home_corners is not None and existing.home_corners is None):
+                    unique_matches[key] = match
+        
+        # Convert to DTOs
+        # Helper reuse (technical debt: duplication)
+        from src.application.dtos.dtos import TeamDTO, LeagueDTO
+        dtos = []
+        for match in unique_matches.values():
+             dtos.append(MatchDTO(
+                id=match.id,
+                home_team=TeamDTO(id=match.home_team.id, name=match.home_team.name, country=match.home_team.country, logo_url=match.home_team.logo_url),
+                away_team=TeamDTO(id=match.away_team.id, name=match.away_team.name, country=match.away_team.country, logo_url=match.away_team.logo_url),
+                league=LeagueDTO(id=match.league.id, name=match.league.name, country=match.league.country, season=match.league.season),
+                match_date=match.match_date,
+                home_goals=match.home_goals,
+                away_goals=match.away_goals,
+                status=match.status,
+                home_corners=match.home_corners,
+                away_corners=match.away_corners,
+                home_yellow_cards=match.home_yellow_cards,
+                away_yellow_cards=match.away_yellow_cards,
+                home_red_cards=match.home_red_cards,
+                away_red_cards=match.away_red_cards,
+                home_odds=match.home_odds,
+                draw_odds=match.draw_odds,
+                away_odds=match.away_odds,
+            ))
+            
+        return dtos
+
+
+class GetGlobalDailyMatchesUseCase:
+    """
+    Use case for getting all daily matches from ALL available sources.
+    
+    STRICT POLICY:
+    - ONLY returns REAL data from external APIs.
+    - NO mock data allowed.
+    """
+    
+    def __init__(self, data_sources: DataSources):
+        self.data_sources = data_sources
+        
+    async def execute(self, date_str: Optional[str] = None) -> list[MatchDTO]:
+        """Get daily matches combined."""
+        tasks = []
+        
+        # 1. API-Football
+        if self.data_sources.api_football.is_configured:
+            tasks.append(self.data_sources.api_football.get_daily_matches(date_str))
+            
+        # 2. Football-Data.org (Need to implement get_matches with date range)
+        # Currently no direct 'get_daily_matches', but we can assume 'upcoming' covers today if scheduled
+        # Skipping to avoid complexity for now, relying on API-Football for strict daily list
+        # or we could add specific date query to football_data_org but it has strict rate limits.
+        
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        all_matches = []
+        for res in results:
+            if isinstance(res, list):
+                all_matches.extend(res)
+                
+        # Deduplication (same logic)
+        unique_matches = {}
+        for match in all_matches:
+            key = f"{match.home_team.name.lower()}-{match.away_team.name.lower()}"
+            if key not in unique_matches:
+                unique_matches[key] = match
+            else:
+                existing = unique_matches[key]
+                if (match.home_corners is not None and existing.home_corners is None):
+                    unique_matches[key] = match
+
+        # Map to DTOs
+        from src.application.dtos.dtos import TeamDTO, LeagueDTO
+        dtos = []
+        for match in unique_matches.values():
+             dtos.append(MatchDTO(
+                id=match.id,
+                home_team=TeamDTO(id=match.home_team.id, name=match.home_team.name, country=match.home_team.country, logo_url=match.home_team.logo_url),
+                away_team=TeamDTO(id=match.away_team.id, name=match.away_team.name, country=match.away_team.country, logo_url=match.away_team.logo_url),
+                league=LeagueDTO(id=match.league.id, name=match.league.name, country=match.league.country, season=match.league.season),
+                match_date=match.match_date,
+                home_goals=match.home_goals,
+                away_goals=match.away_goals,
+                status=match.status,
+                home_corners=match.home_corners,
+                away_corners=match.away_corners,
+                home_yellow_cards=match.home_yellow_cards,
+                away_yellow_cards=match.away_yellow_cards,
+                home_red_cards=match.home_red_cards,
+                away_red_cards=match.away_red_cards,
+                home_odds=match.home_odds,
+                draw_odds=match.draw_odds,
+                away_odds=match.away_odds,
+            ))
+            
+        return dtos

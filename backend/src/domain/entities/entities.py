@@ -200,9 +200,9 @@ class Prediction:
     def recommended_bet(self) -> str:
         """Get the recommended bet based on highest probability."""
         probs = {
-            "Victoria Local (1)": self.home_win_probability,
-            "Empate (X)": self.draw_probability,
-            "Victoria Visitante (2)": self.away_win_probability,
+            "Home Win (1)": self.home_win_probability,
+            "Draw (X)": self.draw_probability,
+            "Away Win (2)": self.away_win_probability,
         }
         return max(probs, key=probs.get)
     
@@ -210,8 +210,8 @@ class Prediction:
     def over_under_recommendation(self) -> str:
         """Get over/under 2.5 recommendation."""
         if self.over_25_probability > self.under_25_probability:
-            return "Más de 2.5"
-        return "Menos de 2.5"
+            return "Over 2.5"
+        return "Under 2.5"
 
 
 @dataclass
@@ -240,6 +240,16 @@ class TeamStatistics:
     goals_conceded: int
     home_wins: int = 0
     away_wins: int = 0
+    
+    # Granular venue stats
+    home_matches_played: int = 0
+    home_goals_scored: int = 0
+    home_goals_conceded: int = 0
+    
+    away_matches_played: int = 0
+    away_goals_scored: int = 0
+    away_goals_conceded: int = 0
+    
     total_corners: int = 0
     total_yellow_cards: int = 0
     total_red_cards: int = 0
@@ -266,6 +276,34 @@ class TeamStatistics:
         if self.matches_played == 0:
             return 0.0
         return self.goals_conceded / self.matches_played
+    
+    @property
+    def home_goals_per_match(self) -> float:
+        """Average goals scored when playing at home."""
+        if self.home_matches_played == 0:
+            return 0.0
+        return self.home_goals_scored / self.home_matches_played
+
+    @property
+    def home_goals_conceded_per_match(self) -> float:
+        """Average goals conceded when playing at home."""
+        if self.home_matches_played == 0:
+            return 0.0
+        return self.home_goals_conceded / self.home_matches_played
+
+    @property
+    def away_goals_per_match(self) -> float:
+        """Average goals scored when playing away."""
+        if self.away_matches_played == 0:
+            return 0.0
+        return self.away_goals_scored / self.away_matches_played
+
+    @property
+    def away_goals_conceded_per_match(self) -> float:
+        """Average goals conceded when playing away."""
+        if self.away_matches_played == 0:
+            return 0.0
+        return self.away_goals_conceded / self.away_matches_played
     
     @property
     def goal_difference(self) -> int:

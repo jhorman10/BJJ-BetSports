@@ -28,6 +28,7 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
   onClose,
   matchPrediction,
 }) => {
+  const [picksCount, setPicksCount] = React.useState<number | null>(null);
   const details = matchPrediction;
 
   if (!open) return null;
@@ -104,20 +105,40 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
 
             {/* Picks Destacados - At the top */}
             <Box mb={3}>
-              <Typography
-                variant="subtitle1"
-                fontWeight="bold"
-                gutterBottom
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 1,
-                  mb: 2,
-                }}
+              <Box
+                display="flex"
+                alignItems="center"
+                justifyContent="space-between"
+                mb={2}
               >
-                🎯 Picks Destacados
-              </Typography>
-              <SuggestedPicksTab matchPrediction={details} />
+                <Typography
+                  variant="subtitle1"
+                  fontWeight="bold"
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                  }}
+                >
+                  🎯 Picks Destacados
+                </Typography>
+                {picksCount !== null && picksCount > 0 && (
+                  <Chip
+                    label={`${picksCount} picks`}
+                    size="small"
+                    sx={{
+                      fontWeight: "bold",
+                      bgcolor: "rgba(255, 255, 255, 0.1)",
+                      color: "rgba(255, 255, 255, 0.9)",
+                      border: "1px solid rgba(255, 255, 255, 0.2)",
+                    }}
+                  />
+                )}
+              </Box>
+              <SuggestedPicksTab
+                matchPrediction={details}
+                onPicksCount={setPicksCount}
+              />
             </Box>
 
             <Divider sx={{ mb: 2 }} />

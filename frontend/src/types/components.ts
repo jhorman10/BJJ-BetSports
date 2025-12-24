@@ -48,6 +48,16 @@ export interface TrainingStatus {
   profit_units: number;
   market_stats: any;
   match_history: MatchPredictionHistory[];
+  roi_evolution: { date: string; roi: number; profit: number }[];
+  pick_efficiency: {
+    pick_type: string;
+    won: number;
+    lost: number;
+    void: number;
+    total: number;
+    efficiency: number;
+  }[];
+  team_stats: any;
 }
 
 export interface MatchHistoryTableProps {

@@ -38,9 +38,6 @@ export const liveApi = {
       })) as LiveMatchPrediction[];
 
       if (matches.length === 0) {
-        console.log(
-          "Backend returned empty live matches. Falling back to ESPN..."
-        );
         matches = await fetchESPNLiveMatches();
       }
 

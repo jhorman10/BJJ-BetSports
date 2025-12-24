@@ -208,6 +208,19 @@ class APIFootballSource:
         
         data = await self._make_request("/fixtures", params)
         
+        # Free Tier Fallback: If 'next' is not supported, try date-based range for next 14 days
+        if not data or (data.get("errors") and "plan" in str(data["errors"])):
+            logger.info("API-Football 'next' parameter failed (likely free plan). Trying date range fallback...")
+            start_date = now.strftime("%Y-%m-%d")
+            end_date = (now + timedelta(days=14)).strftime("%Y-%m-%d")
+            params = {
+                "league": api_league_id,
+                "season": season,
+                "from": start_date,
+                "to": end_date
+            }
+            data = await self._make_request("/fixtures", params)
+
         if not data or not data.get("response"):
             return []
         

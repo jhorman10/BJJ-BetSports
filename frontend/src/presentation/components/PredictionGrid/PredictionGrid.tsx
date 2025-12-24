@@ -13,7 +13,9 @@ import PredictionGridHeader from "./PredictionGridHeader";
 import MatchDetailsModal from "../MatchDetails/MatchDetailsModal";
 import PredictionGridList, { MatchCardSkeleton } from "./PredictionGridList";
 import { getBestPick } from "../../../utils/predictionUtils";
+import { isSearchMatch } from "../../../utils/searchUtils";
 import { ParleyPickItem } from "../../../application/stores/useParleyStore";
+
 import { usePredictionStore } from "../../../application/stores/usePredictionStore";
 import { useParleyStore } from "../../../application/stores/useParleyStore";
 
@@ -35,6 +37,7 @@ const PredictionGrid: React.FC = memo(() => {
     searchQuery,
     setSearchQuery,
     searchMatches,
+    fetchPredictions,
   } = usePredictionStore();
 
   const { selectedPicks, addPick, removePick } = useParleyStore();
@@ -63,33 +66,19 @@ const PredictionGrid: React.FC = memo(() => {
     setSnackbarOpen(false);
   };
 
+  // Fetch predictions when selected league changes
+  React.useEffect(() => {
+    if (league) {
+      fetchPredictions();
+    }
+  }, [league, fetchPredictions]);
+
   // Determine which set of predictions to use
   // If searching globally (matched logic in App.tsx typically was > 2 chars)
   const isGlobalSearch = searchQuery.length > 2;
-  const activePredictions = isGlobalSearch ? searchMatches : predictions;
+
   const loading = isGlobalSearch ? searchLoading : predictionsLoading;
   const error = predictionsError ? new Error(predictionsError) : null;
-
-  // Filter locally if needed (e.g. if we want to filter the current league list by small query)
-  // But store handles specific "Search" vs "League View".
-  // If < 2 chars, we show league predictions. Simple local filter?
-  // The previous implementation filtered `predictions` by `searchQuery`.
-  // If query was small, it filtered local list. If large, it (in App.tsx) switched to `searchMatches`.
-  // Let's replicate: if !isGlobalSearch, filter activePredictions by query locally.
-  const filteredPredictions = useMemo(() => {
-    if (isGlobalSearch) return activePredictions; // Already filtered by API search
-
-    if (!searchQuery) return activePredictions;
-
-    return activePredictions.filter((p) => {
-      return (
-        p.match.home_team.name
-          .toLowerCase()
-          .includes(searchQuery.toLowerCase()) ||
-        p.match.away_team.name.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    });
-  }, [activePredictions, searchQuery, isGlobalSearch]);
 
   const handleMatchClick = useCallback((matchPrediction: MatchPrediction) => {
     setSelectedMatch(matchPrediction);
@@ -171,11 +160,28 @@ const PredictionGrid: React.FC = memo(() => {
   }, []);
 
   // Sort predictions client-side to ensure visual consistency
-  // Note: API might sort, but store might not preserve order if we merge or modify
   const sortedPredictions = useMemo(() => {
-    const sorted = [...filteredPredictions];
+    // Start with local league predictions
+    let combined = predictions.filter((p) => {
+      if (!searchQuery) return true;
+      // Check home and away teams
+      return (
+        isSearchMatch(searchQuery, p.match.home_team.name) ||
+        isSearchMatch(searchQuery, p.match.away_team.name)
+      );
+    });
 
-    return sorted.sort((a, b) => {
+    // 2. Add Global Search Results (if searching and they aren't already included)
+    if (isGlobalSearch && searchMatches.length > 0) {
+      const existingIds = new Set(combined.map((p) => p.match.id));
+      const newMatches = searchMatches.filter(
+        (p) => !existingIds.has(p.match.id)
+      );
+      combined = [...combined, ...newMatches];
+    }
+
+    // 3. Sort the combined list
+    return combined.sort((a, b) => {
       switch (sortBy) {
         case "confidence":
           return b.prediction.confidence - a.prediction.confidence;
@@ -198,85 +204,9 @@ const PredictionGrid: React.FC = memo(() => {
           return 0;
       }
     });
-  }, [filteredPredictions, sortBy]);
+  }, [predictions, searchMatches, searchQuery, isGlobalSearch, sortBy]);
 
-  // Loading state
-  if (loading) {
-    return (
-      <Box>
-        <Box display="flex" alignItems="center" gap={2} mb={3}>
-          <CircularProgress size={24} />
-          <Typography color="text.secondary">
-            Cargando predicciones...
-          </Typography>
-        </Box>
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: {
-              xs: "1fr",
-              sm: "1fr 1fr",
-              lg: "1fr 1fr 1fr",
-            },
-            gap: 3,
-          }}
-        >
-          {[...Array(6)].map((_, index) => (
-            <Box key={index}>
-              <MatchCardSkeleton />
-            </Box>
-          ))}
-        </Box>
-      </Box>
-    );
-  }
-
-  // Error state
-  if (error) {
-    return (
-      <Alert severity="error" sx={{ mb: 3 }}>
-        Error al cargar predicciones: {error.message}
-      </Alert>
-    );
-  }
-
-  // Empty state (only if not searching/filtering live)
-  // Adjust logic: if no predictions AND not global search (because if global search returns 0, it's empty result)
-  // Wait, if predictions length is 0, we show empty state.
-  if (sortedPredictions.length === 0 && !loading) {
-    // Different empty state for search vs no league data
-    const isSearchEmpty = searchQuery.length > 0;
-
-    return (
-      <Box
-        display="flex"
-        flexDirection="column"
-        alignItems="center"
-        justifyContent="center"
-        py={8}
-        gap={2}
-        sx={emptyStateStyles}
-      >
-        <SportsSoccer sx={{ fontSize: 64, color: "text.disabled" }} />
-        <Typography variant="h6" color="text.secondary">
-          {isSearchEmpty
-            ? "No se encontraron partidos"
-            : "No hay predicciones disponibles"}
-        </Typography>
-        <Typography
-          variant="body2"
-          color="text.disabled"
-          textAlign="center"
-          maxWidth={400}
-        >
-          {isSearchEmpty
-            ? `No encontramos resultados para "${searchQuery}"`
-            : "Selecciona un país y una liga para ver las predicciones de los próximos partidos."}
-        </Typography>
-      </Box>
-    );
-  }
-
+  // Persistent Header with Conditional Content Below
   return (
     <Box>
       <PredictionGridHeader
@@ -297,13 +227,72 @@ const PredictionGrid: React.FC = memo(() => {
         }
       />
 
-      <PredictionGridList
-        predictions={sortedPredictions}
-        onMatchClick={handleMatchClick}
-        selectedMatchIds={Array.from(selectedPicks.keys())}
-        loadingMatchIds={loadingPicks}
-        onToggleMatchSelection={handleToggleSelection}
-      />
+      {loading ? (
+        <Box>
+          <Box display="flex" alignItems="center" gap={2} mb={3}>
+            <CircularProgress size={24} />
+            <Typography color="text.secondary">
+              Cargando predicciones...
+            </Typography>
+          </Box>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                sm: "1fr 1fr",
+                lg: "1fr 1fr 1fr",
+              },
+              gap: 3,
+            }}
+          >
+            {[...Array(6)].map((_, index) => (
+              <Box key={index}>
+                <MatchCardSkeleton />
+              </Box>
+            ))}
+          </Box>
+        </Box>
+      ) : error ? (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          Error al cargar predicciones: {error.message}
+        </Alert>
+      ) : sortedPredictions.length === 0 ? (
+        <Box
+          display="flex"
+          flexDirection="column"
+          alignItems="center"
+          justifyContent="center"
+          py={8}
+          gap={2}
+          sx={emptyStateStyles}
+        >
+          <SportsSoccer sx={{ fontSize: 64, color: "text.disabled" }} />
+          <Typography variant="h6" color="text.secondary">
+            {searchQuery.length > 0
+              ? "No se encontraron partidos"
+              : "No hay predicciones disponibles"}
+          </Typography>
+          <Typography
+            variant="body2"
+            color="text.disabled"
+            textAlign="center"
+            maxWidth={400}
+          >
+            {searchQuery.length > 0
+              ? `No encontramos resultados para "${searchQuery}"`
+              : "Selecciona un país y una liga para ver las predicciones de los próximos partidos."}
+          </Typography>
+        </Box>
+      ) : (
+        <PredictionGridList
+          predictions={sortedPredictions}
+          onMatchClick={handleMatchClick}
+          selectedMatchIds={Array.from(selectedPicks.keys())}
+          loadingMatchIds={loadingPicks}
+          onToggleMatchSelection={handleToggleSelection}
+        />
+      )}
 
       {/* Modal */}
       <React.Suspense fallback={null}>
