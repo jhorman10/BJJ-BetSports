@@ -206,33 +206,35 @@ def _convert_to_domain_stats(team_name: str, raw_stats: dict) -> TeamStatistics:
     mp = raw_stats["matches_played"]
     if mp == 0:
         return TeamStatistics(
-            team_id="0", 
-            team_name=team_name, 
+            team_id=team_name.lower().replace(" ", "_"),
             matches_played=0,
+            wins=0,
+            draws=0,
+            losses=0,
             goals_scored=0,
             goals_conceded=0,
-            avg_corners_per_match=0,
-            avg_yellow_cards_per_match=0,
-            avg_red_cards_per_match=0,
-            win_rate=0,
-            goals_per_match=0,
-            goals_conceded_per_match=0,
-            goal_difference=0
+            home_wins=0,
+            away_wins=0,
+            total_corners=0,
+            total_yellow_cards=0,
+            total_red_cards=0,
+            recent_form=""
         )
         
     return TeamStatistics(
-        team_id="0", # Placeholder
-        team_name=team_name,
+        team_id=team_name.lower().replace(" ", "_"),
         matches_played=mp,
+        wins=raw_stats.get("wins", 0),
+        draws=raw_stats.get("draws", 0),
+        losses=raw_stats.get("losses", 0),
         goals_scored=raw_stats["goals_scored"],
         goals_conceded=raw_stats["goals_conceded"],
-        avg_corners_per_match=raw_stats["corners_for"] / mp,
-        avg_yellow_cards_per_match=raw_stats["yellow_cards"] / mp,
-        avg_red_cards_per_match=raw_stats["red_cards"] / mp,
-        win_rate=raw_stats["wins"] / mp,
-        goals_per_match=raw_stats["goals_scored"] / mp,
-        goals_conceded_per_match=raw_stats["goals_conceded"] / mp,
-        goal_difference=raw_stats["goals_scored"] - raw_stats["goals_conceded"]
+        home_wins=raw_stats.get("home_wins", 0),
+        away_wins=raw_stats.get("away_wins", 0),
+        total_corners=raw_stats.get("corners_for", 0),
+        total_yellow_cards=raw_stats.get("yellow_cards", 0),
+        total_red_cards=raw_stats.get("red_cards", 0),
+        recent_form=raw_stats.get("recent_form", "")
     )
 
 def _validate_pick(pick: SuggestedPick, match: Match, actual_winner: str) -> tuple[Optional[PickDetail], float]:
