@@ -81,10 +81,23 @@ class BotScheduler:
             del request
             gc.collect()
 
-            # 2. MASSIVE INFERENCE (The Chunking Loop)
-            logger.info("Step 2/3: Starting iterative inference (One league at a time)...")
+            # 2. PRE-CACHE LEAGUES (Fast startup for frontend)
+            logger.info("Step 2/4: Pre-caching leagues list...")
+            try:
+                from src.application.use_cases.use_cases import GetLeaguesUseCase
+                leagues_use_case = GetLeaguesUseCase(data_sources)
+                leagues_result = await leagues_use_case.execute()
+                cache = get_cache_service()
+                cache.set("leagues:all", leagues_result.model_dump(), cache.TTL_LEAGUES)
+                logger.info(f"Leagues cached: {len(leagues_result.countries)} countries")
+                del leagues_result
+                gc.collect()
+            except Exception as e:
+                logger.warning(f"Failed to pre-cache leagues: {e}")
+
+            # 3. MASSIVE INFERENCE (The Chunking Loop)
+            logger.info("Step 3/4: Starting iterative inference (One league at a time)...")
             use_case = GetPredictionsUseCase(data_sources, prediction_service, statistics_service)
-            cache = get_cache_service()
             
             leagues_processed = 0
             # Use generator to avoid holding all league IDs in a list if it scales

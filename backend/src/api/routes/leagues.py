@@ -23,14 +23,31 @@ router = APIRouter(prefix="/leagues", tags=["Leagues"])
     description="Returns a list of all available football leagues grouped by country.",
 )
 async def get_leagues() -> LeaguesResponseDTO:
-    """Get all available leagues."""
+    """Get all available leagues (cached for 24 hours)."""
     from src.application.use_cases.use_cases import GetLeaguesUseCase, DataSources
+    from src.infrastructure.cache.cache_service import get_cache_service
     
+    cache = get_cache_service()
+    cache_key = "leagues:all"
+    
+    # Try cache first
+    cached_result = cache.get(cache_key)
+    if cached_result:
+        if isinstance(cached_result, dict):
+            return LeaguesResponseDTO(**cached_result)
+        return cached_result
+    
+    # Cache miss - fetch from data sources
     data_sources = get_data_sources()
     use_case = GetLeaguesUseCase(data_sources)
     
     try:
-        return await use_case.execute()
+        result = await use_case.execute()
+        
+        # Cache for 24 hours
+        cache.set(cache_key, result.model_dump(), cache.TTL_LEAGUES)
+        
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
