@@ -25,6 +25,8 @@ class MarketType(str, Enum):
     TEAM_GOALS_OVER = "team_goals_over"
     TEAM_GOALS_UNDER = "team_goals_under"
     RESULT_1X2 = "result_1x2"
+    BTTS_YES = "btts_yes"
+    BTTS_NO = "btts_no"
 
 
 class ConfidenceLevel(str, Enum):

@@ -383,7 +383,7 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                               {getUniquePicks(match.picks).map(
                                 (pick, index) => {
                                   const confColor = getPickColor(
-                                    pick.confidence || 0
+                                    pick.probability || pick.confidence || 0
                                   );
                                   return (
                                     <Grid
@@ -503,7 +503,9 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                                             )}
                                             <Chip
                                               label={`Conf: ${(
-                                                (pick.confidence ?? 0) * 100
+                                                (pick.probability ||
+                                                  pick.confidence ||
+                                                  0) * 100
                                               ).toFixed(0)}%`}
                                               size="small"
                                               sx={{

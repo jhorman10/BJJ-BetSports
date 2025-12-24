@@ -8,6 +8,7 @@ from src.api.dependencies import (
     get_prediction_service,
     get_statistics_service,
     get_cache_service,
+    get_picks_service,
 )
 
 router = APIRouter()
@@ -156,6 +157,7 @@ async def get_live_matches_with_predictions(
         prediction_service = get_prediction_service()
         statistics_service = get_statistics_service()
         cache_service = get_cache_service()
+        picks_service = get_picks_service()
         
         # Execute use case
         use_case = GetLivePredictionsUseCase(
@@ -163,6 +165,7 @@ async def get_live_matches_with_predictions(
             prediction_service=prediction_service,
             statistics_service=statistics_service,
             cache_service=cache_service,
+            picks_service=picks_service,
         )
         
         results = await use_case.execute(filter_target_leagues=filter_target_leagues)

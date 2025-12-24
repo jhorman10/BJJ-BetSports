@@ -40,9 +40,11 @@ class PicksService:
         MarketType.VA_HANDICAP: 1.2,
         MarketType.GOALS_OVER: 0.8,  # Penalized
         MarketType.GOALS_UNDER: 0.9,
-        MarketType.TEAM_GOALS_OVER: 0.7,  # More penalized
+        MarketType.TEAM_GOALS_OVER: 0.7,
         MarketType.TEAM_GOALS_UNDER: 0.85,
         MarketType.RESULT_1X2: 1.0,
+        MarketType.BTTS_YES: 0.9,
+        MarketType.BTTS_NO: 0.85,
     }
     
     
@@ -128,7 +130,7 @@ class PicksService:
             if winner_pick:
                 picks.add_pick(winner_pick)
         
-        # Only generate goals picks if we actually have goal predictions
+        # 5. Only generate goals picks if we actually have goal predictions
         if has_prediction_data:
             # Generate goals picks
             goals_picks = self._generate_goals_picks(
@@ -136,37 +138,51 @@ class PicksService:
             )
             for pick in goals_picks:
                 picks.add_pick(pick)
+                
+            # Generate BTTS picks
+            btts_pick = self._generate_btts_pick(
+                predicted_home_goals, predicted_away_goals, is_low_scoring
+            )
+            if btts_pick:
+                picks.add_pick(btts_pick)
+                
+            # Generate Team Goals picks
+            home_goals_picks = self._generate_team_goals_picks(
+                 predicted_home_goals, match.home_team.name, True, is_low_scoring
+            )
+            for pick in home_goals_picks:
+                picks.add_pick(pick)
+                
+            away_goals_picks = self._generate_team_goals_picks(
+                 predicted_away_goals, match.away_team.name, False, is_low_scoring
+            )
+            for pick in away_goals_picks:
+                picks.add_pick(pick)
         
+        # 6. Team Corners & Cards (Unconditional - User requested "all possible picks")
+        if has_home_stats and has_away_stats:
+             # Team Corners
+            p_home_corners = self._generate_single_team_corners(home_stats, match, True)
+            if p_home_corners: picks.add_pick(p_home_corners)
+            
+            p_away_corners = self._generate_single_team_corners(away_stats, match, False)
+            if p_away_corners: picks.add_pick(p_away_corners)
+            
+            # Team Cards
+            p_home_cards = self._generate_single_team_cards(home_stats, match, True)
+            if p_home_cards: picks.add_pick(p_home_cards)
+            
+            p_away_cards = self._generate_single_team_cards(away_stats, match, False)
+            if p_away_cards: picks.add_pick(p_away_cards)
+
         # CRITICAL FIX: If we have odds-based picks, return them even if no stats!
-        # The previous 'pass' block was doing nothing, but we want to ensure we don't return empty if we have *something*.
         if not picks.suggested_picks and home_win_prob > 0:
-             # If we still have nothing but have probabilities, try harder to get a winner pick
              winner_pick = self._generate_winner_pick(
                 match, home_win_prob, draw_prob, away_win_prob
             )
              if winner_pick:
                 picks.add_pick(winner_pick)
             
-        # Fallback: Si aún no hay picks pero tenemos estadísticas, intentamos mercados individuales
-        # Esto asegura que si hay "data en la card" (stats), se genere al menos una sugerencia.
-        if not picks.suggested_picks and has_home_stats and has_away_stats:
-            fallback_picks = []
-            
-            # Intentar Córners Individuales
-            p = self._generate_single_team_corners(home_stats, match, True)
-            if p: fallback_picks.append(p)
-            p = self._generate_single_team_corners(away_stats, match, False)
-            if p: fallback_picks.append(p)
-            
-            # Intentar Tarjetas Individuales
-            p = self._generate_single_team_cards(home_stats, match, True)
-            if p: fallback_picks.append(p)
-            p = self._generate_single_team_cards(away_stats, match, False)
-            if p: fallback_picks.append(p)
-            
-            if fallback_picks:
-                # Seleccionar el mejor pick individual disponible
-                fallback_picks.sort(key=lambda x: x.probability, reverse=True)
         # Finally, sort all generated picks by probability in descending order
         picks.suggested_picks.sort(key=lambda p: p.probability, reverse=True)
 
@@ -264,7 +280,8 @@ class PicksService:
             adj = self.learning_weights.get_market_adjustment(MarketType.CORNERS_OVER.value)
             adjusted_over_prob = min(1.0, over_prob * adj)
 
-            if adjusted_over_prob > 0.58:
+            if adjusted_over_prob > 0.53:
+                adjusted_over_prob = self._boost_prob(adjusted_over_prob)
                 confidence = SuggestedPick.get_confidence_level(adjusted_over_prob)
                 risk = self._calculate_risk_level(adjusted_over_prob)
                 pick = SuggestedPick(
@@ -286,7 +303,8 @@ class PicksService:
             adj_under = self.learning_weights.get_market_adjustment(MarketType.CORNERS_UNDER.value)
             adjusted_under_prob = min(1.0, under_prob * adj_under)
 
-            if adjusted_under_prob > 0.58:
+            if adjusted_under_prob > 0.53:
+                adjusted_under_prob = self._boost_prob(adjusted_under_prob)
                 confidence = SuggestedPick.get_confidence_level(adjusted_under_prob)
                 risk = self._calculate_risk_level(adjusted_under_prob)
                 pick = SuggestedPick(
@@ -337,7 +355,8 @@ class PicksService:
             adj = self.learning_weights.get_market_adjustment(MarketType.CARDS_OVER.value)
             adjusted_over_prob = min(1.0, over_prob * adj)
 
-            if adjusted_over_prob > 0.60:
+            if adjusted_over_prob > 0.55:
+                adjusted_over_prob = self._boost_prob(adjusted_over_prob)
                 confidence = SuggestedPick.get_confidence_level(adjusted_over_prob)
                 risk = self._calculate_risk_level(adjusted_over_prob)
                 pick = SuggestedPick(
@@ -359,7 +378,8 @@ class PicksService:
             adj_under = self.learning_weights.get_market_adjustment(MarketType.CARDS_UNDER.value)
             adjusted_under_prob = min(1.0, under_prob * adj_under)
 
-            if adjusted_under_prob > 0.60:
+            if adjusted_under_prob > 0.55:
+                adjusted_under_prob = self._boost_prob(adjusted_under_prob)
                 confidence = SuggestedPick.get_confidence_level(adjusted_under_prob)
                 risk = self._calculate_risk_level(adjusted_under_prob)
                 pick = SuggestedPick(
@@ -420,7 +440,8 @@ class PicksService:
             adjusted_over_prob = min(1.0, adjusted_over_prob)
             
             # Only add if the probability is reasonable
-            if adjusted_over_prob > 0.58:
+            if adjusted_over_prob > 0.53:
+                adjusted_over_prob = self._boost_prob(adjusted_over_prob)
                 confidence = SuggestedPick.get_confidence_level(adjusted_over_prob)
                 risk = self._calculate_risk_level(adjusted_over_prob)
                 
@@ -450,7 +471,8 @@ class PicksService:
             
             adjusted_under_prob = min(1.0, adjusted_under_prob)
 
-            if adjusted_under_prob > 0.58:
+            if adjusted_under_prob > 0.53:
+                adjusted_under_prob = self._boost_prob(adjusted_under_prob)
                 confidence = SuggestedPick.get_confidence_level(adjusted_under_prob)
                 risk = self._calculate_risk_level(adjusted_under_prob)
                 
@@ -467,7 +489,16 @@ class PicksService:
                 )
                 picks.append(pick)
         
+        
         return picks
+
+    def _boost_prob(self, p: float) -> float:
+        """Apply non-linear boost to separate strong picks from weak ones."""
+        if p < 0.55: return p
+        # Simple linear expansion: 0.55 stays same, 0.75 becomes 0.85
+        # f(p) = p + (p - 0.55) * 0.6
+        boosted = p + (p - 0.55) * 0.6
+        return min(0.95, boosted)
     
     @staticmethod
     @functools.lru_cache(maxsize=1024)
@@ -767,7 +798,8 @@ class PicksService:
             # Simple adjustment
             adjusted_prob = min(0.90, prob * 0.95)
             
-            if adjusted_prob > 0.60:
+            if adjusted_prob > 0.55:
+                adjusted_prob = self._boost_prob(adjusted_prob)
                 confidence = SuggestedPick.get_confidence_level(adjusted_prob)
                 risk = self._calculate_risk_level(adjusted_prob)
                 
@@ -783,6 +815,102 @@ class PicksService:
                     expected_value=0.0,
                 )
         return None
+
+    def _generate_btts_pick(
+        self,
+        predicted_home: float,
+        predicted_away: float,
+        is_low_scoring: bool
+    ) -> Optional[SuggestedPick]:
+        """Generate BTTS (Ambos Marcan) pick."""
+        # P(Team Scored > 0) = 1 - P(0)
+        # Using Poisson: P(0) = e^(-lambda)
+        prob_home_score = 1.0 - math.exp(-predicted_home)
+        prob_away_score = 1.0 - math.exp(-predicted_away)
+        
+        btts_yes_prob = prob_home_score * prob_away_score
+        btts_no_prob = 1.0 - btts_yes_prob
+        
+        # Adjust based on logic
+        if is_low_scoring:
+            btts_yes_prob *= 0.9
+            btts_no_prob = min(0.95, btts_no_prob * 1.05)
+            
+        btts_yes_prob = min(0.95, btts_yes_prob)
+        btts_no_prob = min(0.95, btts_no_prob)
+        
+        # Decide which (if any) to recommend
+        if btts_yes_prob > 0.55:
+             btts_yes_prob = self._boost_prob(btts_yes_prob)
+             confidence = SuggestedPick.get_confidence_level(btts_yes_prob)
+             risk = self._calculate_risk_level(btts_yes_prob)
+             return SuggestedPick(
+                market_type=MarketType.BTTS_YES,
+                market_label="Ambos Equipos Marcan: SÍ",
+                probability=round(btts_yes_prob, 3),
+                confidence_level=confidence,
+                reasoning=f"Altas probabilidades de gol para ambos (Local: {prob_home_score:.0%}, Visitante: {prob_away_score:.0%}).",
+                risk_level=risk,
+                is_recommended=btts_yes_prob > 0.65,
+                priority_score=btts_yes_prob * self.MARKET_PRIORITY.get(MarketType.BTTS_YES, 0.9),
+                expected_value=0.0
+             )
+        elif btts_no_prob > 0.55:
+             btts_no_prob = self._boost_prob(btts_no_prob)
+             confidence = SuggestedPick.get_confidence_level(btts_no_prob)
+             risk = self._calculate_risk_level(btts_no_prob)
+             return SuggestedPick(
+                market_type=MarketType.BTTS_NO,
+                market_label="Ambos Equipos Marcan: NO",
+                probability=round(btts_no_prob, 3),
+                confidence_level=confidence,
+                reasoning=f"Probabilidad de que al menos un equipo no marque es alta.",
+                risk_level=risk,
+                is_recommended=btts_no_prob > 0.65,
+                priority_score=btts_no_prob * self.MARKET_PRIORITY.get(MarketType.BTTS_NO, 0.85),
+                expected_value=0.0
+             )
+        return None
+
+    def _generate_team_goals_picks(
+        self,
+        predicted_goals: float,
+        team_name: str,
+        is_home: bool,
+        is_low_scoring: bool
+    ) -> list[SuggestedPick]:
+        """Generate goals picks for a specific team."""
+        picks = []
+        if predicted_goals <= 0: return picks
+        
+        thresholds = [0.5, 1.5, 2.5]
+        
+        for threshold in thresholds:
+            # Over
+            prob = self._poisson_over_probability(predicted_goals, threshold)
+            
+            # Context adjustment
+            if is_low_scoring: prob *= 0.9
+            prob = min(0.95, prob)
+            
+            if prob > 0.55:
+                 prob = self._boost_prob(prob)
+                 confidence = SuggestedPick.get_confidence_level(prob)
+                 risk = self._calculate_risk_level(prob)
+                 pick = SuggestedPick(
+                    market_type=MarketType.TEAM_GOALS_OVER,
+                    market_label=f"{team_name} - Más de {threshold} goles",
+                    probability=round(prob, 3),
+                    confidence_level=confidence,
+                    reasoning=f"{team_name} esperamos {predicted_goals:.2f} goles.",
+                    risk_level=risk,
+                    is_recommended=prob > 0.65,
+                    priority_score=prob * self.MARKET_PRIORITY.get(MarketType.TEAM_GOALS_OVER, 0.7),
+                    expected_value=0.0
+                 )
+                 picks.append(pick)
+                 
+        return picks
 
     def _generate_single_team_cards(
         self,

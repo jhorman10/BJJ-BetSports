@@ -13,6 +13,7 @@ import logging
 from src.domain.entities.entities import Match, Prediction
 from src.domain.services.prediction_service import PredictionService
 from src.domain.services.statistics_service import StatisticsService
+from src.domain.services.picks_service import PicksService
 from src.infrastructure.cache.cache_service import CacheService
 from src.infrastructure.data_sources.football_data_uk import (
     FootballDataUKSource,
@@ -29,6 +30,7 @@ from src.application.dtos.dtos import (
     MatchDTO,
     PredictionDTO,
     MatchPredictionDTO,
+    SuggestedPickDTO,
 )
 from src.application.use_cases.use_cases import DataSources
 
@@ -61,11 +63,13 @@ class GetLivePredictionsUseCase:
         prediction_service: PredictionService,
         statistics_service: StatisticsService,
         cache_service: CacheService,
+        picks_service: PicksService,
     ):
         self.data_sources = data_sources
         self.prediction_service = prediction_service
         self.statistics_service = statistics_service
         self.cache_service = cache_service
+        self.picks_service = picks_service
     
     async def execute(
         self,
@@ -139,28 +143,76 @@ class GetLivePredictionsUseCase:
         # Get internal league code
         internal_code = self._get_internal_league_code(match)
         
-        # Load historical data (from cache if available)
-        historical_matches = await self._get_historical_data(internal_code)
+        from src.infrastructure.cache import get_training_cache
+        from src.domain.entities.entities import TeamStatistics
         
-        # Calculate team statistics
-        home_stats = self.statistics_service.calculate_team_statistics(
-            match.home_team.name,
-            historical_matches,
-        )
-        away_stats = self.statistics_service.calculate_team_statistics(
-            match.away_team.name,
-            historical_matches,
-        )
+        # 1. Try to get deep stats from Training Cache (10 years)
+        training_cache = get_training_cache()
+        training_results = training_cache.get_training_results()
         
-        # Calculate league averages
-        league_averages = self.statistics_service.calculate_league_averages(
-            historical_matches
-        ) if historical_matches else None
-        
-        # Generate prediction using full analysis
+        home_stats = None
+        away_stats = None
         data_sources_used = [APIFootballSource.SOURCE_NAME]
-        if historical_matches:
-            data_sources_used.append(FootballDataUKSource.SOURCE_NAME)
+        
+        if training_results and 'team_stats' in training_results:
+            team_stats_map = training_results['team_stats']
+            
+            # Helper to convert dict to entity
+            def _dict_to_stats(name: str, raw: dict) -> TeamStatistics:
+                return TeamStatistics(
+                    team_id=name.lower().replace(" ", "_"),
+                    matches_played=raw.get("matches_played", 0),
+                    wins=raw.get("wins", 0),
+                    draws=raw.get("draws", 0),
+                    losses=raw.get("losses", 0),
+                    goals_scored=raw.get("goals_scored", 0),
+                    goals_conceded=raw.get("goals_conceded", 0),
+                    home_wins=raw.get("home_wins", 0),
+                    away_wins=raw.get("away_wins", 0),
+                    total_corners=raw.get("corners_for", 0),
+                    total_yellow_cards=raw.get("yellow_cards", 0),
+                    total_red_cards=raw.get("red_cards", 0),
+                    recent_form=raw.get("recent_form", "")
+                )
+
+            # Look up home/away
+            if match.home_team.name in team_stats_map:
+                home_stats = _dict_to_stats(match.home_team.name, team_stats_map[match.home_team.name])
+            
+            if match.away_team.name in team_stats_map:
+                away_stats = _dict_to_stats(match.away_team.name, team_stats_map[match.away_team.name])
+                
+            if home_stats and away_stats:
+                data_sources_used.append("Historical (10 Years)")
+                # Use simplified league averages if we have deep stats, or fetch?
+                # Calculating league avg from 18k matches is expensive if not cached. 
+                # Use default safely or fetch small history for it.
+                league_averages = None 
+
+        # 2. Fallback to shallow fetch (API-Football) if no training stats
+        if not home_stats or not away_stats:
+             historical_matches = await self._get_historical_data(internal_code)
+             
+             if not home_stats:
+                 home_stats = self.statistics_service.calculate_team_statistics(
+                    match.home_team.name,
+                    historical_matches,
+                 )
+             if not away_stats:
+                 away_stats = self.statistics_service.calculate_team_statistics(
+                    match.away_team.name,
+                    historical_matches,
+                 )
+             
+             league_averages = self.statistics_service.calculate_league_averages(historical_matches) if historical_matches else None
+             if historical_matches:
+                 data_sources_used.append("Football-Data.co.uk (Recent)")
+        else:
+             # We used deep stats, but maybe we still want league averages from recent data?
+             # For now, let's skip expensive league calculation or fetch it cheaply.
+             historical_matches = await self._get_historical_data(internal_code)
+             league_averages = self.statistics_service.calculate_league_averages(historical_matches) if historical_matches else None
+
         
         prediction = self.prediction_service.generate_prediction(
             match=match,
@@ -170,8 +222,11 @@ class GetLivePredictionsUseCase:
             data_sources=data_sources_used,
         )
         
+        # Generate Suggested Picks
+        picks_container = self.picks_service.generate_suggested_picks(prediction, match)
+        
         # Convert to DTO
-        prediction_dto = self._prediction_to_dto(prediction)
+        prediction_dto = self._prediction_to_dto(prediction, picks_container.picks)
         
         # Cache the prediction
         self.cache_service.set_predictions(match.id, prediction_dto)
@@ -253,8 +308,22 @@ class GetLivePredictionsUseCase:
             away_odds=match.away_odds,
         )
     
-    def _prediction_to_dto(self, prediction: Prediction) -> PredictionDTO:
+    def _prediction_to_dto(self, prediction: Prediction, picks: list = []) -> PredictionDTO:
         """Convert Prediction entity to DTO."""
+        
+        picks_dtos = []
+        for pick in picks:
+             picks_dtos.append(SuggestedPickDTO(
+                 market_type=pick.market_type,
+                 market_label=pick.market_label,
+                 probability=pick.probability,
+                 confidence_level=pick.confidence_level,
+                 reasoning=pick.reasoning,
+                 risk_level=pick.risk_level,
+                 is_recommended=pick.is_recommended,
+                 priority_score=pick.priority_score
+             ))
+
         return PredictionDTO(
             match_id=prediction.match_id,
             home_win_probability=prediction.home_win_probability,
@@ -268,6 +337,7 @@ class GetLivePredictionsUseCase:
             data_sources=prediction.data_sources,
             recommended_bet=prediction.recommended_bet,
             over_under_recommendation=prediction.over_under_recommendation,
+            suggested_picks=picks_dtos,
             created_at=prediction.created_at,
         )
     

@@ -26,6 +26,75 @@ class StatisticsService:
         return cleaned.strip().replace(" ", "")
 
     @staticmethod
+    def _resolve_alias(name: str) -> str:
+        """Resolve common team name aliases."""
+        aliases = {
+            "man city": "manchester city",
+            "mancity": "manchester city",
+            "man utd": "manchester united",
+            "manutd": "manchester united",
+            "man united": "manchester united",
+            "spurs": "tottenham",
+            "tottenham hotspur": "tottenham",
+            "wolves": "wolverhampton",
+            "wolverhampton wanderers": "wolverhampton",
+            "nottm forest": "nottingham forest",
+            "sheff utd": "sheffield united",
+            "newcastle": "newcastle united",
+            "brighton": "brighton hove albion",
+            "west ham": "west ham united",
+            "leicester": "leicester city",
+            "leeds": "leeds city",
+            "norwich": "norwich city",
+            # Spain
+            "ath madrid": "atletico madrid",
+            "atl madrid": "atletico madrid",
+            "r madrid": "real madrid",
+            "sociedad": "real sociedad",
+            "betis": "real betis",
+            "celta": "celta vigo",
+            "ath bilbao": "athletic club",
+            "athletic bilbao": "athletic club",
+            # Italy
+            "inter": "inter milan",
+            "internazionale": "inter milan",
+            "ac milan": "milan",
+            # Germany
+            "bayern": "bayern munich",
+            "dortmund": "borussia dortmund", 
+            "leverkusen": "bayer leverkusen",
+            "gladbach": "borussia monchengladbach",
+            "frankfurt": "eintracht frankfurt",
+        }
+        normalized = name.lower().strip()
+        if normalized in aliases:
+            return aliases[normalized]
+        # Check partials if needed, or return same
+        return name
+
+    @staticmethod
+    def _normalize_name(name: str) -> str:
+        """Normalize team name for comparison."""
+        
+        # 1. Resolve Aliases first
+        name = StatisticsService._resolve_alias(name)
+        
+        # 2. Standard cleanup
+        # Remove common prefixes/suffixes
+        remove = ["fc", "cf", "as", "sc", "ac", "inter", "real", "sporting", "club", "de", "le", "la"]
+        
+        cleaned = name.lower()
+        for word in remove:
+            # Remove isolated occurrences
+            cleaned = cleaned.replace(f" {word} ", " ")
+            if cleaned.startswith(f"{word} "):
+                cleaned = cleaned[len(word)+1:]
+            if cleaned.endswith(f" {word}"):
+                cleaned = cleaned[:-len(word)-1]
+                
+        return cleaned.strip().replace(" ", "")
+
+    @staticmethod
     def calculate_team_statistics(
         team_name: str,
         matches: List[Match],

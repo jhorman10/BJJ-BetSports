@@ -113,6 +113,7 @@ class PredictionDTO(BaseModel):
     data_sources: list[str] = Field(default_factory=list)
     recommended_bet: str
     over_under_recommendation: str
+    suggested_picks: list["SuggestedPickDTO"] = Field(default_factory=list) # Full list of picks
     created_at: datetime
     
     class Config:

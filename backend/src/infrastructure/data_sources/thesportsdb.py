@@ -233,3 +233,102 @@ class TheSportsDBClient:
         except Exception as e:
             logger.error(f"Error parsing TheSportsDB match details: {e}")
             return None
+
+    async def get_past_events(self, league_id: str, max_events: int = 50) -> list[Match]:
+        """
+        Get past/finished events for a league.
+        
+        Args:
+            league_id: Internal league ID (e.g., 'E0')
+            max_events: Maximum number of events to return
+            
+        Returns:
+            List of finished Match objects with results
+        """
+        # Map internal ID to TheSportsDB ID
+        INTERNAL_TO_TSDB = {
+            "E0": "4328",   # Premier League
+            "SP1": "4335",  # La Liga
+            "I1": "4332",   # Serie A
+            "D1": "4331",   # Bundesliga
+            "F1": "4334",   # Ligue 1
+            "P1": "4344",   # Primeira Liga
+            "N1": "4337",   # Eredivisie
+            "B1": "4351",   # Belgian First Division A
+            "SC0": "4330",  # Scottish Premiership
+            "T1": "4359",   # Super Lig (Turkey)
+            "G1": "4392",   # Super League (Greece)
+        }
+        
+        tsdb_id = INTERNAL_TO_TSDB.get(league_id)
+        if not tsdb_id:
+            logger.debug(f"No TheSportsDB mapping for league {league_id}")
+            return []
+            
+        # Endpoint: eventspastleague.php?id=4328
+        data = await self._make_request(f"/eventspastleague.php?id={tsdb_id}")
+        
+        if not data or not data.get("events"):
+            return []
+            
+        matches = []
+        for event in data["events"][:max_events]:
+            try:
+                # Only include finished matches with scores
+                home_score = event.get("intHomeScore")
+                away_score = event.get("intAwayScore")
+                
+                if home_score is None or away_score is None:
+                    continue
+                
+                # Parse date/time
+                date_str = event.get("dateEvent")
+                time_str = event.get("strTime") or "00:00:00"
+                
+                match_date = datetime.utcnow()
+                if date_str:
+                    try:
+                        match_date = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M:%S")
+                    except ValueError:
+                        try:
+                            match_date = datetime.strptime(date_str, "%Y-%m-%d")
+                        except ValueError:
+                            pass
+
+                home_team = Team(
+                    id=event.get("idHomeTeam") or "unknown",
+                    name=event.get("strHomeTeam"),
+                    logo_url=event.get("strHomeTeamBadge")
+                )
+                
+                away_team = Team(
+                    id=event.get("idAwayTeam") or "unknown",
+                    name=event.get("strAwayTeam"),
+                    logo_url=event.get("strAwayTeamBadge")
+                )
+                
+                league = League(
+                    id=league_id,
+                    name=event.get("strLeague"),
+                    country="Unknown",
+                    season=event.get("strSeason")
+                )
+                
+                match = Match(
+                    id=event.get("idEvent"),
+                    home_team=home_team,
+                    away_team=away_team,
+                    league=league,
+                    match_date=match_date,
+                    status="FT",
+                    home_goals=int(home_score),
+                    away_goals=int(away_score),
+                )
+                matches.append(match)
+                
+            except Exception as e:
+                logger.debug(f"Error parsing TheSportsDB past event: {e}")
+                continue
+                
+        logger.info(f"TheSportsDB: fetched {len(matches)} past events for {league_id}")
+        return matches

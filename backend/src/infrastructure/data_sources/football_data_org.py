@@ -247,6 +247,8 @@ class FootballDataOrgSource:
             # Parse date
             utc_date = match_data.get("utcDate", "")
             match_date = datetime.fromisoformat(utc_date.replace("Z", "+00:00"))
+            # Convert to naive datetime for consistency with CSV source
+            match_date = match_date.replace(tzinfo=None)
             
             # Get score if available
             score = match_data.get("score", {}).get("fullTime", {})
@@ -266,6 +268,95 @@ class FootballDataOrgSource:
         except Exception as e:
             logger.debug(f"Failed to parse match: {e}")
             return None
+    
+    async def get_finished_matches(
+        self,
+        date_from: str,
+        date_to: str,
+        league_codes: Optional[list[str]] = None,
+    ) -> list[Match]:
+        """
+        Get finished matches within a date range.
+        
+        Note: Football-data.org free tier limits date ranges to ~10 days.
+        This method automatically chunks requests to work around this limit.
+        
+        Args:
+            date_from: Start date (YYYY-MM-DD)
+            date_to: End date (YYYY-MM-DD)
+            league_codes: Optional list of our league codes to filter
+            
+        Returns:
+            List of finished Match entities
+        """
+        all_matches = []
+        
+        # Parse dates
+        start = datetime.strptime(date_from, "%Y-%m-%d")
+        end = datetime.strptime(date_to, "%Y-%m-%d")
+        
+        # Chunk into 10-day windows to avoid API limits
+        chunk_days = 10
+        current = start
+        
+        # Prepare competition filter
+        comp_filter = None
+        if league_codes:
+            comp_codes = [
+                COMPETITION_CODE_MAPPING[lc] 
+                for lc in league_codes 
+                if lc in COMPETITION_CODE_MAPPING
+            ]
+            if comp_codes:
+                comp_filter = ",".join(comp_codes)
+        
+        while current < end:
+            chunk_end = min(current + timedelta(days=chunk_days), end)
+            
+            params = {
+                "status": "FINISHED",
+                "dateFrom": current.strftime("%Y-%m-%d"),
+                "dateTo": chunk_end.strftime("%Y-%m-%d"),
+            }
+            
+            if comp_filter:
+                params["competitions"] = comp_filter
+            
+            data = await self._make_request("/matches", params)
+            
+            if data and data.get("matches"):
+                for match_data in data["matches"]:
+                    try:
+                        # Get competition info from match
+                        competition = match_data.get("competition", {})
+                        comp_code = competition.get("code", "")
+                        
+                        # Reverse lookup for internal league code
+                        league_code = None
+                        for internal, external in COMPETITION_CODE_MAPPING.items():
+                            if external == comp_code:
+                                league_code = internal
+                                break
+                        
+                        if not league_code:
+                            continue
+                            
+                        league = League(
+                            id=league_code,
+                            name=competition.get("name", "Unknown"),
+                            country=competition.get("area", {}).get("name", "Unknown"),
+                        )
+                        
+                        match = self._parse_match(match_data, league)
+                        if match:
+                            all_matches.append(match)
+                    except Exception as e:
+                        logger.debug(f"Error parsing finished match: {e}")
+            
+            current = chunk_end + timedelta(days=1)
+        
+        logger.info(f"Football-Data.org: fetched {len(all_matches)} finished matches ({date_from} to {date_to})")
+        return all_matches
     
     async def get_standings(self, league_code: str) -> Optional[dict]:
         """

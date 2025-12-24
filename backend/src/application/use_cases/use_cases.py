@@ -61,11 +61,17 @@ class GetLeaguesUseCase:
         # We do this concurrently to minimize latency
         async def check_league_sufficiency(league_id: str) -> bool:
             try:
+                # Use default seasons (current + previous) to ensure we have data 
+                # even if new season just started (using past data for stats)
                 matches = await self.data_sources.football_data_uk.get_historical_matches(
                     league_id, 
-                    seasons=["2425"]
+                    seasons=None 
                 )
-                return len(matches) >= 5
+                
+                # Count only FINISHED matches (matches with goals)
+                # This filters out leagues that only have fixtures but no results yet
+                finished_matches = [m for m in matches if m.home_goals is not None]
+                return len(finished_matches) >= 5
             except Exception:
                 return False
 
@@ -429,7 +435,88 @@ class GetMatchDetailsUseCase:
         if not match:
             return None
 
-        # 2. Get historical data for context (for stats)
+        if not match:
+            return None
+
+        # 2. Check Training Cache for Historical Prediction (Consistency)
+        try:
+            from src.infrastructure.cache import get_training_cache
+            from src.application.dtos.dtos import SuggestedPickDTO
+            
+            training_cache = get_training_cache()
+            training_results = training_cache.get_training_results()
+            
+            if training_results and 'match_history' in training_results:
+                # O(N) lookup but N=18k is fast enough for single request. 
+                # Optimized: convert to dict if frequent, but for now linear scan is <10ms.
+                # Actually, filtering by ID is cleaner.
+                history_item = next((m for m in training_results['match_history'] if m['match_id'] == match_id), None)
+                
+                if history_item:
+                    # Found in history! Map to PredictionDTO
+                    logger.info(f"Serving cached historical prediction for match {match_id}")
+                    
+                    # Synthesize SuggestedPickDTOs from History PickDetails
+                    picks_dtos = []
+                    if 'picks' in history_item:
+                        for p in history_item['picks']:
+                            # PickDetail -> SuggestedPickDTO
+                            prob = p.get('probability', 0.5)
+                            conf = p.get('confidence', 0.5)
+                            
+                            # Estimate risk/confidence text
+                            conf_level = "MEDIA"
+                            if prob > 0.7: conf_level = "ALTA"
+                            elif prob < 0.4: conf_level = "BAJA"
+                            
+                            risk = int((1 - prob) * 10)
+                            if risk < 1: risk = 1
+                            
+                            picks_dtos.append(SuggestedPickDTO(
+                                market_type=p.get('market_type', 'unknown'),
+                                market_label=p.get('market_label', 'Unknown Pick'),
+                                probability=prob,
+                                confidence_level=conf_level,
+                                reasoning="Resultado Verificado en Backtest",
+                                risk_level=risk,
+                                is_recommended=True, # All history picks were "suggested"
+                                priority_score=prob * p.get('expected_value', 1.0)
+                            ))
+
+                    # Parse prediction values
+                    pred_dto = PredictionDTO(
+                        match_id=match_id,
+                        home_win_probability=history_item.get('home_win_probability', 0.0),
+                        draw_probability=history_item.get('draw_probability', 0.0),
+                        away_win_probability=history_item.get('away_win_probability', 0.0),
+                        over_25_probability=0.0, # Not stored yet, but less critical than Win Probs
+                        under_25_probability=0.0,
+                        predicted_home_goals=history_item.get('predicted_home_goals', 0.0),
+                        predicted_away_goals=history_item.get('predicted_away_goals', 0.0),
+                        confidence=history_item.get('confidence', 0.0),
+                        data_sources=[
+                            "GitHub Dataset (2000-2025)",
+                            "API-Football",
+                            "ESPN",
+                            "Football-Data.co.uk"
+                        ], # Explicitly list sources used in Training
+                        recommended_bet="See Picks",
+                        over_under_recommendation="See Picks",
+                        suggested_picks=picks_dtos,
+                        created_at=datetime.utcnow(), # Placeholder
+                    )
+                    
+                    # Update probabilities if we can infer them from picks or if added to history later
+                    # For now, we return what we have. The UI mostly cares about 'suggested_picks' and exact score.
+                    
+                    return MatchPredictionDTO(
+                        match=self._match_to_dto(match),
+                        prediction=pred_dto
+                    )
+        except Exception as e:
+            logger.warning(f"Error reading training cache for match details: {e}")
+
+        # 3. Get historical data for context (for stats) - Standard Fallback
         historical_matches = []
         
         # Try to map API-Football league ID to our internal code
@@ -475,11 +562,11 @@ class GetMatchDetailsUseCase:
                 except Exception as e:
                     logger.warning(f"Failed to fetch OpenFootball history details: {e}")
         
-        # 3. Calculate stats using whatever history we found (or empty list)
+        # 4. Calculate stats using whatever history we found (or empty list)
         home_stats = self.statistics_service.calculate_team_statistics(match.home_team.name, historical_matches)
         away_stats = self.statistics_service.calculate_team_statistics(match.away_team.name, historical_matches)
         
-        # 4. Generate prediction
+        # 5. Generate prediction
         prediction = self.prediction_service.generate_prediction(
             match=match,
             home_stats=home_stats,

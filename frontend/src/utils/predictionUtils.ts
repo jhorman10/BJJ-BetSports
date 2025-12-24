@@ -12,6 +12,9 @@ export const generateFallbackPicks = (
 
   if (!prediction) return picks;
 
+  // Cast prediction to any to access potential new fields (projected stats)
+  const pred = prediction as any;
+
   // 1. Ganador (Winner)
   if (prediction.home_win_probability > 0.5) {
     picks.push({
@@ -132,6 +135,55 @@ export const generateFallbackPicks = (
         risk_level: 2,
         is_recommended: true,
         priority_score: 1.5,
+        expected_value: 0,
+        is_contrarian: false,
+      } as any);
+    }
+  }
+
+  // 5. Corners (Over/Under) - Usando proyecciones del backend
+  if (
+    pred.predicted_home_corners !== undefined &&
+    pred.predicted_away_corners !== undefined
+  ) {
+    const totalCorners =
+      pred.predicted_home_corners + pred.predicted_away_corners;
+    if (totalCorners > 9.5) {
+      picks.push({
+        market_type: "corners_over",
+        market_label: "Más de 9.5 Córners",
+        pick_code: "O9.5C",
+        probability: 0.65, // Estimado si no viene del back
+        confidence_level: "medium",
+        reasoning:
+          "Proyección alta de córners basada en estadísticas históricas.",
+        risk_level: 2,
+        is_recommended: true,
+        priority_score: 2,
+        expected_value: 0,
+        is_contrarian: false,
+      } as any);
+    }
+  }
+
+  // 6. Cards (Over/Under) - Usando proyecciones del backend
+  if (
+    pred.predicted_home_yellow_cards !== undefined &&
+    pred.predicted_away_yellow_cards !== undefined
+  ) {
+    const totalCards =
+      pred.predicted_home_yellow_cards + pred.predicted_away_yellow_cards;
+    if (totalCards > 4.5) {
+      picks.push({
+        market_type: "cards_over",
+        market_label: "Más de 4.5 Tarjetas",
+        pick_code: "O4.5Y",
+        probability: 0.6,
+        confidence_level: "medium",
+        reasoning: "Partido con proyección de alta fricción y tarjetas.",
+        risk_level: 2,
+        is_recommended: true,
+        priority_score: 2,
         expected_value: 0,
         is_contrarian: false,
       } as any);

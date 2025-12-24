@@ -51,6 +51,10 @@ class MatchPredictionHistory(BaseModel):
     actual_away_goals: int
     was_correct: bool
     confidence: float
+    # Probabilities for UI Charts
+    home_win_probability: float = 0.0
+    draw_probability: float = 0.0
+    away_win_probability: float = 0.0
     # Multiple picks for different events
     picks: List[PickDetail] = []
     # Legacy single pick support (deprecated)
@@ -73,6 +77,7 @@ class TrainingStatus(BaseModel):
     market_stats: dict
     match_history: List[MatchPredictionHistory] = []
     roi_evolution: List[RoiEvolutionPoint] = []
+    team_stats: dict = {} # Consolidated team stats after training, for live predictions use
 
 def _verify_pick(pick: SuggestedPick, match: Match) -> PickDetail:
     """Compare a suggested pick against the actual match result."""
@@ -401,10 +406,205 @@ async def run_training_session(
     leagues = request.league_ids if request.league_ids else ["E0", "SP1", "D1", "I1", "F1"]
     all_matches = []
     
+    # Helper to create dedup key
+    def match_key(m):
+        return (m.home_team.name.lower(), m.away_team.name.lower(), m.match_date.strftime("%Y-%m-%d"))
+    
+    # 1. Fetch from CSV source (football-data.co.uk) - historical data with corners/cards
     for league_id in leagues:
-        # Fetch last 2 seasons
+        # Fetch last 2 seasons from CSV files
         matches = await data_sources.football_data_uk.get_historical_matches(league_id, seasons=["2324", "2425"])
         all_matches.extend(matches)
+    
+    logger.info(f"Fetched {len(all_matches)} matches from football-data.co.uk CSV")
+    existing_keys = {match_key(m) for m in all_matches}
+    
+    # 2. Fetch from API-Football for recent matches WITH STATS (corners, cards)
+    # Priority: API-Football has better stats than football-data.org
+    try:
+        from src.infrastructure.data_sources.api_football import APIFootballSource
+        api_fb = APIFootballSource()
+        
+        if api_fb.is_configured:
+            today = datetime.utcnow()
+            # Fetch recent matches (limited by rate limit - 100 req/day)
+            # Only fetch last 14 days to conserve API calls
+            date_from = (today - timedelta(days=14)).strftime("%Y-%m-%d")
+            date_to = today.strftime("%Y-%m-%d")
+            
+            api_fb_matches = await api_fb.get_finished_matches(date_from, date_to, leagues)
+            
+            added_count = 0
+            for api_match in api_fb_matches:
+                key = match_key(api_match)
+                if key not in existing_keys:
+                    all_matches.append(api_match)
+                    existing_keys.add(key)
+                    added_count += 1
+                    
+            logger.info(f"Added {added_count} unique matches from API-Football (with corners/cards stats)")
+    except Exception as e:
+        logger.warning(f"Could not fetch from API-Football: {e}")
+    
+    # 3. Fetch from football-data.org API for recent matches (fallback, no corners/cards but more coverage)
+    try:
+        from src.infrastructure.data_sources.football_data_org import FootballDataOrgSource
+        fd_org = FootballDataOrgSource()
+        
+        if fd_org.is_configured:
+            # Get matches from last 60 days via API (covers current season gaps)
+            today = datetime.utcnow()
+            date_from = (today - timedelta(days=60)).strftime("%Y-%m-%d")
+            date_to = today.strftime("%Y-%m-%d")
+            
+            api_matches = await fd_org.get_finished_matches(date_from, date_to, leagues)
+            
+            added_count = 0
+            for api_match in api_matches:
+                key = match_key(api_match)
+                if key not in existing_keys:
+                    all_matches.append(api_match)
+                    existing_keys.add(key)
+                    added_count += 1
+                    
+            logger.info(f"Added {added_count} unique matches from football-data.org API")
+    except Exception as e:
+        logger.warning(f"Could not fetch from football-data.org API: {e}")
+    
+    # 4. Fetch from TheSportsDB for additional recent matches
+    try:
+        from src.infrastructure.data_sources.thesportsdb import TheSportsDBClient
+        tsdb = TheSportsDBClient()
+        
+        added_count = 0
+        for league_id in leagues:
+            tsdb_matches = await tsdb.get_past_events(league_id, max_events=30)
+            for tsdb_match in tsdb_matches:
+                key = match_key(tsdb_match)
+                if key not in existing_keys:
+                    all_matches.append(tsdb_match)
+                    existing_keys.add(key)
+                    added_count += 1
+                    
+        if added_count > 0:
+            logger.info(f"Added {added_count} unique matches from TheSportsDB")
+    except Exception as e:
+        logger.warning(f"Could not fetch from TheSportsDB: {e}")
+    
+    # 5. Fetch from FootyStats for detailed stats (corners, cards)
+    # Note: Free tier only supports Premier League
+    try:
+        from src.infrastructure.data_sources.footystats import FootyStatsSource
+        footystats = FootyStatsSource()
+        
+        if footystats.is_configured:
+            added_count = 0
+            # Free tier: Premier League only
+            fs_matches = await footystats.get_finished_matches(["E0"])
+            for fs_match in fs_matches:
+                key = match_key(fs_match)
+                if key not in existing_keys:
+                    all_matches.append(fs_match)
+                    existing_keys.add(key)
+                    added_count += 1
+                    
+            if added_count > 0:
+                logger.info(f"Added {added_count} unique matches from FootyStats (with corners/cards)")
+    except Exception as e:
+        logger.warning(f"Could not fetch from FootyStats: {e}")
+    
+    # 6. Fetch from BDFutbol for Spanish football historical data
+    try:
+        from src.infrastructure.data_sources.bdfutbol import BDFutbolSource
+        bdfutbol = BDFutbolSource()
+        
+        if bdfutbol.is_configured:
+            added_count = 0
+            bd_matches = await bdfutbol.get_finished_matches()
+            for bd_match in bd_matches:
+                key = match_key(bd_match)
+                if key not in existing_keys:
+                    all_matches.append(bd_match)
+                    existing_keys.add(key)
+                    added_count += 1
+                    
+            if added_count > 0:
+                logger.info(f"Added {added_count} unique matches from BDFutbol (Spanish football)")
+    except Exception as e:
+        logger.warning(f"Could not fetch from BDFutbol: {e}")
+    
+    # 7. Fetch from Football Prediction API (RapidAPI) for past results
+    try:
+        from src.infrastructure.data_sources.football_prediction_api import FootballPredictionAPISource
+        fp_api = FootballPredictionAPISource()
+        
+        if fp_api.is_configured:
+            added_count = 0
+            fp_matches = await fp_api.get_finished_matches(days_back=7)
+            for fp_match in fp_matches:
+                key = match_key(fp_match)
+                if key not in existing_keys:
+                    all_matches.append(fp_match)
+                    existing_keys.add(key)
+                    added_count += 1
+                    
+            if added_count > 0:
+                logger.info(f"Added {added_count} unique matches from Football Prediction API")
+    except Exception as e:
+        logger.warning(f"Could not fetch from Football Prediction API: {e}")
+        
+    # 8. Fetch from Local GitHub Dataset (Massive historical data 2000-2025)
+    try:
+        from src.infrastructure.data_sources.github_dataset import LocalGithubDataSource
+        gh_data = LocalGithubDataSource()
+        
+        # Determine start date for GitHub data
+        gh_start_date = None
+        if request.days_back:
+            gh_start_date = datetime.utcnow() - timedelta(days=request.days_back)
+        elif request.start_date:
+            try:
+                gh_start_date = datetime.strptime(request.start_date, "%Y-%m-%d")
+            except ValueError:
+                pass
+                
+        added_count = 0
+        gh_matches = await gh_data.get_finished_matches(league_codes=leagues, date_from=gh_start_date)
+        for gh_match in gh_matches:
+            key = match_key(gh_match)
+            if key not in existing_keys:
+                all_matches.append(gh_match)
+                existing_keys.add(key)
+                added_count += 1
+                
+        if added_count > 0:
+            logger.info(f"Added {added_count} unique matches from GitHub Dataset (2000-2025)")
+    except Exception as e:
+        logger.warning(f"Could not fetch from GitHub Dataset: {e}")
+
+    # 9. Fetch from ESPN (Recent ~30 days with detailed stats)
+    try:
+        from src.infrastructure.data_sources.espn import ESPNSource
+        espn = ESPNSource()
+        
+        # Determine days_back strict for ESPN (max 30 to be polite)
+        espn_days = 14 # Default 2 weeks to stay fast
+        if request.days_back and request.days_back < 60:
+             espn_days = request.days_back
+             
+        added_count = 0
+        espn_matches = await espn.get_finished_matches(league_codes=leagues, days_back=espn_days)
+        for e_match in espn_matches:
+            key = match_key(e_match)
+            if key not in existing_keys:
+                all_matches.append(e_match)
+                existing_keys.add(key)
+                added_count += 1
+                
+        if added_count > 0:
+            logger.info(f"Added {added_count} unique matches from ESPN API")
+    except Exception as e:
+        logger.warning(f"Could not fetch from ESPN: {e}")
             
     # Sort by date
     all_matches.sort(key=lambda x: x.match_date)
@@ -426,6 +626,19 @@ async def run_training_session(
     # OPTIMIZATION: Use incremental stats cache instead of reprocessing history list
     team_stats_cache = {}
 
+    # Pre-calculate REAL league averages from the dataset (Backtest optimization)
+    # This avoids hardcoded defaults (1.5/1.2) and respects league characteristics
+    league_matches_map = {}
+    for m in all_matches:
+        if m.league.id not in league_matches_map:
+            league_matches_map[m.league.id] = []
+        league_matches_map[m.league.id].append(m)
+        
+    league_averages_map = {}
+    for lid, matches in league_matches_map.items():
+        if matches:
+            league_averages_map[lid] = statistics_service.calculate_league_averages(matches)
+
     for match in all_matches:
         if match.home_goals is None or match.away_goals is None:
             continue
@@ -438,8 +651,8 @@ async def run_training_session(
         home_stats = _convert_to_domain_stats(match.home_team.name, raw_home_stats)
         away_stats = _convert_to_domain_stats(match.away_team.name, raw_away_stats)
         
-        # League averages (simplified for backtest)
-        league_averages = None 
+        # League averages (Calculated from real data)
+        league_averages = league_averages_map.get(match.league.id) 
 
         # 4. Generate Prediction
         try:
@@ -516,6 +729,11 @@ async def run_training_session(
                 actual_away_goals=match.away_goals,
                 was_correct=(actual_winner == predicted_winner),
                 confidence=round(prediction.confidence, 3),
+                # Probabilities
+                home_win_probability=round(prediction.home_win_probability, 4),
+                draw_probability=round(prediction.draw_probability, 4),
+                away_win_probability=round(prediction.away_win_probability, 4),
+                
                 picks=picks_list,  # New: multiple picks
                 suggested_pick=suggested_pick,  # Legacy support
                 pick_was_correct=pick_was_correct,
@@ -556,7 +774,7 @@ async def run_training_session(
     # Reverse history to show newest matches first
     match_history.reverse()
     
-    return TrainingStatus(
+    result = TrainingStatus(
         matches_processed=matches_processed,
         correct_predictions=correct_predictions,
         accuracy=round(accuracy, 4),
@@ -565,5 +783,77 @@ async def run_training_session(
         profit_units=round(profit, 2),
         market_stats=learning_service.get_all_stats(),
         match_history=match_history,
-        roi_evolution=roi_evolution
+        roi_evolution=roi_evolution,
+        team_stats=team_stats_cache
     )
+    
+    # Cache the result
+    from src.infrastructure.cache import get_training_cache
+    cache = get_training_cache()
+    cache.set_training_results(result.model_dump())
+    
+    return result
+
+
+class CachedTrainingResponse(BaseModel):
+    """Response for cached training data."""
+    cached: bool
+    last_update: Optional[str] = None
+    data: Optional[TrainingStatus] = None
+    message: str = ""
+
+
+@router.get("/train/cached", response_model=CachedTrainingResponse)
+async def get_cached_training_data():
+    """
+    Get cached training data without recomputation.
+    
+    Returns cached results from the last scheduled training run.
+    If no cache exists, returns a message indicating training needs to run.
+    
+    This endpoint is fast and doesn't trigger any computation.
+    """
+    from src.infrastructure.cache import get_training_cache
+    
+    cache = get_training_cache()
+    
+    if cache.is_valid():
+        results = cache.get_training_results()
+        last_update = cache.get_last_update()
+        
+        return CachedTrainingResponse(
+            cached=True,
+            last_update=last_update.isoformat() if last_update else None,
+            data=TrainingStatus(**results),
+            message="Cached training data retrieved successfully"
+        )
+    else:
+        return CachedTrainingResponse(
+            cached=False,
+            last_update=None,
+            data=None,
+            message="No cached data available. Training runs daily at 7:00 AM COT or call POST /train to generate."
+        )
+
+
+@router.post("/train/run-now")
+async def trigger_training_now(
+    background_tasks: BackgroundTasks,
+):
+    """
+    Trigger training immediately and cache results.
+    
+    This is useful for manual refresh outside the daily schedule.
+    Training runs in background but caches results when complete.
+    """
+    from src.scheduler import get_scheduler
+    
+    scheduler = get_scheduler()
+    
+    # Run training in background
+    background_tasks.add_task(scheduler.run_daily_training)
+    
+    return {
+        "status": "started",
+        "message": "Training started in background. Results will be cached when complete."
+    }

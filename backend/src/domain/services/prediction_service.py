@@ -561,25 +561,26 @@ class PredictionService:
              odds_agreement = self._calculate_odds_agreement(calculated_probs, odds)
         
         # Dynamic Weighting
-        # PROFITABILITY FIX: Reduce reliance on Odds Agreement. 
-        # To find value, we must be willing to disagree with the market if Data Quality is high.
-        # New Weights: Entropy (40%), Data Quality (45%), Odds (5%), Form (10%)
+        # PROFITABILITY FIX: Optimized for Large Dataset (10 Years History)
+        # With 18k+ samples, Data Quality is usually high/saturated. 
+        # We shift weight to Entropy (Model Certainty) and Form (Recency).
+        # We also slightly increase Odds respect to detect sharp market moves.
         
-        w_entropy = 0.40
-        w_quality = 0.45
-        w_odds = 0.05
-        w_form = 0.10
+        w_entropy = 0.50  # Increased from 0.40 - Trust the model's output distribution more
+        w_quality = 0.25  # Decreased from 0.45 - Since we have 10y data, this is less differentiating
+        w_odds = 0.10     # Increased from 0.05 - Respect market efficiency slightly more
+        w_form = 0.15     # Increased from 0.10 - Recent form matters more in long-term avg context
         
         if not has_odds_data:
-            # Distribute 0.15 odds weight: 0.10 to quality, 0.05 to entropy
-            w_quality += 0.10
-            w_entropy += 0.05
+            # Distribute 0.10 odds weight: 0.05 to quality, 0.05 to form
+            w_quality += 0.05
+            w_form += 0.05
             w_odds = 0.0
             
         if not has_recent_form:
-            # Distribute 0.15 form weight: 0.10 to quality, 0.05 to entropy
-            w_quality += 0.10
-            w_entropy += 0.05
+            # Distribute 0.15 form weight: 0.10 to entropy, 0.05 to quality
+            w_entropy += 0.10
+            w_quality += 0.05
             w_form = 0.0
             
         confidence = (

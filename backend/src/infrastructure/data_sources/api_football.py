@@ -135,8 +135,7 @@ class APIFootballSource:
         
         url = f"{self.config.base_url}{endpoint}"
         headers = {
-            "x-rapidapi-key": self.config.api_key,
-            "x-rapidapi-host": "v3.football.api-sports.io",
+            "x-apisports-key": self.config.api_key,
         }
         
         try:
@@ -257,9 +256,108 @@ class APIFootballSource:
         
         return matches
 
-        return matches
-
-        return matches
+    async def get_finished_matches(
+        self,
+        date_from: str,
+        date_to: str,
+        league_codes: Optional[list[str]] = None,
+    ) -> list[Match]:
+        """
+        Get finished matches with full statistics (corners, cards) for training.
+        
+        Note: API-Football provides detailed statistics including corners and cards.
+        Free tier: 100 requests/day. Optimized to batch fixture IDs.
+        
+        Args:
+            date_from: Start date (YYYY-MM-DD)
+            date_to: End date (YYYY-MM-DD)
+            league_codes: Optional list of our league codes to filter
+            
+        Returns:
+            List of finished Match entities with statistics
+        """
+        if not self.is_configured:
+            logger.warning("API-Football not configured, skipping finished matches fetch")
+            return []
+        
+        all_matches = []
+        fixture_ids_to_fetch = []  # Collect IDs first, then batch fetch
+        fixture_league_map = {}  # Map fixture_id -> league_code
+        
+        # Parse dates
+        start = datetime.strptime(date_from, "%Y-%m-%d")
+        end = datetime.strptime(date_to, "%Y-%m-%d")
+        
+        # Convert league codes to API IDs
+        target_league_ids = None
+        if league_codes:
+            target_league_ids = set()
+            for lc in league_codes:
+                if lc in LEAGUE_ID_MAPPING:
+                    target_league_ids.add(LEAGUE_ID_MAPPING[lc])
+        
+        # Phase 1: Get fixture IDs from date-based queries (1 request per day)
+        current = start
+        while current <= end:
+            if not self._check_rate_limit():
+                logger.warning(f"API-Football rate limit reached. Stopping fetch.")
+                break
+            
+            date_str = current.strftime("%Y-%m-%d")
+            
+            data = await self._make_request("/fixtures", {
+                "date": date_str,
+                "status": "FT",
+            })
+            
+            if data and data.get("response"):
+                for fixture in data["response"]:
+                    fixture_league_id = fixture.get("league", {}).get("id")
+                    if target_league_ids and fixture_league_id not in target_league_ids:
+                        continue
+                    
+                    fixture_id = fixture.get("fixture", {}).get("id")
+                    if fixture_id:
+                        # Determine internal league code
+                        league_code = "UNKNOWN"
+                        for code, api_id in LEAGUE_ID_MAPPING.items():
+                            if api_id == fixture_league_id:
+                                league_code = code
+                                break
+                        
+                        fixture_ids_to_fetch.append(str(fixture_id))
+                        fixture_league_map[str(fixture_id)] = league_code
+            
+            current += timedelta(days=1)
+        
+        logger.info(f"API-Football: Found {len(fixture_ids_to_fetch)} fixtures to fetch stats for")
+        
+        # Phase 2: Batch fetch fixtures with stats (up to 20 IDs per request)
+        batch_size = 20
+        for i in range(0, len(fixture_ids_to_fetch), batch_size):
+            if not self._check_rate_limit():
+                logger.warning(f"API-Football rate limit reached during batch fetch.")
+                break
+                
+            batch_ids = fixture_ids_to_fetch[i:i+batch_size]
+            ids_param = "-".join(batch_ids)
+            
+            data = await self._make_request("/fixtures", {"ids": ids_param})
+            
+            if data and data.get("response"):
+                for fixture in data["response"]:
+                    try:
+                        fixture_id = str(fixture.get("fixture", {}).get("id", ""))
+                        league_code = fixture_league_map.get(fixture_id, "UNKNOWN")
+                        
+                        match = self._parse_fixture(fixture, league_code, include_stats=True)
+                        if match and match.home_goals is not None:
+                            all_matches.append(match)
+                    except Exception as e:
+                        logger.debug(f"Error parsing fixture: {e}")
+        
+        logger.info(f"API-Football: fetched {len(all_matches)} finished matches with stats ({date_from} to {date_to})")
+        return all_matches
 
     async def get_active_league_ids(self, days: int = 7) -> Set[int]:
         """

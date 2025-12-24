@@ -32,6 +32,8 @@ export const getMarketIcon = (marketType: string): string => {
       return "🤝";
     case "goals_over":
     case "goals_under":
+    case "team_goals_over":
+    case "team_goals_under":
       return "⚽";
     case "btts_yes":
     case "btts_no":
