@@ -15,7 +15,7 @@ class CacheService:
     
     Provides different TTL presets:
     - LIVE_MATCHES: 30 seconds
-    - PREDICTIONS: 5 minutes
+    - PREDICTIONS: 24 hours
     - HISTORICAL: 1 hour
     - LEAGUES: 24 hours
     - FORECASTS: 24 hours (for scheduled batch results)

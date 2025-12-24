@@ -73,7 +73,8 @@ class BotScheduler:
                 statistics_service=statistics_service,
                 background_tasks=None
             )
-            logger.info(f"Retraining completed. Accuracy: {training_result.get('accuracy', 0):.2%}")
+            accuracy = getattr(training_result, 'accuracy', 0)
+            logger.info(f"Retraining completed. Accuracy: {accuracy:.2%}")
             
             # Cleanup training objects
             del training_result
