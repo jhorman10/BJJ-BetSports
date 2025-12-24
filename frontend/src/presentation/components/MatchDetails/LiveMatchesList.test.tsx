@@ -77,9 +77,13 @@ describe("useLiveMatches Hook", () => {
 
     const { result } = renderHook(() => useLiveMatches());
 
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
-    });
+    // Increased timeout to account for batch processing delays
+    await waitFor(
+      () => {
+        expect(result.current.loading).toBe(false);
+      },
+      { timeout: 10000 }
+    );
 
     // Should have fallen back to mocks
     expect(result.current.matches.length).toBeGreaterThan(0);

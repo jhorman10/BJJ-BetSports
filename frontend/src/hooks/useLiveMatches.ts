@@ -88,6 +88,30 @@ interface MatchToEnrich {
   leagueName: string;
 }
 
+// --- Batch Fetch Utility ---
+// Process requests in batches to avoid overwhelming the API
+const batchFetch = async <T, R>(
+  items: T[],
+  fetchFn: (item: T) => Promise<R | null>,
+  batchSize: number = 5,
+  delayMs: number = 100
+): Promise<(R | null)[]> => {
+  const results: (R | null)[] = [];
+
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize);
+    const batchResults = await Promise.all(batch.map(fetchFn));
+    results.push(...batchResults);
+
+    // Add delay between batches (except after the last batch)
+    if (i + batchSize < items.length) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+
+  return results;
+};
+
 // --- Cache Simple para API Pública ---
 let publicApiCache: { data: LiveMatch[]; timestamp: number } | null = null;
 const CACHE_DURATION = 10000; // 10 segundos de caché para mayor precisión
@@ -152,21 +176,25 @@ const fetchPublicLiveMatches = async (): Promise<LiveMatch[]> => {
   ];
 
   try {
-    // Hacemos peticiones en paralelo a todas las ligas
-    const requests = leagues.map((league) =>
-      fetch(
-        `https://site.api.espn.com/apis/site/v2/sports/soccer/${league}/scoreboard`
-      )
-        .then((res) =>
-          res.ok ? (res.json() as Promise<ESPNScoreboardResponse>) : null
-        )
-        .catch(() => null)
-    );
+    // Fetch scoreboard data in batches to avoid overwhelming the API
+    const fetchScoreboard = async (
+      league: string
+    ): Promise<ESPNScoreboardResponse | null> => {
+      try {
+        const res = await fetch(
+          `https://site.api.espn.com/apis/site/v2/sports/soccer/${league}/scoreboard`
+        );
+        return res.ok ? (res.json() as Promise<ESPNScoreboardResponse>) : null;
+      } catch {
+        return null;
+      }
+    };
 
-    const responses = await Promise.all(requests);
+    // Process leagues in batches of 5 with 100ms delay between batches
+    const responses = await batchFetch(leagues, fetchScoreboard, 5, 100);
+
     const liveMatches: LiveMatch[] = [];
     const matchesToEnrich: MatchToEnrich[] = [];
-    const detailRequests: Promise<ESPNSummaryResponse | null>[] = [];
 
     responses.forEach((data) => {
       if (!data || !data.events) return;
@@ -178,22 +206,31 @@ const fetchPublicLiveMatches = async (): Promise<LiveMatch[]> => {
         const status = event.status?.type?.state;
         if (status === "in" || status === "ht") {
           matchesToEnrich.push({ event, leagueId, leagueName });
-          // Solicitar detalles (summary) para obtener corners y tarjetas
-          detailRequests.push(
-            fetch(
-              `https://site.api.espn.com/apis/site/v2/sports/soccer/${leagueId}/summary?event=${event.id}`
-            )
-              .then((res) =>
-                res.ok ? (res.json() as Promise<ESPNSummaryResponse>) : null
-              )
-              .catch(() => null)
-          );
         }
       });
     });
 
-    // Obtener detalles en paralelo
-    const detailsResponses = await Promise.all(detailRequests);
+    // Fetch match details (summary) in batches for corners and cards
+    const fetchMatchDetails = async (
+      item: MatchToEnrich
+    ): Promise<ESPNSummaryResponse | null> => {
+      try {
+        const res = await fetch(
+          `https://site.api.espn.com/apis/site/v2/sports/soccer/${item.leagueId}/summary?event=${item.event.id}`
+        );
+        return res.ok ? (res.json() as Promise<ESPNSummaryResponse>) : null;
+      } catch {
+        return null;
+      }
+    };
+
+    // Process match details in batches of 5 with 100ms delay
+    const detailsResponses = await batchFetch(
+      matchesToEnrich,
+      fetchMatchDetails,
+      5,
+      100
+    );
 
     // Combinar datos básicos con detalles
     matchesToEnrich.forEach((item, index) => {

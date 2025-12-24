@@ -23,7 +23,7 @@ class CacheService:
     
     # TTL Presets (in seconds)
     TTL_LIVE_MATCHES = 30
-    TTL_PREDICTIONS = 300
+    TTL_PREDICTIONS = 86400  # 24 hours - same as forecasts for consistency
     TTL_HISTORICAL = 3600
     TTL_LEAGUES = 86400
     TTL_FORECASTS = 86400  # 24 hours for scheduled data

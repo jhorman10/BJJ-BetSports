@@ -84,10 +84,40 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("⚠ Football-Data.org not configured (optional)")
     
-    # Start the scheduler for daily training (Immediate run on deployment)
+    # Start the scheduler for daily training
     from src.scheduler import get_scheduler
+    from src.infrastructure.cache.cache_service import get_cache_service
+    from datetime import datetime
+    from pytz import timezone
+    
     scheduler = get_scheduler()
-    scheduler.start(run_immediate=True)
+    cache = get_cache_service()
+    
+    # Check if we already have cached forecasts for today
+    COLOMBIA_TZ = timezone('America/Bogota')
+    today_str = datetime.now(COLOMBIA_TZ).strftime("%Y-%m-%d")
+    
+    # Check for any cached forecasts (sample key pattern)
+    sample_key = f"forecasts:league_E0:date_{today_str}"
+    has_cached_forecasts = cache.get(sample_key) is not None
+    
+    if has_cached_forecasts:
+        # Cache exists, start scheduler in background (normal operation)
+        logger.info("✓ Cached forecasts found. Starting scheduler in background...")
+        scheduler.start(run_immediate=False)
+    else:
+        # No cache - run job synchronously and wait for completion
+        logger.info("⚠ No cached forecasts found. Running initial job synchronously...")
+        logger.info("   This may take a few minutes on first deployment...")
+        
+        # Start scheduler without immediate run first
+        scheduler.start(run_immediate=False)
+        
+        # Run the job and WAIT for it to complete
+        import asyncio
+        await scheduler.run_daily_orchestrated_job()
+        logger.info("✓ Initial cache population complete")
+    
     logger.info("✓ Daily training scheduler started (06:00 AM Colombia time)")
     
     yield
@@ -150,6 +180,34 @@ async def health_check() -> HealthResponseDTO:
         version=APP_VERSION,
         timestamp=datetime.utcnow(),
     )
+
+
+# Cache status endpoint
+@app.get(
+    "/cache/status",
+    tags=["Health"],
+    summary="Cache status",
+    description="Check Redis cache connection and cached forecasts.",
+)
+async def cache_status():
+    """Get cache status for debugging."""
+    from src.infrastructure.cache.cache_service import get_cache_service
+    
+    cache = get_cache_service()
+    redis_connected = cache.redis.is_connected if cache.redis else False
+    
+    # Get forecast keys
+    forecast_keys = []
+    if redis_connected:
+        forecast_keys = cache.redis.keys("forecasts:*")
+    
+    return {
+        "redis_connected": redis_connected,
+        "cached_forecasts_count": len(forecast_keys),
+        "sample_keys": forecast_keys[:10] if forecast_keys else [],
+        "cache_hits": cache._hits,
+        "cache_misses": cache._misses,
+    }
 
 
 # Root endpoint

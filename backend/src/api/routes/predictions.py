@@ -37,7 +37,7 @@ async def get_league_predictions(
 ) -> PredictionsResponseDTO:
     """Get pre-calculated predictions for a league from Redis."""
     from src.infrastructure.cache.cache_service import get_cache_service
-    from datetime import datetime
+    from datetime import datetime, timedelta
     from pytz import timezone
     
     COLOMBIA_TZ = timezone('America/Bogota')
@@ -48,6 +48,15 @@ async def get_league_predictions(
     cache = get_cache_service()
     
     cached_result = cache.get(cache_key)
+    
+    # Fallback to yesterday's cache if today's is not available
+    if not cached_result:
+        yesterday_str = (datetime.now(COLOMBIA_TZ) - timedelta(days=1)).strftime("%Y-%m-%d")
+        yesterday_key = f"forecasts:league_{league_id}:date_{yesterday_str}"
+        cached_result = cache.get(yesterday_key)
+        if cached_result:
+            logger.info(f"Using yesterday's cache for {league_id} (today's not available yet)")
+    
     if cached_result:
         # If it's a dict (from Redis), parse it back to DTO
         if isinstance(cached_result, dict):

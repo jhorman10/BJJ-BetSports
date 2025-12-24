@@ -21,7 +21,7 @@ import {
   TrendingUp,
   AccessTime,
 } from "@mui/icons-material";
-import { useLiveMatches } from "../../../hooks/useLiveMatches";
+import { useLiveMatches, LiveMatch } from "../../../hooks/useLiveMatches";
 import { LiveMatchPrediction } from "../../../types";
 
 /**
@@ -67,27 +67,77 @@ const MatchCardSkeleton: React.FC = () => (
  * Single live match card with prediction
  */
 interface MatchCardProps {
-  matchData: LiveMatchPrediction | any;
+  matchData: LiveMatchPrediction | LiveMatch;
 }
+
+// Type guard to check if matchData is a LiveMatchPrediction
+const isLiveMatchPrediction = (
+  data: LiveMatchPrediction | LiveMatch
+): data is LiveMatchPrediction => "match" in data;
+
+// Normalized match data for uniform access
+interface NormalizedMatch {
+  status: string;
+  leagueName: string;
+  homeTeamName: string;
+  awayTeamName: string;
+  homeScore: number;
+  awayScore: number;
+}
+
+// Normalize match data from either Match or LiveMatch
+const normalizeMatch = (
+  match: LiveMatch | import("../../../types").Match
+): NormalizedMatch => {
+  // Check if it's a LiveMatch (has league_name) or Match (has league object)
+  if ("league_name" in match) {
+    // It's a LiveMatch
+    return {
+      status: match.status || "LIVE",
+      leagueName: match.league_name || "Liga",
+      homeTeamName: match.home_team,
+      awayTeamName: match.away_team,
+      homeScore: match.home_score ?? 0,
+      awayScore: match.away_score ?? 0,
+    };
+  } else {
+    // It's a Match
+    return {
+      status: match.status || "LIVE",
+      leagueName: match.league?.name || "Liga",
+      homeTeamName: match.home_team?.name || "Local",
+      awayTeamName: match.away_team?.name || "Visitante",
+      homeScore: match.home_goals ?? 0,
+      awayScore: match.away_goals ?? 0,
+    };
+  }
+};
 
 const LiveMatchCard: React.FC<MatchCardProps> = ({ matchData }) => {
   // Adaptation: The new hook returns flattened match objects (LiveMatch),
   // but this component expects { match, prediction } structure (LiveMatchPrediction).
-  // We try to adapt if needed.
 
-  // Check if matchData has 'match' property (LiveMatchPrediction) or is itself the match (LiveMatch)
-  const match = "match" in matchData ? matchData.match : (matchData as any);
-  const prediction =
-    "prediction" in matchData ? matchData.prediction : undefined;
+  // Get raw match and prediction
+  const rawMatch = isLiveMatchPrediction(matchData)
+    ? matchData.match
+    : matchData;
+  const prediction = isLiveMatchPrediction(matchData)
+    ? matchData.prediction
+    : undefined;
+
+  // Normalize match data for uniform access
+  const match = normalizeMatch(
+    rawMatch as LiveMatch | import("../../../types").Match
+  );
 
   // Determine the recommended result
   const getRecommendation = () => {
     if (!prediction || prediction.confidence === 0) return null;
 
     const probs = [
-      { label: "1", value: prediction.home_win_probability },
-      { label: "X", value: prediction.draw_probability },
-      { label: "2", value: prediction.away_win_probability },
+      { label: "1", value: validPrediction!.home_win_probability },
+      { label: "X", value: validPrediction!.draw_probability },
+      { label: "2", value: validPrediction!.away_win_probability },
     ];
 
     const max = probs.reduce((a, b) => (a.value > b.value ? a : b));
@@ -96,7 +146,9 @@ const LiveMatchCard: React.FC<MatchCardProps> = ({ matchData }) => {
 
   const recommendation = getRecommendation();
   const confidence = prediction?.confidence ?? 0;
-  const hasValidPrediction = confidence > 0;
+  const hasValidPrediction = confidence > 0 && prediction !== undefined;
+  // Use non-null assertion since hasValidPrediction guards these usages
+  const validPrediction = hasValidPrediction ? prediction! : null;
 
   // Parse status for display (e.g., "1H", "2H", "HT", "90'")
   const displayStatus = match.status || "EN VIVO";
@@ -165,7 +217,7 @@ const LiveMatchCard: React.FC<MatchCardProps> = ({ matchData }) => {
                 whiteSpace: "nowrap",
               }}
             >
-              {match.league?.name || match.league_name || "Liga"}
+              {match.leagueName}
             </Typography>
           </Box>
 
@@ -184,7 +236,7 @@ const LiveMatchCard: React.FC<MatchCardProps> = ({ matchData }) => {
                   whiteSpace: "nowrap",
                 }}
               >
-                {match.home_team?.name || match.home_team}
+                {match.homeTeamName}
               </Typography>
             </Box>
 
@@ -199,8 +251,7 @@ const LiveMatchCard: React.FC<MatchCardProps> = ({ matchData }) => {
               }}
             >
               <Typography variant="h6" fontWeight="bold" color="primary.light">
-                {match.home_goals ?? match.home_score ?? 0} -{" "}
-                {match.away_goals ?? match.away_score ?? 0}
+                {match.homeScore} - {match.awayScore}
               </Typography>
             </Box>
 
@@ -213,7 +264,7 @@ const LiveMatchCard: React.FC<MatchCardProps> = ({ matchData }) => {
                   whiteSpace: "nowrap",
                 }}
               >
-                {match.away_team?.name || match.away_team}
+                {match.awayTeamName}
               </Typography>
             </Box>
           </Box>
@@ -242,16 +293,16 @@ const LiveMatchCard: React.FC<MatchCardProps> = ({ matchData }) => {
                         "& .MuiLinearProgress-bar": {
                           background: `linear-gradient(90deg, 
                             #10b981 0%, 
-                            #10b981 ${prediction.home_win_probability * 100}%, 
-                            #6366f1 ${prediction.home_win_probability * 100}%, 
+                            #10b981 ${validPrediction!.home_win_probability * 100}%, 
+                            #6366f1 ${validPrediction!.home_win_probability * 100}%, 
                             #6366f1 ${
-                              (prediction.home_win_probability +
-                                prediction.draw_probability) *
+                              (validPrediction!.home_win_probability +
+                                validPrediction!.draw_probability) *
                               100
                             }%,
                             #ef4444 ${
-                              (prediction.home_win_probability +
-                                prediction.draw_probability) *
+                              (validPrediction!.home_win_probability +
+                                validPrediction!.draw_probability) *
                               100
                             }%,
                             #ef4444 100%
@@ -275,7 +326,7 @@ const LiveMatchCard: React.FC<MatchCardProps> = ({ matchData }) => {
                   <Tooltip title="Probabilidad Victoria Local">
                     <Chip
                       label={`1: ${(
-                        prediction.home_win_probability * 100
+                        validPrediction!.home_win_probability * 100
                       ).toFixed(0)}%`}
                       size="small"
                       sx={{
@@ -294,7 +345,7 @@ const LiveMatchCard: React.FC<MatchCardProps> = ({ matchData }) => {
                   </Tooltip>
                   <Tooltip title="Probabilidad Empate">
                     <Chip
-                      label={`X: ${(prediction.draw_probability * 100).toFixed(
+                      label={`X: ${(validPrediction!.draw_probability * 100).toFixed(
                         0
                       )}%`}
                       size="small"
@@ -315,7 +366,7 @@ const LiveMatchCard: React.FC<MatchCardProps> = ({ matchData }) => {
                   <Tooltip title="Probabilidad Victoria Visitante">
                     <Chip
                       label={`2: ${(
-                        prediction.away_win_probability * 100
+                        validPrediction!.away_win_probability * 100
                       ).toFixed(0)}%`}
                       size="small"
                       sx={{
@@ -348,11 +399,11 @@ const LiveMatchCard: React.FC<MatchCardProps> = ({ matchData }) => {
                       Confianza: {(confidence * 100).toFixed(0)}%
                     </Typography>
                   </Box>
-                  {prediction.over_25_probability > 0.5 && (
+                  {validPrediction!.over_25_probability > 0.5 && (
                     <Chip
                       icon={<SportsScore sx={{ fontSize: 12 }} />}
                       label={`+2.5: ${(
-                        prediction.over_25_probability * 100
+                        validPrediction!.over_25_probability * 100
                       ).toFixed(0)}%`}
                       size="small"
                       color="warning"
@@ -497,7 +548,11 @@ const LiveMatches: React.FC = () => {
         {matches.map((matchData) => (
           <Grid
             size={{ xs: 12, md: 6, lg: 4 }}
-            key={matchData.id || (matchData as any).match?.id}
+            key={
+              "id" in matchData
+                ? matchData.id
+                : (matchData as LiveMatchPrediction).match?.id
+            }
           >
             <LiveMatchCard matchData={matchData} />
           </Grid>
