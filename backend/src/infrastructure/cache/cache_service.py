@@ -35,6 +35,11 @@ class CacheService:
         self._hits = 0
         self._misses = 0
         
+        # Low Memory optimization for Render Free Tier (512MB)
+        self.low_memory_mode = os.getenv("LOW_MEMORY_MODE", "false").lower() == "true"
+        if self.low_memory_mode:
+            logger.info("CORE: Low Memory Mode enabled. Local memory cache will be bypassed for large objects.")
+        
     def get(self, key: str) -> Optional[Any]:
         """Get a value from cache (Redis first, then memory)."""
         # Try Redis first
@@ -44,7 +49,11 @@ class CacheService:
                 self._hits += 1
                 return value
         
-        # Fallback to memory (mostly for transient data or if Redis is down)
+        # Skip local memory if in Low Memory Mode and it's a large object
+        if self.low_memory_mode and (key.startswith("forecasts:") or key.startswith("predictions:")):
+            return None
+
+        # Fallback to memory
         with self._lock:
             value = self._memory_cache.get(key)
             if value:
@@ -59,11 +68,12 @@ class CacheService:
         if self.redis.is_connected:
             self.redis.set(key, value, ttl_seconds)
             
+        # Skip local memory if in Low Memory Mode and it's a large object
+        if self.low_memory_mode and (key.startswith("forecasts:") or key.startswith("predictions:")):
+            return
+
         with self._lock:
             self._memory_cache[key] = value
-            # In memory we don't strictly enforce TTL for simplicity 
-            # as Redis is the primary source for fresh data.
-            # But we could add it if memory usage becomes an issue.
     
     def invalidate(self, key: str) -> bool:
         """Invalidate a specific cache entry."""
