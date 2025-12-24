@@ -209,7 +209,7 @@ const App: React.FC = () => {
         </AppBar>
 
         {/* Main Content */}
-        <Container maxWidth="xl" sx={{ py: 4 }}>
+        <Container maxWidth="xl" sx={{ py: 4 }} className="page-transition">
           <Routes>
             <Route
               path="/"
