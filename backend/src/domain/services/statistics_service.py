@@ -175,11 +175,16 @@ class StatisticsService:
         # Check partials if needed, or return same
         return name
 
+    _normalization_cache = {}
+
     @staticmethod
     def _normalize_name(name: str) -> str:
-        """Normalize team name for comparison."""
-        
+        """Normalize team name for comparison. Cached for performance."""
+        if name in StatisticsService._normalization_cache:
+            return StatisticsService._normalization_cache[name]
+            
         # 1. Resolve Aliases first
+        original_name = name
         name = StatisticsService._resolve_alias(name)
         
         # 2. Remove accents (Normalize to ASCII approximation)
@@ -199,7 +204,9 @@ class StatisticsService:
             if cleaned.endswith(f" {word}"):
                 cleaned = cleaned[:-len(word)-1]
                 
-        return cleaned.strip().replace(" ", "")
+        result = cleaned.strip().replace(" ", "")
+        StatisticsService._normalization_cache[original_name] = result
+        return result
 
     @staticmethod
     def _is_team_match(target: str, candidate: str) -> bool:

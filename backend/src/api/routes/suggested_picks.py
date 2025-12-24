@@ -37,47 +37,40 @@ router = APIRouter(
 @router.get(
     "/match/{match_id}",
     response_model=MatchSuggestedPicksDTO,
-    summary="Get AI-suggested picks for a match",
-    description="""
-    Get AI-suggested betting picks for a specific match.
-    
-    The picks are prioritized based on:
-    - Historical performance (corners and cards have higher priority than goals)
-    - Team statistics and form
-    - Low-scoring context penalties
-    - VA handicap recommendations for dominant teams
-    
-    Each pick includes:
-    - Probability (0-1)
-    - Confidence level (high/medium/low)
-    - Risk level (1-5)
-    - Reasoning explanation
-    """,
+    summary="Get AI-suggested picks for a match (Pre-calculated)",
+    description="Returns AI-suggested betting picks for a match. Data is pre-calculated daily at 06:00 AM.",
 )
 async def get_suggested_picks(
     match_id: str,
-    data_sources=Depends(get_data_sources),
-    prediction_service=Depends(get_prediction_service),
-    statistics_service=Depends(get_statistics_service),
-    learning_service=Depends(get_learning_service),
 ) -> MatchSuggestedPicksDTO:
-    """Get AI-suggested picks for a match."""
-    use_case = GetSuggestedPicksUseCase(
-        data_sources=data_sources,
-        prediction_service=prediction_service,
-        statistics_service=statistics_service,
-        learning_service=learning_service,
-    )
+    """Get AI-suggested picks for a match from Redis."""
+    from src.infrastructure.cache.cache_service import get_cache_service
+    from datetime import datetime
     
-    result = await use_case.execute(match_id)
+    cache = get_cache_service()
+    # Key format: forecasts:match_{match_id}
+    cache_key = f"forecasts:match_{match_id}"
     
-    if result is None:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Match {match_id} not found or no data available"
+    cached_match = cache.get(cache_key)
+    if cached_match:
+        # MatchPredictionDTO contains both 'match' and 'prediction'
+        # The 'prediction' field contains 'suggested_picks' which we need for MatchSuggestedPicksDTO
+        if isinstance(cached_match, dict):
+            from src.application.dtos.dtos import MatchPredictionDTO
+            match_pred = MatchPredictionDTO(**cached_match)
+        else:
+            match_pred = cached_match
+            
+        return MatchSuggestedPicksDTO(
+            match_id=match_id,
+            suggested_picks=match_pred.prediction.suggested_picks,
+            generated_at=match_pred.prediction.created_at or datetime.utcnow()
         )
     
-    return result
+    raise HTTPException(
+        status_code=404,
+        detail=f"No pre-calculated picks available for match {match_id}. Ensure the daily job has run."
+    )
 
 
 @router.post(

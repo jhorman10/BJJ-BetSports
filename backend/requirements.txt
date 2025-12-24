@@ -19,6 +19,9 @@ aiohttp>=3.9.0
 # Task scheduling
 apscheduler>=3.10.0
 
+# Redis Cache
+redis>=5.0.0
+
 
 # Environment management
 python-dotenv==1.0.0

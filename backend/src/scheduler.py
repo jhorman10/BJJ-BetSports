@@ -1,9 +1,10 @@
 """
-Scheduler for automated bot training tasks.
-Runs the training model daily at 7:00 AM Colombia time (UTC-5).
-Results are cached for same-day queries.
+Scheduler for automated bot tasks.
+Runs at 06:00 AM Colombia time (UTC-5).
+Pipeline: Retraining -> Massive Inference -> Redis Pre-warming.
 """
 import logging
+import asyncio
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from pytz import timezone
@@ -19,79 +20,122 @@ class BotScheduler:
     
     def __init__(self):
         self.scheduler = AsyncIOScheduler(timezone=COLOMBIA_TZ)
-        self._training_in_progress = False
+        self._job_in_progress = False
         
-    async def run_daily_training(self):
-        """Execute the daily training task and cache results."""
-        if self._training_in_progress:
-            logger.warning("Training already in progress, skipping scheduled run")
+    async def run_daily_orchestrated_job(self):
+        """
+        Execute the daily orchestrated job pipeline.
+        1. Retraining
+        2. Massive Inference (All leagues)
+        3. Redis Pre-warming
+        """
+        if self._job_in_progress:
+            logger.warning("Job already in progress, skipping scheduled run")
             return
             
         try:
-            self._training_in_progress = True
-            logger.info(f"Starting scheduled training at {datetime.now(COLOMBIA_TZ)}")
+            self._job_in_progress = True
+            today_str = datetime.now(COLOMBIA_TZ).strftime("%Y-%m-%d")
+            logger.info(f"Starting daily orchestrated job at {datetime.now(COLOMBIA_TZ)}")
             
-            # Import here to avoid circular imports
-            from src.api.routes.learning import BacktestRequest
-            from src.api.dependencies import get_learning_service, get_football_data_uk, get_prediction_service, get_statistics_service, get_data_sources
-            from src.infrastructure.cache import get_training_cache
+            # Import dependencies dynamically
+            from src.api.routes.learning import BacktestRequest, run_training_session
+            from src.api.dependencies import (
+                get_learning_service, 
+                get_prediction_service, 
+                get_statistics_service, 
+                get_data_sources
+            )
+            from src.infrastructure.cache.cache_service import get_cache_service
+            from src.application.use_cases.use_cases import GetPredictionsUseCase
+            from src.infrastructure.data_sources.football_data_uk import LEAGUES_METADATA
             
-            # Get dependencies
+            # 1. RETRAINING
+            logger.info("Step 1/3: Starting retraining...")
             learning_service = get_learning_service()
             data_sources = get_data_sources()
             prediction_service = get_prediction_service()
             statistics_service = get_statistics_service()
             
-            # Create request for full year
             request = BacktestRequest(
-                league_ids=["E0", "SP1", "D1", "I1", "F1"],
-                days_back=3650,  # Full 10 year history
+                league_ids=list(LEAGUES_METADATA.keys()),
+                days_back=365,  # 1 year for retraining
                 reset_weights=False
             )
             
-            # Run training (dynamically import to avoid issues)
-            from src.api.routes.learning import run_training_session
-            result = await run_training_session(
+            training_result = await run_training_session(
                 request=request,
                 learning_service=learning_service,
                 data_sources=data_sources,
                 prediction_service=prediction_service,
-                statistics_service=statistics_service
+                statistics_service=statistics_service,
+                background_tasks=None # No background tasks needed for scheduler
             )
+            logger.info(f"Retraining completed. Accuracy: {training_result.get('accuracy', 0):.2%}")
             
-            # Cache the results
-            cache = get_training_cache()
-            cache.set_training_results(result)
+            # 2. MASSIVE INFERENCE & 3. PRE-WARMING
+            logger.info("Step 2/3: Starting massive inference and pre-warming...")
+            use_case = GetPredictionsUseCase(data_sources, prediction_service, statistics_service)
+            cache = get_cache_service()
             
-            logger.info(f"Scheduled training completed successfully. "
-                       f"Processed {result.get('matches_processed', 0)} matches, "
-                       f"Accuracy: {result.get('accuracy', 0):.2%}. "
-                       f"Results cached.")
+            leagues_processed = 0
+            for league_id in LEAGUES_METADATA.keys():
+                try:
+                    logger.info(f"Processing league {league_id}...")
+                    # Generate predictions for the league
+                    predictions_dto = await use_case.execute(league_id, limit=50)
+                    
+                    # Store league forecast in Redis: forecasts:league_{id}:date_{today}
+                    league_cache_key = f"forecasts:league_{league_id}:date_{today_str}"
+                    cache.set(league_cache_key, predictions_dto.dict(), cache.TTL_FORECASTS)
+                    
+                    # Also store individual match predictions for fast lookup by match_id
+                    for match_pred in predictions_dto.predictions:
+                        match_id = match_pred.match.id
+                        # Key format: forecasts:match_{match_id}
+                        # No date in key to keep it simple for single match lookup, 
+                        # but with 24h TTL it will refresh daily.
+                        match_cache_key = f"forecasts:match_{match_id}"
+                        cache.set(match_cache_key, match_pred.dict(), cache.TTL_FORECASTS)
+                    
+                    leagues_processed += 1
+                except Exception as e:
+                    logger.error(f"Error processing league {league_id}: {str(e)}")
+            
+            logger.info(f"Daily orchestrated job completed successfully. Processed {leagues_processed} leagues.")
                        
         except Exception as e:
-            logger.error(f"Error during scheduled training: {str(e)}", exc_info=True)
+            logger.error(f"Error during orchestrated job: {str(e)}", exc_info=True)
         finally:
-            self._training_in_progress = False
+            self._job_in_progress = False
     
-    def start(self):
-        """Start the scheduler with daily training at 7:00 AM Colombia time."""
+    def start(self, run_immediate: bool = False):
+        """
+        Start the scheduler with daily job at 06:00 AM Colombia time.
+        
+        Args:
+            run_immediate: If True, triggers the job immediately in the background.
+        """
         try:
-            # Schedule daily training at 7:00 AM Colombia time
             self.scheduler.add_job(
-                self.run_daily_training,
-                trigger=CronTrigger(hour=7, minute=0, timezone=COLOMBIA_TZ),
-                id='daily_training',
-                name='Daily Bot Training at 7:00 AM COT',
+                self.run_daily_orchestrated_job,
+                trigger=CronTrigger(hour=6, minute=0, timezone=COLOMBIA_TZ),
+                id='daily_orchestrated_job',
+                name='Daily Orchestrated Job at 06:00 AM COT',
                 replace_existing=True,
-                max_instances=1  # Prevent overlapping executions
+                max_instances=1
             )
             
             self.scheduler.start()
-            logger.info("Scheduler started. Daily training scheduled for 7:00 AM Colombia time")
+            logger.info("Scheduler started. Daily job scheduled for 06:00 AM Colombia time")
             
-            # Log next run time
-            next_run = self.scheduler.get_job('daily_training').next_run_time
-            logger.info(f"Next training scheduled for: {next_run}")
+            if run_immediate:
+                logger.info("Triggering immediate job execution as requested...")
+                asyncio.create_task(self.run_daily_orchestrated_job())
+            
+            job = self.scheduler.get_job('daily_orchestrated_job')
+            if job:
+                logger.info(f"Next scheduled run: {job.next_run_time}")
             
         except Exception as e:
             logger.error(f"Failed to start scheduler: {str(e)}", exc_info=True)
