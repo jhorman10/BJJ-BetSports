@@ -43,15 +43,15 @@ export const LiveScoreBoard: React.FC<LiveScoreBoardProps> = ({ match }) => {
       <Box
         display="flex"
         justifyContent="space-between"
-        alignItems="flex-start"
+        alignItems="center"
+        mb={2}
       >
-        {/* Home Team & Scorers */}
+        {/* Home Team */}
         <Box textAlign="center" flex={1}>
           <Typography
             variant="h6"
             fontWeight="bold"
             sx={{
-              mb: 1,
               height: 48,
               display: "flex",
               alignItems: "center",
@@ -60,7 +60,6 @@ export const LiveScoreBoard: React.FC<LiveScoreBoardProps> = ({ match }) => {
           >
             {match.home_team.name}
           </Typography>
-          {getGoalEvents(match.home_team.id)}
         </Box>
 
         {/* Score & Time */}
@@ -70,7 +69,7 @@ export const LiveScoreBoard: React.FC<LiveScoreBoardProps> = ({ match }) => {
             flexDirection="column"
             alignItems="center"
             gap={0.5}
-            mb={2}
+            mb={1}
           >
             <Chip
               icon={<Timer sx={{ fontSize: "1.2rem !important" }} />}
@@ -101,22 +100,17 @@ export const LiveScoreBoard: React.FC<LiveScoreBoardProps> = ({ match }) => {
             )}
           </Box>
 
-          <Typography
-            variant="h2"
-            fontWeight="900"
-            sx={{ letterSpacing: 4, mb: 1 }}
-          >
+          <Typography variant="h2" fontWeight="900" sx={{ letterSpacing: 4 }}>
             {match.home_goals ?? 0} - {match.away_goals ?? 0}
           </Typography>
         </Box>
 
-        {/* Away Team & Scorers */}
+        {/* Away Team */}
         <Box textAlign="center" flex={1}>
           <Typography
             variant="h6"
             fontWeight="bold"
             sx={{
-              mb: 1,
               height: 48,
               display: "flex",
               alignItems: "center",
@@ -125,6 +119,19 @@ export const LiveScoreBoard: React.FC<LiveScoreBoardProps> = ({ match }) => {
           >
             {match.away_team.name}
           </Typography>
+        </Box>
+      </Box>
+
+      {/* Scorers Row */}
+      <Box
+        display="flex"
+        justifyContent="space-between"
+        alignItems="flex-start"
+      >
+        <Box flex={1} textAlign="left" pl={1}>
+          {getGoalEvents(match.home_team.id)}
+        </Box>
+        <Box flex={1} textAlign="right" pr={1}>
           {getGoalEvents(match.away_team.id)}
         </Box>
       </Box>

@@ -91,7 +91,7 @@ export const LiveMatchStats: React.FC<LiveMatchStatsProps> = ({ match }) => {
             </Typography>
           </Box>
 
-          {/* Cards */}
+          {/* Yellow Cards */}
           <Box
             display="flex"
             justifyContent="space-between"
@@ -99,25 +99,50 @@ export const LiveMatchStats: React.FC<LiveMatchStatsProps> = ({ match }) => {
             mb={1.5}
             sx={{ borderBottom: "1px solid rgba(255,255,255,0.05)", pb: 1 }}
           >
-            <Box>
-              <span style={{ marginRight: 8 }}>
-                🟨 {match.home_yellow_cards ?? 0}
-              </span>
-              <span style={{ color: "#ef4444" }}>
-                🟥 {match.home_red_cards ?? 0}
-              </span>
-            </Box>
-            <Typography variant="caption" color="text.secondary">
-              Tarjetas
+            <Typography
+              variant="body2"
+              fontWeight="bold"
+              sx={{ color: "#facc15" }}
+            >
+              {match.home_yellow_cards ?? 0}
             </Typography>
-            <Box>
-              <span style={{ marginRight: 8 }}>
-                🟨 {match.away_yellow_cards ?? 0}
-              </span>
-              <span style={{ color: "#ef4444" }}>
-                🟥 {match.away_red_cards ?? 0}
-              </span>
-            </Box>
+            <Typography variant="caption" color="text.secondary">
+              Tarjetas Amarillas
+            </Typography>
+            <Typography
+              variant="body2"
+              fontWeight="bold"
+              sx={{ color: "#facc15" }}
+            >
+              {match.away_yellow_cards ?? 0}
+            </Typography>
+          </Box>
+
+          {/* Red Cards */}
+          <Box
+            display="flex"
+            justifyContent="space-between"
+            alignItems="center"
+            mb={1.5}
+            sx={{ borderBottom: "1px solid rgba(255,255,255,0.05)", pb: 1 }}
+          >
+            <Typography
+              variant="body2"
+              fontWeight="bold"
+              sx={{ color: "#ef4444" }}
+            >
+              {match.home_red_cards ?? 0}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Tarjetas Rojas
+            </Typography>
+            <Typography
+              variant="body2"
+              fontWeight="bold"
+              sx={{ color: "#ef4444" }}
+            >
+              {match.away_red_cards ?? 0}
+            </Typography>
           </Box>
 
           {/* Fouls / Offsides */}
