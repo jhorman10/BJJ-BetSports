@@ -101,6 +101,36 @@ class PicksService:
         self.context_analyzer = context_analyzer or ContextAnalyzer()
         self.confidence_calculator = confidence_calculator or ConfidenceCalculator()
     
+    @staticmethod
+    def _calculate_estimated_ev(probability: float, margin: float = 0.05) -> float:
+        """
+        Calculate estimated Expected Value when real odds are not available.
+        
+        Uses fair odds (1/probability) with a bookmaker margin adjustment.
+        EV = (probability * fair_odds_with_margin) - 1
+        
+        Args:
+            probability: Model's probability for the outcome
+            margin: Bookmaker margin (default 5%)
+            
+        Returns:
+            Estimated EV as a decimal (e.g., 0.08 for 8% EV)
+        """
+        if probability <= 0 or probability >= 1:
+            return 0.0
+        
+        # Fair odds = 1 / probability
+        # Adjusted odds = fair_odds * (1 - margin) to simulate market odds
+        fair_odds = 1.0 / probability
+        estimated_market_odds = fair_odds * (1 - margin)
+        
+        # EV = (probability * odds) - 1
+        # If model probability > implied probability (1/odds), EV is positive
+        ev = (probability * estimated_market_odds) - 1
+        
+        # Only return positive EV (value bets)
+        return max(0.0, round(ev, 4))
+    
     def generate_suggested_picks(
         self,
         match: Match,
@@ -302,7 +332,7 @@ class PicksService:
                     risk_level=risk,
                     is_recommended=adjusted_prob > 0.70,
                     priority_score=adjusted_prob * self.MARKET_PRIORITY.get(MarketType.CORNERS_OVER, 1.3),
-                    expected_value=0.0,
+                    expected_value=self._calculate_estimated_ev(adjusted_prob),
                 ))
             
             # Under
@@ -323,7 +353,7 @@ class PicksService:
                     risk_level=risk,
                     is_recommended=adj_under > 0.75,
                     priority_score=adj_under * self.MARKET_PRIORITY.get(MarketType.CORNERS_UNDER, 1.2),
-                    expected_value=0.0,
+                    expected_value=self._calculate_estimated_ev(adjusted_prob),
                 ))
                 
         return picks
@@ -366,7 +396,7 @@ class PicksService:
                     risk_level=risk,
                     is_recommended=adjusted_prob > 0.72,
                     priority_score=adjusted_prob * self.MARKET_PRIORITY.get(MarketType.CARDS_OVER, 1.25),
-                    expected_value=0.0,
+                    expected_value=self._calculate_estimated_ev(adjusted_prob),
                 ))
             
             # Under
@@ -387,7 +417,7 @@ class PicksService:
                     risk_level=risk,
                     is_recommended=adj_under > 0.75,
                     priority_score=adj_under * self.MARKET_PRIORITY.get(MarketType.CARDS_UNDER, 1.15),
-                    expected_value=0.0,
+                    expected_value=self._calculate_estimated_ev(adj_under),
                 ))
                 
         return picks
@@ -454,7 +484,7 @@ class PicksService:
             risk_level=risk,
             is_recommended=adj_prob > 0.75,
             priority_score=adj_prob * self.MARKET_PRIORITY.get(market_type, 1.05),
-            expected_value=0.0
+            expected_value=self._calculate_estimated_ev(adj_prob)
         )
     
     def _get_dominant_team(
@@ -576,7 +606,7 @@ class PicksService:
                     risk_level=risk,
                     is_recommended=is_rec,
                     priority_score=adjusted_over_prob * self.MARKET_PRIORITY.get(mrkt_over, 0.8),
-                    expected_value=0.0,
+                    expected_value=self._calculate_estimated_ev(adjusted_over_prob),
                 )
                 picks.append(pick)
 
@@ -609,7 +639,7 @@ class PicksService:
                     risk_level=risk,
                     is_recommended=is_rec,
                     priority_score=adjusted_under_prob * self.MARKET_PRIORITY.get(mrkt_under, 0.8),
-                    expected_value=0.0,
+                    expected_value=self._calculate_estimated_ev(adjusted_under_prob),
                 )
                 picks.append(pick)
         
@@ -703,7 +733,7 @@ class PicksService:
                 risk_level=5,  # Red cards are always high risk
                 is_recommended=False,  # Never recommend due to rarity
                 priority_score=probability * 0.5,  # Low priority
-                expected_value=0.0,
+                expected_value=self._calculate_estimated_ev(probability),
             )
         return None
     
@@ -817,7 +847,7 @@ class PicksService:
             risk_level=risk,
             is_recommended=adj_prob > 0.65,
             priority_score=adj_prob * self.MARKET_PRIORITY[MarketType.VA_HANDICAP],
-            expected_value=0.0,
+            expected_value=self._calculate_estimated_ev(adj_prob),
         )
 
     def _generate_winner_pick(
@@ -940,7 +970,7 @@ class PicksService:
                     risk_level=risk,
                     is_recommended=adjusted_prob > 0.65,
                     priority_score=adjusted_prob * self.MARKET_PRIORITY.get(mrkt_over, 1.1),
-                    expected_value=0.0,
+                    expected_value=self._calculate_estimated_ev(adjusted_prob),
                 ))
             
             # Under
@@ -960,7 +990,7 @@ class PicksService:
                     risk_level=risk,
                     is_recommended=adjusted_under_prob > 0.70,
                     priority_score=adjusted_under_prob * self.MARKET_PRIORITY.get(mrkt_under, 1.0),
-                    expected_value=0.0,
+                    expected_value=self._calculate_estimated_ev(adjusted_under_prob),
                 ))
                 
         return picks
@@ -1003,7 +1033,7 @@ class PicksService:
                     risk_level=risk,
                     is_recommended=adjusted_prob > 0.70,
                     priority_score=adjusted_prob * self.MARKET_PRIORITY.get(mrkt_over, 1.1),
-                    expected_value=0.0,
+                    expected_value=self._calculate_estimated_ev(adjusted_prob),
                 ))
 
             # Under
@@ -1024,7 +1054,7 @@ class PicksService:
                     risk_level=risk,
                     is_recommended=adj_under > 0.75,
                     priority_score=adj_under * self.MARKET_PRIORITY.get(mrkt_under, 1.1),
-                    expected_value=0.0,
+                    expected_value=self._calculate_estimated_ev(adj_under),
                 ))
         return picks
 
@@ -1065,7 +1095,7 @@ class PicksService:
                 risk_level=risk,
                 is_recommended=btts_yes_prob > 0.65,
                 priority_score=btts_yes_prob * self.MARKET_PRIORITY.get(MarketType.BTTS_YES, 0.9),
-                expected_value=0.0
+                expected_value=self._calculate_estimated_ev(btts_yes_prob)
              )
         elif btts_no_prob > 0.55:
              btts_no_prob = self._boost_prob(btts_no_prob)
@@ -1080,7 +1110,7 @@ class PicksService:
                 risk_level=risk,
                 is_recommended=btts_no_prob > 0.65,
                 priority_score=btts_no_prob * self.MARKET_PRIORITY.get(MarketType.BTTS_NO, 0.85),
-                expected_value=0.0
+                expected_value=self._calculate_estimated_ev(btts_no_prob)
              )
         return None
 
@@ -1118,7 +1148,7 @@ class PicksService:
                     risk_level=risk,
                     is_recommended=prob > 0.65,
                     priority_score=prob * self.MARKET_PRIORITY.get(MarketType.TEAM_GOALS_OVER, 0.7),
-                    expected_value=0.0
+                    expected_value=self._calculate_estimated_ev(prob)
                  )
                  picks.append(pick)
                  

@@ -16,6 +16,11 @@ import Grid from "@mui/material/Grid";
 import { TransitionProps } from "@mui/material/transitions";
 import { MatchPrediction } from "../../../types";
 import SuggestedPicksTab from "./SuggestedPicksTab";
+import {
+  translateMatchStatus,
+  translateRecommendedBet,
+  translateOverUnder,
+} from "../../../utils/translationUtils";
 
 interface MatchDetailsModalProps {
   open: boolean;
@@ -84,7 +89,7 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                   {details.match.away_goals ?? 0}
                 </Typography>
                 <Chip
-                  label={details.match.status}
+                  label={translateMatchStatus(details.match.status)}
                   color={
                     details.match.status === "LIVE" ||
                     details.match.status === "1H" ||
@@ -415,7 +420,9 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                       Apuesta Recomendada
                     </Typography>
                     <Chip
-                      label={details.prediction.recommended_bet}
+                      label={translateRecommendedBet(
+                        details.prediction.recommended_bet
+                      )}
                       color="primary"
                       size="small"
                       sx={{ display: "block", mt: 0.5 }}
@@ -426,7 +433,9 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                       Over/Under
                     </Typography>
                     <Chip
-                      label={details.prediction.over_under_recommendation}
+                      label={translateOverUnder(
+                        details.prediction.over_under_recommendation
+                      )}
                       color="secondary"
                       variant="outlined"
                       size="small"

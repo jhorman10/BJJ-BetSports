@@ -29,6 +29,10 @@ import {
 } from "@mui/icons-material";
 import { styled } from "@mui/material/styles";
 import type { MatchPrediction } from "../../../types";
+import {
+  translateRecommendedBet,
+  translateOverUnder,
+} from "../../../utils/translationUtils";
 
 interface MatchCardProps {
   matchPrediction: MatchPrediction;
@@ -476,12 +480,12 @@ const MatchCard: React.FC<MatchCardProps> = memo(
               }}
             >
               <Chip
-                label={prediction.recommended_bet}
+                label={translateRecommendedBet(prediction.recommended_bet)}
                 color="primary"
                 sx={{ fontWeight: 600 }}
               />
               <Chip
-                label={prediction.over_under_recommendation}
+                label={translateOverUnder(prediction.over_under_recommendation)}
                 color="secondary"
                 variant="outlined"
               />

@@ -92,12 +92,13 @@ class TheSportsDBClient:
         INTERNAL_TO_TSDB = {
             "E0": "4328", # Premier League
             "SP1": "4335", # La Liga
-            "I1": "4332", # Serie A
+            "SP1": "4335", # La Liga
+            "D1": "4331", # Bundesliga
+            "F1": "4334", # Ligue 1
             "D1": "4331", # Bundesliga
             "F1": "4334", # Ligue 1
             "P1": "4344", # Primeira Liga
             "N1": "4337", # Eredivisie
-            "B1": "4351", # Belgian First Division A (Pro League)
             "SC0": "4330", # Scottish Premiership (Ross County etc)
             "T1": "4359", # Super Lig (Turkey)
             "G1": "4392", # Super League (Greece)
@@ -249,12 +250,11 @@ class TheSportsDBClient:
         INTERNAL_TO_TSDB = {
             "E0": "4328",   # Premier League
             "SP1": "4335",  # La Liga
-            "I1": "4332",   # Serie A
             "D1": "4331",   # Bundesliga
+            "F1": "4334",   # Ligue 1
             "F1": "4334",   # Ligue 1
             "P1": "4344",   # Primeira Liga
             "N1": "4337",   # Eredivisie
-            "B1": "4351",   # Belgian First Division A
             "SC0": "4330",  # Scottish Premiership
             "T1": "4359",   # Super Lig (Turkey)
             "G1": "4392",   # Super League (Greece)

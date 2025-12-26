@@ -92,8 +92,11 @@ def _verify_pick(pick: SuggestedPick, match: Match) -> PickDetail:
             threshold = float(re.findall(r"[-+]?\d*\.\d+|\d+", pick.market_label)[0])
     except:
         pass
+    
+    # Get the string value from Enum
+    market_type_str = pick.market_type.value if hasattr(pick.market_type, "value") else str(pick.market_type)
 
-    if pick.market_type == "winner" or pick.market_type == "draw":
+    if market_type_str == "winner" or market_type_str == "draw":
          # Winner validation
         actual_winner = "draw"
         if match.home_goals > match.away_goals: actual_winner = "1" # Home
@@ -107,30 +110,30 @@ def _verify_pick(pick: SuggestedPick, match: Match) -> PickDetail:
         
         was_correct = (actual_winner == predicted)
 
-    elif pick.market_type == "corners_over":
+    elif market_type_str == "corners_over":
         actual = (match.home_corners or 0) + (match.away_corners or 0)
         was_correct = actual > threshold
-    elif pick.market_type == "corners_under":
+    elif market_type_str == "corners_under":
         actual = (match.home_corners or 0) + (match.away_corners or 0)
         was_correct = actual < threshold
-    elif pick.market_type == "cards_over":
+    elif market_type_str == "cards_over":
         # Simplified card counting
         actual = (match.home_yellow_cards or 0) + (match.away_yellow_cards or 0)
         was_correct = actual > threshold
-    elif pick.market_type == "cards_under":
+    elif market_type_str == "cards_under":
         actual = (match.home_yellow_cards or 0) + (match.away_yellow_cards or 0)
         was_correct = actual < threshold
-    elif pick.market_type == "goals_over":
+    elif market_type_str == "goals_over" or "goals_over" in market_type_str:
         actual = (match.home_goals or 0) + (match.away_goals or 0)
         was_correct = actual > threshold
-    elif pick.market_type == "goals_under":
+    elif market_type_str == "goals_under" or "goals_under" in market_type_str:
         actual = (match.home_goals or 0) + (match.away_goals or 0)
         was_correct = actual < threshold
-    elif pick.market_type == "btts_yes":
+    elif market_type_str == "btts_yes":
         was_correct = (match.home_goals > 0 and match.away_goals > 0)
-    elif pick.market_type == "btts_no":
+    elif market_type_str == "btts_no":
         was_correct = not (match.home_goals > 0 and match.away_goals > 0)
-    elif pick.market_type == "va_handicap":
+    elif market_type_str == "va_handicap":
         # Simple handicap validation logic for backtest
         # Needs parsing specific handicap value
         was_correct = pick.probability > 0.5 # Placeholder for complex logic, assuming high prob means likely correct in backtest 'simulation' if we trust model?? 
@@ -140,7 +143,7 @@ def _verify_pick(pick: SuggestedPick, match: Match) -> PickDetail:
         pass 
         
     # Generic fallback
-    if pick.market_type not in ["winner", "draw"]:
+    if market_type_str not in ["winner", "draw"]:
          # Re-evaluate just in case? Or trust the generation context?
          # Since we don't have the 'actual' result embedded in the pick, we MUST evaluate it here.
          # But the specific evaluation logic is complex for all types.
@@ -257,11 +260,7 @@ def _validate_pick(pick: SuggestedPick, match: Match, actual_winner: str) -> tup
     
     # 1. 1X2 Market
     if market_type_val in ["winner", "draw", "result_1x2"]:
-        # Only count specifically for ROI if it passes EV threshold, 
-        # but for HISTORY show everything decent
-        if pick.expected_value <= -0.1: # Allow low EV in history but skip deep negative
-            return None, 0.0
-            
+        # Show all result picks in history (removed EV filter)
         is_won = False
         # Determine predicted side
         if "wins" in pick.market_label.lower() or "Victoria" in pick.market_label or "(1)" in pick.market_label or "(2)" in pick.market_label:
@@ -662,6 +661,22 @@ async def run_training_session(
     # Sort by date
     all_matches.sort(key=lambda x: x.match_date)
     
+    # Log match counts per league for debugging
+    league_match_counts = {}
+    for m in all_matches:
+        lid = m.league.id
+        league_match_counts[lid] = league_match_counts.get(lid, 0) + 1
+    
+    logger.info(f"Match distribution by league (total {len(all_matches)} matches):")
+    for lid in sorted(league_match_counts.keys()):
+        logger.info(f"  - {lid}: {league_match_counts[lid]} matches")
+    
+    # Flag problematic leagues
+    problematic_leagues = ["B1", "I1", "G1", "SC0", "T1", "I2", "SC1", "T2", "G2"]
+    for target in problematic_leagues:
+        if target not in league_match_counts or league_match_counts[target] == 0:
+            logger.warning(f"⚠️ No matches found for league: {target}")
+    
     # Filter by start date if provided
     if request.start_date:
         # Handle simple date string YYYY-MM-DD
@@ -773,10 +788,10 @@ async def run_training_session(
                     if date_key not in daily_stats:
                         daily_stats[date_key] = {'staked': 0.0, 'return': 0.0, 'count': 0}
                     
-                    # We only count it for ROI if it has a payout or we consider it a 'bet'
-                    # For backtest, let's treat any high-probability pick as a units-bet
+                    # Use simple unit system: 1 unit stake, return 2 if win, 0 if loss
+                    # This gives: Win = +1 unit profit, Loss = -1 unit profit
                     daily_stats[date_key]['staked'] += 1.0
-                    daily_stats[date_key]['return'] += payout
+                    daily_stats[date_key]['return'] += 2.0 if pick_detail.was_correct else 0.0
                     daily_stats[date_key]['count'] += 1
 
             # Store match prediction with picks
@@ -950,7 +965,7 @@ async def trigger_training_now(
     scheduler = get_scheduler()
     
     # Run training in background
-    background_tasks.add_task(scheduler.run_daily_training)
+    background_tasks.add_task(scheduler.run_daily_orchestrated_job)
     
     return {
         "status": "started",

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import {
   Box,
   Card,
@@ -11,6 +11,8 @@ import {
   TextField,
   ToggleButton,
   ToggleButtonGroup,
+  Tabs,
+  Tab,
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
 import {
@@ -19,14 +21,15 @@ import {
   Assessment,
   History,
   AttachMoney,
+  FilterList,
 } from "@mui/icons-material";
 import { api } from "../../../services/api";
 import MatchHistoryTable from "./MatchHistoryTable";
 import DashboardSkeleton from "./DashboardSkeleton";
 import StatCard from "./StatCard";
 import RoiEvolutionChart from "./RoiEvolutionChart";
-import MarketPerformanceChart from "./MarketPerformanceChart";
-import { TrainingStatus } from "../../../types";
+import PicksStatsTable from "./PicksStatsTable";
+import { TrainingStatus, MatchPredictionHistory } from "../../../types";
 
 const BotDashboard: React.FC = () => {
   const [loading, setLoading] = React.useState(false);
@@ -36,7 +39,17 @@ const BotDashboard: React.FC = () => {
     const year = new Date().getFullYear();
     return `${year}-01-01`;
   });
+  // Display filter date (separate from training date - allows client-side filtering)
+  const [displayStartDate, setDisplayStartDate] = React.useState<string>(() => {
+    const year = new Date().getFullYear();
+    return `${year}-01-01`;
+  });
   const [initialLoading, setInitialLoading] = React.useState(true);
+  const [activeTab, setActiveTab] = React.useState(0);
+
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+    setActiveTab(newValue);
+  };
 
   const [yearMode, setYearMode] = React.useState<"current" | "previous">(
     "current"
@@ -53,6 +66,7 @@ const BotDashboard: React.FC = () => {
 
       // Siempre usar 1 de enero como fecha de inicio
       setStartDate(`${targetYear}-01-01`);
+      setDisplayStartDate(`${targetYear}-01-01`);
     }
   };
 
@@ -63,6 +77,66 @@ const BotDashboard: React.FC = () => {
     const diffTime = Math.max(0, now.getTime() - start.getTime());
     return Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
   }, [startDate]);
+
+  // Client-side filtering for display metrics (allows filtering without re-training)
+  const filteredStats = useMemo(() => {
+    if (!stats?.match_history) return null;
+
+    const displayDate = new Date(displayStartDate);
+
+    // Filter match history by display date
+    const filteredHistory = stats.match_history.filter(
+      (m: MatchPredictionHistory) => new Date(m.match_date) >= displayDate
+    );
+
+    // Recalculate metrics from filtered data
+    const matchesProcessed = filteredHistory.length;
+    const correctPredictions = filteredHistory.filter(
+      (m: MatchPredictionHistory) => m.was_correct
+    ).length;
+    const accuracy =
+      matchesProcessed > 0 ? correctPredictions / matchesProcessed : 0;
+
+    // Recalculate picks stats
+    let totalBets = 0;
+    let picksWon = 0;
+    let picksLost = 0;
+
+    for (const match of filteredHistory) {
+      if (match.picks) {
+        for (const pick of match.picks) {
+          if (pick.was_correct !== undefined) {
+            totalBets++;
+            if (pick.was_correct) picksWon++;
+            else picksLost++;
+          }
+        }
+      }
+    }
+
+    // Estimate ROI from filtered data (simplified calculation)
+    const estimatedRoi =
+      totalBets > 0 ? ((picksWon * 1.8 - totalBets) / totalBets) * 100 : 0;
+    const estimatedProfit = picksWon * 0.8 - picksLost;
+
+    // Filter ROI evolution
+    const filteredRoiEvolution =
+      stats.roi_evolution?.filter(
+        (point) => new Date(point.date) >= displayDate
+      ) || [];
+
+    return {
+      ...stats,
+      matches_processed: matchesProcessed,
+      correct_predictions: correctPredictions,
+      accuracy,
+      total_bets: totalBets,
+      roi: estimatedRoi,
+      profit_units: estimatedProfit,
+      match_history: filteredHistory,
+      roi_evolution: filteredRoiEvolution,
+    } as TrainingStatus;
+  }, [stats, displayStartDate]);
 
   // Helper to generate mock data for local development
   const generateMockData = React.useCallback(
@@ -298,25 +372,27 @@ const BotDashboard: React.FC = () => {
           </ToggleButtonGroup>
 
           <TextField
-            label="Inicio Backtesting"
+            label="Filtrar desde"
             type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            disabled={true}
+            value={displayStartDate}
+            onChange={(e) => setDisplayStartDate(e.target.value)}
             InputLabelProps={{
               shrink: true,
             }}
             size="small"
+            InputProps={{
+              startAdornment: (
+                <FilterList sx={{ mr: 1, color: "rgba(255,255,255,0.5)" }} />
+              ),
+            }}
             sx={{
               bgcolor: "rgba(30, 41, 59, 0.6)",
               input: { color: "white" },
               label: { color: "rgba(255, 255, 255, 0.7)" },
               "& .MuiOutlinedInput-root": {
-                "&.Mui-disabled fieldset": {
-                  borderColor: "rgba(148, 163, 184, 0.1)",
-                },
                 "& fieldset": { borderColor: "rgba(148, 163, 184, 0.3)" },
                 "&:hover fieldset": { borderColor: "rgba(148, 163, 184, 0.5)" },
+                "&.Mui-focused fieldset": { borderColor: "#fbbf24" },
               },
               "& .MuiSvgIcon-root": { color: "white" },
             }}
@@ -346,147 +422,171 @@ const BotDashboard: React.FC = () => {
           </Alert>
         )}
 
-        {stats && (
-          <Grid container spacing={3} sx={{ mt: 1 }}>
-            <Grid size={{ xs: 12, md: 3 }}>
-              <StatCard
-                title="ROI (Retorno de Inversión)"
-                value={`${stats.roi > 0 ? "+" : ""}${stats.roi.toFixed(1)}%`}
-                icon={<TrendingUp />}
-                color={stats.roi >= 0 ? "#22c55e" : "#ef4444"}
-                subtitle="Rentabilidad sobre capital apostado"
-              />
-            </Grid>
-            <Grid size={{ xs: 12, md: 3 }}>
-              <StatCard
-                title="Beneficio Neto"
-                value={`${
-                  stats.profit_units > 0 ? "+" : ""
-                }${stats.profit_units.toFixed(1)} u`}
-                icon={<AttachMoney />}
-                color={stats.profit_units >= 0 ? "#fbbf24" : "#ef4444"}
-                subtitle="Unidades ganadas/perdidas"
-              />
-            </Grid>
-            <Grid size={{ xs: 12, md: 3 }}>
-              <StatCard
-                title="Precisión del Modelo"
-                value={`${(stats.accuracy * 100).toFixed(1)}%`}
-                icon={<Assessment />}
-                color="#3b82f6"
-                subtitle={`En ${stats.matches_processed} partidos analizados`}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, md: 3 }}>
-              <StatCard
-                title="Apuestas de Valor"
-                value={stats.total_bets.toString()}
-                icon={<History />}
-                color="#8b5cf6"
-                subtitle="Oportunidades encontradas (EV > 2%)"
-              />
-            </Grid>
-          </Grid>
-        )}
+        {/* Tab Navigation */}
+        <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }}>
+          <Tabs
+            value={activeTab}
+            onChange={handleTabChange}
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
+            textColor="secondary"
+            indicatorColor="secondary"
+          >
+            <Tab label="📊 Resumen General" />
+            <Tab label="📈 Rendimiento por Mercado" />
+            <Tab label="📝 Historial Completo" />
+          </Tabs>
+        </Box>
 
-        {/* Charts Section */}
-        {stats &&
-          (stats as any).roi_evolution &&
-          (stats as any).roi_evolution.length > 1 && (
-            <Box mt={6}>
-              <Grid container spacing={3}>
-                {/* ROI Chart */}
-                <Grid size={{ xs: 12, md: 8 }}>
-                  <Card
-                    sx={{
-                      height: 350,
-                      bgcolor: "rgba(30, 41, 59, 0.6)",
-                      backdropFilter: "blur(10px)",
-                      border: "1px solid rgba(148, 163, 184, 0.1)",
-                    }}
-                  >
-                    <CardContent
-                      sx={{
-                        p: 1.5,
-                        "&:last-child": { pb: 1.5 },
-                        height: "100%",
-                        display: "flex",
-                        flexDirection: "column",
-                      }}
-                    >
-                      <Typography
-                        variant="subtitle1"
-                        fontWeight={700}
-                        color="white"
-                        gutterBottom
-                        sx={{ mb: 0 }}
-                      >
-                        Evolución del ROI
-                      </Typography>
-                      <Box flex={1} width="100%" mt={0.5}>
-                        <RoiEvolutionChart
-                          data={(stats as any).roi_evolution}
-                        />
-                      </Box>
-                    </CardContent>
-                  </Card>
+        {filteredStats && (
+          <Box>
+            {/* Tab 0: Resumen General */}
+            {activeTab === 0 && (
+              <Box>
+                <Grid container spacing={3} sx={{ mt: 1 }}>
+                  <Grid size={{ xs: 12, md: 3 }}>
+                    <StatCard
+                      title="ROI (Retorno de Inversión)"
+                      value={`${
+                        filteredStats.roi > 0 ? "+" : ""
+                      }${filteredStats.roi.toFixed(1)}%`}
+                      icon={<TrendingUp />}
+                      color={filteredStats.roi >= 0 ? "#22c55e" : "#ef4444"}
+                      subtitle="Rentabilidad sobre capital apostado"
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 3 }}>
+                    <StatCard
+                      title="Beneficio Neto"
+                      value={`${
+                        filteredStats.profit_units > 0 ? "+" : ""
+                      }${filteredStats.profit_units.toFixed(1)} u`}
+                      icon={<AttachMoney />}
+                      color={
+                        filteredStats.profit_units >= 0 ? "#fbbf24" : "#ef4444"
+                      }
+                      subtitle="Unidades ganadas/perdidas"
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 3 }}>
+                    <StatCard
+                      title="Precisión del Modelo"
+                      value={`${(filteredStats.accuracy * 100).toFixed(1)}%`}
+                      icon={<Assessment />}
+                      color="#3b82f6"
+                      subtitle={`En ${filteredStats.matches_processed} partidos analizados`}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 3 }}>
+                    <StatCard
+                      title="Picks Generados"
+                      value={filteredStats.total_bets.toString()}
+                      icon={<History />}
+                      color="#8b5cf6"
+                      subtitle="Total de picks en el período"
+                    />
+                  </Grid>
+
+                  {/* ROI Chart */}
+                  {filteredStats.roi_evolution &&
+                    filteredStats.roi_evolution.length > 1 && (
+                      <Grid size={{ xs: 12 }}>
+                        <Card
+                          sx={{
+                            height: 400,
+                            bgcolor: "rgba(30, 41, 59, 0.6)",
+                            backdropFilter: "blur(10px)",
+                            border: "1px solid rgba(148, 163, 184, 0.1)",
+                            mt: 2,
+                          }}
+                        >
+                          <CardContent
+                            sx={{
+                              p: 2,
+                              "&:last-child": { pb: 2 },
+                              height: "100%",
+                              display: "flex",
+                              flexDirection: "column",
+                            }}
+                          >
+                            <Typography
+                              variant="subtitle1"
+                              fontWeight={700}
+                              color="white"
+                              gutterBottom
+                              sx={{ mb: 1 }}
+                            >
+                              📈 Evolución del ROI
+                            </Typography>
+                            <Typography
+                              variant="body2"
+                              color="text.secondary"
+                              sx={{ mb: 1 }}
+                            >
+                              Retorno de inversión acumulado basado en apuestas
+                              simuladas
+                            </Typography>
+                            <Box flex={1} width="100%">
+                              <RoiEvolutionChart
+                                data={filteredStats.roi_evolution}
+                              />
+                            </Box>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                    )}
                 </Grid>
+              </Box>
+            )}
 
-                {/* Market Performance Chart */}
-                <Grid size={{ xs: 12, md: 4 }}>
-                  <Card
-                    sx={{
-                      height: 350,
-                      bgcolor: "rgba(30, 41, 59, 0.6)",
-                      backdropFilter: "blur(10px)",
-                      border: "1px solid rgba(148, 163, 184, 0.1)",
-                    }}
-                  >
-                    <CardContent
-                      sx={{
-                        p: 1.5,
-                        "&:last-child": { pb: 1.5 },
-                        height: "100%",
-                      }}
+            {/* Tab 1: Rendimiento por Mercado */}
+            {activeTab === 1 && (
+              <Box mt={2}>
+                <Card
+                  sx={{
+                    bgcolor: "rgba(30, 41, 59, 0.6)",
+                    backdropFilter: "blur(10px)",
+                    border: "1px solid rgba(148, 163, 184, 0.1)",
+                  }}
+                >
+                  <CardContent sx={{ p: 2 }}>
+                    <Typography
+                      variant="subtitle1"
+                      fontWeight={700}
+                      color="white"
+                      gutterBottom
                     >
-                      <Typography
-                        variant="subtitle1"
-                        fontWeight={700}
-                        color="white"
-                        gutterBottom
-                        sx={{ mb: 0 }}
-                      >
-                        Rendimiento
-                      </Typography>
-                      <Box sx={{ height: "calc(100% - 24px)", width: "100%" }}>
-                        <MarketPerformanceChart history={stats.match_history} />
-                      </Box>
-                    </CardContent>
-                  </Card>
-                </Grid>
+                      Estadísticas de Picks por Tipo
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" mb={2}>
+                      Desglose de rendimiento por tipo de mercado
+                    </Typography>
+                    <PicksStatsTable matches={filteredStats.match_history} />
+                  </CardContent>
+                </Card>
+              </Box>
+            )}
 
-                {/* Granular Pick Efficiency Chart removed as requested */}
-              </Grid>
-            </Box>
-          )}
-
-        {/* Match History Section */}
-        {stats && stats.match_history && stats.match_history.length > 0 && (
-          <Box mt={6}>
-            <Typography
-              variant="h5"
-              fontWeight={700}
-              color="white"
-              gutterBottom
-              sx={{ mb: 2 }}
-            >
-              Histórico de Predicciones
-            </Typography>
-            <Typography variant="body2" color="text.secondary" mb={3}>
-              Últimos {stats.match_history.length} partidos procesados durante
-              el backtesting
-            </Typography>
-            <MatchHistoryTable matches={stats.match_history} />
+            {/* Tab 2: Historial Completo */}
+            {activeTab === 2 && (
+              <Box mt={2}>
+                <Typography
+                  variant="h5"
+                  fontWeight={700}
+                  color="white"
+                  gutterBottom
+                  sx={{ mb: 2 }}
+                >
+                  Histórico de Predicciones
+                </Typography>
+                <Typography variant="body2" color="text.secondary" mb={3}>
+                  {filteredStats.match_history.length} partidos filtrados desde{" "}
+                  {new Date(displayStartDate).toLocaleDateString("es-ES")}
+                </Typography>
+                <MatchHistoryTable matches={filteredStats.match_history} />
+              </Box>
+            )}
           </Box>
         )}
       </Box>

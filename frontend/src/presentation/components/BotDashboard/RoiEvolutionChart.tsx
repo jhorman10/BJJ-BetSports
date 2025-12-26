@@ -1,5 +1,6 @@
 import React from "react";
-import { Box, Typography, Tooltip } from "@mui/material";
+import { Box, Typography, Tooltip, Chip } from "@mui/material";
+import { TrendingUp, TrendingDown, TrendingFlat } from "@mui/icons-material";
 
 export interface RoiEvolutionChartProps {
   data: { date: string; roi: number }[];
@@ -9,11 +10,21 @@ const RoiEvolutionChart: React.FC<RoiEvolutionChartProps> = ({ data }) => {
   if (!data || data.length === 0) return null;
 
   const rois = data.map((d) => d.roi);
-  const minRoi = Math.min(0, ...rois);
-  const maxRoi = Math.max(...rois);
+  const minRoiValue = Math.min(...rois);
+  const maxRoiValue = Math.max(...rois);
+  const currentRoi = data[data.length - 1].roi;
+  const previousRoi = data.length > 1 ? data[data.length - 2].roi : currentRoi;
+  const trend = currentRoi - previousRoi;
 
+  // Ensure we always include 0 in the y-axis for context
+  const minRoi = Math.min(0, minRoiValue);
+  const maxRoi = Math.max(0, maxRoiValue);
+
+  // Handle case where all values are the same
   const range = maxRoi - minRoi;
-  const padding = range === 0 ? 1 : range * 0.02;
+  // Ensure minimum range of 10% to show something meaningful
+  const effectiveRange = range === 0 ? 10 : range;
+  const padding = effectiveRange * 0.1;
   const yMin = minRoi - padding;
   const yMax = maxRoi + padding;
   const yRange = yMax - yMin;
@@ -28,9 +39,7 @@ const RoiEvolutionChart: React.FC<RoiEvolutionChartProps> = ({ data }) => {
 
   const areaPoints = `${points} 100,100 0,100`;
   const zeroY = 100 - ((0 - yMin) / yRange) * 100;
-  const targetY = 100 - ((5 - yMin) / yRange) * 100;
-  const showTarget = 5 >= yMin && 5 <= yMax;
-  const lineColor = data[data.length - 1].roi >= 0 ? "#22c55e" : "#ef4444";
+  const lineColor = currentRoi >= 0 ? "#22c55e" : "#ef4444";
 
   // Grid lines calculation
   const gridLines = [0, 0.25, 0.5, 0.75, 1].map((p) => {
@@ -49,7 +58,78 @@ const RoiEvolutionChart: React.FC<RoiEvolutionChartProps> = ({ data }) => {
         flexDirection: "column",
       }}
     >
-      <Box sx={{ flex: 1, position: "relative" }}>
+      {/* Stats Summary */}
+      {/* Stats Summary */}
+      <Box
+        sx={{
+          display: "flex",
+          gap: { xs: 1.5, sm: 2 },
+          mb: 2,
+          flexWrap: "wrap",
+          alignItems: "center",
+          width: "100%",
+        }}
+      >
+        <Chip
+          icon={
+            trend > 0.5 ? (
+              <TrendingUp />
+            ) : trend < -0.5 ? (
+              <TrendingDown />
+            ) : (
+              <TrendingFlat />
+            )
+          }
+          label={`ROI Actual: ${currentRoi > 0 ? "+" : ""}${currentRoi.toFixed(
+            2
+          )}%`}
+          sx={{
+            bgcolor:
+              currentRoi >= 0 ? "rgba(34,197,94,0.2)" : "rgba(239,68,68,0.2)",
+            color: currentRoi >= 0 ? "#22c55e" : "#ef4444",
+            fontWeight: 700,
+            fontSize: "0.85rem",
+            width: { xs: "100%", sm: "auto" }, // Full width on mobile
+            justifyContent: { xs: "center", sm: "flex-start" },
+            "& .MuiChip-icon": {
+              color: "inherit",
+            },
+          }}
+        />
+
+        {/* Secondary Stats Group */}
+        <Box
+          sx={{
+            display: "flex",
+            gap: 2,
+            alignItems: "center",
+            flexWrap: "wrap",
+            justifyContent: { xs: "space-between", sm: "flex-start" },
+            width: { xs: "100%", sm: "auto" },
+            mt: { xs: 0.5, sm: 0 },
+            px: { xs: 0.5, sm: 0 },
+          }}
+        >
+          <Typography variant="caption" color="text.secondary">
+            Máx:{" "}
+            <span style={{ color: "#22c55e", fontWeight: 600 }}>
+              {maxRoiValue > 0 ? "+" : ""}
+              {maxRoiValue.toFixed(2)}%
+            </span>
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Mín:{" "}
+            <span style={{ color: "#ef4444", fontWeight: 600 }}>
+              {minRoiValue.toFixed(2)}%
+            </span>
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Muestras: <span style={{ fontWeight: 600 }}>{data.length}</span>
+          </Typography>
+        </Box>
+      </Box>
+
+      <Box sx={{ flex: 1, position: "relative", minHeight: 0 }}>
         {/* Y-Axis Labels */}
         {gridLines.map((line, i) => (
           <Typography
@@ -57,7 +137,7 @@ const RoiEvolutionChart: React.FC<RoiEvolutionChartProps> = ({ data }) => {
             variant="caption"
             sx={{
               position: "absolute",
-              left: 6,
+              left: 0,
               top: `${line.y}%`,
               transform: "translateY(-50%)",
               color: "rgba(255,255,255,0.5)",
@@ -67,39 +147,21 @@ const RoiEvolutionChart: React.FC<RoiEvolutionChartProps> = ({ data }) => {
               zIndex: 1,
             }}
           >
-            {line.val.toFixed(0)}%
+            {line.val.toFixed(1)}%
           </Typography>
         ))}
 
-        {showTarget && (
-          <Typography
-            variant="caption"
-            sx={{
-              position: "absolute",
-              right: 0,
-              top: `${targetY}%`,
-              transform: "translateY(-120%)",
-              color: "#fbbf24",
-              fontWeight: 700,
-              fontSize: "0.7rem",
-              pointerEvents: "none",
-              textShadow: "0 2px 4px rgba(0,0,0,0.5)",
-            }}
-          >
-            Target 5%
-          </Typography>
-        )}
         <svg
           width="100%"
           height="100%"
           viewBox="0 0 100 100"
           preserveAspectRatio="none"
-          style={{ overflow: "visible" }}
+          style={{ overflow: "visible", marginLeft: 35 }}
         >
           <defs>
-            <linearGradient id="chartGradient" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor={lineColor} stopOpacity={0.2} />
-              <stop offset="100%" stopColor={lineColor} stopOpacity={0} />
+            <linearGradient id="chartGradientRoi" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor={lineColor} stopOpacity={0.3} />
+              <stop offset="100%" stopColor={lineColor} stopOpacity={0.02} />
             </linearGradient>
           </defs>
 
@@ -111,7 +173,7 @@ const RoiEvolutionChart: React.FC<RoiEvolutionChartProps> = ({ data }) => {
               y1={line.y}
               x2="100"
               y2={line.y}
-              stroke="rgba(255,255,255,0.05)"
+              stroke="rgba(255,255,255,0.08)"
               strokeWidth="0.5"
               vectorEffect="non-scaling-stroke"
             />
@@ -123,49 +185,54 @@ const RoiEvolutionChart: React.FC<RoiEvolutionChartProps> = ({ data }) => {
             y1={zeroY}
             x2="100"
             y2={zeroY}
-            stroke="rgba(255,255,255,0.3)"
+            stroke="rgba(255,255,255,0.4)"
             strokeWidth="1"
-            strokeDasharray="4 4"
+            strokeDasharray="6 3"
             vectorEffect="non-scaling-stroke"
           />
 
-          {/* Target Line (5%) */}
-          {showTarget && (
-            <line
-              x1="0"
-              y1={targetY}
-              x2="100"
-              y2={targetY}
-              stroke="#fbbf24"
-              strokeWidth="1"
-              strokeDasharray="4 4"
-              vectorEffect="non-scaling-stroke"
-              opacity={0.7}
-            />
-          )}
-
           {/* Area Fill */}
-          <polygon points={areaPoints} fill="url(#chartGradient)" />
+          <polygon points={areaPoints} fill="url(#chartGradientRoi)" />
 
           {/* Chart Line */}
           <polyline
             points={points}
             fill="none"
             stroke={lineColor}
-            strokeWidth="2.5"
+            strokeWidth="2"
             vectorEffect="non-scaling-stroke"
             strokeLinejoin="round"
             strokeLinecap="round"
           />
+
+          {/* Current Point Highlight */}
         </svg>
+
+        {/* Current Point Highlight (CSS Positioned) */}
+        <Box
+          sx={{
+            position: "absolute",
+            left: "100%",
+            top: `${100 - ((currentRoi - yMin) / yRange) * 100}%`,
+            width: 8,
+            height: 8,
+            borderRadius: "50%",
+            bgcolor: lineColor,
+            border: "2px solid white",
+            transform: "translate(-50%, -50%)",
+            boxShadow: `0 0 6px ${lineColor}`,
+            zIndex: 2,
+            pointerEvents: "none",
+          }}
+        />
 
         {/* Interactive Overlay Points for Tooltips */}
         <Box
           sx={{
             position: "absolute",
             top: 0,
-            left: 0,
-            width: "100%",
+            left: 35,
+            right: 0,
             height: "100%",
             pointerEvents: "none",
           }}
@@ -201,8 +268,8 @@ const RoiEvolutionChart: React.FC<RoiEvolutionChartProps> = ({ data }) => {
                     position: "absolute",
                     left: `${x}%`,
                     top: `${y}%`,
-                    width: 12,
-                    height: 12,
+                    width: 16,
+                    height: 16,
                     transform: "translate(-50%, -50%)",
                     cursor: "crosshair",
                     pointerEvents: "auto",
@@ -211,19 +278,19 @@ const RoiEvolutionChart: React.FC<RoiEvolutionChartProps> = ({ data }) => {
                     justifyContent: "center",
                     "&:hover .dot": {
                       opacity: 1,
-                      transform: "scale(1.5)",
-                      boxShadow: `0 0 8px ${color}`,
+                      transform: "scale(1.8)",
+                      boxShadow: `0 0 12px ${color}`,
                     },
                   }}
                 >
                   <Box
                     className="dot"
                     sx={{
-                      width: 6,
-                      height: 6,
+                      width: 8,
+                      height: 8,
                       borderRadius: "50%",
                       bgcolor: color,
-                      border: "1px solid white",
+                      border: "2px solid white",
                       opacity: 0,
                       transition: "all 0.2s ease",
                     }}
@@ -240,9 +307,9 @@ const RoiEvolutionChart: React.FC<RoiEvolutionChartProps> = ({ data }) => {
           justifyContent="space-between"
           sx={{
             position: "absolute",
-            bottom: 4,
-            left: 6,
-            right: 6,
+            bottom: 0,
+            left: 35,
+            right: 0,
             pointerEvents: "none",
           }}
         >

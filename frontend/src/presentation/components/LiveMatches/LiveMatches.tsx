@@ -23,6 +23,7 @@ import {
 } from "@mui/icons-material";
 import { useLiveMatches, LiveMatch } from "../../../hooks/useLiveMatches";
 import { LiveMatchPrediction } from "../../../types";
+import { translateMatchStatus } from "../../../utils/translationUtils";
 
 /**
  * Skeleton component for loading state
@@ -151,7 +152,7 @@ const LiveMatchCard: React.FC<MatchCardProps> = ({ matchData }) => {
   const validPrediction = hasValidPrediction ? prediction! : null;
 
   // Parse status for display (e.g., "1H", "2H", "HT", "90'")
-  const displayStatus = match.status || "EN VIVO";
+  const displayStatus = translateMatchStatus(match.status) || "EN VIVO";
 
   return (
     <Card
@@ -293,8 +294,12 @@ const LiveMatchCard: React.FC<MatchCardProps> = ({ matchData }) => {
                         "& .MuiLinearProgress-bar": {
                           background: `linear-gradient(90deg, 
                             #10b981 0%, 
-                            #10b981 ${validPrediction!.home_win_probability * 100}%, 
-                            #6366f1 ${validPrediction!.home_win_probability * 100}%, 
+                            #10b981 ${
+                              validPrediction!.home_win_probability * 100
+                            }%, 
+                            #6366f1 ${
+                              validPrediction!.home_win_probability * 100
+                            }%, 
                             #6366f1 ${
                               (validPrediction!.home_win_probability +
                                 validPrediction!.draw_probability) *
@@ -345,9 +350,9 @@ const LiveMatchCard: React.FC<MatchCardProps> = ({ matchData }) => {
                   </Tooltip>
                   <Tooltip title="Probabilidad Empate">
                     <Chip
-                      label={`X: ${(validPrediction!.draw_probability * 100).toFixed(
-                        0
-                      )}%`}
+                      label={`X: ${(
+                        validPrediction!.draw_probability * 100
+                      ).toFixed(0)}%`}
                       size="small"
                       sx={{
                         bgcolor:

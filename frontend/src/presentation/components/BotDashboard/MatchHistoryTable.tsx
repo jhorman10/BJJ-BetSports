@@ -27,11 +27,7 @@ import {
   Search,
 } from "@mui/icons-material";
 import { MatchHistoryTableProps } from "../../../types";
-import {
-  getPickColor,
-  getMarketIcon,
-  getUniquePicks,
-} from "../../../utils/marketUtils";
+import { getPickColor, getMarketIcon } from "../../../utils/marketUtils";
 
 const formatDate = (dateString: string): string => {
   const date = new Date(dateString);
@@ -52,6 +48,48 @@ const getPredictionLabel = (
   if (winner === "2" || winner === "away") return `${awayTeam} gana`;
   if (winner === "X" || winner === "draw") return "Empate";
   return "Empate";
+};
+
+// Map market types to readable Spanish labels
+const MARKET_TYPE_LABELS: Record<string, string> = {
+  winner: "Resultado 1X2",
+  draw: "Empate",
+  double_chance_1x: "Doble Oportunidad 1X",
+  double_chance_x2: "Doble Oportunidad X2",
+  double_chance_12: "Doble Oportunidad 12",
+  va_handicap: "Hándicap Asiático",
+  goals_over: "Más de 4.5 Goles",
+  goals_under: "Menos de 4.5 Goles",
+  goals_over_0_5: "Más de 0.5 Goles",
+  goals_over_1_5: "Más de 1.5 Goles",
+  goals_over_2_5: "Más de 2.5 Goles",
+  goals_over_3_5: "Más de 3.5 Goles",
+  goals_under_0_5: "Menos de 0.5 Goles",
+  goals_under_1_5: "Menos de 1.5 Goles",
+  goals_under_2_5: "Menos de 2.5 Goles",
+  goals_under_3_5: "Menos de 3.5 Goles",
+  team_goals_over: "Goles por Equipo +0.5",
+  team_goals_under: "Goles por Equipo -0.5",
+  btts_yes: "Ambos Marcan (Sí)",
+  btts_no: "Ambos Marcan (No)",
+  corners_over: "Córners Totales +9.5",
+  corners_under: "Córners Totales -9.5",
+  home_corners_over: "Córners Local +4.5",
+  home_corners_under: "Córners Local -4.5",
+  away_corners_over: "Córners Visitante +4.5",
+  away_corners_under: "Córners Visitante -4.5",
+  cards_over: "Tarjetas Totales +4.5",
+  cards_under: "Tarjetas Totales -4.5",
+  home_cards_over: "Tarjetas Local +1.5",
+  home_cards_under: "Tarjetas Local -1.5",
+  away_cards_over: "Tarjetas Visitante +1.5",
+  away_cards_under: "Tarjetas Visitante -1.5",
+  red_cards: "Tarjeta Roja en el Partido",
+};
+
+const getMarketLabel = (marketType: string | undefined): string => {
+  if (!marketType) return "Desconocido";
+  return MARKET_TYPE_LABELS[marketType] || marketType.replace(/_/g, " ");
 };
 
 // Utility functions getPickColor, getMarketIcon, getUniquePicks imported from marketUtils
@@ -380,110 +418,90 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                               📊 Todos los Picks del Partido
                             </Typography>
                             <Grid container spacing={2}>
-                              {getUniquePicks(match.picks).map(
-                                (pick, index) => {
-                                  const confColor = getPickColor(
-                                    pick.probability || pick.confidence || 0
-                                  );
-                                  return (
-                                    <Grid
-                                      size={{ xs: 12, sm: 6, md: 4 }}
-                                      key={index}
+                              {match.picks.map((pick, index) => {
+                                const confColor = getPickColor(
+                                  pick.probability || pick.confidence || 0
+                                );
+                                return (
+                                  <Grid
+                                    size={{ xs: 12, sm: 6, md: 4 }}
+                                    key={index}
+                                  >
+                                    <Card
+                                      sx={{
+                                        background: pick.was_correct
+                                          ? "linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.1) 100%)"
+                                          : "linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(220, 38, 38, 0.1) 100%)",
+                                        border: `1px solid ${
+                                          pick.was_correct
+                                            ? "rgba(16, 185, 129, 0.3)"
+                                            : "rgba(239, 68, 68, 0.3)"
+                                        }`,
+                                        borderRadius: 2,
+                                      }}
                                     >
-                                      <Card
-                                        sx={{
-                                          background: pick.was_correct
-                                            ? "linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.1) 100%)"
-                                            : "linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(220, 38, 38, 0.1) 100%)",
-                                          border: `1px solid ${
-                                            pick.was_correct
-                                              ? "rgba(16, 185, 129, 0.3)"
-                                              : "rgba(239, 68, 68, 0.3)"
-                                          }`,
-                                          borderRadius: 2,
-                                        }}
-                                      >
-                                        <CardContent sx={{ p: 2 }}>
-                                          <Box
-                                            display="flex"
-                                            justifyContent="space-between"
-                                            alignItems="flex-start"
-                                            mb={1}
+                                      <CardContent sx={{ p: 2 }}>
+                                        <Box
+                                          display="flex"
+                                          justifyContent="space-between"
+                                          alignItems="flex-start"
+                                          mb={1}
+                                        >
+                                          <Typography
+                                            variant="caption"
+                                            color="text.secondary"
+                                            fontWeight={600}
+                                            textTransform="uppercase"
+                                            sx={{
+                                              display: "flex",
+                                              alignItems: "center",
+                                              gap: 0.5,
+                                            }}
                                           >
-                                            <Typography
-                                              variant="caption"
-                                              color="text.secondary"
-                                              fontWeight={600}
-                                              textTransform="uppercase"
-                                              sx={{
-                                                display: "flex",
-                                                alignItems: "center",
-                                                gap: 0.5,
-                                              }}
-                                            >
-                                              <span
-                                                style={{ fontSize: "1.2em" }}
-                                              >
-                                                {getMarketIcon(
-                                                  pick.market_type
-                                                )}
-                                              </span>{" "}
-                                              {pick.market_type?.replace(
-                                                /_/g,
-                                                " "
-                                              )}
-                                              {pick.is_contrarian && (
-                                                <Chip
-                                                  label="VALUE BET"
-                                                  size="small"
-                                                  sx={{
-                                                    bgcolor:
-                                                      "rgba(139, 92, 246, 0.2)",
-                                                    color: "#8b5cf6",
-                                                    fontSize: "0.65rem",
-                                                    height: 20,
-                                                    fontWeight: 700,
-                                                    border:
-                                                      "1px solid rgba(139, 92, 246, 0.3)",
-                                                  }}
-                                                />
-                                              )}
-                                            </Typography>
-                                            {pick.was_correct ? (
-                                              <CheckCircle
+                                            <span style={{ fontSize: "1.2em" }}>
+                                              {getMarketIcon(pick.market_type)}
+                                            </span>{" "}
+                                            {getMarketLabel(pick.market_type)}
+                                            {pick.is_contrarian && (
+                                              <Chip
+                                                label="VALUE BET"
+                                                size="small"
                                                 sx={{
-                                                  fontSize: 20,
-                                                  color: "#10b981",
-                                                }}
-                                              />
-                                            ) : (
-                                              <Cancel
-                                                sx={{
-                                                  fontSize: 20,
-                                                  color: "#ef4444",
+                                                  bgcolor:
+                                                    "rgba(139, 92, 246, 0.2)",
+                                                  color: "#8b5cf6",
+                                                  fontSize: "0.65rem",
+                                                  height: 20,
+                                                  fontWeight: 700,
+                                                  border:
+                                                    "1px solid rgba(139, 92, 246, 0.3)",
                                                 }}
                                               />
                                             )}
-                                          </Box>
-                                          <Typography
-                                            variant="body2"
-                                            fontWeight={700}
-                                            color={
-                                              pick.was_correct
-                                                ? "#10b981"
-                                                : "#ef4444"
-                                            }
-                                            mb={1}
-                                          >
-                                            {pick.market_label}
                                           </Typography>
-                                          <Box
-                                            display="flex"
-                                            gap={1}
-                                            flexWrap="wrap"
-                                          >
-                                            {pick.expected_value !==
-                                              undefined && (
+                                          {pick.was_correct ? (
+                                            <CheckCircle
+                                              sx={{
+                                                fontSize: 20,
+                                                color: "#10b981",
+                                              }}
+                                            />
+                                          ) : (
+                                            <Cancel
+                                              sx={{
+                                                fontSize: 20,
+                                                color: "#ef4444",
+                                              }}
+                                            />
+                                          )}
+                                        </Box>
+                                        <Box
+                                          display="flex"
+                                          gap={1}
+                                          flexWrap="wrap"
+                                        >
+                                          {pick.expected_value !== undefined &&
+                                            pick.expected_value > 0 && (
                                               <Chip
                                                 label={`EV: +${pick.expected_value.toFixed(
                                                   1
@@ -498,28 +516,27 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                                                 }}
                                               />
                                             )}
-                                            <Chip
-                                              label={`Conf: ${(
-                                                (pick.probability ||
-                                                  pick.confidence ||
-                                                  0) * 100
-                                              ).toFixed(0)}%`}
-                                              size="small"
-                                              sx={{
-                                                bgcolor: `${confColor}20`,
-                                                color: confColor,
-                                                fontSize: "0.65rem",
-                                                height: 20,
-                                                fontWeight: 700,
-                                              }}
-                                            />
-                                          </Box>
-                                        </CardContent>
-                                      </Card>
-                                    </Grid>
-                                  );
-                                }
-                              )}
+                                          <Chip
+                                            label={`Conf: ${(
+                                              (pick.probability ||
+                                                pick.confidence ||
+                                                0) * 100
+                                            ).toFixed(0)}%`}
+                                            size="small"
+                                            sx={{
+                                              bgcolor: `${confColor}20`,
+                                              color: confColor,
+                                              fontSize: "0.65rem",
+                                              height: 20,
+                                              fontWeight: 700,
+                                            }}
+                                          />
+                                        </Box>
+                                      </CardContent>
+                                    </Card>
+                                  </Grid>
+                                );
+                              })}
                             </Grid>
                           </Box>
                         </Collapse>
@@ -688,7 +705,7 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                       color="text.secondary"
                       fontWeight={600}
                     >
-                      📊 TODOS LOS PICKS ({getUniquePicks(match.picks).length})
+                      📊 TODOS LOS PICKS ({match.picks.length})
                     </Typography>
                     <IconButton
                       size="small"
@@ -710,7 +727,7 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                     timeout="auto"
                     unmountOnExit
                   >
-                    {getUniquePicks(match.picks).map((pick, index) => {
+                    {match.picks.map((pick, index) => {
                       const confColor = getPickColor(pick.confidence || 0);
                       return (
                         <Box
@@ -755,7 +772,7 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                                 {getMarketIcon(pick.market_type)}
                               </span>{" "}
                               <span style={{ wordBreak: "break-word" }}>
-                                {pick.market_type?.replace(/_/g, " ")}
+                                {getMarketLabel(pick.market_type)}
                               </span>
                               {pick.is_contrarian && (
                                 <Chip
@@ -789,34 +806,22 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                               />
                             )}
                           </Box>
-                          <Typography
-                            variant="body2"
-                            fontWeight={700}
-                            color={pick.was_correct ? "#10b981" : "#ef4444"}
-                            mb={1}
-                            sx={{
-                              wordBreak: "break-word",
-                              overflowWrap: "break-word",
-                              hyphens: "auto",
-                            }}
-                          >
-                            {pick.market_label}
-                          </Typography>
                           <Box display="flex" gap={1} flexWrap="wrap">
-                            {pick.expected_value !== undefined && (
-                              <Chip
-                                label={`EV: +${pick.expected_value.toFixed(
-                                  1
-                                )}%`}
-                                size="small"
-                                sx={{
-                                  bgcolor: "rgba(251, 191, 36, 0.2)",
-                                  color: "#fbbf24",
-                                  fontSize: "0.65rem",
-                                  height: 20,
-                                }}
-                              />
-                            )}
+                            {pick.expected_value !== undefined &&
+                              pick.expected_value > 0 && (
+                                <Chip
+                                  label={`EV: +${pick.expected_value.toFixed(
+                                    1
+                                  )}%`}
+                                  size="small"
+                                  sx={{
+                                    bgcolor: "rgba(251, 191, 36, 0.2)",
+                                    color: "#fbbf24",
+                                    fontSize: "0.65rem",
+                                    height: 20,
+                                  }}
+                                />
+                              )}
                             <Chip
                               label={`Conf: ${(
                                 (pick.confidence ?? 0) * 100
