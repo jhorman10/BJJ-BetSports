@@ -614,7 +614,7 @@ class APIFootballSource:
             away_fouls = None
             home_offsides = None
             away_offsides = None
-
+            # Parse statistics if available
             if include_stats and fixture_data.get("statistics"):
                 stats_list = fixture_data.get("statistics", [])
                 for team_stats in stats_list:

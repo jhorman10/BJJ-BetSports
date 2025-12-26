@@ -8,6 +8,9 @@ from datetime import datetime
 from typing import Generator
 from src.utils.time_utils import COLOMBIA_TZ, get_today_str
 
+# Configure logger
+logger = logging.getLogger(__name__)
+
 class BotScheduler:
     """Manages scheduled tasks with extreme memory efficiency for Render Free Tier."""
     

@@ -227,6 +227,43 @@ export const fetchESPNLiveMatches = async (): Promise<
             home_red_cards: extractStat(boxscore, home.team.id, "redCards"),
             away_red_cards: extractStat(boxscore, away.team.id, "redCards"),
             minute: event.status.displayClock,
+            // Extended Stats
+            home_possession:
+              extractStat(boxscore, home.team.id, [
+                "possessionPct",
+                "possession",
+              ]) + "%",
+            away_possession:
+              extractStat(boxscore, away.team.id, [
+                "possessionPct",
+                "possession",
+              ]) + "%",
+            home_shots_on_target: extractStat(boxscore, home.team.id, [
+              "shotsOnGoal",
+              "ontargetScoringAttempts",
+            ]),
+            away_shots_on_target: extractStat(boxscore, away.team.id, [
+              "shotsOnGoal",
+              "ontargetScoringAttempts",
+            ]),
+            home_total_shots: extractStat(boxscore, home.team.id, [
+              "totalShots",
+              "sh",
+            ]),
+            away_total_shots: extractStat(boxscore, away.team.id, [
+              "totalShots",
+              "sh",
+            ]),
+            home_fouls: extractStat(boxscore, home.team.id, [
+              "foulsCommitted",
+              "fouls",
+            ]),
+            away_fouls: extractStat(boxscore, away.team.id, [
+              "foulsCommitted",
+              "fouls",
+            ]),
+            home_offsides: extractStat(boxscore, home.team.id, "offsides"),
+            away_offsides: extractStat(boxscore, away.team.id, "offsides"),
           },
           prediction: {
             match_id: event.id,
