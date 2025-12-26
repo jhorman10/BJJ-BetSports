@@ -16,6 +16,7 @@ from src.domain.entities.suggested_pick import SuggestedPick
 from src.domain.entities.entities import Match
 from src.application.use_cases.use_cases import DataSources
 from src.domain.entities.entities import TeamStatistics
+from src.utils.time_utils import get_current_time
 
 logger = logging.getLogger(__name__)
 
@@ -478,7 +479,7 @@ async def run_training_session(
         api_fb = APIFootballSource()
         
         if api_fb.is_configured:
-            today = datetime.utcnow()
+            today = get_current_time()
             # Fetch recent matches (limited by rate limit - 100 req/day)
             # Only fetch last 14 days to conserve API calls
             date_from = (today - timedelta(days=14)).strftime("%Y-%m-%d")
@@ -505,7 +506,7 @@ async def run_training_session(
         
         if fd_org.is_configured:
             # Get matches from last 60 days via API (covers current season gaps)
-            today = datetime.utcnow()
+            today = get_current_time()
             date_from = (today - timedelta(days=60)).strftime("%Y-%m-%d")
             date_to = today.strftime("%Y-%m-%d")
             
@@ -613,7 +614,7 @@ async def run_training_session(
         # Determine start date for GitHub data
         gh_start_date = None
         if request.days_back:
-            gh_start_date = datetime.utcnow() - timedelta(days=request.days_back)
+            gh_start_date = get_current_time() - timedelta(days=request.days_back)
         elif request.start_date:
             try:
                 gh_start_date = datetime.strptime(request.start_date, "%Y-%m-%d")
@@ -686,7 +687,7 @@ async def run_training_session(
         except ValueError:
             pass
     elif request.days_back:
-        start_dt = datetime.utcnow() - timedelta(days=request.days_back)
+        start_dt = get_current_time() - timedelta(days=request.days_back)
         all_matches = [m for m in all_matches if m.match_date >= start_dt]
 
     # Process matches

@@ -33,6 +33,7 @@ from src.application.dtos.dtos import (
     SuggestedPickDTO,
 )
 from src.application.use_cases.use_cases import DataSources
+from src.utils.time_utils import get_current_time
 
 
 logger = logging.getLogger(__name__)
@@ -306,6 +307,18 @@ class GetLivePredictionsUseCase:
             home_odds=match.home_odds,
             draw_odds=match.draw_odds,
             away_odds=match.away_odds,
+            minute=match.minute,
+            # Extended Stats
+            home_shots_on_target=match.home_shots_on_target,
+            away_shots_on_target=match.away_shots_on_target,
+            home_total_shots=match.home_total_shots,
+            away_total_shots=match.away_total_shots,
+            home_possession=match.home_possession,
+            away_possession=match.away_possession,
+            home_fouls=match.home_fouls,
+            away_fouls=match.away_fouls,
+            home_offsides=match.home_offsides,
+            away_offsides=match.away_offsides,
         )
     
     def _prediction_to_dto(self, prediction: Prediction, picks: list = []) -> PredictionDTO:
@@ -356,5 +369,5 @@ class GetLivePredictionsUseCase:
             data_sources=[],
             recommended_bet="N/A",
             over_under_recommendation="N/A",
-            created_at=datetime.utcnow(),
+            created_at=get_current_time(),
         )

@@ -33,6 +33,26 @@ export interface Match {
   home_odds?: number;
   draw_odds?: number;
   away_odds?: number;
+  minute?: string;
+  home_possession?: string;
+  away_possession?: string;
+  home_total_shots?: number;
+  away_total_shots?: number;
+  home_shots_on_target?: number;
+  away_shots_on_target?: number;
+  home_fouls?: number;
+  away_fouls?: number;
+  home_offsides?: number;
+  away_offsides?: number;
+  events?: MatchEvent[];
+}
+
+export interface MatchEvent {
+  time: string;
+  team_id: string;
+  player_name: string;
+  type: string;
+  detail: string;
 }
 
 export interface Country {

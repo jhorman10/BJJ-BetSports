@@ -92,7 +92,8 @@ class APIFootballSource:
         """Initialize the data source."""
         self.config = config or APIFootballConfig()
         self._request_count = 0
-        self._last_reset = datetime.utcnow().date()
+        from src.utils.time_utils import get_current_time
+        self._last_reset = get_current_time().date()
         
         # Cache for active leagues: {timestamp: datetime, ids: Set[int]}
         self._active_leagues_cache = {"timestamp": None, "ids": set()}
@@ -104,7 +105,8 @@ class APIFootballSource:
     
     def _check_rate_limit(self) -> bool:
         """Check if we're within rate limits (100/day for free tier)."""
-        today = datetime.utcnow().date()
+        from src.utils.time_utils import get_current_time
+        today = get_current_time().date()
         if today > self._last_reset:
             self._request_count = 0
             self._last_reset = today
@@ -247,7 +249,8 @@ class APIFootballSource:
             List of Match entities
         """
         if not date_str:
-            date_str = datetime.now().strftime("%Y-%m-%d")
+            from src.utils.time_utils import get_today_str
+            date_str = get_today_str()
             
         data = await self._make_request("/fixtures", {
             "date": date_str,
@@ -564,8 +567,10 @@ class APIFootballSource:
             status = fixture.get("status", {}).get("short", "NS")
             
             # Parse match date
+            # Parse match date
             timestamp = fixture.get("timestamp")
-            match_date = datetime.fromtimestamp(timestamp) if timestamp else datetime.now()
+            from src.utils.time_utils import COLOMBIA_TZ, get_current_time
+            match_date = datetime.fromtimestamp(timestamp, COLOMBIA_TZ) if timestamp else get_current_time()
             
             # Create league
             league = League(
@@ -598,6 +603,17 @@ class APIFootballSource:
             away_yellow = None
             home_red = None
             away_red = None
+            # Extended stats
+            home_shots_on = None
+            away_shots_on = None
+            home_total_shots = None
+            away_total_shots = None
+            home_possession = None
+            away_possession = None
+            home_fouls = None
+            away_fouls = None
+            home_offsides = None
+            away_offsides = None
 
             if include_stats and fixture_data.get("statistics"):
                 stats_list = fixture_data.get("statistics", [])
@@ -609,11 +625,41 @@ class APIFootballSource:
                         home_corners = stats.get("Corner Kicks")
                         home_yellow = stats.get("Yellow Cards")
                         home_red = stats.get("Red Cards")
+                        home_shots_on = stats.get("Shots on Goal")
+                        home_total_shots = stats.get("Total Shots")
+                        home_possession = str(stats.get("Ball Possession") or "")
+                        home_fouls = stats.get("Fouls")
+                        home_offsides = stats.get("Offsides")
                     elif team_id == away_team.id:
                         away_corners = stats.get("Corner Kicks")
                         away_yellow = stats.get("Yellow Cards")
                         away_red = stats.get("Red Cards")
+                        away_shots_on = stats.get("Shots on Goal")
+                        away_total_shots = stats.get("Total Shots")
+                        away_possession = str(stats.get("Ball Possession") or "")
+                        away_fouls = stats.get("Fouls")
+                        away_offsides = stats.get("Offsides")
             
+            # Parse minute if available
+            minute = None
+            if fixture.get("status", {}).get("elapsed") is not None:
+                minute = str(fixture.get("status", {}).get("elapsed"))
+
+            # Parse events (Goals)
+            events = []
+            if fixture_data.get("events"):
+                from src.domain.entities.entities import MatchEvent
+                for event in fixture_data["events"]:
+                    # Only map Goal type events
+                    if event.get("type") == "Goal":
+                        events.append(MatchEvent(
+                            time=str(event.get("time", {}).get("elapsed", "0")),
+                            team_id=str(event.get("team", {}).get("id")),
+                            player_name=event.get("player", {}).get("name") or "Unknown",
+                            type=event.get("type"),
+                            detail=event.get("detail") or "Goal"
+                        ))
+
             return Match(
                 id=str(fixture.get("id", "")),
                 home_team=home_team,
@@ -623,12 +669,24 @@ class APIFootballSource:
                 home_goals=home_goals,
                 away_goals=away_goals,
                 status=status,
+                minute=minute,
+                events=events,
                 home_corners=home_corners,
                 away_corners=away_corners,
                 home_yellow_cards=home_yellow,
                 away_yellow_cards=away_yellow,
                 home_red_cards=home_red,
                 away_red_cards=away_red,
+                home_shots_on_target=home_shots_on,
+                away_shots_on_target=away_shots_on,
+                home_total_shots=home_total_shots,
+                away_total_shots=away_total_shots,
+                home_possession=home_possession,
+                away_possession=away_possession,
+                home_fouls=home_fouls,
+                away_fouls=away_fouls,
+                home_offsides=home_offsides,
+                away_offsides=away_offsides,
             )
             
         except Exception as e:
@@ -680,7 +738,8 @@ class APIFootballSource:
     
     def get_remaining_requests(self) -> int:
         """Get number of remaining API requests for today."""
-        today = datetime.utcnow().date()
+        from src.utils.time_utils import get_current_time
+        today = get_current_time().date()
         if today > self._last_reset:
             return 100
         return max(0, 100 - self._request_count)

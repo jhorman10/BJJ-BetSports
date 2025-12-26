@@ -36,6 +36,16 @@ export interface Match {
   home_odds?: number;
   draw_odds?: number;
   away_odds?: number;
+  home_possession?: string;
+  away_possession?: string;
+  home_total_shots?: number;
+  away_total_shots?: number;
+  home_shots_on_target?: number;
+  away_shots_on_target?: number;
+  home_fouls?: number;
+  away_fouls?: number;
+  home_offsides?: number;
+  away_offsides?: number;
 }
 
 export interface Prediction {

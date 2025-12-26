@@ -6,11 +6,7 @@ from apscheduler.triggers.cron import CronTrigger
 from pytz import timezone
 from datetime import datetime
 from typing import Generator
-
-logger = logging.getLogger(__name__)
-
-# Colombia timezone
-COLOMBIA_TZ = timezone('America/Bogota')
+from src.utils.time_utils import COLOMBIA_TZ, get_today_str
 
 class BotScheduler:
     """Manages scheduled tasks with extreme memory efficiency for Render Free Tier."""
@@ -37,7 +33,7 @@ class BotScheduler:
             
         try:
             self._job_in_progress = True
-            today_str = datetime.now(COLOMBIA_TZ).strftime("%Y-%m-%d")
+            today_str = get_today_str()
             logger.info(f"ARCHITECT: Starting memory-optimized job at {datetime.now(COLOMBIA_TZ)}")
             
             # Dynamic imports to keep initial memory low

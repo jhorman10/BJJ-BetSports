@@ -7,6 +7,7 @@ These entities represent the core business concepts and are independent of any i
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from src.utils.time_utils import get_current_time
 from typing import Optional
 from enum import Enum
 
@@ -95,8 +96,21 @@ class Match:
     home_odds: Optional[float] = None
     draw_odds: Optional[float] = None
     away_odds: Optional[float] = None
+    minute: Optional[str] = None
+    # Extended Stats
+    home_shots_on_target: Optional[int] = None
+    away_shots_on_target: Optional[int] = None
+    home_total_shots: Optional[int] = None
+    away_total_shots: Optional[int] = None
+    home_possession: Optional[str] = None # "50%"
+    away_possession: Optional[str] = None
+    home_fouls: Optional[int] = None
+    away_fouls: Optional[int] = None
+    home_offsides: Optional[int] = None
+    away_offsides: Optional[int] = None
+    events: list["MatchEvent"] = field(default_factory=list)
     data_fetched_at: Optional[datetime] = None
-    
+
     @property
     def is_played(self) -> bool:
         """Check if the match has been played."""
@@ -119,6 +133,17 @@ class Match:
         if not self.is_played:
             return None
         return self.home_goals + self.away_goals
+
+@dataclass
+class MatchEvent:
+    """
+    Represents a significant event in a match (goal, card, substitution, etc).
+    """
+    time: str
+    team_id: str
+    player_name: str
+    type: str  # "Goal", "Card", "subst"
+    detail: str  # "Normal Goal", "Yellow Card", etc.
 
 
 @dataclass
@@ -172,7 +197,7 @@ class Prediction:
     
     confidence: float = 0.0
     data_sources: list[str] = field(default_factory=list)
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=get_current_time)
     data_updated_at: Optional[datetime] = None
     fundamental_analysis: Optional[dict] = field(default=None)
     

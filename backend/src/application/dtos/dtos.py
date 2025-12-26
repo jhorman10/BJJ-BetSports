@@ -81,9 +81,31 @@ class MatchDTO(BaseModel):
     away_yellow_cards: Optional[int] = None
     home_red_cards: Optional[int] = None
     away_red_cards: Optional[int] = None
-    home_odds: Optional[float] = None
-    draw_odds: Optional[float] = None
     away_odds: Optional[float] = None
+    minute: Optional[str] = None
+    # Extended Stats
+    home_shots_on_target: Optional[int] = None
+    away_shots_on_target: Optional[int] = None
+    home_total_shots: Optional[int] = None
+    away_total_shots: Optional[int] = None
+    home_possession: Optional[str] = None
+    away_possession: Optional[str] = None
+    home_fouls: Optional[int] = None
+    away_fouls: Optional[int] = None
+    home_offsides: Optional[int] = None
+    away_offsides: Optional[int] = None
+    events: list["MatchEventDTO"] = Field(default_factory=list)
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
+class MatchEventDTO(BaseModel):
+    """Event in a match."""
+    time: str
+    team_id: str
+    player_name: str
+    type: str
+    detail: str
     
     model_config = ConfigDict(from_attributes=True)
 

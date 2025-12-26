@@ -31,7 +31,7 @@ const LiveMatchesList: React.FC<LiveMatchesListProps> = ({
       home_score: m.match.home_goals ?? 0,
       away_score: m.match.away_goals ?? 0,
       status: m.match.status || "LIVE",
-      minute: "", // Could be parsed from status
+      minute: m.match.minute || "", // Use minute from match data
       league_id: m.match.league?.id || "",
       league_name: m.match.league?.name || "",
       league_flag: m.match.league?.flag || "",

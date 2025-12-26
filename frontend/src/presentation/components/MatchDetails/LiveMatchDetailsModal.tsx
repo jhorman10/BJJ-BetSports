@@ -7,24 +7,29 @@ import {
   Button,
   Box,
   Typography,
-  Chip,
-  Divider,
-  Paper,
   Slide,
   IconButton,
 } from "@mui/material";
-import Grid from "@mui/material/Grid";
 import { TransitionProps } from "@mui/material/transitions";
-import { Close, SportsSoccer, Timer } from "@mui/icons-material";
+import { Close, SportsSoccer } from "@mui/icons-material";
+import { useLiveStore } from "../../../application/stores/useLiveStore";
 import { useUIStore } from "../../../application/stores/useUIStore";
+import { LiveScoreBoard } from "./components/LiveScoreBoard";
+import { LiveMatchStats } from "./components/LiveMatchStats";
+import { PreMatchPrediction } from "./components/PreMatchPrediction";
 
 const LiveMatchDetailsModal: React.FC = () => {
   const { liveModalOpen, selectedLiveMatch, closeLiveMatchModal } =
     useUIStore();
+  const { matches: liveMatches } = useLiveStore();
 
   if (!liveModalOpen || !selectedLiveMatch) return null;
 
-  const { match, prediction } = selectedLiveMatch;
+  // Find the latest version of the match from the live store for real-time updates
+  const latestMatch =
+    liveMatches.find((m) => m.match.id === selectedLiveMatch.match.id) ||
+    selectedLiveMatch;
+  const { match, prediction } = latestMatch;
   const isPredictionAvailable =
     prediction.home_win_probability > 0 || prediction.confidence > 0;
 
@@ -65,270 +70,16 @@ const LiveMatchDetailsModal: React.FC = () => {
 
       <DialogContent>
         {/* Live Score Board */}
-        <Paper
-          elevation={3}
-          sx={{
-            p: 3,
-            mb: 3,
-            background: "rgba(255, 255, 255, 0.05)",
-            backdropFilter: "blur(10px)",
-            borderRadius: 2,
-            border: "1px solid rgba(255, 255, 255, 0.1)",
-          }}
-        >
-          <Box
-            display="flex"
-            justifyContent="space-between"
-            alignItems="center"
-          >
-            <Box textAlign="center" flex={1}>
-              <Typography
-                variant="h6"
-                fontWeight="bold"
-                sx={{
-                  mb: 1,
-                  height: 48,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                {match.home_team.name}
-              </Typography>
-            </Box>
-
-            <Box textAlign="center" px={2}>
-              <Chip
-                icon={<Timer sx={{ fontSize: "1rem !important" }} />}
-                label={match.status}
-                color="error"
-                size="small"
-                sx={{ mb: 1, fontWeight: "bold", px: 1 }}
-              />
-              <Typography
-                variant="h3"
-                fontWeight="900"
-                sx={{ letterSpacing: 2 }}
-              >
-                {match.home_goals ?? 0} - {match.away_goals ?? 0}
-              </Typography>
-            </Box>
-
-            <Box textAlign="center" flex={1}>
-              <Typography
-                variant="h6"
-                fontWeight="bold"
-                sx={{
-                  mb: 1,
-                  height: 48,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                {match.away_team.name}
-              </Typography>
-            </Box>
-          </Box>
-        </Paper>
+        <LiveScoreBoard match={match} />
 
         {/* Live Stats Grid */}
-        <Grid container spacing={2} sx={{ mb: 3 }}>
-          <Grid size={6}>
-            <Paper
-              sx={{ p: 2, bgcolor: "rgba(0,0,0,0.2)", textAlign: "center" }}
-            >
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                display="block"
-                mb={1}
-              >
-                Córners
-              </Typography>
-              <Box
-                display="flex"
-                justifyContent="center"
-                gap={3}
-                alignItems="center"
-              >
-                <Typography variant="h6" color="info.main" fontWeight="bold">
-                  {match.home_corners ?? 0}
-                </Typography>
-                <Typography variant="h6" color="text.disabled">
-                  -
-                </Typography>
-                <Typography variant="h6" color="info.main" fontWeight="bold">
-                  {match.away_corners ?? 0}
-                </Typography>
-              </Box>
-            </Paper>
-          </Grid>
-          <Grid size={6}>
-            <Paper
-              sx={{ p: 2, bgcolor: "rgba(0,0,0,0.2)", textAlign: "center" }}
-            >
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                display="block"
-                mb={1}
-              >
-                Tarjetas
-              </Typography>
-              <Box
-                display="flex"
-                justifyContent="center"
-                gap={3}
-                alignItems="center"
-              >
-                <Box>
-                  <Typography
-                    variant="body2"
-                    color="warning.main"
-                    fontWeight="bold"
-                    title="Amarillas"
-                  >
-                    🟨 {match.home_yellow_cards ?? 0}
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    color="error.main"
-                    fontWeight="bold"
-                    title="Rojas"
-                  >
-                    🟥 {match.home_red_cards ?? 0}
-                  </Typography>
-                </Box>
-                <Typography variant="body2" color="text.secondary">
-                  vs
-                </Typography>
-                <Box>
-                  <Typography
-                    variant="body2"
-                    color="warning.main"
-                    fontWeight="bold"
-                    title="Amarillas"
-                  >
-                    🟨 {match.away_yellow_cards ?? 0}
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    color="error.main"
-                    fontWeight="bold"
-                    title="Rojas"
-                  >
-                    🟥 {match.away_red_cards ?? 0}
-                  </Typography>
-                </Box>
-              </Box>
-            </Paper>
-          </Grid>
-        </Grid>
+        <LiveMatchStats match={match} />
 
         {/* Pre-match Prediction (Only if available) */}
-        {isPredictionAvailable ? (
-          <Box>
-            <Typography
-              variant="subtitle2"
-              color="primary.main"
-              gutterBottom
-              sx={{ display: "flex", alignItems: "center", gap: 1 }}
-            >
-              🎯 Predicción Pre-Partido
-            </Typography>
-            <Paper
-              variant="outlined"
-              sx={{
-                p: 2,
-                bgcolor: "rgba(255,255,255,0.02)",
-                borderColor: "rgba(255,255,255,0.1)",
-              }}
-            >
-              <Grid container spacing={2}>
-                <Grid size={12}>
-                  <Box display="flex" justifyContent="space-between" mb={1}>
-                    <Typography variant="body2" color="text.secondary">
-                      Probabilidad Local
-                    </Typography>
-                    <Typography variant="body2" fontWeight="bold">
-                      {(prediction.home_win_probability * 100).toFixed(0)}%
-                    </Typography>
-                  </Box>
-                  <Box
-                    sx={{
-                      width: "100%",
-                      height: 6,
-                      bgcolor: "rgba(255,255,255,0.1)",
-                      borderRadius: 1,
-                      overflow: "hidden",
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        width: `${prediction.home_win_probability * 100}%`,
-                        height: "100%",
-                        bgcolor: "primary.main",
-                      }}
-                    />
-                  </Box>
-                </Grid>
-                <Grid size={12}>
-                  <Box display="flex" justifyContent="space-between" mb={1}>
-                    <Typography variant="body2" color="text.secondary">
-                      Probabilidad Visitante
-                    </Typography>
-                    <Typography variant="body2" fontWeight="bold">
-                      {(prediction.away_win_probability * 100).toFixed(0)}%
-                    </Typography>
-                  </Box>
-                  <Box
-                    sx={{
-                      width: "100%",
-                      height: 6,
-                      bgcolor: "rgba(255,255,255,0.1)",
-                      borderRadius: 1,
-                      overflow: "hidden",
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        width: `${prediction.away_win_probability * 100}%`,
-                        height: "100%",
-                        bgcolor: "error.main",
-                      }}
-                    />
-                  </Box>
-                </Grid>
-              </Grid>
-              <Divider sx={{ my: 2, borderColor: "rgba(255,255,255,0.1)" }} />
-              <Box display="flex" justifyContent="space-between">
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Goles Esperados (Local)
-                  </Typography>
-                  <Typography variant="h6">
-                    {prediction.predicted_home_goals.toFixed(2)}
-                  </Typography>
-                </Box>
-                <Box textAlign="right">
-                  <Typography variant="caption" color="text.secondary">
-                    Goles Esperados (Visitante)
-                  </Typography>
-                  <Typography variant="h6">
-                    {prediction.predicted_away_goals.toFixed(2)}
-                  </Typography>
-                </Box>
-              </Box>
-            </Paper>
-          </Box>
-        ) : (
-          <Box textAlign="center" py={2}>
-            <Typography variant="body2" color="text.disabled">
-              No hay predicción pre-partido disponible para este evento.
-            </Typography>
-          </Box>
-        )}
+        <PreMatchPrediction
+          prediction={prediction}
+          isAvailable={isPredictionAvailable}
+        />
       </DialogContent>
       <DialogActions sx={{ p: 2 }}>
         <Button

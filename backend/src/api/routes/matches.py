@@ -10,7 +10,7 @@ STRICT POLICY:
 from typing import List, Any
 import logging
 from fastapi import APIRouter, HTTPException, Depends, Query, Path
-from src.application.dtos.dtos import MatchDTO, TeamDTO, LeagueDTO, ErrorResponseDTO, MatchPredictionDTO
+from src.application.dtos.dtos import MatchDTO, TeamDTO, LeagueDTO, ErrorResponseDTO, MatchPredictionDTO, MatchEventDTO
 from src.application.use_cases.use_cases import DataSources, GetTeamPredictionsUseCase
 from src.application.use_cases.live_predictions_use_case import GetLivePredictionsUseCase
 from src.api.dependencies import (
@@ -59,6 +59,27 @@ def _map_match_to_dto(match: Any) -> MatchDTO:
         home_odds=match.home_odds,
         draw_odds=match.draw_odds,
         away_odds=match.away_odds,
+        minute=match.minute,
+        # Extended Stats
+        home_shots_on_target=match.home_shots_on_target,
+        away_shots_on_target=match.away_shots_on_target,
+        home_total_shots=match.home_total_shots,
+        away_total_shots=match.away_total_shots,
+        home_possession=match.home_possession,
+        away_possession=match.away_possession,
+        home_fouls=match.home_fouls,
+        away_fouls=match.away_fouls,
+        home_offsides=match.home_offsides,
+        away_offsides=match.away_offsides,
+        events=[
+            MatchEventDTO(
+                time=e.time,
+                team_id=e.team_id,
+                player_name=e.player_name,
+                type=e.type,
+                detail=e.detail
+            ) for e in match.events
+        ],
     )
 
 @router.get(

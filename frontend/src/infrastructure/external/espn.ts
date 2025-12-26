@@ -226,6 +226,7 @@ export const fetchESPNLiveMatches = async (): Promise<
             ),
             home_red_cards: extractStat(boxscore, home.team.id, "redCards"),
             away_red_cards: extractStat(boxscore, away.team.id, "redCards"),
+            minute: event.status.displayClock,
           },
           prediction: {
             match_id: event.id,

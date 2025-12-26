@@ -73,7 +73,7 @@ const App: React.FC = () => {
   // Initialize data on mount
   useEffect(() => {
     fetchLeagues();
-    startPolling(60000); // Poll every 60 seconds
+    startPolling(30000); // Poll every 30 seconds to match backend cache TTL
 
     return () => {
       stopPolling();

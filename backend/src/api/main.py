@@ -23,11 +23,26 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+from src.utils.time_utils import get_current_time
+import time
+
+# Custom logging implementation to use Colombia time
+class ColombiaTimeFormatter(logging.Formatter):
+    def formatTime(self, record, datefmt=None):
+        ct = get_current_time()
+        if datefmt:
+            s = ct.strftime(datefmt)
+        else:
+            t = ct.strftime("%Y-%m-%d %H:%M:%S")
+            s = "%s,%03d" % (t, record.msecs)
+        return s
+
+formatter = ColombiaTimeFormatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+handler = logging.StreamHandler()
+handler.setFormatter(formatter)
+root_logger = logging.getLogger()
+root_logger.setLevel(logging.INFO)
+root_logger.handlers = [handler]
 logger = logging.getLogger(__name__)
 
 
@@ -87,15 +102,13 @@ async def lifespan(app: FastAPI):
     # Start the scheduler for daily training
     from src.scheduler import get_scheduler
     from src.infrastructure.cache.cache_service import get_cache_service
-    from datetime import datetime
-    from pytz import timezone
+    from src.utils.time_utils import get_today_str, get_current_time
     
     scheduler = get_scheduler()
     cache = get_cache_service()
     
     # Check if we already have cached forecasts for today
-    COLOMBIA_TZ = timezone('America/Bogota')
-    today_str = datetime.now(COLOMBIA_TZ).strftime("%Y-%m-%d")
+    today_str = get_today_str()
     
     # Check for any cached forecasts (sample key pattern)
     sample_key = f"forecasts:league_E0:date_{today_str}"
@@ -175,10 +188,11 @@ async def global_exception_handler(request: Request, exc: Exception):
 )
 async def health_check() -> HealthResponseDTO:
     """Health check endpoint."""
+    from src.utils.time_utils import get_current_time
     return HealthResponseDTO(
         status="healthy",
         version=APP_VERSION,
-        timestamp=datetime.utcnow(),
+        timestamp=get_current_time(),
     )
 
 
