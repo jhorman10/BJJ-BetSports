@@ -23,18 +23,25 @@ import {
   AttachMoney,
   FilterList,
 } from "@mui/icons-material";
-import { api } from "../../../services/api";
 import MatchHistoryTable from "./MatchHistoryTable";
 import DashboardSkeleton from "./DashboardSkeleton";
 import StatCard from "./StatCard";
 import RoiEvolutionChart from "./RoiEvolutionChart";
 import PicksStatsTable from "./PicksStatsTable";
 import { TrainingStatus, MatchPredictionHistory } from "../../../types";
+import { useBotStore } from "../../../application/stores/useBotStore";
 
 const BotDashboard: React.FC = () => {
-  const [loading, setLoading] = React.useState(false);
-  const [stats, setStats] = React.useState<TrainingStatus | null>(null);
-  const [lastUpdate, setLastUpdate] = React.useState<Date | null>(null);
+  // Use Bot Store for persistent state
+  const {
+    stats,
+    lastUpdate,
+    loading,
+    error,
+    isReconciling,
+    fetchTrainingData,
+  } = useBotStore();
+
   const [startDate, setStartDate] = React.useState<string>(() => {
     const year = new Date().getFullYear();
     return `${year}-01-01`;
@@ -213,80 +220,26 @@ const BotDashboard: React.FC = () => {
     [startDate]
   );
 
-  // Run training analysis - try cached first, then calculate if needed
+  // Run training analysis - use store's fetchTrainingData
   const runTraining = React.useCallback(
     async (forceRecalculate = false) => {
-      setLoading(true);
-
       const daysBack = getDaysBack();
 
-      try {
-        // First, try to get cached results (instant)
-        if (!forceRecalculate) {
-          try {
-            const cachedResponse = await api.get<{
-              cached: boolean;
-              data: TrainingStatus | null;
-              last_update: string | null;
-            }>("/train/cached");
+      // Use store action instead of manual API calls
+      await fetchTrainingData({
+        forceRecalculate,
+        daysBack,
+        startDate,
+      });
 
-            if (cachedResponse.cached && cachedResponse.data) {
-              setStats(cachedResponse.data);
-              setLastUpdate(
-                cachedResponse.last_update
-                  ? new Date(cachedResponse.last_update)
-                  : new Date()
-              );
-              setLoading(false);
-              return; // Use cached data
-            }
-          } catch {
-            // Cache endpoint failed, continue to POST /train
-            console.log("No cached training data, calculating...");
-          }
-        }
-
-        // No cache or force recalculate - run full training
-        const data = await api.post<TrainingStatus>("/train", {
-          league_ids: ["E0", "SP1", "D1", "I1", "F1"],
-          days_back: daysBack,
-          start_date: startDate,
-          reset_weights: false,
-        });
-
-        setStats(data);
-        const now = new Date();
-        setLastUpdate(now);
-
-        // Cache the results locally too
-        localStorage.setItem(
-          "bot_training_stats",
-          JSON.stringify({ data, timestamp: now.toISOString() })
-        );
-
-        // Show notification if supported
-        if ("Notification" in window && Notification.permission === "granted") {
-          new Notification("Análisis Completado", {
-            body: `ROI: ${data.roi > 0 ? "+" : ""}${data.roi.toFixed(
-              1
-            )}% | Precisión: ${(data.accuracy * 100).toFixed(1)}%`,
-            icon: "/favicon.ico",
-          });
-        }
-      } catch (err: unknown) {
-        console.error("Training error:", err);
-
-        // Fallback to mock data in DEV if API fails
-        if (import.meta.env.DEV) {
-          const mockStats = await generateMockData(daysBack);
-          setStats(mockStats);
-          setLastUpdate(new Date());
-        }
-      } finally {
-        setLoading(false);
+      // Fallback to mock data in DEV if needed (only if store fetch failed)
+      if (import.meta.env.DEV && !stats && error) {
+        const mockStats = await generateMockData(daysBack);
+        // Update store with mock data
+        useBotStore.getState().updateStats(mockStats);
       }
     },
-    [getDaysBack, generateMockData, startDate]
+    [getDaysBack, fetchTrainingData, startDate, stats, error, generateMockData]
   );
 
   // Auto-run training when date changes
@@ -403,6 +356,14 @@ const BotDashboard: React.FC = () => {
           <Alert severity="info" sx={{ mb: 4, mt: 3 }}>
             <Typography variant="body2">
               ⏳ Se están calculando los datos del modelo...
+            </Typography>
+          </Alert>
+        )}
+
+        {isReconciling && (
+          <Alert severity="info" sx={{ mb: 4, mt: 3 }}>
+            <Typography variant="body2">
+              🔄 Sincronizando datos con el servidor...
             </Typography>
           </Alert>
         )}

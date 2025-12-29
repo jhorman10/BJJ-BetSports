@@ -156,6 +156,7 @@ export const LiveMatchStats: React.FC<LiveMatchStatsProps> = ({ match }) => {
                 variant="caption"
                 display="block"
                 color="text.secondary"
+                sx={{ fontSize: { xs: "0.7rem", sm: "0.75rem" } }}
               >
                 Faltas: {match.home_fouls ?? 0}
               </Typography>
@@ -163,6 +164,7 @@ export const LiveMatchStats: React.FC<LiveMatchStatsProps> = ({ match }) => {
                 variant="caption"
                 display="block"
                 color="text.secondary"
+                sx={{ fontSize: { xs: "0.7rem", sm: "0.75rem" } }}
               >
                 Offsides: {match.home_offsides ?? 0}
               </Typography>
@@ -175,6 +177,7 @@ export const LiveMatchStats: React.FC<LiveMatchStatsProps> = ({ match }) => {
                 variant="caption"
                 display="block"
                 color="text.secondary"
+                sx={{ fontSize: { xs: "0.7rem", sm: "0.75rem" } }}
               >
                 Faltas: {match.away_fouls ?? 0}
               </Typography>
@@ -182,6 +185,7 @@ export const LiveMatchStats: React.FC<LiveMatchStatsProps> = ({ match }) => {
                 variant="caption"
                 display="block"
                 color="text.secondary"
+                sx={{ fontSize: { xs: "0.7rem", sm: "0.75rem" } }}
               >
                 Offsides: {match.away_offsides ?? 0}
               </Typography>

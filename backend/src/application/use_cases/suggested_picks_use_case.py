@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Optional
 import uuid
 
-from src.domain.entities.entities import Match, League
+from src.domain.entities.entities import Match, League, Team
 from src.domain.entities.suggested_pick import MatchSuggestedPicks, SuggestedPick
 from src.domain.entities.betting_feedback import BettingFeedback
 from src.domain.services.picks_service import PicksService
@@ -121,6 +121,10 @@ class GetSuggestedPicksUseCase:
     
     async def _get_match(self, match_id: str) -> Optional[Match]:
         """Get match details from available sources."""
+        # Optimization: If ID is synthetic (contains underscores), skip external APIs
+        if "_" in match_id:
+            return self._reconstruct_match_from_id(match_id)
+
         # Try API-Football first
         if self.data_sources.api_football.is_configured:
             match = await self.data_sources.api_football.get_match_details(match_id)
@@ -133,24 +137,116 @@ class GetSuggestedPicksUseCase:
             if match:
                 return match
         
-        
-        return None
+        # Final Fallback: Reconstruct from ID if it follows our custom format
+        # Format: {LeagueCode}_{YYYYMMDD}_{Home}_{Away}
+        return self._reconstruct_match_from_id(match_id)
+
+    def _reconstruct_match_from_id(self, match_id: str) -> Optional[Match]:
+        """
+        Reconstruct a Match object from a synthetic ID string.
+        Format expected: LEAGUE_DATE_HOME_AWAY
+        """
+        try:
+            parts = match_id.split("_")
+            if len(parts) < 4:
+                return None
+                
+            league_code = parts[0]
+            date_str = parts[1]
+            # Teams might contain underscores, so we join the middle parts carefully
+            # Usually strict format, but let's assume home/away are at the end? 
+            # Actually, standard format used in this project seems to be: 
+            # ID = f"{league.id}_{date_str}_{home_slug}_{away_slug}"
+            # This is ambiguous if slugs have underscores.
+            # But usually we can assume the first 2 parts are fixed.
+            
+            # Let's try to infer names. 
+            # If we split by "_", and we know League and Date are first two.
+            # The rest is Home and Away. 
+            # This is tricky without a separator. 
+            # BUT, we can just use the slug as the name for lookup purposes.
+            # The Stats Service handles fuzzy matching usually.
+            
+            # Heuristic: Split remaining into two halves? No.
+            # Let's look at the specific ID: B1_20260207_sporting_charleroi_cercle_brugge
+            # sporting_charleroi (2 words)
+            # cercle_brugge (2 words)
+            
+            # We can't perfectly separate them without knowing the teams.
+            # However, we can return a "Skeleton Match" and let the History Aggregator 
+            # find the real teams using the fuzzy search on the Combined string or specific history fetch.
+            
+            # Actually, let's look at how the ID was likely constructed.
+            # If we assume the middle is the split... no.
+            
+            # BETTER APPROACH:
+            # We use the raw parts as "Home" and "Away" candidates in a generic way
+            # OR we try to find these team slugs in our database/constants.
+            
+            # For now, let's make a best effort split.
+            # parts[0] = B1
+            # parts[1] = 20260207
+            # parts[2:] = [sporting, charleroi, cercle, brugge]
+            
+            rest = parts[2:]
+            mid = len(rest) // 2
+            home_slug = "_".join(rest[:mid])
+            away_slug = "_".join(rest[mid:])
+            
+            # Format Name from slug: sporting_charleroi -> Sporting Charleroi
+            home_name = home_slug.replace("_", " ").title()
+            away_name = away_slug.replace("_", " ").title()
+            
+            match_date = datetime.strptime(date_str, "%Y%m%d")
+            
+            league = League(
+                id=league_code,
+                name=f"League {league_code}",
+                country="Unknown",
+                season=str(match_date.year) # Approx
+            )
+            
+            home_team = Team(id=f"synthetic_{home_slug}", name=home_name, country="Unknown")
+            away_team = Team(id=f"synthetic_{away_slug}", name=away_name, country="Unknown")
+            
+            logger.info(f"Reconstructed synthetic match from ID: {home_name} vs {away_name}")
+            
+            return Match(
+                id=match_id,
+                league=league,
+                home_team=home_team,
+                away_team=away_team,
+                match_date=match_date,
+                status="NS", # Not Started assumed
+                home_goals=None,
+                away_goals=None
+            )
+            
+        except Exception as e:
+            logger.warning(f"Failed to reconstruct match from ID {match_id}: {e}")
+            return None
     
     async def _get_historical_matches(self, match: Match) -> list[Match]:
-        """Get historical matches for context."""
+        """
+        Get historical matches from ALL available sources and unify them.
+        
+        Strategy: Aggregation & Unification
+        1. Fetch CSV Data (Rich stats, historical depth)
+        2. Fetch OpenFootball (Basic stats, high availability)
+        3. Fetch API Team History (Recent form, specific team focus)
+        4. Merge and Deduplicate, preferring entries with more stats.
+        """
+        import asyncio
         from src.infrastructure.data_sources.api_football import LEAGUE_ID_MAPPING
         
-        # Create reverse mapping
+        # Determine internal league code
         api_id_to_code = {v: k for k, v in LEAGUE_ID_MAPPING.items()}
-        
         internal_league_code = None
         
-        # Check if ID is already a valid internal code (e.g. "E1")
         from src.infrastructure.data_sources.football_data_uk import LEAGUES_METADATA
         if match.league.id in LEAGUES_METADATA:
             internal_league_code = match.league.id
         else:
-            # Try mapping from integer ID
             try:
                 lid = int(match.league.id)
                 if lid in api_id_to_code:
@@ -158,39 +254,124 @@ class GetSuggestedPicksUseCase:
             except (ValueError, TypeError):
                 pass
         
-        logger.info(f"Mapping league ID {match.league.id} -> Internal Code: {internal_league_code}")
+        logger.info(f"Aggregating data for {match.home_team.name} vs {match.away_team.name} (League: {internal_league_code})")
         
-        if not internal_league_code:
-            return []
+        tasks = []
         
-        # Try Football-Data.co.uk
+        # 1. CSV Data Task
+        if internal_league_code:
+            tasks.append(self._fetch_csv_history(internal_league_code))
+            
+        # 2. OpenFootball Task
+        if internal_league_code and self.data_sources.openfootball:
+            tasks.append(self._fetch_openfootball_history(internal_league_code))
+            
+        # 3. Team History Task (Football-Data.org & API-Football)
+        tasks.append(self._fetch_team_history_apis(match))
+        
+        # Execute all fetches in parallel
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        all_matches = []
+        for result in results:
+            if isinstance(result, list):
+                all_matches.extend(result)
+            elif isinstance(result, Exception):
+                logger.warning(f"Error in data source fetch: {result}")
+                
+        # 4. Unify and Deduplicate
+        unified_matches = self._deduplicate_and_merge(all_matches)
+        logger.info(f"Data Aggregation: {len(all_matches)} raw matches -> {len(unified_matches)} unique unified matches")
+        
+        return unified_matches
+
+    async def _fetch_csv_history(self, league_code: str) -> list[Match]:
         try:
-            matches = await self.data_sources.football_data_uk.get_historical_matches(
-                internal_league_code,
+            return await self.data_sources.football_data_uk.get_historical_matches(
+                league_code,
                 seasons=["2425", "2324"],
             )
-            if matches:
-                return matches
-        except Exception as e:
-            logger.warning(f"Failed to fetch CSV history: {e}")
-        
-        # Try OpenFootball
-        if self.data_sources.openfootball:
-            try:
-                from src.infrastructure.data_sources.football_data_uk import LEAGUES_METADATA
-                if internal_league_code in LEAGUES_METADATA:
-                    meta = LEAGUES_METADATA[internal_league_code]
-                    temp_league = League(
-                        id=internal_league_code,
-                        name=meta["name"],
-                        country=meta["country"],
-                    )
-                    open_matches = await self.data_sources.openfootball.get_matches(temp_league)
-                    return [m for m in open_matches if m.status in ["FT", "AET", "PEN"]]
-            except Exception as e:
-                logger.warning(f"Failed to fetch OpenFootball history: {e}")
-        
+        except Exception:
+            return []
+
+    async def _fetch_openfootball_history(self, league_code: str) -> list[Match]:
+        try:
+            from src.infrastructure.data_sources.football_data_uk import LEAGUES_METADATA
+            if league_code in LEAGUES_METADATA:
+                meta = LEAGUES_METADATA[league_code]
+                temp_league = League(
+                    id=league_code,
+                    name=meta["name"],
+                    country=meta["country"],
+                )
+                matches = await self.data_sources.openfootball.get_matches(temp_league)
+                return [m for m in matches if m.status in ["FT", "AET", "PEN"]]
+        except Exception:
+            pass
         return []
+
+    async def _fetch_team_history_apis(self, match: Match) -> list[Match]:
+        """Fetch history specifically for the two teams from APIs."""
+        team_matches = []
+        
+        # Strategy A: Football-Data.org
+        if self.data_sources.football_data_org.is_configured:
+            try:
+                h_hist = await self.data_sources.football_data_org.get_team_history(match.home_team.name, limit=10)
+                a_hist = await self.data_sources.football_data_org.get_team_history(match.away_team.name, limit=10)
+                team_matches.extend(h_hist + a_hist)
+            except Exception as e:
+                logger.warning(f"Football-Data.org history fetch failed: {e}")
+
+        # Strategy B: API-Football
+        if self.data_sources.api_football.is_configured:
+            try:
+                h_hist = await self.data_sources.api_football.get_team_history(match.home_team.id, limit=10)
+                a_hist = await self.data_sources.api_football.get_team_history(match.away_team.id, limit=10)
+                team_matches.extend(h_hist + a_hist)
+            except Exception as e:
+                logger.warning(f"API-Football history fetch failed: {e}")
+                
+        return team_matches
+
+    def _deduplicate_and_merge(self, matches: list[Match]) -> list[Match]:
+        """
+        Deduplicate matches based on Date and Teams.
+        Merge strategy: Keep the instance with the most statistical data.
+        """
+        unique_map = {}
+        
+        for m in matches:
+            # Create a normalized key: YYYY-MM-DD|HOME|AWAY
+            # Using simple string cleaning for fuzzy match robustness
+            date_key = m.match_date.strftime("%Y-%m-%d")
+            h_key = "".join(filter(str.isalpha, m.home_team.name)).lower()[:10]
+            a_key = "".join(filter(str.isalpha, m.away_team.name)).lower()[:10]
+            key = f"{date_key}|{h_key}|{a_key}"
+            
+            if key not in unique_map:
+                unique_map[key] = m
+            else:
+                existing = unique_map[key]
+                # MERGE LOGIC: Replace if 'm' has better stats than 'existing'
+                
+                # Check 1: Does new one have corners? (Crucial for picks)
+                new_has_stats = m.home_corners is not None
+                old_has_stats = existing.home_corners is not None
+                
+                if new_has_stats and not old_has_stats:
+                    unique_map[key] = m  # Upgrade!
+                elif new_has_stats and old_has_stats:
+                    # Both have stats, maybe prefer CSV (Football-Data.co.uk) over API?
+                    # Usually CSV is cleaner. But let's assume they are similar.
+                    # Maybe check for shots?
+                    if m.home_shots_on_target is not None and existing.home_shots_on_target is None:
+                        unique_map[key] = m
+        
+        # Sort by date descending
+        result = list(unique_map.values())
+        result.sort(key=lambda x: x.match_date, reverse=True)
+        return result
     
     def _to_dto(self, picks: MatchSuggestedPicks) -> MatchSuggestedPicksDTO:
         """Convert domain object to DTO."""

@@ -454,6 +454,44 @@ class APIFootballSource:
                 
         return matches
 
+    async def get_team_history(self, team_id: str, limit: int = 5) -> list[Match]:
+        """
+        Get last N finished matches for a specific team.
+        Used as fallback for statistics when league history is missing.
+        """
+        if not self.is_configured:
+            return []
+            
+        data = await self._make_request(
+            endpoint="/fixtures",
+            params={
+                "team": team_id,
+                "last": limit,
+                "status": "FT-AET-PEN"
+            }
+        )
+        
+        if not data or "response" not in data:
+            return []
+            
+        matches = []
+        for item in data["response"]:
+            # Try to map back to our code
+            league_id = item["league"]["id"]
+            league_code = "UNKNOWN"
+            for code, lid in LEAGUE_ID_MAPPING.items():
+                if lid == league_id:
+                    league_code = code
+                    break
+            
+            try:
+                match = self._parse_fixture(item, league_code, include_stats=True)
+                matches.append(match)
+            except Exception:
+                continue
+                
+        return matches
+
     async def get_live_matches(self) -> list[Match]:
         """
         Get all live matches globally.

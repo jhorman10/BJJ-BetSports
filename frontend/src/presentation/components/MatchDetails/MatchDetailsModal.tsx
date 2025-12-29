@@ -11,6 +11,8 @@ import {
   Divider,
   Paper,
   Slide,
+  useTheme,
+  useMediaQuery,
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
 import { TransitionProps } from "@mui/material/transitions";
@@ -34,6 +36,8 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
   matchPrediction,
 }) => {
   const [picksCount, setPicksCount] = React.useState<number | null>(null);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const details = matchPrediction;
 
   if (!open) return null;
@@ -49,16 +53,21 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
       PaperProps={{
         sx: {
           width: { xs: "95%", sm: "100%" },
-          height: { xs: "95vh", sm: "auto" },
-          maxHeight: { xs: "95vh", sm: "90vh" },
-          m: { xs: 1, sm: 2 },
+          margin: { xs: 1, sm: 2 },
+          maxHeight: { xs: "90vh", sm: "calc(100% - 64px)" },
+          borderRadius: 2,
         },
       }}
     >
-      <DialogTitle sx={{ textAlign: "center", pb: 1 }}>
-        Detalles del Partido
+      <DialogTitle sx={{ textAlign: "center", pb: 1, pt: 2 }}>
+        <Typography component="span" variant="h6" fontWeight="bold">
+          Detalles del Partido
+        </Typography>
       </DialogTitle>
-      <DialogContent>
+
+      <DialogContent
+        sx={{ px: { xs: 1.5, sm: 3 }, pb: 3, overflowX: "hidden" }}
+      >
         {!details ? (
           <Box p={3} textAlign="center">
             <Typography color="text.secondary">
@@ -67,63 +76,133 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
           </Box>
         ) : (
           <Box>
-            {/* Score Header */}
-            <Box
-              display="flex"
-              justifyContent="space-between"
-              alignItems="center"
-              mb={2}
-              p={2}
-              component={Paper}
-              elevation={2}
-              sx={{ bgcolor: "background.paper" }}
+            {/* Score Header - Responsive Design */}
+            <Paper
+              elevation={0}
+              variant="outlined"
+              sx={{
+                mb: 3,
+                p: { xs: 1.5, sm: 2 },
+                bgcolor: "background.paper",
+                borderRadius: 2,
+                mt: 1,
+              }}
             >
-              <Box textAlign="center" flex={1}>
-                <Typography variant="h6">
-                  {details.match.home_team.name}
-                </Typography>
-              </Box>
-              <Box textAlign="center" px={2}>
-                <Typography variant="h4" fontWeight="bold">
-                  {details.match.home_goals ?? 0} -{" "}
-                  {details.match.away_goals ?? 0}
-                </Typography>
-                <Chip
-                  label={translateMatchStatus(details.match.status)}
-                  color={
-                    details.match.status === "LIVE" ||
-                    details.match.status === "1H" ||
-                    details.match.status === "2H"
-                      ? "error"
-                      : "default"
-                  }
-                  size="small"
-                  sx={{ mt: 1 }}
-                />
-              </Box>
-              <Box textAlign="center" flex={1}>
-                <Typography variant="h6">
-                  {details.match.away_team.name}
-                </Typography>
-              </Box>
-            </Box>
+              <Box
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+                gap={1}
+              >
+                {/* Home Team */}
+                <Box
+                  textAlign="center"
+                  flex={1}
+                  display="flex"
+                  flexDirection="column"
+                  alignItems="center"
+                >
+                  {details.match.home_team.logo_url && (
+                    <Box
+                      component="img"
+                      src={details.match.home_team.logo_url}
+                      alt={details.match.home_team.name}
+                      sx={{
+                        width: 40,
+                        height: 40,
+                        mb: 1,
+                        objectFit: "contain",
+                      }}
+                    />
+                  )}
+                  <Typography
+                    variant={isMobile ? "body2" : "subtitle1"}
+                    lineHeight={1.2}
+                    fontWeight="bold"
+                  >
+                    {details.match.home_team.name}
+                  </Typography>
+                </Box>
 
-            {/* Picks Destacados - At the top */}
+                {/* Score & Status */}
+                <Box textAlign="center" px={1} minWidth={80}>
+                  <Box
+                    bgcolor="rgba(0,0,0,0.4)"
+                    borderRadius={2}
+                    px={2}
+                    py={0.5}
+                    mb={1}
+                    display="inline-block"
+                  >
+                    <Typography variant="h5" fontWeight="900" letterSpacing={1}>
+                      {details.match.home_goals ?? 0}-
+                      {details.match.away_goals ?? 0}
+                    </Typography>
+                  </Box>
+                  <Box display="flex" justifyContent="center">
+                    <Chip
+                      label={translateMatchStatus(details.match.status)}
+                      color={
+                        ["LIVE", "1H", "2H", "HT"].includes(
+                          details.match.status
+                        )
+                          ? "error"
+                          : "default"
+                      }
+                      size="small"
+                      sx={{
+                        fontWeight: "bold",
+                        fontSize: "0.7rem",
+                        height: 20,
+                      }}
+                    />
+                  </Box>
+                </Box>
+
+                {/* Away Team */}
+                <Box
+                  textAlign="center"
+                  flex={1}
+                  display="flex"
+                  flexDirection="column"
+                  alignItems="center"
+                >
+                  {details.match.away_team.logo_url && (
+                    <Box
+                      component="img"
+                      src={details.match.away_team.logo_url}
+                      alt={details.match.away_team.name}
+                      sx={{
+                        width: 40,
+                        height: 40,
+                        mb: 1,
+                        objectFit: "contain",
+                      }}
+                    />
+                  )}
+                  <Typography
+                    variant={isMobile ? "body2" : "subtitle1"}
+                    lineHeight={1.2}
+                    fontWeight="bold"
+                  >
+                    {details.match.away_team.name}
+                  </Typography>
+                </Box>
+              </Box>
+            </Paper>
+
+            {/* Picks Destacados */}
             <Box mb={3}>
               <Box
                 display="flex"
                 alignItems="center"
                 justifyContent="space-between"
-                mb={2}
+                mb={1.5}
               >
                 <Typography
                   variant="subtitle1"
                   fontWeight="bold"
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1,
-                  }}
+                  sx={{ display: "flex", alignItems: "center", gap: 1 }}
                 >
                   🎯 Picks Destacados
                 </Typography>
@@ -146,319 +225,348 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
               />
             </Box>
 
-            <Divider sx={{ mb: 2 }} />
+            <Divider sx={{ mb: 2.5 }} />
 
-            {/* Probabilidades */}
-            <Typography variant="subtitle1" gutterBottom sx={{ mb: 1 }}>
-              Probabilidades
-            </Typography>
-            <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-              {details.prediction.home_win_probability +
-                details.prediction.draw_probability +
-                details.prediction.away_win_probability ===
-              0 ? (
-                <Box textAlign="center" py={2}>
-                  <Typography color="text.secondary" fontWeight="bold">
-                    ℹ️ Predicción no disponible
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    No se encontró una predicción previa para este partido.
-                  </Typography>
-                </Box>
-              ) : (
-                <Grid container spacing={2}>
-                  <Grid size={4} textAlign="center">
-                    <Typography variant="body2" color="text.secondary">
-                      Local (1)
-                    </Typography>
-                    <Typography variant="h5" fontWeight="bold" color="primary">
-                      {(details.prediction.home_win_probability * 100).toFixed(
-                        0
-                      )}
-                      %
-                    </Typography>
-                  </Grid>
-                  <Grid size={4} textAlign="center">
-                    <Typography variant="body2" color="text.secondary">
-                      Empate (X)
-                    </Typography>
+            {/* Stats Grid - Using CSS Grid for better control than MUI Grid */}
+            <Box display="grid" gridTemplateColumns="1fr 1fr" gap={2} mb={3}>
+              {/* 1. Probabilidades */}
+              <Box gridColumn="span 2">
+                <Typography
+                  variant="subtitle2"
+                  color="text.secondary"
+                  gutterBottom
+                >
+                  Probabilidades de Victoria
+                </Typography>
+                <Paper variant="outlined" sx={{ p: 1.5 }}>
+                  {details.prediction.home_win_probability +
+                    details.prediction.draw_probability +
+                    details.prediction.away_win_probability ===
+                  0 ? (
                     <Typography
-                      variant="h5"
-                      fontWeight="bold"
-                      color="secondary"
+                      variant="caption"
+                      color="text.secondary"
+                      display="block"
+                      textAlign="center"
                     >
-                      {(details.prediction.draw_probability * 100).toFixed(0)}%
+                      No disponible
                     </Typography>
-                  </Grid>
-                  <Grid size={4} textAlign="center">
-                    <Typography variant="body2" color="text.secondary">
-                      Visitante (2)
+                  ) : (
+                    <Box
+                      display="flex"
+                      justifyContent="space-between"
+                      textAlign="center"
+                    >
+                      <Box flex={1}>
+                        <Typography
+                          variant="caption"
+                          display="block"
+                          color="text.secondary"
+                          mb={0.5}
+                        >
+                          1
+                        </Typography>
+                        <Typography
+                          variant="h6"
+                          fontWeight="bold"
+                          color="primary"
+                        >
+                          {(
+                            details.prediction.home_win_probability * 100
+                          ).toFixed(0)}
+                          %
+                        </Typography>
+                      </Box>
+                      <Divider orientation="vertical" flexItem />
+                      <Box flex={1}>
+                        <Typography
+                          variant="caption"
+                          display="block"
+                          color="text.secondary"
+                          mb={0.5}
+                        >
+                          X
+                        </Typography>
+                        <Typography
+                          variant="h6"
+                          fontWeight="bold"
+                          color="text.secondary"
+                        >
+                          {(details.prediction.draw_probability * 100).toFixed(
+                            0
+                          )}
+                          %
+                        </Typography>
+                      </Box>
+                      <Divider orientation="vertical" flexItem />
+                      <Box flex={1}>
+                        <Typography
+                          variant="caption"
+                          display="block"
+                          color="text.secondary"
+                          mb={0.5}
+                        >
+                          2
+                        </Typography>
+                        <Typography
+                          variant="h6"
+                          fontWeight="bold"
+                          color="error"
+                        >
+                          {(
+                            details.prediction.away_win_probability * 100
+                          ).toFixed(0)}
+                          %
+                        </Typography>
+                      </Box>
+                    </Box>
+                  )}
+                </Paper>
+              </Box>
+
+              {/* 2. Goles Esperados */}
+              <Box>
+                <Typography
+                  variant="subtitle2"
+                  color="text.secondary"
+                  gutterBottom
+                >
+                  Goles Esperados
+                </Typography>
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 1.5,
+                    height: "100%",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Box display="flex" justifyContent="space-between" mb={0.5}>
+                    <Typography variant="caption" noWrap>
+                      {isMobile ? "Local" : details.match.home_team.name}
                     </Typography>
-                    <Typography variant="h5" fontWeight="bold" color="error">
-                      {(details.prediction.away_win_probability * 100).toFixed(
+                    <Typography fontWeight="bold" color="primary">
+                      {details.prediction.predicted_home_goals.toFixed(1)}
+                    </Typography>
+                  </Box>
+                  <Divider sx={{ my: 0.5 }} />
+                  <Box display="flex" justifyContent="space-between">
+                    <Typography variant="caption" noWrap>
+                      {isMobile ? "Visita" : details.match.away_team.name}
+                    </Typography>
+                    <Typography fontWeight="bold" color="error">
+                      {details.prediction.predicted_away_goals.toFixed(1)}
+                    </Typography>
+                  </Box>
+                </Paper>
+              </Box>
+
+              {/* 3. Mas/Menos 2.5 */}
+              <Box>
+                <Typography
+                  variant="subtitle2"
+                  color="text.secondary"
+                  gutterBottom
+                >
+                  Más/Menos 2.5
+                </Typography>
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 1.5,
+                    height: "100%",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Box
+                    display="flex"
+                    justifyContent="space-between"
+                    alignItems="center"
+                    mb={0.5}
+                  >
+                    <Typography variant="caption">Más</Typography>
+                    <Typography
+                      fontWeight="bold"
+                      color={
+                        details.prediction.over_25_probability > 0.5
+                          ? "success.main"
+                          : "text.primary"
+                      }
+                    >
+                      {(details.prediction.over_25_probability * 100).toFixed(
                         0
                       )}
                       %
                     </Typography>
-                  </Grid>
-                </Grid>
-              )}
-            </Paper>
-
-            {/* Goles Esperados */}
-            <Typography variant="subtitle1" gutterBottom sx={{ mb: 1 }}>
-              Goles Esperados
-            </Typography>
-            <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-              <Grid container spacing={2}>
-                <Grid size={6} textAlign="center">
-                  <Typography variant="body2" color="text.secondary">
-                    {details.match.home_team.name}
-                  </Typography>
-                  <Typography variant="h4" fontWeight="bold" color="primary">
-                    {details.prediction.predicted_home_goals.toFixed(1)}
-                  </Typography>
-                </Grid>
-                <Grid size={6} textAlign="center">
-                  <Typography variant="body2" color="text.secondary">
-                    {details.match.away_team.name}
-                  </Typography>
-                  <Typography variant="h4" fontWeight="bold" color="error">
-                    {details.prediction.predicted_away_goals.toFixed(1)}
-                  </Typography>
-                </Grid>
-              </Grid>
-            </Paper>
-
-            {/* More/Less than 2.5 goals */}
-            <Typography variant="subtitle1" gutterBottom sx={{ mb: 1 }}>
-              Más/Menos de 2.5 Goles
-            </Typography>
-            <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-              <Grid container spacing={2}>
-                <Grid size={6} textAlign="center">
-                  <Typography variant="body2" color="text.secondary">
-                    Más de 2.5
-                  </Typography>
-                  <Typography
-                    variant="h5"
-                    fontWeight="bold"
-                    color={
-                      details.prediction.over_25_probability > 0.5
-                        ? "success.main"
-                        : "text.primary"
-                    }
+                  </Box>
+                  <Divider sx={{ my: 0.5 }} />
+                  <Box
+                    display="flex"
+                    justifyContent="space-between"
+                    alignItems="center"
                   >
-                    {(details.prediction.over_25_probability * 100).toFixed(0)}%
-                  </Typography>
-                </Grid>
-                <Grid size={6} textAlign="center">
-                  <Typography variant="body2" color="text.secondary">
-                    Menos de 2.5
-                  </Typography>
-                  <Typography
-                    variant="h5"
-                    fontWeight="bold"
-                    color={
-                      details.prediction.under_25_probability > 0.5
-                        ? "success.main"
-                        : "text.primary"
-                    }
-                  >
-                    {(details.prediction.under_25_probability * 100).toFixed(0)}
-                    %
-                  </Typography>
-                </Grid>
-              </Grid>
-            </Paper>
+                    <Typography variant="caption">Menos</Typography>
+                    <Typography
+                      fontWeight="bold"
+                      color={
+                        details.prediction.under_25_probability > 0.5
+                          ? "success.main"
+                          : "text.primary"
+                      }
+                    >
+                      {(details.prediction.under_25_probability * 100).toFixed(
+                        0
+                      )}
+                      %
+                    </Typography>
+                  </Box>
+                </Paper>
+              </Box>
+            </Box>
 
-            {/* Estadísticas Proyectadas - Corners y Tarjetas */}
-            <Typography variant="subtitle1" gutterBottom sx={{ mb: 1 }}>
+            {/* Estadísticas Proyectadas */}
+            <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
               Estadísticas Proyectadas
             </Typography>
-            <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-              {/* Header: Team names */}
+            <Paper variant="outlined" sx={{ p: 0, mb: 3, overflow: "hidden" }}>
               <Box
+                bgcolor="rgba(255,255,255,0.03)"
+                p={1.5}
                 display="flex"
                 justifyContent="space-between"
-                alignItems="center"
-                mb={2}
               >
-                <Typography
-                  variant="body2"
-                  fontWeight="bold"
-                  color="primary"
-                  sx={{ flex: 1 }}
-                >
+                <Typography variant="caption" fontWeight="bold">
                   {details.match.home_team.name}
                 </Typography>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{ px: 2 }}
-                >
-                  vs
-                </Typography>
-                <Typography
-                  variant="body2"
-                  fontWeight="bold"
-                  color="error"
-                  sx={{ flex: 1, textAlign: "right" }}
-                >
+                <Typography variant="caption" fontWeight="bold">
                   {details.match.away_team.name}
                 </Typography>
               </Box>
 
-              {/* Corners */}
-              <Box
-                display="flex"
-                justifyContent="space-between"
-                alignItems="center"
-                py={1}
-                borderBottom="1px solid rgba(255,255,255,0.1)"
-              >
-                <Typography
-                  variant="h6"
-                  fontWeight="bold"
-                  color="info.main"
-                  sx={{ width: 40, textAlign: "center" }}
+              {/* Rows */}
+              {[
+                {
+                  label: "Córners",
+                  home: details.match.home_corners,
+                  away: details.match.away_corners,
+                  icon: "⚑",
+                },
+                {
+                  label: "Amarillas",
+                  home: details.match.home_yellow_cards,
+                  away: details.match.away_yellow_cards,
+                  icon: "🟨",
+                },
+                {
+                  label: "Rojas",
+                  home: details.match.home_red_cards,
+                  away: details.match.away_red_cards,
+                  icon: "🟥",
+                },
+              ].map((row, i) => (
+                <Box
+                  key={row.label}
+                  display="flex"
+                  justifyContent="space-between"
+                  alignItems="center"
+                  p={1.5}
+                  borderTop={
+                    i > 0 ? "1px solid rgba(255,255,255,0.05)" : "none"
+                  }
                 >
-                  {details.match.home_corners ?? "-"}
-                </Typography>
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ flex: 1, textAlign: "center" }}
-                >
-                  ⚑ Córners
-                </Typography>
-                <Typography
-                  variant="h6"
-                  fontWeight="bold"
-                  color="info.main"
-                  sx={{ width: 40, textAlign: "center" }}
-                >
-                  {details.match.away_corners ?? "-"}
-                </Typography>
-              </Box>
-
-              {/* Yellow Cards */}
-              <Box
-                display="flex"
-                justifyContent="space-between"
-                alignItems="center"
-                py={1}
-                borderBottom="1px solid rgba(255,255,255,0.1)"
-              >
-                <Typography
-                  variant="h6"
-                  fontWeight="bold"
-                  color="warning.main"
-                  sx={{ width: 40, textAlign: "center" }}
-                >
-                  {details.match.home_yellow_cards ?? "-"}
-                </Typography>
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ flex: 1, textAlign: "center" }}
-                >
-                  🟨 Amarillas
-                </Typography>
-                <Typography
-                  variant="h6"
-                  fontWeight="bold"
-                  color="warning.main"
-                  sx={{ width: 40, textAlign: "center" }}
-                >
-                  {details.match.away_yellow_cards ?? "-"}
-                </Typography>
-              </Box>
-
-              {/* Red Cards */}
-              <Box
-                display="flex"
-                justifyContent="space-between"
-                alignItems="center"
-                py={1}
-              >
-                <Typography
-                  variant="h6"
-                  fontWeight="bold"
-                  color="error.main"
-                  sx={{ width: 40, textAlign: "center" }}
-                >
-                  {details.match.home_red_cards ?? "-"}
-                </Typography>
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ flex: 1, textAlign: "center" }}
-                >
-                  🟥 Rojas
-                </Typography>
-                <Typography
-                  variant="h6"
-                  fontWeight="bold"
-                  color="error.main"
-                  sx={{ width: 40, textAlign: "center" }}
-                >
-                  {details.match.away_red_cards ?? "-"}
-                </Typography>
-              </Box>
+                  <Box width={40} textAlign="center">
+                    <Typography fontWeight="bold">{row.home ?? "-"}</Typography>
+                  </Box>
+                  <Box
+                    display="flex"
+                    flexDirection="column"
+                    alignItems="center"
+                  >
+                    <Typography variant="caption" color="text.secondary">
+                      {row.icon} {row.label}
+                    </Typography>
+                  </Box>
+                  <Box width={40} textAlign="center">
+                    <Typography fontWeight="bold">{row.away ?? "-"}</Typography>
+                  </Box>
+                </Box>
+              ))}
             </Paper>
 
-            {/* Recomendaciones y Confianza */}
-            <Box mt={2}>
-              <Typography variant="subtitle1" gutterBottom sx={{ mb: 1 }}>
-                Recomendación
-              </Typography>
-              <Paper variant="outlined" sx={{ p: 2 }}>
-                <Grid container spacing={2}>
-                  <Grid size={6}>
-                    <Typography variant="caption" color="text.secondary">
-                      Apuesta Recomendada
-                    </Typography>
-                    <Chip
-                      label={translateRecommendedBet(
-                        details.prediction.recommended_bet
-                      )}
-                      color="primary"
-                      size="small"
-                      sx={{ display: "block", mt: 0.5 }}
-                    />
-                  </Grid>
-                  <Grid size={6}>
-                    <Typography variant="caption" color="text.secondary">
-                      Over/Under
-                    </Typography>
+            {/* Recomendación Final */}
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2,
+                bgcolor: "rgba(16, 185, 129, 0.1)",
+                border: "1px solid rgba(16, 185, 129, 0.3)",
+                borderRadius: 2,
+              }}
+            >
+              <Grid container spacing={2} alignItems="center">
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Typography
+                    variant="caption"
+                    color="success.light"
+                    display="block"
+                    mb={0.5}
+                  >
+                    RECOMENDACIÓN PRINCIPAL
+                  </Typography>
+                  <Chip
+                    label={translateRecommendedBet(
+                      details.prediction.recommended_bet
+                    )}
+                    color="success"
+                    sx={{ fontWeight: "bold" }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Box
+                    display="flex"
+                    justifyContent="space-between"
+                    alignItems="center"
+                  >
+                    <Box>
+                      <Typography
+                        variant="caption"
+                        color="success.light"
+                        display="block"
+                      >
+                        CONFIANZA
+                      </Typography>
+                      <Typography
+                        variant="h4"
+                        fontWeight="900"
+                        color="success.main"
+                      >
+                        {(details.prediction.confidence * 100).toFixed(0)}%
+                      </Typography>
+                    </Box>
+                    {/* Over/Under chip micro */}
                     <Chip
                       label={translateOverUnder(
                         details.prediction.over_under_recommendation
                       )}
-                      color="secondary"
-                      variant="outlined"
                       size="small"
-                      sx={{ display: "block", mt: 0.5 }}
+                      variant="outlined"
+                      color="success"
                     />
-                  </Grid>
-                  <Grid size={12}>
-                    <Divider sx={{ my: 1 }} />
-                    <Typography variant="caption" color="text.secondary">
-                      Índice de Confianza
-                    </Typography>
-                    <Typography variant="body1" fontWeight="bold">
-                      {(details.prediction.confidence * 100).toFixed(0)}%
-                    </Typography>
-                  </Grid>
+                  </Box>
                 </Grid>
-              </Paper>
-            </Box>
+              </Grid>
+            </Paper>
           </Box>
         )}
       </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Cerrar</Button>
+      <DialogActions sx={{ px: 3, pb: 2 }}>
+        <Button onClick={onClose} variant="outlined" color="inherit">
+          Cerrar
+        </Button>
       </DialogActions>
     </Dialog>
   );

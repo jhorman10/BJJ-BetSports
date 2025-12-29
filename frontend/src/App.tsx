@@ -33,6 +33,9 @@ import LiveMatchDetailsModal from "./presentation/components/MatchDetails/LiveMa
 import { useUIStore } from "./application/stores/useUIStore";
 import { usePredictionStore } from "./application/stores/usePredictionStore";
 import { useLiveStore } from "./application/stores/useLiveStore";
+import OfflineIndicator from "./presentation/components/common/OfflineIndicator";
+import { useOfflineStore } from "./application/stores/useOfflineStore";
+import { dataReconciliationService } from "./application/services/DataReconciliationService";
 
 // Extend window type for PWA install event
 declare global {
@@ -59,6 +62,16 @@ const App: React.FC = () => {
     startPolling,
     stopPolling,
   } = useLiveStore();
+
+  const { isOnline, isBackendAvailable } = useOfflineStore();
+
+  // Reconciliation: Use centralized service when connectivity restores
+  useEffect(() => {
+    if (isOnline && isBackendAvailable) {
+      console.log("🔄 Connection restored. Reconciling data...");
+      dataReconciliationService.reconcileAll();
+    }
+  }, [isOnline, isBackendAvailable]);
 
   // PWA Install state
   const [installPrompt, setInstallPrompt] =
@@ -347,6 +360,9 @@ const App: React.FC = () => {
           </Typography>
         </Box>
       </Box>
+
+      {/* Offline Status Indicators */}
+      <OfflineIndicator />
     </>
   );
 };

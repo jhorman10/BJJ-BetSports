@@ -203,7 +203,10 @@ class FootballDataOrgSource:
         
         data = await self._make_request(f"/competitions/{comp_code}/matches", params)
         
-        if not data or not data.get("matches"):
+        if data is None:
+            return None
+
+        if not data.get("matches"):
             return []
         
         # Get competition info
@@ -420,6 +423,72 @@ class FootballDataOrgSource:
         except Exception as e:
             logger.error(f"Error parsing match details from football-data.org: {e}")
             return None
+
+    async def get_team_history(self, team_name: str, limit: int = 5) -> list[Match]:
+        """
+        Get last N finished matches for a specific team.
+        Used as fallback/primary source for statistics.
+        """
+        if not self.is_configured:
+            return []
+            
+        # First search for the team to get ID
+        # Note: This is expensive (2 requests), maybe cache team IDs in future?
+        search_data = await self._make_request("/teams", {"name": team_name})
+        if not search_data or not search_data.get("teams"):
+            logger.warning(f"Team {team_name} not found in Football-Data.org")
+            return []
+            
+        # Try to find exact match first, then approx
+        team_id = None
+        for team in search_data["teams"]:
+            if team.get("name", "").lower() == team_name.lower():
+                team_id = team["id"]
+                break
+        
+        if not team_id:
+            team_id = search_data["teams"][0]["id"]
+        
+        # Get team matches
+        data = await self._make_request(
+            f"/teams/{team_id}/matches", 
+            {
+                "status": "FINISHED",
+                "limit": limit
+            }
+        )
+        
+        if not data or not data.get("matches"):
+            return []
+            
+        matches = []
+        for fixture in data["matches"]:
+            try:
+                # Determine league code if possible
+                league_code = "UNKNOWN"
+                comp_code = fixture.get("competition", {}).get("code")
+                if comp_code:
+                     for k, v in COMPETITION_CODE_MAPPING.items():
+                         if v == comp_code:
+                             league_code = k
+                             break
+                
+                # Create rudimentary League object for parsing
+                league = League(
+                    id=league_code,
+                    name=fixture.get("competition", {}).get("name", "Unknown"),
+                    country="Unknown",
+                    season=str(fixture.get("season", {}).get("startDate", "")[:4])
+                )
+                
+                match = self._parse_match(fixture, league)
+                if match:
+                    matches.append(match)
+            except Exception as e:
+                logger.debug(f"Error parsing team history match: {e}")
+                continue
+                
+        return matches
             
     async def get_live_matches(self) -> list[Match]:
         """

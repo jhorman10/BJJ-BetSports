@@ -1,5 +1,12 @@
 import React, { useEffect, useState, useMemo, memo } from "react";
-import { Box, Typography, Chip, CircularProgress } from "@mui/material";
+import {
+  Box,
+  Typography,
+  Chip,
+  CircularProgress,
+  Tabs,
+  Tab,
+} from "@mui/material";
 import { TipsAndUpdates } from "@mui/icons-material";
 import {
   MatchPrediction,
@@ -18,8 +25,6 @@ interface SuggestedPicksTabProps {
   matchPrediction: MatchPrediction;
   onPicksCount?: (count: number) => void;
 }
-
-// Utility functions imported from ../../../utils/marketUtils
 
 /**
  * Single row pick item - compact design
@@ -98,9 +103,36 @@ const PickRow: React.FC<{ pick: SuggestedPick }> = memo(({ pick }) => {
   );
 });
 
+// Helper to determine tab category
+const getPickCategory = (marketType: string): string => {
+  const type = marketType.toUpperCase();
+  if (type.includes("CORNER")) return "CORNERS";
+  if (type.includes("CARD")) return "CARDS";
+  if (
+    type.includes("GOAL") ||
+    type.includes("BTTS") ||
+    type.includes("OVER") ||
+    type.includes("UNDER")
+  ) {
+    // "OVER" and "UNDER" can be corners/cards too, but typically if it's not corner/card specific it's goals
+    // Wait, OVER_CORNERS contains "OVER". Order matters.
+    // Checked CORNER/CARD first.
+    return "GOALS";
+  }
+  if (
+    type.includes("WIN") ||
+    type.includes("DRAW") ||
+    type.includes("CHANCE") ||
+    type.includes("HANDICAP")
+  ) {
+    return "WINNER";
+  }
+  return "OTHER";
+};
+
 /**
  * Suggested Picks Tab Component
- * All data comes from the backend API - compact single-row design
+ * Separated by tabs: Winner, Goals, Corners, Cards, Others
  */
 const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
   matchPrediction,
@@ -110,15 +142,51 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
   const [loading, setLoading] = useState(true);
   const [apiPicks, setApiPicks] = useState<MatchSuggestedPicks | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [currentTab, setCurrentTab] = useState("ALL");
 
-  // Fetch picks from backend API
+  // Fetch picks from backend API with localStorage caching
   useEffect(() => {
+    const CACHE_KEY = `suggested-picks-${match.id}`;
+    const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
     const fetchPicks = async () => {
       try {
-        setLoading(true);
+        // 1. Try to load from localStorage first (instant)
+        const cached = localStorage.getItem(CACHE_KEY);
+        if (cached) {
+          try {
+            const { data, timestamp } = JSON.parse(cached);
+            const age = Date.now() - timestamp;
+
+            // Show cached data immediately
+            setApiPicks(data);
+            setLoading(false);
+
+            // If cache is still fresh (< 30min), skip API call
+            if (age < CACHE_TTL) {
+              return;
+            }
+          } catch (e) {
+            // Invalid cache, continue to fetch
+          }
+        } else {
+          // No cache, show loading
+          setLoading(true);
+        }
+
+        // 2. Fetch fresh data from API (in background if cache exists)
         setError(null);
         const data = await api.getSuggestedPicks(match.id);
         setApiPicks(data);
+
+        // 3. Update localStorage
+        localStorage.setItem(
+          CACHE_KEY,
+          JSON.stringify({
+            data,
+            timestamp: Date.now(),
+          })
+        );
       } catch (err: any) {
         if (err.response && err.response.status === 404) {
           setError("Datos insuficientes para generar picks");
@@ -139,25 +207,36 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
   const sortedPicks = useMemo(() => {
     let picks = apiPicks?.suggested_picks ? [...apiPicks.suggested_picks] : [];
 
-    // Fallback Frontend: Si el backend no devolvió picks pero tenemos predicción,
-    // generamos un pick basado en la data visible (probabilidades).
-    if (apiPicks && picks.length === 0 && matchPrediction.prediction) {
+    // Fallback Frontend
+    if (picks.length === 0 && matchPrediction.prediction) {
       picks = generateFallbackPicks(matchPrediction);
     }
 
-    // Filter duplicates to ensure unique picks
+    // Filter duplicates
     picks = getUniquePicks(picks);
 
-    // Sort by probability only (highest first)
+    // Sort by probability (highest first)
     return picks.sort((a, b) => b.probability - a.probability);
   }, [apiPicks, matchPrediction]);
 
-  // Report count to parent if callback exists
+  // Report count
   useEffect(() => {
     if (onPicksCount) {
       onPicksCount(sortedPicks.length);
     }
   }, [sortedPicks.length, onPicksCount]);
+
+  // Filtered picks based on tab
+  const filteredPicks = useMemo(() => {
+    if (currentTab === "ALL") return sortedPicks;
+    return sortedPicks.filter(
+      (p) => getPickCategory(p.market_type) === currentTab
+    );
+  }, [sortedPicks, currentTab]);
+
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: string) => {
+    setCurrentTab(newValue);
+  };
 
   if (loading) {
     return (
@@ -184,10 +263,52 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
   }
 
   return (
-    <Box sx={{ maxHeight: "350px", overflowY: "auto", pr: 0.5 }}>
-      {sortedPicks.map((pick, index) => (
-        <PickRow key={`pick-${index}`} pick={pick} />
-      ))}
+    <Box>
+      <Tabs
+        value={currentTab}
+        onChange={handleTabChange}
+        variant="scrollable"
+        scrollButtons="auto"
+        textColor="secondary"
+        indicatorColor="secondary"
+        sx={{
+          mb: 2,
+          minHeight: 36,
+          "& .MuiTab-root": {
+            minHeight: 36,
+            fontSize: "0.75rem",
+            fontWeight: 600,
+            color: "rgba(255,255,255,0.6)",
+            textTransform: "none",
+            "&.Mui-selected": {
+              color: "#22c55e",
+            },
+          },
+          "& .MuiTabs-indicator": {
+            backgroundColor: "#22c55e",
+          },
+        }}
+      >
+        <Tab value="ALL" label="Todos" />
+        <Tab value="WINNER" label="Ganador" />
+        <Tab value="GOALS" label="Goles" />
+        <Tab value="CORNERS" label="Córners" />
+        <Tab value="CARDS" label="Tarjetas" />
+      </Tabs>
+
+      <Box sx={{ maxHeight: "350px", overflowY: "auto", pr: 0.5 }}>
+        {filteredPicks.length > 0 ? (
+          filteredPicks.map((pick, index) => (
+            <PickRow key={`pick-${currentTab}-${index}`} pick={pick} />
+          ))
+        ) : (
+          <Box py={4} textAlign="center">
+            <Typography variant="caption" color="text.secondary">
+              No hay picks en esta categoría
+            </Typography>
+          </Box>
+        )}
+      </Box>
     </Box>
   );
 };

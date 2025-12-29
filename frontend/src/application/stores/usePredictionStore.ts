@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import {
   LeaguesResponse,
   MatchPrediction,
@@ -7,6 +8,8 @@ import {
 } from "../../domain/entities";
 import { predictionsApi } from "../../infrastructure/api/predictions";
 import { leaguesApi } from "../../infrastructure/api/leagues";
+import { useOfflineStore } from "./useOfflineStore";
+import { localStorageObserver } from "../../infrastructure/storage/LocalStorageObserver";
 
 export type SortOption =
   | "confidence"
@@ -45,105 +48,180 @@ interface PredictionState {
   performSearch: (query: string) => Promise<void>;
 }
 
-export const usePredictionStore = create<PredictionState>((set, get) => ({
-  leaguesData: null,
-  selectedCountry: null,
-  selectedLeague: null,
-  predictions: [],
-  searchMatches: [],
-
-  searchQuery: "",
-  sortBy: "confidence",
-  sortDesc: true,
-
-  leaguesLoading: false,
-  leaguesError: null,
-  predictionsLoading: false,
-  predictionsError: null,
-  searchLoading: false,
-
-  fetchLeagues: async () => {
-    set({ leaguesLoading: true, leaguesError: null });
-    try {
-      const data = await leaguesApi.getLeagues();
-      set({ leaguesData: data });
-    } catch (err: any) {
-      set({ leaguesError: err.message || "Error loading leagues" });
-    } finally {
-      set({ leaguesLoading: false });
-    }
-  },
-
-  selectCountry: (country) => {
-    set({ selectedCountry: country, selectedLeague: null });
-  },
-
-  selectLeague: (league) => {
-    set({
-      selectedLeague: league,
-      predictions: [], // Clear previous league matches
-      predictionsError: null,
-      searchQuery: "", // Clear search when changing league
+export const usePredictionStore = create<PredictionState>()(
+  persist(
+    (set, get) => ({
+      leaguesData: null,
+      selectedCountry: null,
+      selectedLeague: null,
+      predictions: [],
       searchMatches: [],
-    });
-    if (league) {
-      get().fetchPredictions();
-    }
-  },
 
-  fetchPredictions: async () => {
-    const { selectedLeague, sortBy, sortDesc } = get();
-    if (!selectedLeague) {
-      set({ predictions: [] });
-      return;
-    }
+      searchQuery: "",
+      sortBy: "confidence",
+      sortDesc: true,
 
-    set({ predictionsLoading: true, predictionsError: null });
-    try {
-      const response = await predictionsApi.getPredictions(
-        selectedLeague.id,
-        30,
-        sortBy,
-        sortDesc
-      );
-      set({ predictions: response.predictions });
-    } catch (err: any) {
-      set({ predictionsError: err.message || "Error loading predictions" });
-    } finally {
-      set({ predictionsLoading: false });
-    }
-  },
+      leaguesLoading: false,
+      leaguesError: null,
+      predictionsLoading: false,
+      predictionsError: null,
+      searchLoading: false,
 
-  setSearchQuery: (query) => {
-    set({ searchQuery: query });
-    if (query.length > 2) {
-      get().performSearch(query);
-    } else {
-      set({ searchMatches: [] });
-    }
-  },
+      fetchLeagues: async () => {
+        set({ leaguesLoading: true, leaguesError: null });
+        try {
+          const data = await leaguesApi.getLeagues();
+          set({ leaguesData: data });
 
-  performSearch: async (query) => {
-    set({ searchLoading: true });
-    try {
-      const matchPredictions = await predictionsApi.getTeamMatches(query);
-      set({ searchMatches: matchPredictions });
-    } catch (err) {
-      console.error("Search error", err);
-      set({ searchMatches: [] });
-    } finally {
-      set({ searchLoading: false });
-    }
-  },
+          // Persist to localStorage with observer
+          localStorageObserver.persist(
+            "prediction-storage-leagues",
+            { leaguesData: data, timestamp: new Date().toISOString() },
+            500 // 500ms debounce for predictions
+          );
 
-  setSortBy: (sortBy) => {
-    set({ sortBy });
-    if (get().selectedLeague) {
-      get().fetchPredictions();
-    }
-  },
+          // Successful fetch means backend is likely available
+          useOfflineStore.getState().setBackendAvailable(true);
+          useOfflineStore.getState().updateLastSync();
+        } catch (err: any) {
+          console.error("Error loading leagues:", err);
 
-  resetFilters: () => {
-    set({ selectedCountry: null, selectedLeague: null, searchQuery: "" });
-  },
-}));
+          // Check for network error / unreachable backend
+          const isNetworkError =
+            err.message === "Network Error" || err.code === "ERR_NETWORK";
+          if (isNetworkError) {
+            useOfflineStore.getState().setBackendAvailable(false);
+          }
+
+          // If we have data in cache (persisted), don't show robust error, just a warning maybe?
+          // Using current error state to indicate staleness if needed, or keep showing data.
+          // We set error string, UI can decide whether to block or show toast.
+          set({ leaguesError: err.message || "Error loading leagues" });
+        } finally {
+          set({ leaguesLoading: false });
+        }
+      },
+
+      selectCountry: (country) => {
+        set({
+          selectedCountry: country,
+          selectedLeague: null,
+          predictions: [], // Clear predictions when country changes
+          predictionsError: null,
+        });
+      },
+
+      selectLeague: (league) => {
+        set({
+          selectedLeague: league,
+          // Don't clear predictions immediately if we want to show cached ones while loading
+          // predictions: [],
+          predictionsError: null,
+          searchQuery: "", // Clear search when changing league
+          searchMatches: [],
+        });
+        if (league) {
+          get().fetchPredictions();
+        }
+      },
+
+      fetchPredictions: async () => {
+        const { selectedLeague, sortBy, sortDesc } = get();
+        if (!selectedLeague) {
+          set({ predictions: [] });
+          return;
+        }
+
+        set({ predictionsLoading: true, predictionsError: null });
+        try {
+          const response = await predictionsApi.getPredictions(
+            selectedLeague.id,
+            30,
+            sortBy,
+            sortDesc
+          );
+          set({ predictions: response.predictions });
+
+          // Persist to localStorage with observer
+          localStorageObserver.persist(
+            `prediction-storage-predictions-${selectedLeague.id}`,
+            {
+              predictions: response.predictions,
+              timestamp: new Date().toISOString(),
+            },
+            500
+          );
+
+          useOfflineStore.getState().setBackendAvailable(true);
+          useOfflineStore.getState().updateLastSync();
+        } catch (err: any) {
+          console.error("Error loading predictions:", err);
+
+          const isNetworkError =
+            err.message === "Network Error" || err.code === "ERR_NETWORK";
+          if (isNetworkError) {
+            useOfflineStore.getState().setBackendAvailable(false);
+          }
+
+          // If persistence worked, 'predictions' still has old data.
+          // We set error so UI can show "Offline Mode" badge.
+          set({ predictionsError: err.message || "Error loading predictions" });
+        } finally {
+          set({ predictionsLoading: false });
+        }
+      },
+
+      setSearchQuery: (query) => {
+        set({ searchQuery: query });
+        if (query.length > 2) {
+          get().performSearch(query);
+        } else {
+          set({ searchMatches: [] });
+        }
+      },
+
+      performSearch: async (query) => {
+        set({ searchLoading: true });
+        try {
+          const matchPredictions = await predictionsApi.getTeamMatches(query);
+          set({ searchMatches: matchPredictions });
+          useOfflineStore.getState().setBackendAvailable(true);
+        } catch (err: any) {
+          console.error("Search error", err);
+          const isNetworkError =
+            err.message === "Network Error" || err.code === "ERR_NETWORK";
+          if (isNetworkError) {
+            useOfflineStore.getState().setBackendAvailable(false);
+          }
+          set({ searchMatches: [] });
+        } finally {
+          set({ searchLoading: false });
+        }
+      },
+
+      setSortBy: (sortBy) => {
+        set({ sortBy });
+        if (get().selectedLeague) {
+          get().fetchPredictions();
+        }
+      },
+
+      resetFilters: () => {
+        set({ selectedCountry: null, selectedLeague: null, searchQuery: "" });
+      },
+    }),
+    {
+      name: "prediction-storage", // unique name
+      // We only want to persist critical data, NOT loading states or errors
+      partialize: (state) => ({
+        leaguesData: state.leaguesData,
+        selectedCountry: state.selectedCountry,
+        selectedLeague: state.selectedLeague,
+        predictions: state.predictions,
+        sortBy: state.sortBy,
+        sortDesc: state.sortDesc,
+        // Don't persist search results or loading/error states
+      }),
+    }
+  )
+);

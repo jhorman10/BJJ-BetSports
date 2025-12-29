@@ -43,7 +43,10 @@ const LiveMatchDetailsModal: React.FC = () => {
       TransitionProps={{ direction: "up" } as TransitionProps}
       PaperProps={{
         sx: {
+          width: { xs: "95%", sm: "100%" },
+          margin: { xs: 1, sm: 2 },
           borderRadius: 2,
+          maxHeight: { xs: "90vh", sm: "calc(100% - 64px)" },
           background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)",
           color: "white",
         },
@@ -59,7 +62,7 @@ const LiveMatchDetailsModal: React.FC = () => {
       >
         <Box display="flex" alignItems="center" gap={1}>
           <SportsSoccer color="primary" />
-          <Typography variant="h6" fontWeight="bold">
+          <Typography component="span" variant="h6" fontWeight="bold">
             En Vivo
           </Typography>
         </Box>
@@ -68,7 +71,7 @@ const LiveMatchDetailsModal: React.FC = () => {
         </IconButton>
       </DialogTitle>
 
-      <DialogContent>
+      <DialogContent sx={{ overflowX: "hidden", px: { xs: 2, sm: 3 } }}>
         {/* Live Score Board */}
         <LiveScoreBoard match={match} />
 

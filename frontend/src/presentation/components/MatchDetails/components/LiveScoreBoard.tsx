@@ -1,5 +1,12 @@
 import React from "react";
-import { Box, Typography, Paper, Chip } from "@mui/material";
+import {
+  Box,
+  Typography,
+  Paper,
+  Chip,
+  useTheme,
+  useMediaQuery,
+} from "@mui/material";
 import { Timer } from "@mui/icons-material";
 import { Match, MatchEvent } from "../../../../domain/entities/match";
 
@@ -8,6 +15,9 @@ interface LiveScoreBoardProps {
 }
 
 export const LiveScoreBoard: React.FC<LiveScoreBoardProps> = ({ match }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
   const getGoalEvents = (teamId: string) =>
     match.events
       ?.filter(
@@ -22,7 +32,7 @@ export const LiveScoreBoard: React.FC<LiveScoreBoardProps> = ({ match }) => {
           variant="caption"
           display="block"
           color="text.secondary"
-          sx={{ lineHeight: 1.2 }}
+          sx={{ lineHeight: 1.2, fontSize: isMobile ? "0.7rem" : "0.75rem" }}
         >
           ⚽ {e.player_name} ({e.time}')
         </Typography>
@@ -32,7 +42,7 @@ export const LiveScoreBoard: React.FC<LiveScoreBoardProps> = ({ match }) => {
     <Paper
       elevation={3}
       sx={{
-        p: 3,
+        p: { xs: 1.5, sm: 3 }, // Reduced padding on mobile
         mb: 3,
         background: "rgba(255, 255, 255, 0.05)",
         backdropFilter: "blur(10px)",
@@ -45,25 +55,39 @@ export const LiveScoreBoard: React.FC<LiveScoreBoardProps> = ({ match }) => {
         justifyContent="space-between"
         alignItems="center"
         mb={2}
+        flexDirection={isMobile ? "column" : "row"}
+        gap={isMobile ? 2 : 0}
       >
         {/* Home Team */}
-        <Box textAlign="center" flex={1}>
+        <Box
+          textAlign="center"
+          flex={1}
+          width="100%"
+          order={isMobile ? 2 : 1}
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+        >
+          {isMobile && match.home_team.logo_url && (
+            <Box
+              component="img"
+              src={match.home_team.logo_url}
+              sx={{ width: 30, height: 30, mr: 1, objectFit: "contain" }}
+            />
+          )}
           <Typography
-            variant="h6"
+            variant={isMobile ? "body1" : "h6"}
             fontWeight="bold"
             sx={{
-              height: 48,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
+              lineHeight: 1.2,
             }}
           >
             {match.home_team.name}
           </Typography>
         </Box>
 
-        {/* Score & Time */}
-        <Box textAlign="center" px={2}>
+        {/* Score & Time - Center */}
+        <Box textAlign="center" px={2} order={isMobile ? 1 : 2} minWidth={120}>
           <Box
             display="flex"
             flexDirection="column"
@@ -72,9 +96,10 @@ export const LiveScoreBoard: React.FC<LiveScoreBoardProps> = ({ match }) => {
             mb={1}
           >
             <Chip
-              icon={<Timer sx={{ fontSize: "1.2rem !important" }} />}
+              icon={<Timer sx={{ fontSize: "1rem !important" }} />}
               label={match.status}
               color={match.status === "LIVE" ? "error" : "default"}
+              size="small"
               sx={{
                 fontWeight: "bold",
                 px: 1,
@@ -90,7 +115,7 @@ export const LiveScoreBoard: React.FC<LiveScoreBoardProps> = ({ match }) => {
             {/* Big Visible Clock */}
             {match.minute && (
               <Typography
-                variant="h4"
+                variant={isMobile ? "h5" : "h4"}
                 color="#4ade80"
                 fontWeight="900"
                 sx={{ fontFamily: "monospace", letterSpacing: 1 }}
@@ -100,41 +125,63 @@ export const LiveScoreBoard: React.FC<LiveScoreBoardProps> = ({ match }) => {
             )}
           </Box>
 
-          <Typography variant="h2" fontWeight="900" sx={{ letterSpacing: 4 }}>
+          <Typography
+            variant={isMobile ? "h3" : "h2"}
+            fontWeight="900"
+            sx={{ letterSpacing: isMobile ? 2 : 4 }}
+          >
             {match.home_goals ?? 0} - {match.away_goals ?? 0}
           </Typography>
         </Box>
 
         {/* Away Team */}
-        <Box textAlign="center" flex={1}>
+        <Box
+          textAlign="center"
+          flex={1}
+          width="100%"
+          order={isMobile ? 3 : 3}
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+        >
           <Typography
-            variant="h6"
+            variant={isMobile ? "body1" : "h6"}
             fontWeight="bold"
             sx={{
-              height: 48,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
+              lineHeight: 1.2,
             }}
           >
             {match.away_team.name}
           </Typography>
+          {isMobile && match.away_team.logo_url && (
+            <Box
+              component="img"
+              src={match.away_team.logo_url}
+              sx={{ width: 30, height: 30, ml: 1, objectFit: "contain" }}
+            />
+          )}
         </Box>
       </Box>
 
-      {/* Scorers Row */}
-      <Box
-        display="flex"
-        justifyContent="space-between"
-        alignItems="flex-start"
-      >
-        <Box flex={1} textAlign="left" pl={1}>
-          {getGoalEvents(match.home_team.id)}
+      {/* Scorers Row - Conditional display or simplified */}
+      {getGoalEvents(match.home_team.id)?.length ||
+      getGoalEvents(match.away_team.id)?.length ? (
+        <Box
+          display="flex"
+          justifyContent="space-between"
+          alignItems="flex-start"
+          mt={2}
+          pt={2}
+          borderTop="1px solid rgba(255,255,255,0.1)"
+        >
+          <Box flex={1} textAlign="left" pl={1}>
+            {getGoalEvents(match.home_team.id)}
+          </Box>
+          <Box flex={1} textAlign="right" pr={1}>
+            {getGoalEvents(match.away_team.id)}
+          </Box>
         </Box>
-        <Box flex={1} textAlign="right" pr={1}>
-          {getGoalEvents(match.away_team.id)}
-        </Box>
-      </Box>
+      ) : null}
     </Paper>
   );
 };

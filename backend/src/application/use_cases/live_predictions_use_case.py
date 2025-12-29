@@ -191,8 +191,9 @@ class GetLivePredictionsUseCase:
                 league_averages = None 
 
         # 2. Fallback to shallow fetch (API-Football) if no training stats
+        # 2. Fallback to aggregated fetch (CSV + OpenFootball + APIs)
         if not home_stats or not away_stats:
-             historical_matches = await self._get_historical_data(internal_code)
+             historical_matches = await self._get_aggregated_history(match)
              
              if not home_stats:
                  home_stats = self.statistics_service.calculate_team_statistics(
@@ -207,11 +208,10 @@ class GetLivePredictionsUseCase:
              
              league_averages = self.statistics_service.calculate_league_averages(historical_matches) if historical_matches else None
              if historical_matches:
-                 data_sources_used.append("Football-Data.co.uk (Recent)")
+                 data_sources_used.append("Aggregated History (CSV/API)")
         else:
              # We used deep stats, but maybe we still want league averages from recent data?
-             # For now, let's skip expensive league calculation or fetch it cheaply.
-             historical_matches = await self._get_historical_data(internal_code)
+             historical_matches = await self._get_aggregated_history(match)
              league_averages = self.statistics_service.calculate_league_averages(historical_matches) if historical_matches else None
 
         
@@ -224,7 +224,17 @@ class GetLivePredictionsUseCase:
         )
         
         # Generate Suggested Picks
-        picks_container = self.picks_service.generate_suggested_picks(prediction, match)
+        picks_container = self.picks_service.generate_suggested_picks(
+            match=match,
+            home_stats=home_stats,
+            away_stats=away_stats,
+            league_averages=league_averages,
+            predicted_home_goals=prediction.predicted_home_goals,
+            predicted_away_goals=prediction.predicted_away_goals,
+            home_win_prob=prediction.home_win_probability,
+            draw_prob=prediction.draw_probability,
+            away_win_prob=prediction.away_win_probability,
+        )
         
         # Convert to DTO
         prediction_dto = self._prediction_to_dto(prediction, picks_container.picks)
@@ -234,32 +244,110 @@ class GetLivePredictionsUseCase:
         
         return prediction_dto
     
-    async def _get_historical_data(self, league_code: Optional[str]) -> List[Match]:
-        """Get historical data for a league, using cache when available."""
-        if not league_code or league_code == "UNKNOWN":
-            return []
+    async def _get_aggregated_history(self, match: Match) -> List[Match]:
+        """
+        Get historical matches from ALL available sources and unify them.
+        Identical strategy to SuggestedPicksUseCase for consistency.
+        """
+        import asyncio
+        from src.infrastructure.data_sources.api_football import LEAGUE_ID_MAPPING
         
-        seasons_key = "2425_2324"
+        internal_league_code = self._get_internal_league_code(match)
         
-        # Check cache
-        cached = self.cache_service.get_historical(league_code, seasons_key)
-        if cached is not None:
-            return cached
+        logger.info(f"Aggregating live prediction data for {match.home_team.name} vs {match.away_team.name}")
         
-        # Fetch from data source
+        tasks = []
+        
+        # 1. CSV Data Task
+        if internal_league_code:
+            tasks.append(self._fetch_csv_history(internal_league_code))
+            
+        # 2. OpenFootball Task
+        if internal_league_code and self.data_sources.openfootball:
+            tasks.append(self._fetch_openfootball_history(internal_league_code))
+            
+        # 3. Team History Task
+        tasks.append(self._fetch_team_history_apis(match))
+        
+        # Execute in parallel
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        all_matches = []
+        for result in results:
+            if isinstance(result, list):
+                all_matches.extend(result)
+            elif isinstance(result, Exception):
+                logger.warning(f"Error in data source fetch: {result}")
+                
+        # 4. Unify
+        return self._deduplicate_and_merge(all_matches)
+
+    async def _fetch_csv_history(self, league_code: str) -> list[Match]:
         try:
-            historical = await self.data_sources.football_data_uk.get_historical_matches(
+            return await self.data_sources.football_data_uk.get_historical_matches(
                 league_code,
                 seasons=["2425", "2324"],
             )
-            
-            if historical:
-                self.cache_service.set_historical(league_code, seasons_key, historical)
-            
-            return historical
-        except Exception as e:
-            logger.warning(f"Failed to fetch historical data for {league_code}: {e}")
+        except Exception:
             return []
+
+    async def _fetch_openfootball_history(self, league_code: str) -> list[Match]:
+        try:
+            from src.infrastructure.data_sources.football_data_uk import LEAGUES_METADATA
+            if league_code in LEAGUES_METADATA:
+                meta = LEAGUES_METADATA[league_code]
+                temp_league = League(
+                    id=league_code,
+                    name=meta["name"],
+                    country=meta["country"],
+                )
+                matches = await self.data_sources.openfootball.get_matches(temp_league)
+                return [m for m in matches if m.status in ["FT", "AET", "PEN"]]
+        except Exception:
+            pass
+        return []
+
+    async def _fetch_team_history_apis(self, match: Match) -> list[Match]:
+        team_matches = []
+        
+        # Strategy A: Football-Data.org
+        if self.data_sources.football_data_org.is_configured:
+            try:
+                h_hist = await self.data_sources.football_data_org.get_team_history(match.home_team.name, limit=10)
+                a_hist = await self.data_sources.football_data_org.get_team_history(match.away_team.name, limit=10)
+                team_matches.extend(h_hist + a_hist)
+            except Exception:
+                pass
+
+        # Strategy B: API-Football
+        if self.data_sources.api_football.is_configured:
+            try:
+                h_hist = await self.data_sources.api_football.get_team_history(match.home_team.id, limit=10)
+                a_hist = await self.data_sources.api_football.get_team_history(match.away_team.id, limit=10)
+                team_matches.extend(h_hist + a_hist)
+            except Exception:
+                pass
+                
+        return team_matches
+
+    def _deduplicate_and_merge(self, matches: list[Match]) -> list[Match]:
+        unique_map = {}
+        for m in matches:
+            date_key = m.match_date.strftime("%Y-%m-%d")
+            h_key = "".join(filter(str.isalpha, m.home_team.name)).lower()[:10]
+            a_key = "".join(filter(str.isalpha, m.away_team.name)).lower()[:10]
+            key = f"{date_key}|{h_key}|{a_key}"
+            
+            if key not in unique_map:
+                unique_map[key] = m
+            else:
+                existing = unique_map[key]
+                if m.home_corners is not None and existing.home_corners is None:
+                    unique_map[key] = m
+        
+        result = list(unique_map.values())
+        result.sort(key=lambda x: x.match_date, reverse=True)
+        return result
     
     def _get_internal_league_code(self, match: Match) -> Optional[str]:
         """Map API-Football league ID to internal code."""

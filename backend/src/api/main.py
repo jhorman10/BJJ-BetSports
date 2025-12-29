@@ -107,6 +107,39 @@ async def lifespan(app: FastAPI):
     scheduler = get_scheduler()
     cache = get_cache_service()
     
+    # --- NEW: CACHE WARMUP SEQUENCE ---
+    # We want to pre-calculate deep predictions for all upcoming matches
+    # to avoid user wait times ("loading" spinners).
+    
+    from src.domain.services.cache_warmup_service import CacheWarmupService
+    from src.api.dependencies import (
+        get_data_sources, 
+        get_prediction_service,
+        get_statistics_service,
+        get_learning_service
+    )
+    
+    # Initialize services manually since we are outside request context
+    ds = get_data_sources()
+    ps = get_prediction_service()
+    ss = get_statistics_service()
+    ls = get_learning_service()
+    
+    warmup_service = CacheWarmupService(
+        data_sources=ds,
+        cache_service=cache,
+        prediction_service=ps,
+        statistics_service=ss,
+        learning_service=ls
+    )
+    
+    # Run warmup in background so we don't block server startup
+    import asyncio
+    asyncio.create_task(warmup_service.warm_up_predictions(lookahead_days=7))
+    logger.info("🚀 Background Cache Warmup Task Started for upcoming 7 days")
+    
+    # ----------------------------------
+    
     # Check if we already have cached forecasts for today
     today_str = get_today_str()
     
@@ -127,7 +160,6 @@ async def lifespan(app: FastAPI):
         scheduler.start(run_immediate=False)
         
         # Run the job and WAIT for it to complete
-        import asyncio
         await scheduler.run_daily_orchestrated_job()
         logger.info("✓ Initial cache population complete")
     
