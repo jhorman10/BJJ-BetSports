@@ -780,6 +780,19 @@ class PredictionService:
         # If we have very few matches, confidence should be capped
         if data_quality < 0.4:  # Matches < ~10
             confidence = min(confidence, 0.45)
+        
+        # Apply sample size adjustment based on actual match count
+        # This implements statistical uncertainty reduction per Central Limit Theorem
+        total_matches = 0
+        if home_stats and away_stats:
+            total_matches = min(home_stats.matches_played, away_stats.matches_played)
+        
+        if total_matches > 0:
+            confidence = self.adjust_confidence_by_sample_size(
+                base_confidence=confidence,
+                sample_size=total_matches,
+                min_samples=15  # Require 15 matches for full confidence
+            )
             
         return round(min(max(confidence, 0.0), 1.0), 3)
     
