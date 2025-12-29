@@ -137,6 +137,119 @@ class PredictionService:
         )
     
     @staticmethod
+    def calculate_weighted_average(
+        values: list[float],
+        recency_decay: float = 0.1
+    ) -> float:
+        """
+        Calculate weighted average with exponential decay for recent matches.
+        
+        Uses exponential decay to give more weight to recent results:
+        - Last match gets weight = 1.0
+        - Previous match gets weight = exp(-decay)
+        - Earlier matches get progressively less weight
+        
+        This implements recency bias, crucial for capturing team form.
+        
+        Args:
+            values: List of values (e.g., goals scored in each match), newest first
+            recency_decay: Decay factor (default 0.1 = ~90% weight after 1 match)
+            
+        Returns:
+            Weighted average giving more importance to recent matches
+            
+        Example:
+            goals = [2, 1, 3, 0, 2]  # Last 5 matches, newest first
+            weighted_avg = calculate_weighted_average(goals, decay=0.1)
+            # Recent 2 goals count more than older 0 goals
+        """
+        if not values:
+            return 0.0
+        
+        import numpy as np
+        weights = np.exp(-recency_decay * np.arange(len(values)))
+        weighted_sum = sum(v * w for v, w in zip(values, weights))
+        weight_total = sum(weights)
+        
+        return weighted_sum / weight_total if weight_total > 0 else 0.0
+    
+    @staticmethod
+    def calculate_form_factor(
+        recent_goals: list[float],
+        season_average: float
+    ) -> float:
+        """
+        Calculate team's current form relative to season performance.
+        
+        Form factor > 1.0 means team is in hot form (scoring above average)
+        Form factor < 1.0 means team is struggling (scoring below average)
+        
+        This captures momentum and recent tactical/personnel changes.
+        
+        Args:
+            recent_goals: Goals in last 5 matches
+            season_average: Average goals per match over full season
+            
+        Returns:
+            Form factor (1.0 = normal form, >1.0 = hot, <1.0 = cold)
+            
+        Example:
+            recent = [2, 3, 2, 1, 2]  # Hot streak, 2 goals/match
+            season_avg = 1.2  # Season average
+            form = calculate_form_factor(recent, season_avg)
+            # form = 2.0 / 1.2 = 1.67 (67% above average!)
+        """
+        if not recent_goals or season_average <= 0:
+            return 1.0
+        
+        recent_avg = sum(recent_goals) / len(recent_goals)
+        return min(2.0, max(0.5, recent_avg / season_average))
+    
+    @staticmethod
+    def adjust_confidence_by_sample_size(
+        base_confidence: float,
+        sample_size: int,
+        min_samples: int = 10
+    ) -> float:
+        """
+        Adjust confidence score based on data sample size.
+        
+        Implements statistical uncertainty reduction:
+        - Small samples (< min_samples) get penalized
+        - Large samples (> 2*min_samples) get bonus
+        - Uses sqrt scaling (Central Limit Theorem)
+        
+        Args:
+            base_confidence: Initial confidence score (0-1)
+            sample_size: Number of historical matches used
+            min_samples: Minimum for full confidence (default 10)
+            
+        Returns:
+            Adjusted confidence score (0-1)
+            
+        Example:
+            confidence = 0.7
+            # With only 5 matches:
+            adjusted = adjust_confidence_by_sample_size(0.7, 5, min_samples=10)
+            # adjusted ≈ 0.49 (reduced by ~30% due to small sample)
+            
+            # With 25 matches:
+            adjusted = adjust_confidence_by_sample_size(0.7, 25, min_samples=10)
+            # adjusted ≈ 0.88 (boosted by large sample)
+        """
+        if sample_size <= 0:
+            return 0.0
+        
+        import math
+        # Penalty/bonus factor based on sqrt(n)
+        size_factor = math.sqrt(sample_size / min_samples)
+        # Cap at 1.5x for very large samples, min at 0.5x for very small
+        size_factor = min(1.5, max(0.5, size_factor))
+        
+        adjusted = base_confidence * size_factor
+        return min(1.0, max(0.0, adjusted))
+    
+    @staticmethod
     @functools.lru_cache(maxsize=1024)
     def poisson_probability(expected: float, actual: int) -> float:
         """

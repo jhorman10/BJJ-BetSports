@@ -561,7 +561,7 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                       <Box
                         sx={{
                           display: "flex",
-                          alignItems = "baseline",
+                          alignItems: "baseline",
                           gap: 1,
                         }}
                       >
