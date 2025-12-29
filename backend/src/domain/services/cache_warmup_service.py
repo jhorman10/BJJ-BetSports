@@ -62,36 +62,53 @@ class CacheWarmupService:
             logger.warning("No matches found for warmup.")
             return
 
-        # 2. Process sequentially
+        # 2. Process in parallel batches for better performance
+        BATCH_SIZE = 3  # Process 3 matches at a time
         total_processed = 0
         league_predictions: Dict[str, List[MatchPredictionDTO]] = {}
         processed_leagues = {} # To keep track of league details for DTO
         
-        for match in upcoming_matches:
-            # Run one by one
-            result = await self._process_single_match(match)
-            total_processed += 1
+        # Process matches in batches
+        for i in range(0, len(upcoming_matches), BATCH_SIZE):
+            batch = upcoming_matches[i:i+BATCH_SIZE]
             
-            # 3. Aggregate for League Cache
-            if result:
-                league_id = match.league.id
-                if league_id not in league_predictions:
-                    league_predictions[league_id] = []
-                    processed_leagues[league_id] = match.league
-
-                # Convert MatchSuggestedPicksDTO to MatchPredictionDTO for the list view
-                mp_dto = MatchPredictionDTO(
-                    match=result.match,
-                    prediction=result.prediction,
-                )
+            # Process batch in parallel
+            results = await asyncio.gather(
+                *[self._process_single_match(match) for match in batch],
+                return_exceptions=True
+            )
+            
+            # Aggregate results
+            for match, result in zip(batch, results):
+                total_processed += 1
                 
-                league_predictions[league_id].append(mp_dto)
+                # Skip if processing failed
+                if isinstance(result, Exception):
+                    logger.error(f"Failed to process {match.home_team.name} vs {match.away_team.name}: {result}")
+                    continue
+                
+                # 3. Aggregate for League Cache
+                if result:
+                    league_id = match.league.id
+                    if league_id not in league_predictions:
+                        league_predictions[league_id] = []
+                        processed_leagues[league_id] = match.league
+
+                    # Convert MatchSuggestedPicksDTO to MatchPredictionDTO for the list view
+                    mp_dto = MatchPredictionDTO(
+                        match=result.match,
+                        prediction=result.prediction,
+                    )
+                    
+                    league_predictions[league_id].append(mp_dto)
             
-            if total_processed % 5 == 0:
+            # Progress logging
+            if total_processed % 5 == 0 or total_processed == len(upcoming_matches):
                  logger.info(f"🔥 Warmup Progress: {total_processed}/{len(upcoming_matches)} matches processed")
             
-            # Polite delay
-            await asyncio.sleep(7) 
+            # Polite delay between batches (reduced from 7s per match to 3s per batch)
+            if i + BATCH_SIZE < len(upcoming_matches):
+                await asyncio.sleep(3) 
 
         # 4. Save Aggregated League Caches
         COLOMBIA_TZ = timezone('America/Bogota')
@@ -115,10 +132,39 @@ class CacheWarmupService:
             )
             
             cache_key = f"forecasts:league_{league_id}:date_{today_str}"
-            self.cache_service.set(cache_key, response_dto.model_dump(), ttl_seconds=3600*24)
-            logger.info(f"✅ Cached Aggregated Predictions for League {league_id} ({len(preds)} matches)")
+            # Use shorter TTL for league aggregates (12h instead of 24h)
+            self.cache_service.set(cache_key, response_dto.model_dump(), ttl_seconds=3600*12)
+            logger.info(f"✅ Cached Aggregated Predictions for League {league_id} ({len(preds)} matches, TTL: 12h)")
 
         logger.info("🔥 Cache Warmup Complete! All matches are pre-cached.")
+
+    def _calculate_cache_ttl(self, match: Match) -> int:
+        """
+        Calculate dynamic TTL based on match start time.
+        - Matches starting in >24h: 12h TTL
+        - Matches starting in 6-24h: 6h TTL  
+        - Matches starting in <6h: 2h TTL
+        """
+        if not match.utc_date:
+            return 3600 * 12  # Default 12h
+        
+        COLOMBIA_TZ = timezone('America/Bogota')
+        now = datetime.now(COLOMBIA_TZ)
+        
+        # Parse match start time
+        try:
+            match_start = datetime.fromisoformat(match.utc_date.replace('Z', '+00:00'))
+            match_start = match_start.astimezone(COLOMBIA_TZ)
+            time_until_match = (match_start - now).total_seconds()
+            
+            if time_until_match > 86400:  # >24 hours
+                return 3600 * 12  # 12h cache
+            elif time_until_match > 21600:  # >6 hours
+                return 3600 * 6   # 6h cache
+            else:  # <6 hours or already started
+                return 3600 * 2   # 2h cache
+        except:
+            return 3600 * 12  # Default on parse error
 
     # ... (rest of _fetch_all_upcoming_matches is unchanged, skipping in replacement content if not replaced)
 
@@ -128,9 +174,11 @@ class CacheWarmupService:
             result = await self.picks_use_case.execute(match.id)
             
             if result:
+                # Use dynamic TTL based on match start time
+                ttl = self._calculate_cache_ttl(match)
                 cache_key = f"forecasts:match_{match.id}"
-                self.cache_service.set(cache_key, result.model_dump(), ttl_seconds=3600*24) # 24h cache
-                logger.info(f"  ✓ Cached: {match.home_team.name} vs {match.away_team.name}")
+                self.cache_service.set(cache_key, result.model_dump(), ttl_seconds=ttl)
+                logger.info(f"  ✓ Cached: {match.home_team.name} vs {match.away_team.name} (TTL: {ttl//3600}h)")
                 return result
             else:
                 logger.warning(f"  ✗ Failed to generate picks for: {match.id}")
