@@ -113,10 +113,14 @@ class PredictionService:
             if team_stats.home_matches_played >= 3:
                 attack = team_stats.home_goals_per_match / avg_goals_scored
                 defense = team_stats.home_goals_conceded_per_match / avg_goals_conceded
+                season_avg_attack = team_stats.home_goals_per_match
+                season_avg_defense = team_stats.home_goals_conceded_per_match
             else:
                 # Fallback to overall stats but slightly penalized for lack of venue data
                 attack = team_stats.goals_per_match / avg_goals_scored
                 defense = team_stats.goals_conceded_per_match / avg_goals_conceded
+                season_avg_attack = team_stats.goals_per_match
+                season_avg_defense = team_stats.goals_conceded_per_match
         else:
             # Away Attack vs League Avg Away Goals
             avg_goals_scored = league_averages.avg_away_goals if league_averages.avg_away_goals > 0 else 1.2
@@ -127,12 +131,31 @@ class PredictionService:
             if team_stats.away_matches_played >= 3:
                 attack = team_stats.away_goals_per_match / avg_goals_scored
                 defense = team_stats.away_goals_conceded_per_match / avg_goals_conceded
+                season_avg_attack = team_stats.away_goals_per_match
+                season_avg_defense = team_stats.away_goals_conceded_per_match
             else:
                 attack = team_stats.goals_per_match / avg_goals_scored
                 defense = team_stats.goals_conceded_per_match / avg_goals_conceded
-            
+                season_avg_attack = team_stats.goals_per_match
+                season_avg_defense = team_stats.goals_conceded_per_match
+        
+        # Apply form factor adjustment based on recent performance (last 5 matches)
+        # Extract goals from recent_form to analyze momentum
+        # form_factor > 1.0 = hot form, < 1.0 = cold form
+        form_factor_attack = 1.0
+        if team_stats.recent_form and len(team_stats.recent_form) >= 3:
+            # Estimate recent performance: W=3pts, D=1pt, L=0pts as proxy for goals
+            recent_points = sum(3 if r == 'W' else 1 if r == 'D' else 0 for r in team_stats.recent_form[-5:])
+            expected_points = 1.5 * len(team_stats.recent_form[-5:])  # Avg team gets ~1.5 pts/match
+            if expected_points > 0:
+                # Form factor: (recent_performance / expected) clamped to [0.8, 1.2]
+                form_factor_attack = min(1.2, max(0.8, recent_points / expected_points))
+        
+        # Apply form adjustment to attack strength
+        attack_adjusted = attack * form_factor_attack
+        
         return TeamStrength(
-            attack_strength=max(0.1, attack),
+            attack_strength=max(0.1, attack_adjusted),
             defense_strength=max(0.1, defense),
         )
     
