@@ -497,16 +497,16 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
               ))}
             </Paper>
 
-            {/* Recomendación Final - Modern Glassmorphism Redesign */}
+            {/* Recomendación Final - Compact & Sophisticated Refinement */}
             <Box
               sx={{
-                p: { xs: 2.5, sm: 3 },
+                p: { xs: 2, sm: 2.5 },
                 mt: 3,
                 background:
-                  "linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(5, 150, 105, 0.03) 100%)",
-                backdropFilter: "blur(12px)",
-                border: "1px solid rgba(16, 185, 129, 0.25)",
-                borderRadius: 4,
+                  "linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(5, 150, 105, 0.02) 100%)",
+                backdropFilter: "blur(10px)",
+                border: "1px solid rgba(16, 185, 129, 0.2)",
+                borderRadius: 3,
                 position: "relative",
                 overflow: "hidden",
                 "&::before": {
@@ -515,9 +515,9 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                   top: 0,
                   left: 0,
                   right: 0,
-                  height: "2px",
+                  height: "1px",
                   background:
-                    "linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.5), transparent)",
+                    "linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.3), transparent)",
                 },
               }}
             >
@@ -526,26 +526,26 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                 <Grid size={{ xs: 12 }}>
                   <Box
                     sx={{
-                      p: { xs: 2.5, sm: 4 },
-                      borderRadius: 3,
-                      background: "rgba(16, 185, 129, 0.05)",
-                      border: "1px solid rgba(16, 185, 129, 0.15)",
+                      p: { xs: 1.5, sm: 2.5 },
+                      borderRadius: 2,
+                      background: "rgba(16, 185, 129, 0.03)",
+                      border: "1px solid rgba(16, 185, 129, 0.1)",
                       textAlign: "center",
                       display: "flex",
                       flexDirection: "column",
                       alignItems: "center",
-                      gap: 2,
+                      gap: 1.5,
                     }}
                   >
                     <Typography
                       variant="overline"
                       sx={{
-                        fontSize: "0.75rem",
+                        fontSize: "0.65rem",
                         fontWeight: 700,
                         letterSpacing: 2,
                         color: "success.light",
-                        opacity: 0.9,
-                        mb: 1,
+                        opacity: 0.8,
+                        mb: 0.5,
                       }}
                     >
                       🎯 RECOMENDACIÓN PRINCIPAL
@@ -553,88 +553,83 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
 
                     <Box
                       display="flex"
-                      flexDirection="column"
+                      flexDirection={{ xs: "column", sm: "row" }}
                       alignItems="center"
+                      justifyContent="center"
                       width="100%"
-                      gap={3}
+                      gap={{ xs: 2, sm: 4 }}
                     >
                       {/* Bet Type - Large and clear */}
+                      {/* Bet Type - Smaller & More Refined */}
                       <Chip
                         label={translateRecommendedBet(
                           details.prediction.recommended_bet
                         )}
                         sx={{
-                          fontSize: "1.25rem",
+                          fontSize: "1.05rem",
                           fontWeight: 800,
-                          height: 56,
-                          px: 3,
+                          height: 48,
+                          px: 2.5,
                           background:
                             "linear-gradient(135deg, #10B981 0%, #059669 100%)",
                           color: "#fff",
-                          boxShadow: "0 8px 20px rgba(16, 185, 129, 0.3)",
+                          boxShadow: "0 4px 12px rgba(16, 185, 129, 0.25)",
                           border: "none",
                           "& .MuiChip-label": {
-                            px: 3,
+                            px: 2,
                           },
                         }}
                       />
 
-                      {/* Confidence - Prominent display */}
+                      {/* Confidence - More Integrated */}
                       <Box
                         sx={{
                           display: "flex",
                           flexDirection: "column",
                           alignItems: "center",
-                          gap: 0,
+                          gap: -0.5,
                         }}
                       >
-                        <Box
+                        <Typography
+                          variant="h3"
                           sx={{
-                            display: "flex",
-                            alignItems: "baseline",
-                            gap: 1,
+                            fontWeight: 900,
+                            background:
+                              "linear-gradient(180deg, #10B981 0%, #6EE7B7 100%)",
+                            WebkitBackgroundClip: "text",
+                            WebkitTextFillColor: "transparent",
+                            lineHeight: 1,
+                            fontSize: { xs: "2.5rem", sm: "3rem" },
+                            letterSpacing: -0.5,
                           }}
                         >
-                          <Typography
-                            variant="h1"
-                            sx={{
-                              fontWeight: 900,
-                              background:
-                                "linear-gradient(180deg, #10B981 0%, #6EE7B7 100%)",
-                              WebkitBackgroundClip: "text",
-                              WebkitTextFillColor: "transparent",
-                              lineHeight: 1,
-                              fontSize: { xs: "3.5rem", sm: "4.5rem" },
-                              letterSpacing: -1,
-                            }}
-                          >
-                            {(details.prediction.confidence * 100).toFixed(0)}%
-                          </Typography>
-                        </Box>
+                          {(details.prediction.confidence * 100).toFixed(0)}%
+                        </Typography>
                         <Typography
                           variant="caption"
                           sx={{
                             color: "success.light",
-                            letterSpacing: 2,
+                            letterSpacing: 1.5,
                             fontWeight: 700,
                             textTransform: "uppercase",
-                            opacity: 0.6,
-                            mt: 1,
+                            fontSize: "0.6rem",
+                            opacity: 0.5,
                           }}
                         >
-                          Índice de Confianza
+                          Confianza
                         </Typography>
                       </Box>
                     </Box>
 
-                    {/* Over/Under - Clear secondary info */}
-                    <Box mt={2} display="flex" alignItems="center" gap={1}>
+                    {/* Over/Under - Compact secondary info */}
+                    <Box mt={1} display="flex" alignItems="center" gap={1}>
                       <Typography
                         variant="caption"
                         sx={{
                           color: "success.light",
-                          opacity: 0.7,
-                          fontWeight: 500,
+                          opacity: 0.6,
+                          fontWeight: 600,
+                          fontSize: "0.7rem",
                         }}
                       >
                         Goles:
@@ -645,10 +640,12 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                         )}
                         size="small"
                         variant="outlined"
-                        color="success"
                         sx={{
-                          fontWeight: 600,
-                          borderWidth: 2,
+                          height: 20,
+                          fontSize: "0.65rem",
+                          fontWeight: 700,
+                          borderColor: "rgba(16, 185, 129, 0.3)",
+                          color: "success.light",
                         }}
                       />
                     </Box>
