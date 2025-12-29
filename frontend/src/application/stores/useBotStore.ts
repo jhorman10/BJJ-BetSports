@@ -240,6 +240,26 @@ export const useBotStore = create<BotState>()(
         lastFetchTimestamp: state.lastFetchTimestamp,
         // Don't persist loading/error states
       }),
+      // Fix Date deserialization from localStorage
+      storage: {
+        getItem: (name) => {
+          const str = localStorage.getItem(name);
+          if (!str) return null;
+
+          const { state } = JSON.parse(str);
+          // Convert lastUpdate string back to Date
+          if (state.lastUpdate) {
+            state.lastUpdate = new Date(state.lastUpdate);
+          }
+          return { state };
+        },
+        setItem: (name, value) => {
+          localStorage.setItem(name, JSON.stringify(value));
+        },
+        removeItem: (name) => {
+          localStorage.removeItem(name);
+        },
+      },
     }
   )
 );
