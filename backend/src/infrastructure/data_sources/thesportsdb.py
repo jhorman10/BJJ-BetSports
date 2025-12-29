@@ -123,14 +123,17 @@ class TheSportsDBClient:
                 date_str = event.get("dateEvent")
                 time_str = event.get("strTime")
                 
-                match_date = datetime.utcnow() # Default
+                from src.utils.time_utils import COLOMBIA_TZ
+                match_date = COLOMBIA_TZ.localize(datetime.utcnow()) # Default
                 if date_str and time_str:
                     try:
-                        match_date = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M:%S")
+                        dt = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M:%S")
+                        match_date = COLOMBIA_TZ.localize(dt)
                     except ValueError:
                          # Attempt fallback without seconds
                          try:
-                             match_date = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
+                             dt = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
+                             match_date = COLOMBIA_TZ.localize(dt)
                          except ValueError:
                              pass
 
@@ -192,13 +195,16 @@ class TheSportsDBClient:
             date_str = event.get("dateEvent")
             time_str = event.get("strTime")
             
-            match_date = datetime.utcnow()
+            from src.utils.time_utils import COLOMBIA_TZ
+            match_date = COLOMBIA_TZ.localize(datetime.utcnow())
             if date_str and time_str:
                 try:
-                    match_date = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M:%S")
+                    dt = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M:%S")
+                    match_date = COLOMBIA_TZ.localize(dt)
                 except ValueError:
                      try:
-                         match_date = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
+                         dt = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
+                         match_date = COLOMBIA_TZ.localize(dt)
                      except ValueError:
                          pass
 
@@ -285,13 +291,16 @@ class TheSportsDBClient:
                 date_str = event.get("dateEvent")
                 time_str = event.get("strTime") or "00:00:00"
                 
-                match_date = datetime.utcnow()
+                from src.utils.time_utils import COLOMBIA_TZ
+                match_date = COLOMBIA_TZ.localize(datetime.utcnow())
                 if date_str:
                     try:
-                        match_date = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M:%S")
+                        dt = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M:%S")
+                        match_date = COLOMBIA_TZ.localize(dt)
                     except ValueError:
                         try:
-                            match_date = datetime.strptime(date_str, "%Y-%m-%d")
+                            dt = datetime.strptime(date_str, "%Y-%m-%d")
+                            match_date = COLOMBIA_TZ.localize(dt)
                         except ValueError:
                             pass
 

@@ -169,11 +169,13 @@ class FootballDataUKSource:
             return None
     
     def _parse_date(self, date_str: str) -> Optional[datetime]:
-        """Parse date from CSV format."""
+        """Parse date from CSV format and localize to COLOMBIA_TZ."""
+        from src.utils.time_utils import COLOMBIA_TZ
         formats = ["%d/%m/%Y", "%d/%m/%y", "%Y-%m-%d"]
         for fmt in formats:
             try:
-                return datetime.strptime(date_str, fmt)
+                dt = datetime.strptime(date_str, fmt)
+                return COLOMBIA_TZ.localize(dt)
             except (ValueError, TypeError):
                 continue
         return None

@@ -121,7 +121,9 @@ class OpenFootballSource:
                 if not date_str:
                     continue
                     
-                match_date = datetime.strptime(date_str, "%Y-%m-%d")
+                from src.utils.time_utils import COLOMBIA_TZ
+                dt = datetime.strptime(date_str, "%Y-%m-%d")
+                match_date = COLOMBIA_TZ.localize(dt)
                 
                 # Check if authorized time is present
                 if item.get("time"):

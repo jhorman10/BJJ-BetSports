@@ -250,9 +250,8 @@ class FootballDataOrgSource:
             
             # Parse date
             utc_date = match_data.get("utcDate", "")
-            match_date = datetime.fromisoformat(utc_date.replace("Z", "+00:00"))
-            # Convert to naive datetime for consistency with CSV source
-            match_date = match_date.replace(tzinfo=None)
+            from src.utils.time_utils import COLOMBIA_TZ
+            match_date = datetime.fromisoformat(utc_date.replace("Z", "+00:00")).astimezone(COLOMBIA_TZ)
             
             # Get score if available
             score = match_data.get("score", {}).get("fullTime", {})
