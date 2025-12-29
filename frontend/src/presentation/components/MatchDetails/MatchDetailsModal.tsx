@@ -497,161 +497,132 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
               ))}
             </Paper>
 
-            {/* Recomendación Final - Compact & Sophisticated Refinement */}
+            {/* Recomendación Final - Ultra-Compact & Minimalist */}
             <Box
               sx={{
-                p: { xs: 2, sm: 2.5 },
                 mt: 3,
-                background:
-                  "linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(5, 150, 105, 0.02) 100%)",
-                backdropFilter: "blur(10px)",
-                border: "1px solid rgba(16, 185, 129, 0.2)",
-                borderRadius: 3,
-                position: "relative",
-                overflow: "hidden",
-                "&::before": {
-                  content: '""',
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: "1px",
-                  background:
-                    "linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.3), transparent)",
-                },
+                p: 2,
+                background: "rgba(16, 185, 129, 0.04)",
+                backdropFilter: "blur(8px)",
+                border: "1px solid rgba(16, 185, 129, 0.15)",
+                borderRadius: 2,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 1.5,
               }}
             >
-              <Grid container spacing={3}>
-                {/* Main Recommendation - Full width, prominent */}
-                <Grid size={{ xs: 12 }}>
-                  <Box
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 1,
+                  opacity: 0.8,
+                }}
+              >
+                <Typography
+                  variant="overline"
+                  sx={{
+                    fontSize: "0.6rem",
+                    fontWeight: 800,
+                    letterSpacing: 1.5,
+                    color: "success.light",
+                  }}
+                >
+                  RECOMENDACIÓN
+                </Typography>
+              </Box>
+
+              <Box
+                sx={{
+                  display: "flex",
+                  width: "100%",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 2,
+                  px: 1,
+                }}
+              >
+                {/* Compact Bet Chip */}
+                <Chip
+                  label={translateRecommendedBet(
+                    details.prediction.recommended_bet
+                  )}
+                  size="small"
+                  sx={{
+                    fontSize: "0.85rem",
+                    fontWeight: 700,
+                    height: 32,
+                    px: 1,
+                    background: "rgba(16, 185, 129, 0.15)",
+                    color: "success.light",
+                    border: "1px solid rgba(16, 185, 129, 0.3)",
+                    "& .MuiChip-label": { px: 1.5 },
+                  }}
+                />
+
+                {/* Compact Confidence */}
+                <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.5 }}>
+                  <Typography
                     sx={{
-                      p: { xs: 1.5, sm: 2.5 },
-                      borderRadius: 2,
-                      background: "rgba(16, 185, 129, 0.03)",
-                      border: "1px solid rgba(16, 185, 129, 0.1)",
-                      textAlign: "center",
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      gap: 1.5,
+                      fontWeight: 800,
+                      fontSize: "1.6rem",
+                      color: "success.light",
+                      lineHeight: 1,
                     }}
                   >
-                    <Typography
-                      variant="overline"
-                      sx={{
-                        fontSize: "0.65rem",
-                        fontWeight: 700,
-                        letterSpacing: 2,
-                        color: "success.light",
-                        opacity: 0.8,
-                        mb: 0.5,
-                      }}
-                    >
-                      🎯 RECOMENDACIÓN PRINCIPAL
-                    </Typography>
+                    {(details.prediction.confidence * 100).toFixed(0)}%
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontSize: "0.55rem",
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      color: "success.light",
+                      opacity: 0.5,
+                    }}
+                  >
+                    cnd.
+                  </Typography>
+                </Box>
+              </Box>
 
-                    <Box
-                      display="flex"
-                      flexDirection={{ xs: "column", sm: "row" }}
-                      alignItems="center"
-                      justifyContent="center"
-                      width="100%"
-                      gap={{ xs: 2, sm: 4 }}
-                    >
-                      {/* Bet Type - Large and clear */}
-                      {/* Bet Type - Smaller & More Refined */}
-                      <Chip
-                        label={translateRecommendedBet(
-                          details.prediction.recommended_bet
-                        )}
-                        sx={{
-                          fontSize: "1.05rem",
-                          fontWeight: 800,
-                          height: 48,
-                          px: 2.5,
-                          background:
-                            "linear-gradient(135deg, #10B981 0%, #059669 100%)",
-                          color: "#fff",
-                          boxShadow: "0 4px 12px rgba(16, 185, 129, 0.25)",
-                          border: "none",
-                          "& .MuiChip-label": {
-                            px: 2,
-                          },
-                        }}
-                      />
-
-                      {/* Confidence - More Integrated */}
-                      <Box
-                        sx={{
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: "center",
-                          gap: -0.5,
-                        }}
-                      >
-                        <Typography
-                          variant="h3"
-                          sx={{
-                            fontWeight: 900,
-                            background:
-                              "linear-gradient(180deg, #10B981 0%, #6EE7B7 100%)",
-                            WebkitBackgroundClip: "text",
-                            WebkitTextFillColor: "transparent",
-                            lineHeight: 1,
-                            fontSize: { xs: "2.5rem", sm: "3rem" },
-                            letterSpacing: -0.5,
-                          }}
-                        >
-                          {(details.prediction.confidence * 100).toFixed(0)}%
-                        </Typography>
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            color: "success.light",
-                            letterSpacing: 1.5,
-                            fontWeight: 700,
-                            textTransform: "uppercase",
-                            fontSize: "0.6rem",
-                            opacity: 0.5,
-                          }}
-                        >
-                          Confianza
-                        </Typography>
-                      </Box>
-                    </Box>
-
-                    {/* Over/Under - Compact secondary info */}
-                    <Box mt={1} display="flex" alignItems="center" gap={1}>
-                      <Typography
-                        variant="caption"
-                        sx={{
-                          color: "success.light",
-                          opacity: 0.6,
-                          fontWeight: 600,
-                          fontSize: "0.7rem",
-                        }}
-                      >
-                        Goles:
-                      </Typography>
-                      <Chip
-                        label={translateOverUnder(
-                          details.prediction.over_under_recommendation
-                        )}
-                        size="small"
-                        variant="outlined"
-                        sx={{
-                          height: 20,
-                          fontSize: "0.65rem",
-                          fontWeight: 700,
-                          borderColor: "rgba(16, 185, 129, 0.3)",
-                          color: "success.light",
-                        }}
-                      />
-                    </Box>
-                  </Box>
-                </Grid>
-              </Grid>
+              {/* Ultra-tight Over/Under */}
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.8,
+                  pt: 1,
+                  borderTop: "1px solid rgba(16, 185, 129, 0.1)",
+                  width: "100%",
+                  justifyContent: "center",
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontSize: "0.6rem",
+                    fontWeight: 600,
+                    color: "success.light",
+                    opacity: 0.6,
+                  }}
+                >
+                  GOLES:
+                </Typography>
+                <Typography
+                  sx={{
+                    fontSize: "0.7rem",
+                    fontWeight: 700,
+                    color: "success.light",
+                  }}
+                >
+                  {translateOverUnder(
+                    details.prediction.over_under_recommendation
+                  )}
+                </Typography>
+              </Box>
             </Box>
           </Box>
         )}
