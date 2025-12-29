@@ -507,55 +507,113 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                 borderRadius: 2,
               }}
             >
-              <Grid container spacing={2} alignItems="center">
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <Typography
-                    variant="caption"
-                    color="success.light"
-                    display="block"
-                    mb={0.5}
-                  >
-                    RECOMENDACIÓN PRINCIPAL
-                  </Typography>
-                  <Chip
-                    label={translateRecommendedBet(
-                      details.prediction.recommended_bet
-                    )}
-                    color="success"
-                    sx={{ fontWeight: "bold" }}
-                  />
-                </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
+              <Grid container spacing={3}>
+                {/* Main Recommendation - Full width, prominent */}
+                <Grid size={{ xs: 12 }}>
                   <Box
-                    display="flex"
-                    justifyContent="space-between"
-                    alignItems="center"
+                    sx={{
+                      p: 2.5,
+                      borderRadius: 2,
+                      bgcolor: "success.dark",
+                      border: "2px solid",
+                      borderColor: "success.main",
+                    }}
                   >
-                    <Box>
+                    <Typography
+                      variant="overline"
+                      sx={{
+                        fontSize: "0.7rem",
+                        fontWeight: 600,
+                        letterSpacing: 1.5,
+                        color: "success.light",
+                        opacity: 0.8,
+                      }}
+                    >
+                      🎯 RECOMENDACIÓN PRINCIPAL
+                    </Typography>
+
+                    <Box
+                      display="flex"
+                      alignItems="center"
+                      justifyContent="space-between"
+                      mt={1.5}
+                      flexWrap="wrap"
+                      gap={2}
+                    >
+                      {/* Bet Type - Large and clear */}
+                      <Chip
+                        label={translateRecommendedBet(
+                          details.prediction.recommended_bet
+                        )}
+                        color="success"
+                        sx={{
+                          fontSize: "1.1rem",
+                          fontWeight: "bold",
+                          height: 48,
+                          px: 2,
+                          "& .MuiChip-label": {
+                            px: 2,
+                          },
+                        }}
+                      />
+
+                      {/* Confidence - Prominent display */}
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems = "baseline",
+                          gap: 1,
+                        }}
+                      >
+                        <Typography
+                          variant="h2"
+                          sx={{
+                            fontWeight: 900,
+                            color: "success.light",
+                            lineHeight: 1,
+                            fontSize: { xs: "2.5rem", sm: "3rem" },
+                          }}
+                        >
+                          {(details.prediction.confidence * 100).toFixed(0)}%
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: "success.light",
+                            opacity: 0.7,
+                            fontWeight: 500,
+                          }}
+                        >
+                          confianza
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    {/* Over/Under - Clear secondary info */}
+                    <Box mt={2} display="flex" alignItems="center" gap={1}>
                       <Typography
                         variant="caption"
-                        color="success.light"
-                        display="block"
+                        sx={{
+                          color: "success.light",
+                          opacity: 0.7,
+                          fontWeight: 500,
+                        }}
                       >
-                        CONFIANZA
+                        Goles:
                       </Typography>
-                      <Typography
-                        variant="h4"
-                        fontWeight="900"
-                        color="success.main"
-                      >
-                        {(details.prediction.confidence * 100).toFixed(0)}%
-                      </Typography>
+                      <Chip
+                        label={translateOverUnder(
+                          details.prediction.over_under_recommendation
+                        )}
+                        size="small"
+                        variant="outlined"
+                        color="success"
+                        sx={{
+                          fontWeight: 600,
+                          borderWidth: 2,
+                        }}
+                      />
                     </Box>
-                    {/* Over/Under chip micro */}
-                    <Chip
-                      label={translateOverUnder(
-                        details.prediction.over_under_recommendation
-                      )}
-                      size="small"
-                      variant="outlined"
-                      color="success"
-                    />
                   </Box>
                 </Grid>
               </Grid>

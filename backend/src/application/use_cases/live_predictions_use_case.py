@@ -286,7 +286,7 @@ class GetLivePredictionsUseCase:
         try:
             return await self.data_sources.football_data_uk.get_historical_matches(
                 league_code,
-                seasons=["2425", "2324"],
+                seasons=["2425", "2324", "2223", "2122"],
             )
         except Exception:
             return []
@@ -309,12 +309,14 @@ class GetLivePredictionsUseCase:
 
     async def _fetch_team_history_apis(self, match: Match) -> list[Match]:
         team_matches = []
+        # Aumentamos el límite para mejorar la significancia estadística (Ley de los Grandes Números)
+        HISTORY_LIMIT = 25
         
         # Strategy A: Football-Data.org
         if self.data_sources.football_data_org.is_configured:
             try:
-                h_hist = await self.data_sources.football_data_org.get_team_history(match.home_team.name, limit=10)
-                a_hist = await self.data_sources.football_data_org.get_team_history(match.away_team.name, limit=10)
+                h_hist = await self.data_sources.football_data_org.get_team_history(match.home_team.name, limit=HISTORY_LIMIT)
+                a_hist = await self.data_sources.football_data_org.get_team_history(match.away_team.name, limit=HISTORY_LIMIT)
                 team_matches.extend(h_hist + a_hist)
             except Exception:
                 pass
@@ -322,8 +324,8 @@ class GetLivePredictionsUseCase:
         # Strategy B: API-Football
         if self.data_sources.api_football.is_configured:
             try:
-                h_hist = await self.data_sources.api_football.get_team_history(match.home_team.id, limit=10)
-                a_hist = await self.data_sources.api_football.get_team_history(match.away_team.id, limit=10)
+                h_hist = await self.data_sources.api_football.get_team_history(match.home_team.id, limit=HISTORY_LIMIT)
+                a_hist = await self.data_sources.api_football.get_team_history(match.away_team.id, limit=HISTORY_LIMIT)
                 team_matches.extend(h_hist + a_hist)
             except Exception:
                 pass
@@ -342,7 +344,19 @@ class GetLivePredictionsUseCase:
                 unique_map[key] = m
             else:
                 existing = unique_map[key]
-                if m.home_corners is not None and existing.home_corners is None:
+                # Priorizamos datos con estadísticas más ricas para mejorar la precisión del modelo
+                current_score = 0
+                existing_score = 0
+                
+                if m.home_corners is not None: current_score += 1
+                if m.home_shots_on_target is not None: current_score += 1
+                if m.home_yellow_cards is not None: current_score += 1
+                
+                if existing.home_corners is not None: existing_score += 1
+                if existing.home_shots_on_target is not None: existing_score += 1
+                if existing.home_yellow_cards is not None: existing_score += 1
+                
+                if current_score > existing_score:
                     unique_map[key] = m
         
         result = list(unique_map.values())
