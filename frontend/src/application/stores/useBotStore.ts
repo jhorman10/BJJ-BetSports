@@ -234,12 +234,31 @@ export const useBotStore = create<BotState>()(
     }),
     {
       name: "bot-storage",
-      partialize: (state) => ({
-        stats: state.stats,
-        lastUpdate: state.lastUpdate,
-        lastFetchTimestamp: state.lastFetchTimestamp,
-        // Don't persist loading/error states
-      }),
+      partialize: (state) => {
+        // Only persist summary stats, NOT full match_history (too large)
+        if (!state.stats) {
+          return {
+            stats: null,
+            lastUpdate: state.lastUpdate,
+            lastFetchTimestamp: state.lastFetchTimestamp,
+          };
+        }
+
+        // Extract only essential stats (no match_history)
+        return {
+          stats: {
+            matches_processed: state.stats.matches_processed,
+            correct_predictions: state.stats.correct_predictions,
+            accuracy: state.stats.accuracy,
+            total_bets: state.stats.total_bets,
+            roi: state.stats.roi,
+            profit_units: state.stats.profit_units,
+            // Omit match_history, roi_evolution, pick_efficiency arrays - too large
+          } as any, // Type cast needed since we're not storing full TrainingStatus
+          lastUpdate: state.lastUpdate,
+          lastFetchTimestamp: state.lastFetchTimestamp,
+        };
+      },
       // Fix Date deserialization from localStorage
       storage: {
         getItem: (name) => {

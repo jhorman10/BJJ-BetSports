@@ -128,7 +128,7 @@ export const api = {
       "/api/v1/matches/live/with-predictions",
       {
         params: { filter_target_leagues: filterTargetLeagues },
-        timeout: 10000, // 10s timeout for this endpoint
+        timeout: 30000, // 30s timeout for live matches (increased from 10s)
       }
     );
     return response.data;
