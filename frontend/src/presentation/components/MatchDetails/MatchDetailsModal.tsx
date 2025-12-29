@@ -497,7 +497,7 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
               ))}
             </Paper>
 
-            {/* Recomendación Final - Ultra-Compact & Minimalist */}
+            {/* Recomendación Final - Specified Layout Refinement */}
             <Box
               sx={{
                 mt: 3,
@@ -509,42 +509,32 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
-                gap: 1.5,
+                gap: 2,
               }}
             >
+              <Typography
+                variant="overline"
+                sx={{
+                  fontSize: "0.6rem",
+                  fontWeight: 800,
+                  letterSpacing: 1.5,
+                  color: "success.light",
+                  opacity: 0.8,
+                }}
+              >
+                RECOMENDACIÓN
+              </Typography>
+
+              {/* Victoria y Goles en la misma línea */}
               <Box
                 sx={{
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  gap: 1,
-                  opacity: 0.8,
-                }}
-              >
-                <Typography
-                  variant="overline"
-                  sx={{
-                    fontSize: "0.6rem",
-                    fontWeight: 800,
-                    letterSpacing: 1.5,
-                    color: "success.light",
-                  }}
-                >
-                  RECOMENDACIÓN
-                </Typography>
-              </Box>
-
-              <Box
-                sx={{
-                  display: "flex",
-                  width: "100%",
-                  alignItems: "center",
-                  justifyContent: "space-between",
                   gap: 2,
-                  px: 1,
+                  flexWrap: "wrap",
                 }}
               >
-                {/* Compact Bet Chip */}
                 <Chip
                   label={translateRecommendedBet(
                     details.prediction.recommended_bet
@@ -561,66 +551,69 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                     "& .MuiChip-label": { px: 1.5 },
                   }}
                 />
-
-                {/* Compact Confidence */}
-                <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.5 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                   <Typography
                     sx={{
-                      fontWeight: 800,
-                      fontSize: "1.6rem",
+                      fontSize: "0.65rem",
+                      fontWeight: 600,
                       color: "success.light",
-                      lineHeight: 1,
+                      opacity: 0.6,
+                      textTransform: "uppercase",
                     }}
                   >
-                    {(details.prediction.confidence * 100).toFixed(0)}%
+                    Goles:
                   </Typography>
                   <Typography
-                    variant="caption"
                     sx={{
-                      fontSize: "0.55rem",
+                      fontSize: "0.85rem",
                       fontWeight: 700,
-                      textTransform: "uppercase",
                       color: "success.light",
-                      opacity: 0.5,
                     }}
                   >
-                    cnd.
+                    {translateOverUnder(
+                      details.prediction.over_under_recommendation
+                    )}
                   </Typography>
                 </Box>
               </Box>
 
-              {/* Ultra-tight Over/Under */}
+              {/* Índice de Confianza justo debajo */}
               <Box
                 sx={{
                   display: "flex",
+                  flexDirection: "column",
                   alignItems: "center",
-                  gap: 0.8,
+                  gap: 0,
                   pt: 1,
                   borderTop: "1px solid rgba(16, 185, 129, 0.1)",
                   width: "100%",
-                  justifyContent: "center",
                 }}
               >
                 <Typography
                   sx={{
-                    fontSize: "0.6rem",
-                    fontWeight: 600,
+                    fontWeight: 900,
+                    fontSize: "2rem",
                     color: "success.light",
-                    opacity: 0.6,
+                    lineHeight: 1,
+                    background:
+                      "linear-gradient(180deg, #10B981 0%, #6EE7B7 100%)",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
                   }}
                 >
-                  GOLES:
+                  {(details.prediction.confidence * 100).toFixed(0)}%
                 </Typography>
                 <Typography
                   sx={{
-                    fontSize: "0.7rem",
-                    fontWeight: 700,
+                    fontSize: "0.65rem",
+                    fontWeight: 800,
+                    textTransform: "uppercase",
                     color: "success.light",
+                    opacity: 0.6,
+                    letterSpacing: 1,
                   }}
                 >
-                  {translateOverUnder(
-                    details.prediction.over_under_recommendation
-                  )}
+                  Índice de Confianza
                 </Typography>
               </Box>
             </Box>
