@@ -6,6 +6,7 @@ Contains endpoints for AI-suggested picks and betting feedback.
 
 import logging
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import ORJSONResponse
 
 from src.api.dependencies import (
     get_data_sources,
@@ -37,6 +38,7 @@ router = APIRouter(
 @router.get(
     "/match/{match_id}",
     response_model=MatchSuggestedPicksDTO,
+    response_class=ORJSONResponse,
     summary="Get AI-suggested picks for a match",
     description="Returns AI-suggested betting picks for a match. Checks cache first, then generates on demand.",
 )

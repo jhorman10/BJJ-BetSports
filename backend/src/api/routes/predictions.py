@@ -5,6 +5,7 @@ API endpoints for getting match predictions.
 """
 
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import ORJSONResponse
 
 from src.application.dtos.dtos import (
     PredictionsResponseDTO,
@@ -25,6 +26,7 @@ router = APIRouter(prefix="/predictions", tags=["Predictions"])
 @router.get(
     "/league/{league_id}",
     response_model=PredictionsResponseDTO,
+    response_class=ORJSONResponse,
     responses={
         404: {"model": ErrorResponseDTO, "description": "League not found or no forecast available"},
         500: {"model": ErrorResponseDTO, "description": "Internal server error"},
