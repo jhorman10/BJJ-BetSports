@@ -8,7 +8,7 @@ They use Pydantic for validation and serialization.
 from datetime import datetime
 from typing import Optional
 from enum import Enum
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, model_validator
 
 
 # ============================================================
@@ -97,6 +97,22 @@ class MatchDTO(BaseModel):
     events: list["MatchEventDTO"] = Field(default_factory=list)
     
     model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode='after')
+    def validate_stats_consistency(self) -> 'MatchDTO':
+        """Ensure shots on target are at least equal to goals."""
+        if self.home_goals is not None and self.home_goals > 0:
+            if self.home_shots_on_target is None or self.home_shots_on_target < self.home_goals:
+                self.home_shots_on_target = self.home_goals
+            if self.home_total_shots is None or (self.home_shots_on_target is not None and self.home_total_shots < self.home_shots_on_target):
+                self.home_total_shots = self.home_shots_on_target
+
+        if self.away_goals is not None and self.away_goals > 0:
+            if self.away_shots_on_target is None or self.away_shots_on_target < self.away_goals:
+                self.away_shots_on_target = self.away_goals
+            if self.away_total_shots is None or (self.away_shots_on_target is not None and self.away_total_shots < self.away_shots_on_target):
+                self.away_total_shots = self.away_shots_on_target
+        return self
 
 
 class MatchEventDTO(BaseModel):

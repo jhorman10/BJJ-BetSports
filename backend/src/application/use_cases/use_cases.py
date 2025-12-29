@@ -975,24 +975,31 @@ class GetGlobalLiveMatchesUseCase:
             elif isinstance(res, Exception):
                 logger.error(f"Error fetching live matches from source: {res}")
                 
-        # Deduplication Strategy
-        # We prefer API-Football data as it usually has more stats (corners, cards)
-        # Key: (HomeTeamName, AwayTeamName) - Normalized
-        unique_matches = {}
-        
+        def _calculate_richness(m: Match) -> int:
+            """Calculate how many extended statistics a match has."""
+            score = 0
+            if m.home_corners is not None: score += 1
+            if m.home_yellow_cards is not None: score += 1
+            if m.home_red_cards is not None: score += 1
+            if m.home_shots_on_target is not None: score += 1
+            if m.home_total_shots is not None: score += 1
+            if m.home_possession: score += 1
+            if m.home_fouls is not None: score += 1
+            if m.home_offsides is not None: score += 1
+            if m.minute: score += 1
+            if m.events: score += 1
+            return score
+
         for match in all_matches:
             # Create a simple unique key
-            # Normalize names: lowercase, remove special chars could be better but basic string match ok for now
             key = f"{match.home_team.name.lower()}-{match.away_team.name.lower()}"
             
             if key not in unique_matches:
                 unique_matches[key] = match
             else:
-                # If we already have it, keep the one with more info?
-                # For now, simplest is first-come-first-served (API-Football was first in tasks)
-                # But verify if the new one has stats and the old one doesn't
+                # Prefer the match with more data richness
                 existing = unique_matches[key]
-                if (match.home_corners is not None and existing.home_corners is None):
+                if _calculate_richness(match) > _calculate_richness(existing):
                     unique_matches[key] = match
         
         # Convert to DTOs
@@ -1019,7 +1026,7 @@ class GetGlobalLiveMatchesUseCase:
                 draw_odds=match.draw_odds,
                 away_odds=match.away_odds,
                 minute=match.minute,
-                # Extended Stats
+                # Extended Stats (MatchDTO validator handles consistency, but we pass them here)
                 home_shots_on_target=match.home_shots_on_target,
                 away_shots_on_target=match.away_shots_on_target,
                 home_total_shots=match.home_total_shots,
@@ -1067,6 +1074,16 @@ class GetGlobalDailyMatchesUseCase:
             if isinstance(res, list):
                 all_matches.extend(res)
                 
+        def _calculate_richness(m: Match) -> int:
+            score = 0
+            if m.home_corners is not None: score += 1
+            if m.home_yellow_cards is not None: score += 1
+            if m.home_red_cards is not None: score += 1
+            if m.home_shots_on_target is not None: score += 1
+            if m.home_total_shots is not None: score += 1
+            if m.home_possession: score += 1
+            return score
+
         # Deduplication (same logic)
         unique_matches = {}
         for match in all_matches:
@@ -1075,7 +1092,7 @@ class GetGlobalDailyMatchesUseCase:
                 unique_matches[key] = match
             else:
                 existing = unique_matches[key]
-                if (match.home_corners is not None and existing.home_corners is None):
+                if _calculate_richness(match) > _calculate_richness(existing):
                     unique_matches[key] = match
 
         # Map to DTOs
@@ -1101,7 +1118,7 @@ class GetGlobalDailyMatchesUseCase:
                 draw_odds=match.draw_odds,
                 away_odds=match.away_odds,
                 minute=match.minute,
-                # Extended Stats
+                # Extended Stats (MatchDTO validator handles consistency)
                 home_shots_on_target=match.home_shots_on_target,
                 away_shots_on_target=match.away_shots_on_target,
                 home_total_shots=match.home_total_shots,

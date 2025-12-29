@@ -131,40 +131,62 @@ class APIFootballSource:
             logger.warning("API-Football not configured (no API key)")
             return None
         
-        if not self._check_rate_limit():
-            logger.warning("API-Football rate limit reached (100/day)")
-            return None
+        # Try different URL/Header combinations for maximum compatibility
+        combinations = [
+            # 1. Direct API-Sports (Standard)
+            {
+                "url": f"https://v3.football.api-sports.io{endpoint}",
+                "headers": {"x-apisports-key": self.config.api_key}
+            },
+            # 2. RapidAPI Football (Alternative)
+            {
+                "url": f"https://api-football-v1.p.rapidapi.com/v3{endpoint}",
+                "headers": {
+                    "x-rapidapi-key": self.config.api_key,
+                    "x-rapidapi-host": "api-football-v1.p.rapidapi.com"
+                }
+            },
+            # 3. Direct API-Sports with secondary header name
+            {
+                "url": f"https://v3.football.api-sports.io{endpoint}",
+                "headers": {"x-rapidapi-key": self.config.api_key}
+            }
+        ]
         
-        url = f"{self.config.base_url}{endpoint}"
-        headers = {
-            "x-apisports-key": self.config.api_key,
-        }
+        last_error = None
+        for combo in combinations:
+            try:
+                async with httpx.AsyncClient() as client:
+                    response = await client.get(
+                        combo["url"],
+                        headers=combo["headers"],
+                        params=params,
+                        timeout=self.config.timeout,
+                    )
+                    
+                    data = response.json()
+                    
+                    # If this specific header returned a token error, try the next one
+                    if data.get("errors") and "token" in str(data["errors"]).lower():
+                        last_error = data["errors"]
+                        continue
+                    
+                    # Handle RapidAPI subscription error
+                    if isinstance(data, dict) and "message" in data and "not subscribed" in data["message"].lower():
+                        last_error = data["message"]
+                        continue
+                        
+                    response.raise_for_status()
+                    self._request_count += 1
+                    return data
+                    
+            except Exception as e:
+                last_error = str(e)
+                continue
         
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    url,
-                    headers=headers,
-                    params=params,
-                    timeout=self.config.timeout,
-                )
-                response.raise_for_status()
-                self._request_count += 1
-                
-                data = response.json()
-                
-                if data.get("errors"):
-                    logger.error(f"API-Football error: {data['errors']}")
-                    return None
-                
-                return data
-                
-        except httpx.HTTPStatusError as e:
-            logger.error(f"API-Football HTTP error: {e}")
-            return None
-        except Exception as e:
-            logger.error(f"API-Football request error: {e}")
-            return None
+        if last_error:
+            logger.error(f"API-Football request failed after trying all header/URL variants: {last_error}")
+        return None
     
     async def get_upcoming_fixtures(
         self,
@@ -187,7 +209,6 @@ class APIFootballSource:
             logger.warning(f"League code {league_code} not mapped to API-Football")
             return []
         
-        api_league_id = LEAGUE_ID_MAPPING[league_code]
         api_league_id = LEAGUE_ID_MAPPING[league_code]
         
         # Calculate correct season
@@ -618,30 +639,33 @@ class APIFootballSource:
                 season=str(league_data.get("season")),
             )
             
-            # Create teams
+            # Teams
+            home_team_data = fixture_data.get("teams", {}).get("home", {})
+            away_team_data = fixture_data.get("teams", {}).get("away", {})
+            
             home_team = Team(
-                id=str(teams.get("home", {}).get("id", "")),
-                name=teams.get("home", {}).get("name", "Unknown"),
-                country=league.country,
+                id=str(home_team_data.get("id", "")),
+                name=home_team_data.get("name", "Unknown"),
+                logo_url=home_team_data.get("logo")
             )
             away_team = Team(
-                id=str(teams.get("away", {}).get("id", "")),
-                name=teams.get("away", {}).get("name", "Unknown"),
-                country=league.country,
+                id=str(away_team_data.get("id", "")),
+                name=away_team_data.get("name", "Unknown"),
+                logo_url=away_team_data.get("logo")
             )
             
-            # Get goals if available
-            home_goals = goals.get("home")
-            away_goals = goals.get("away")
-
-            # Parse stats if requested
+            # Scores
+            goals = fixture_data.get("goals", {})
+            home_goals = _to_int(goals.get("home"))
+            away_goals = _to_int(goals.get("away"))
+            
+            # Extended stats
             home_corners = None
             away_corners = None
             home_yellow = None
             away_yellow = None
             home_red = None
             away_red = None
-            # Extended stats
             home_shots_on = None
             away_shots_on = None
             home_total_shots = None
@@ -652,32 +676,45 @@ class APIFootballSource:
             away_fouls = None
             home_offsides = None
             away_offsides = None
+            
             # Parse statistics if available
             if include_stats and fixture_data.get("statistics"):
                 stats_list = fixture_data.get("statistics", [])
                 for team_stats in stats_list:
                     team_id = str(team_stats.get("team", {}).get("id"))
-                    stats = {item["type"]: item["value"] for item in team_stats.get("statistics", [])}
+                    # Map all stats to a normalized dict (case-insensitive keys)
+                    raw_stats = {str(item["type"]).lower(): item["value"] for item in team_stats.get("statistics", [])}
                     
+                    def get_stat(keys: list[str]):
+                        """Fetch stat from multiple possible keys."""
+                        for k in keys:
+                            if k.lower() in raw_stats:
+                                return raw_stats[k.lower()]
+                        return None
+
                     if team_id == home_team.id:
-                        home_corners = stats.get("Corner Kicks")
-                        home_yellow = stats.get("Yellow Cards")
-                        home_red = stats.get("Red Cards")
-                        home_shots_on = stats.get("Shots on Goal")
-                        home_total_shots = stats.get("Total Shots")
-                        home_possession = str(stats.get("Ball Possession") or "")
-                        home_fouls = stats.get("Fouls")
-                        home_offsides = stats.get("Offsides")
+                        logger.debug(f"Parsing stats for Home Team {home_team.name} (ID: {team_id}): {raw_stats}")
+                        home_corners = _to_int(get_stat(["Corner Kicks", "Corners"]))
+                        home_yellow = _to_int(get_stat(["Yellow Cards"]))
+                        home_red = _to_int(get_stat(["Red Cards"]))
+                        home_shots_on = _to_int(get_stat(["Shots on Goal", "Shots on Target"]))
+                        home_total_shots = _to_int(get_stat(["Total Shots"]))
+                        pos = get_stat(["Ball Possession", "Possession"])
+                        home_possession = str(pos).replace("%", "") if pos is not None else None
+                        home_fouls = _to_int(get_stat(["Fouls"]))
+                        home_offsides = _to_int(get_stat(["Offsides"]))
                     elif team_id == away_team.id:
-                        away_corners = stats.get("Corner Kicks")
-                        away_yellow = stats.get("Yellow Cards")
-                        away_red = stats.get("Red Cards")
-                        away_shots_on = stats.get("Shots on Goal")
-                        away_total_shots = stats.get("Total Shots")
-                        away_possession = str(stats.get("Ball Possession") or "")
-                        away_fouls = stats.get("Fouls")
-                        away_offsides = stats.get("Offsides")
-            
+                        logger.debug(f"Parsing stats for Away Team {away_team.name} (ID: {team_id}): {raw_stats}")
+                        away_corners = _to_int(get_stat(["Corner Kicks", "Corners"]))
+                        away_yellow = _to_int(get_stat(["Yellow Cards"]))
+                        away_red = _to_int(get_stat(["Red Cards"]))
+                        away_shots_on = _to_int(get_stat(["Shots on Goal", "Shots on Target"]))
+                        away_total_shots = _to_int(get_stat(["Total Shots"]))
+                        pos = get_stat(["Ball Possession", "Possession"])
+                        away_possession = str(pos).replace("%", "") if pos is not None else None
+                        away_fouls = _to_int(get_stat(["Fouls"]))
+                        away_offsides = _to_int(get_stat(["Offsides"]))
+
             # Parse minute if available
             minute = None
             if fixture.get("status", {}).get("elapsed") is not None:
@@ -781,3 +818,15 @@ class APIFootballSource:
         if today > self._last_reset:
             return 100
         return max(0, 100 - self._request_count)
+
+
+def _to_int(v) -> Optional[int]:
+    """Helper to safely convert values to int."""
+    if v is None:
+        return None
+    try:
+        if isinstance(v, str):
+            v = v.replace("%", "").strip()
+        return int(v)
+    except (ValueError, TypeError):
+        return None

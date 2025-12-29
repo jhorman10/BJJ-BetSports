@@ -6,7 +6,7 @@
  */
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Routes, Route, Link, useLocation } from "react-router-dom";
+import { Routes, Route, Link, useLocation, Navigate } from "react-router-dom";
 import {
   Container,
   Box,
@@ -53,7 +53,8 @@ const App: React.FC = () => {
   const { showLive, goalToast, closeGoalToast, showGoalToast } = useUIStore();
 
   // Prediction Store - Fetch leagues on mount
-  const { fetchLeagues, leaguesError, selectedLeague } = usePredictionStore();
+  const { fetchLeagues, leaguesError, selectedLeague, leagues } =
+    usePredictionStore() as any;
 
   // Live Store
   const {
@@ -254,22 +255,36 @@ const App: React.FC = () => {
                     </Typography>
                   </Box>
                   {leaguesError ? (
-                    <Alert
-                      severity="error"
-                      sx={{ mb: 4 }}
-                      action={
+                    <Box>
+                      <Alert
+                        severity="error"
+                        sx={{ mb: 2 }}
+                        action={
+                          <Button
+                            color="inherit"
+                            size="small"
+                            onClick={() => window.location.reload()}
+                          >
+                            Reintentar
+                          </Button>
+                        }
+                      >
+                        Error al cargar las ligas: {leaguesError}. El servidor
+                        puede estar iniciándose.
+                      </Alert>
+                      {/* Show Live button even when leagues fail to load */}
+                      {liveMatches.length > 0 && (
                         <Button
-                          color="inherit"
-                          size="small"
-                          onClick={() => window.location.reload()}
+                          variant={showLive ? "contained" : "outlined"}
+                          color="error"
+                          onClick={() => useUIStore.getState().toggleShowLive()}
+                          sx={{ mb: 2 }}
+                          startIcon={<SportsSoccer />}
                         >
-                          Reintentar
+                          🔴 Ver Partidos EN VIVO ({liveMatches.length})
                         </Button>
-                      }
-                    >
-                      Error al cargar las ligas: {leaguesError}. El servidor
-                      puede estar iniciándose.
-                    </Alert>
+                      )}
+                    </Box>
                   ) : (
                     <LeagueSelector />
                   )}
@@ -298,6 +313,7 @@ const App: React.FC = () => {
               }
             />
             <Route path="/bot" element={<BotDashboard />} />
+            <Route path="/dashboard" element={<Navigate to="/bot" replace />} />
           </Routes>
         </Container>
 
@@ -355,7 +371,7 @@ const App: React.FC = () => {
             responsabilidad.
           </Typography>
           <Typography variant="caption" color="text.disabled" display="block">
-            © 2024 BJJ - BetSports
+            © 2025 BJJ - BetSports
           </Typography>
         </Box>
       </Box>

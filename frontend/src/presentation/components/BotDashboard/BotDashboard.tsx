@@ -239,7 +239,7 @@ const BotDashboard: React.FC = () => {
         useBotStore.getState().updateStats(mockStats);
       }
     },
-    [getDaysBack, fetchTrainingData, startDate, stats, error, generateMockData]
+    [getDaysBack, fetchTrainingData, startDate, generateMockData]
   );
 
   // Auto-run training when date changes

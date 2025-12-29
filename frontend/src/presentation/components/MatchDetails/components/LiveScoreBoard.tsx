@@ -6,9 +6,24 @@ import {
   Chip,
   useTheme,
   useMediaQuery,
+  styled,
 } from "@mui/material";
-import { Timer } from "@mui/icons-material";
 import { Match, MatchEvent } from "../../../../domain/entities/match";
+
+// --- Estilos Compartidos con LiveMatchCard ---
+const PulseDot = styled(Box)({
+  width: 6,
+  height: 6,
+  borderRadius: "50%",
+  backgroundColor: "#22c55e",
+  animation: "pulse 1.5s infinite ease-in-out",
+  willChange: "opacity",
+  "@keyframes pulse": {
+    "0%": { opacity: 1 },
+    "50%": { opacity: 0.4 },
+    "100%": { opacity: 1 },
+  },
+});
 
 interface LiveScoreBoardProps {
   match: Match;
@@ -54,32 +69,43 @@ export const LiveScoreBoard: React.FC<LiveScoreBoardProps> = ({ match }) => {
         display="flex"
         justifyContent="space-between"
         alignItems="center"
-        mb={2}
-        flexDirection={isMobile ? "column" : "row"}
-        gap={isMobile ? 2 : 0}
+        mb={3}
+        flexDirection="row"
+        gap={1}
       >
         {/* Home Team */}
         <Box
           textAlign="center"
           flex={1}
-          width="100%"
-          order={isMobile ? 2 : 1}
           display="flex"
-          justifyContent="center"
+          flexDirection="column"
           alignItems="center"
+          justifyContent="center"
         >
-          {isMobile && match.home_team.logo_url && (
+          {match.home_team.logo_url && (
             <Box
               component="img"
               src={match.home_team.logo_url}
-              sx={{ width: 30, height: 30, mr: 1, objectFit: "contain" }}
+              sx={{
+                width: isMobile ? 32 : 48,
+                height: isMobile ? 32 : 48,
+                mb: 1,
+                objectFit: "contain",
+              }}
             />
           )}
           <Typography
-            variant={isMobile ? "body1" : "h6"}
+            variant={isMobile ? "caption" : "body1"}
             fontWeight="bold"
             sx={{
-              lineHeight: 1.2,
+              lineHeight: 1.1,
+              textAlign: "center",
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+              maxWidth: "100%",
+              color: "white",
             }}
           >
             {match.home_team.name}
@@ -87,79 +113,143 @@ export const LiveScoreBoard: React.FC<LiveScoreBoardProps> = ({ match }) => {
         </Box>
 
         {/* Score & Time - Center */}
-        <Box textAlign="center" px={2} order={isMobile ? 1 : 2} minWidth={120}>
-          <Box
-            display="flex"
-            flexDirection="column"
-            alignItems="center"
-            gap={0.5}
-            mb={1}
-          >
+        <Box
+          display="flex"
+          flexDirection="column"
+          alignItems="center"
+          gap={1.5}
+          sx={{ minWidth: isMobile ? 100 : 150 }}
+        >
+          {/* Status & Time Row */}
+          <Box display="flex" alignItems="center" gap={1}>
             <Chip
-              icon={<Timer sx={{ fontSize: "1rem !important" }} />}
-              label={match.status}
-              color={match.status === "LIVE" ? "error" : "default"}
+              label={
+                match.status === "LIVE" || match.status === "IN_PLAY"
+                  ? "LIVE"
+                  : match.status
+              }
+              color={
+                match.status === "LIVE" || match.status === "IN_PLAY"
+                  ? "error"
+                  : match.status === "HT"
+                  ? "warning"
+                  : "default"
+              }
               size="small"
               sx={{
+                height: 18,
+                fontSize: "0.6rem",
                 fontWeight: "bold",
-                px: 1,
-                animation:
-                  match.status === "LIVE" ? "pulse 2s infinite" : "none",
-                "@keyframes pulse": {
-                  "0%": { opacity: 1 },
-                  "50%": { opacity: 0.7 },
-                  "100%": { opacity: 1 },
-                },
+                px: 0.5,
+                "& .MuiChip-label": { px: 1 },
               }}
             />
-            {/* Big Visible Clock */}
+
+            {/* Time Badge */}
             {match.minute && (
-              <Typography
-                variant={isMobile ? "h5" : "h4"}
-                color="#4ade80"
-                fontWeight="900"
-                sx={{ fontFamily: "monospace", letterSpacing: 1 }}
+              <Box
+                display="flex"
+                alignItems="center"
+                gap={1}
+                sx={{
+                  bgcolor: "rgba(34, 197, 94, 0.1)",
+                  px: 1,
+                  py: 0.25,
+                  borderRadius: "100px",
+                  border: "1px solid rgba(34, 197, 94, 0.2)",
+                }}
               >
-                {match.minute}'
-              </Typography>
+                <PulseDot />
+                <Typography
+                  variant="caption"
+                  fontWeight={700}
+                  color="#4ade80"
+                  sx={{ fontFamily: "monospace", lineHeight: 1 }}
+                >
+                  {match.minute}'
+                </Typography>
+              </Box>
             )}
           </Box>
 
-          <Typography
-            variant={isMobile ? "h3" : "h2"}
-            fontWeight="900"
-            sx={{ letterSpacing: isMobile ? 2 : 4 }}
+          {/* Score Box Style from LiveMatchCard */}
+          <Box
+            sx={{
+              px: isMobile ? 2 : 3,
+              py: isMobile ? 0.5 : 1,
+              bgcolor: "rgba(0,0,0,0.3)",
+              borderRadius: "12px",
+              border: "1px solid rgba(255,255,255,0.05)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
           >
-            {match.home_goals ?? 0} - {match.away_goals ?? 0}
-          </Typography>
+            <Typography
+              variant={isMobile ? "h5" : "h4"}
+              fontWeight={700}
+              color="white"
+            >
+              {match.home_goals ?? 0}
+            </Typography>
+            <Typography
+              variant={isMobile ? "h6" : "h5"}
+              sx={{
+                mx: isMobile ? 1 : 1.5,
+                color: "rgba(255,255,255,0.3)",
+                pb: 0.5,
+                lineHeight: 1,
+              }}
+            >
+              :
+            </Typography>
+            <Typography
+              variant={isMobile ? "h5" : "h4"}
+              fontWeight={700}
+              color="white"
+            >
+              {match.away_goals ?? 0}
+            </Typography>
+          </Box>
         </Box>
 
         {/* Away Team */}
         <Box
           textAlign="center"
           flex={1}
-          width="100%"
-          order={isMobile ? 3 : 3}
           display="flex"
-          justifyContent="center"
+          flexDirection="column"
           alignItems="center"
+          justifyContent="center"
         >
+          {match.away_team.logo_url && (
+            <Box
+              component="img"
+              src={match.away_team.logo_url}
+              sx={{
+                width: isMobile ? 32 : 48,
+                height: isMobile ? 32 : 48,
+                mb: 1,
+                objectFit: "contain",
+              }}
+            />
+          )}
           <Typography
-            variant={isMobile ? "body1" : "h6"}
+            variant={isMobile ? "caption" : "body1"}
             fontWeight="bold"
             sx={{
-              lineHeight: 1.2,
+              lineHeight: 1.1,
+              textAlign: "center",
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+              maxWidth: "100%",
+              color: "white",
             }}
           >
             {match.away_team.name}
           </Typography>
-          {isMobile && match.away_team.logo_url && (
-            <Box
-              component="img"
-              src={match.away_team.logo_url}
-              sx={{ width: 30, height: 30, ml: 1, objectFit: "contain" }}
-            />
-          )}
         </Box>
       </Box>
 

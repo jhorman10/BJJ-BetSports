@@ -411,7 +411,7 @@ class GetLivePredictionsUseCase:
             draw_odds=match.draw_odds,
             away_odds=match.away_odds,
             minute=match.minute,
-            # Extended Stats
+            # Extended Stats (MatchDTO validator ensures consistency)
             home_shots_on_target=match.home_shots_on_target,
             away_shots_on_target=match.away_shots_on_target,
             home_total_shots=match.home_total_shots,

@@ -111,6 +111,28 @@ class Match:
     events: list["MatchEvent"] = field(default_factory=list)
     data_fetched_at: Optional[datetime] = None
 
+    def __post_init__(self):
+        """Ensure data consistency logic."""
+        # 1. Shots on target must be at least goals scored
+        if self.home_goals is not None and self.home_goals > 0:
+            current_shots_on = self.home_shots_on_target or 0
+            self.home_shots_on_target = max(current_shots_on, self.home_goals)
+            
+            # 2. Total shots must be at least shots on target
+            current_total = self.home_total_shots or 0
+            self.home_total_shots = max(current_total, self.home_shots_on_target)
+            
+        if self.away_goals is not None and self.away_goals > 0:
+            current_shots_on = self.away_shots_on_target or 0
+            self.away_shots_on_target = max(current_shots_on, self.away_goals)
+            
+            # 2. Total shots must be at least shots on target
+            current_total = self.away_total_shots or 0
+            self.away_total_shots = max(current_total, self.away_shots_on_target)
+            
+        # 3. Corners must be at least 0 if goals are present (logical, but ensure it's not None if goals exist and it's a live match)
+        # Actually, let's keep it simple for now and only focus on Shots.
+
     @property
     def is_played(self) -> bool:
         """Check if the match has been played."""

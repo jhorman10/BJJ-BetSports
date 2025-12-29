@@ -130,10 +130,12 @@ class TrainingCache:
     
     def get(self, key: str) -> Optional[Any]:
         """Retrieve a value from cache."""
-        # Check if cache is stale (from previous day)
-        if self._cache_date and self._cache_date != date.today():
-            logger.info("Cache is from previous day, returning None")
-            return None
+        # Check if cache is stale (older than 24 hours)
+        if self._last_update:
+            from datetime import timedelta
+            if datetime.now() - self._last_update > timedelta(hours=24):
+                logger.info("Cache is older than 24 hours, returning None")
+                return None
             
         return self._cache.get(key)
     
@@ -151,11 +153,12 @@ class TrainingCache:
         return self._last_update
     
     def is_valid(self) -> bool:
-        """Check if cache is valid for today."""
-        return (
-            self._cache_date == date.today() 
-            and 'training_results' in self._cache
-        )
+        """Check if cache is valid (updated within 24 hours)."""
+        if not self._last_update or 'training_results' not in self._cache:
+            return False
+            
+        from datetime import timedelta
+        return (datetime.now() - self._last_update) < timedelta(hours=24)
     
     def invalidate(self):
         """Invalidate the cache."""

@@ -185,10 +185,22 @@ app = FastAPI(
 
 
 # Configure CORS
-cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173,http://localhost:5174").split(",")
+# Explicitly include loopback IPs which browsers sometimes use instead of 'localhost'
+base_origins = [
+    "http://localhost:3000", 
+    "http://localhost:5173", 
+    "http://localhost:5174",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:5174"
+]
+cors_origins = os.getenv("CORS_ORIGINS", "").split(",")
+# Combine and remove empty/duplicates
+all_origins = list(set([o for o in base_origins + cors_origins if o]))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins,
+    allow_origins=all_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

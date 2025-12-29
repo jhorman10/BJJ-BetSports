@@ -470,7 +470,14 @@ async def run_training_session(
         all_matches.extend(matches)
     
     logger.info(f"Fetched {len(all_matches)} matches from football-data.co.uk CSV")
+    if all_matches:
+        first_m = all_matches[0]
+        last_m = all_matches[-1]
+        logger.info(f"  Date range: {first_m.match_date} to {last_m.match_date}")
     existing_keys = {match_key(m) for m in all_matches}
+    
+    # Track statistics for logging
+    source_stats = {"CSV": len(all_matches)}
     
     # 2. Fetch from API-Football for recent matches WITH STATS (corners, cards)
     # Priority: API-Football has better stats than football-data.org
@@ -495,9 +502,11 @@ async def run_training_session(
                     existing_keys.add(key)
                     added_count += 1
                     
-            logger.info(f"Added {added_count} unique matches from API-Football (with corners/cards stats)")
+            if added_count > 0:
+                logger.info(f"Added {added_count} unique matches from API-Football (with corners/cards stats)")
+                source_stats["API-Football"] = added_count
     except Exception as e:
-        logger.warning(f"Could not fetch from API-Football: {e}")
+        logger.warning(f"Could not fetch from API-Football (skipping): {e}")
     
     # 3. Fetch from football-data.org API for recent matches (fallback, no corners/cards but more coverage)
     try:
@@ -659,8 +668,16 @@ async def run_training_session(
     except Exception as e:
         logger.warning(f"Could not fetch from ESPN: {e}")
             
-    # Sort by date
-    all_matches.sort(key=lambda x: x.match_date)
+    # Sort by date (normalize to timezone-aware to avoid comparison errors)
+    from src.utils.time_utils import COLOMBIA_TZ
+    def get_sortable_date(match):
+        dt = match.match_date
+        if dt.tzinfo is None:
+            # Localize naive datetime to Colombia timezone
+            return COLOMBIA_TZ.localize(dt)
+        return dt
+    
+    all_matches.sort(key=lambda x: get_sortable_date(x))
     
     # Log match counts per league for debugging
     league_match_counts = {}
@@ -682,13 +699,18 @@ async def run_training_session(
     if request.start_date:
         # Handle simple date string YYYY-MM-DD
         try:
-            start_dt = datetime.strptime(request.start_date, "%Y-%m-%d")
-            all_matches = [m for m in all_matches if m.match_date >= start_dt]
+            from src.utils.time_utils import COLOMBIA_TZ
+            start_dt_naive = datetime.strptime(request.start_date, "%Y-%m-%d")
+            start_dt = COLOMBIA_TZ.localize(start_dt_naive)
+            all_matches = [m for m in all_matches if get_sortable_date(m) >= start_dt]
         except ValueError:
             pass
     elif request.days_back:
-        start_dt = get_current_time() - timedelta(days=request.days_back)
-        all_matches = [m for m in all_matches if m.match_date >= start_dt]
+        start_dt = get_current_time().replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=request.days_back)
+        logger.info(f"Filtering matches from {start_dt} (days_back={request.days_back})")
+        before_filter = len(all_matches)
+        all_matches = [m for m in all_matches if get_sortable_date(m) >= start_dt]
+        logger.info(f"Filter: {before_filter} -> {len(all_matches)} matches")
 
     # Process matches
     # We need to maintain a history of processed matches to calculate stats "as of that date"
@@ -746,6 +768,11 @@ async def run_training_session(
                 
             if actual_winner == predicted_winner:
                 correct_predictions += 1
+            
+            # Yield to event loop to prevent blocking (important for CORS/Preflights)
+            if matches_processed % 100 == 0:
+                import asyncio
+                await asyncio.sleep(0)
             
             # --- GENERATE PICKS USING DOMAIN SERVICE ---
             # Use the single source of truth for picks logic
@@ -888,6 +915,13 @@ async def run_training_session(
     # Sort by efficiency descending
     pick_efficiency_list.sort(key=lambda x: x["efficiency"], reverse=True)
 
+    # Limit match history in the response to prevent massive JSON payloads
+    # Keep the most recent 500 matches for the UI
+    logger.info(f"Total historical matches processed: {len(match_history)}")
+    response_history = match_history[-500:] if len(match_history) > 500 else match_history
+    if len(match_history) > 500:
+        logger.info(f"Payload optimization: Truncated match_history from {len(match_history)} to 500 records")
+
     result = TrainingStatus(
         matches_processed=matches_processed,
         correct_predictions=correct_predictions,
@@ -896,7 +930,7 @@ async def run_training_session(
         roi=round(roi, 2),
         profit_units=round(profit, 2),
         market_stats=learning_service.get_all_stats(),
-        match_history=match_history,
+        match_history=response_history,
         roi_evolution=roi_evolution,
         pick_efficiency=pick_efficiency_list,
         team_stats=team_stats_cache

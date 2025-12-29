@@ -43,7 +43,23 @@ export const useBotStore = create<BotState>()(
         set({ loading: true, error: null });
 
         try {
-          // First, try to get cached results (instant)
+          // Optimization: If we have data from less than 12 hours ago, AND we have the detailed history,
+          // don't even check the server-side cache unless forceRecalculate is true.
+          const state = get();
+          if (
+            !forceRecalculate &&
+            state.stats &&
+            state.lastUpdate &&
+            state.stats.match_history
+          ) {
+            const twelveHoursAgo = Date.now() - 12 * 60 * 60 * 1000;
+            if (state.lastUpdate.getTime() > twelveHoursAgo) {
+              set({ loading: false });
+              return;
+            }
+          }
+
+          // First, try to get cached results (instant) from server
           if (!forceRecalculate) {
             try {
               const cachedResponse = await api.get<{
@@ -81,8 +97,30 @@ export const useBotStore = create<BotState>()(
                 return; // Use cached data
               }
             } catch (cacheError) {
-              // No cached training data
+              // No cached training data or server error
+              console.warn(
+                "Could not retrieve server-side training cache:",
+                cacheError
+              );
             }
+          }
+
+          // Anti-spam protection: Don't trigger full training if one happened very recently (5 mins)
+          if (!forceRecalculate && state.lastFetchTimestamp) {
+            const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+            if (state.lastFetchTimestamp > fiveMinutesAgo && state.stats) {
+              set({ loading: false });
+              return;
+            }
+          }
+
+          // FALLBACK: Only run full training if absolutely necessary
+          // Or if forceRecalculate is true (user clicked the robot icon)
+          if (!forceRecalculate && state.stats) {
+            // We have some data (even if old), and cache check failed.
+            // Better to show old data than to risk a 500/timeout error right now.
+            set({ loading: false });
+            return;
           }
 
           // No cache or force recalculate - run full training
@@ -230,7 +268,8 @@ export const useBotStore = create<BotState>()(
     {
       name: "bot-storage",
       partialize: (state) => {
-        // Only persist summary stats, NOT full match_history (too large)
+        // Persist essential data. Now that backend truncates history to 500 records,
+        // it's safe to persist everything as it won't exceed LocalStorage limits (~5MB).
         if (!state.stats) {
           return {
             stats: null,
@@ -239,17 +278,8 @@ export const useBotStore = create<BotState>()(
           };
         }
 
-        // Extract only essential stats (no match_history)
         return {
-          stats: {
-            matches_processed: state.stats.matches_processed,
-            correct_predictions: state.stats.correct_predictions,
-            accuracy: state.stats.accuracy,
-            total_bets: state.stats.total_bets,
-            roi: state.stats.roi,
-            profit_units: state.stats.profit_units,
-            // Omit match_history, roi_evolution, pick_efficiency arrays - too large
-          } as any, // Type cast needed since we're not storing full TrainingStatus
+          stats: state.stats,
           lastUpdate: state.lastUpdate,
           lastFetchTimestamp: state.lastFetchTimestamp,
         };

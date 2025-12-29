@@ -167,6 +167,6 @@ class LearningService:
     
     def reset_weights(self) -> None:
         """Reset all learning weights to default."""
-        self.learning_weights = LearningWeights()
+        self._learning_weights = LearningWeights()
         self._save_weights()
         logger.info("Reset all learning weights to default")
