@@ -53,7 +53,7 @@ const App: React.FC = () => {
   const { showLive, goalToast, closeGoalToast, showGoalToast } = useUIStore();
 
   // Prediction Store - Fetch leagues on mount
-  const { fetchLeagues, leaguesError, selectedLeague, leagues } =
+  const { fetchLeagues, leaguesError, selectedLeague } =
     usePredictionStore() as any;
 
   // Live Store
