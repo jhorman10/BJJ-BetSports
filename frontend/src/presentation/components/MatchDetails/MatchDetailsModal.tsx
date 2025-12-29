@@ -551,30 +551,22 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                     "& .MuiChip-label": { px: 1.5 },
                   }}
                 />
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <Typography
-                    sx={{
-                      fontSize: "0.65rem",
-                      fontWeight: 600,
-                      color: "success.light",
-                      opacity: 0.6,
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    Goles:
-                  </Typography>
-                  <Typography
-                    sx={{
-                      fontSize: "0.85rem",
-                      fontWeight: 700,
-                      color: "success.light",
-                    }}
-                  >
-                    {translateOverUnder(
-                      details.prediction.over_under_recommendation
-                    )}
-                  </Typography>
-                </Box>
+                <Chip
+                  label={translateOverUnder(
+                    details.prediction.over_under_recommendation + " " + "goles"
+                  )}
+                  size="small"
+                  sx={{
+                    fontSize: "0.85rem",
+                    fontWeight: 700,
+                    height: 32,
+                    px: 1,
+                    background: "rgba(16, 185, 129, 0.15)",
+                    color: "success.light",
+                    border: "1px solid rgba(16, 185, 129, 0.3)",
+                    "& .MuiChip-label": { px: 1.5 },
+                  }}
+                />
               </Box>
 
               {/* Índice de Confianza justo debajo */}
