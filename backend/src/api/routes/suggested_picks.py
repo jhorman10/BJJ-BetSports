@@ -51,30 +51,24 @@ async def get_suggested_picks(
 ) -> MatchSuggestedPicksDTO:
     """Get AI-suggested picks for a match (Cache -> Live)."""
     from src.infrastructure.cache.cache_service import get_cache_service
-    from datetime import datetime
     
-    # 1. Try Cache
+    # 1. Try Cache First (from warmup service)
     try:
         cache = get_cache_service()
         cache_key = f"forecasts:match_{match_id}"
-        cached_match = cache.get(cache_key)
+        cached_data = cache.get(cache_key)
         
-        if cached_match:
-            if isinstance(cached_match, dict):
-                from src.application.dtos.dtos import MatchPredictionDTO
-                match_pred = MatchPredictionDTO(**cached_match)
-            else:
-                match_pred = cached_match
-                
-            return MatchSuggestedPicksDTO(
-                match_id=match_id,
-                suggested_picks=match_pred.prediction.suggested_picks,
-                generated_at=match_pred.prediction.created_at or datetime.utcnow()
-            )
+        if cached_data:
+            # Cache hit! Return immediately
+            logger.info(f"✅ Cache hit for match {match_id}")
+            if isinstance(cached_data, dict):
+                return MatchSuggestedPicksDTO(**cached_data)
+            return cached_data
     except Exception as e:
         logger.warning(f"Cache lookup failed for {match_id}: {e}")
 
-    # 2. Generate On-Demand
+    # 2. Generate On-Demand (cache miss)
+    logger.info(f"⚠️ Cache miss for match {match_id}, generating picks...")
     use_case = GetSuggestedPicksUseCase(
         data_sources=data_sources,
         prediction_service=prediction_service,
@@ -84,6 +78,15 @@ async def get_suggested_picks(
     
     result = await use_case.execute(match_id)
     if result:
+        # Cache the result for future requests (12h TTL)
+        try:
+            cache = get_cache_service()
+            cache_key = f"forecasts:match_{match_id}"
+            cache.set(cache_key, result.model_dump(), ttl_seconds=3600*12)
+            logger.info(f"✅ Cached generated picks for {match_id} (12h TTL)")
+        except Exception as cache_err:
+            logger.warning(f"Failed to cache picks for {match_id}: {cache_err}")
+        
         return result
         
     raise HTTPException(
