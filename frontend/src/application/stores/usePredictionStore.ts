@@ -9,7 +9,6 @@ import {
 import { predictionsApi } from "../../infrastructure/api/predictions";
 import { leaguesApi } from "../../infrastructure/api/leagues";
 import { useOfflineStore } from "./useOfflineStore";
-import { localStorageObserver } from "../../infrastructure/storage/LocalStorageObserver";
 
 export type SortOption =
   | "confidence"
@@ -73,13 +72,6 @@ export const usePredictionStore = create<PredictionState>()(
           const data = await leaguesApi.getLeagues();
           set({ leaguesData: data });
 
-          // Persist to localStorage with observer
-          localStorageObserver.persist(
-            "prediction-storage-leagues",
-            { leaguesData: data, timestamp: new Date().toISOString() },
-            500 // 500ms debounce for predictions
-          );
-
           // Successful fetch means backend is likely available
           useOfflineStore.getState().setBackendAvailable(true);
           useOfflineStore.getState().updateLastSync();
@@ -140,16 +132,7 @@ export const usePredictionStore = create<PredictionState>()(
           );
           set({ predictions: response.predictions });
 
-          // Persist to localStorage with observer
-          localStorageObserver.persist(
-            `prediction-storage-predictions-${selectedLeague.id}`,
-            {
-              predictions: response.predictions,
-              timestamp: new Date().toISOString(),
-            },
-            500
-          );
-
+          // Predictions are fetched fresh each time, no need to persist
           useOfflineStore.getState().setBackendAvailable(true);
           useOfflineStore.getState().updateLastSync();
         } catch (err: any) {
@@ -207,15 +190,15 @@ export const usePredictionStore = create<PredictionState>()(
     }),
     {
       name: "prediction-storage", // unique name
-      // We only want to persist critical data, NOT loading states or errors
+      // Only persist essential user selections, NOT large data arrays
       partialize: (state) => ({
-        leaguesData: state.leaguesData,
+        // leaguesData is persisted separately via localStorageObserver
         selectedCountry: state.selectedCountry,
         selectedLeague: state.selectedLeague,
-        predictions: state.predictions,
         sortBy: state.sortBy,
         sortDesc: state.sortDesc,
-        // Don't persist search results or loading/error states
+        // Don't persist predictions, leaguesData, or search results - they're too large
+        // and will be fetched fresh when needed
       }),
     }
   )
