@@ -84,8 +84,6 @@ export const usePredictionStore = create<PredictionState>()(
           useOfflineStore.getState().setBackendAvailable(true);
           useOfflineStore.getState().updateLastSync();
         } catch (err: any) {
-          console.error("Error loading leagues:", err);
-
           // Check for network error / unreachable backend
           const isNetworkError =
             err.message === "Network Error" || err.code === "ERR_NETWORK";
@@ -155,8 +153,6 @@ export const usePredictionStore = create<PredictionState>()(
           useOfflineStore.getState().setBackendAvailable(true);
           useOfflineStore.getState().updateLastSync();
         } catch (err: any) {
-          console.error("Error loading predictions:", err);
-
           const isNetworkError =
             err.message === "Network Error" || err.code === "ERR_NETWORK";
           if (isNetworkError) {
@@ -187,7 +183,6 @@ export const usePredictionStore = create<PredictionState>()(
           set({ searchMatches: matchPredictions });
           useOfflineStore.getState().setBackendAvailable(true);
         } catch (err: any) {
-          console.error("Search error", err);
           const isNetworkError =
             err.message === "Network Error" || err.code === "ERR_NETWORK";
           if (isNetworkError) {

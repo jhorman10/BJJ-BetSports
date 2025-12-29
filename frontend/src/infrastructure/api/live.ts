@@ -43,10 +43,6 @@ export const liveApi = {
 
       return matches;
     } catch (error) {
-      console.error(
-        "Backend live matches failed. Falling back to ESPN...",
-        error
-      );
       return await fetchESPNLiveMatches();
     }
   },

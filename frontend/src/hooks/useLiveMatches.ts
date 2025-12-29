@@ -275,7 +275,6 @@ const fetchPublicLiveMatches = async (): Promise<LiveMatch[]> => {
     publicApiCache = { data: liveMatches, timestamp: Date.now() };
     return liveMatches;
   } catch (error) {
-    console.error("Error consultando API pública:", error);
     return [];
   }
 };
@@ -327,15 +326,10 @@ export const useLiveMatches = () => {
         setMatches(liveMatches);
         setError(null);
       } catch (err) {
-        console.error(
-          "Error cargando partidos en vivo (API Backend), intentando Api Pública:",
-          err
-        );
         try {
           const publicMatches = await fetchPublicLiveMatches();
           setMatches(publicMatches);
         } catch (publicApiErr) {
-          console.error("Error también en API pública:", publicApiErr);
           setMatches([]);
         }
         setError(null);

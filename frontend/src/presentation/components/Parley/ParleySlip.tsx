@@ -25,10 +25,7 @@ const ParleySlip: React.FC = () => {
   const { selectedPicks, removePick, clearPicks } = useParleyStore();
   const { isParleySlipOpen, toggleParleySlip } = useUIStore();
 
-  const items = useMemo(
-    () => Array.from(selectedPicks.values()),
-    [selectedPicks]
-  );
+  const items = useMemo(() => Object.values(selectedPicks), [selectedPicks]);
 
   const stats = useMemo(() => {
     if (items.length === 0) return { totalProb: 0, combinedOdds: 0 };

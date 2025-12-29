@@ -88,12 +88,12 @@ const PredictionGrid: React.FC = memo(() => {
   const handleToggleSelection = useCallback(
     async (match: MatchPrediction) => {
       const matchId = match.match.id;
-      const isSelected = selectedPicks.has(matchId);
+      const isSelected = !!selectedPicks[matchId];
 
       if (isSelected) {
         removePick(matchId);
       } else {
-        if (selectedPicks.size >= 10) {
+        if (Object.keys(selectedPicks).length >= 10) {
           setSnackbarMessage("No puedes agregar más de 10 picks al parley.");
           setSnackbarOpen(true);
           return;
@@ -288,7 +288,7 @@ const PredictionGrid: React.FC = memo(() => {
         <PredictionGridList
           predictions={sortedPredictions}
           onMatchClick={handleMatchClick}
-          selectedMatchIds={Array.from(selectedPicks.keys())}
+          selectedMatchIds={Object.keys(selectedPicks)}
           loadingMatchIds={loadingPicks}
           onToggleMatchSelection={handleToggleSelection}
         />

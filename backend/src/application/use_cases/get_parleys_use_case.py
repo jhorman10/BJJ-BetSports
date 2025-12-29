@@ -42,9 +42,8 @@ class GetParleysUseCase:
                         match=match_entity,
                         prediction=prediction_entity
                     ))
-            except Exception as e:
+            except Exception:
                 # Log error but continue with other leagues
-                print(f"Failed to fetch predictions for {league_id}: {e}")
                 continue
             
         # 2. Configure Parley Generation

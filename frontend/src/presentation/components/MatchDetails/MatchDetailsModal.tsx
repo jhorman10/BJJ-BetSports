@@ -14,7 +14,6 @@ import {
   useTheme,
   useMediaQuery,
 } from "@mui/material";
-import Grid from "@mui/material/Grid";
 import { TransitionProps } from "@mui/material/transitions";
 import { MatchPrediction } from "../../../types";
 import SuggestedPicksTab from "./SuggestedPicksTab";
@@ -552,9 +551,11 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                   }}
                 />
                 <Chip
-                  label={translateOverUnder(
-                    details.prediction.over_under_recommendation + " " + "goles"
-                  )}
+                  label={
+                    translateOverUnder(
+                      details.prediction.over_under_recommendation
+                    ) + " Goles"
+                  }
                   size="small"
                   sx={{
                     fontSize: "0.85rem",

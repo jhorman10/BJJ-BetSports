@@ -41,8 +41,6 @@ export const useLiveStore = create<LiveState>()(
           useOfflineStore.getState().setBackendAvailable(true);
           useOfflineStore.getState().updateLastSync();
         } catch (err: any) {
-          console.error("Error loading live matches:", err);
-
           const isNetworkError =
             err.message === "Network Error" || err.code === "ERR_NETWORK";
           if (isNetworkError) {

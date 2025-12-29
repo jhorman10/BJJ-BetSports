@@ -68,10 +68,7 @@ class LocalStorageObserver {
         try {
           callback(data);
         } catch (error) {
-          console.error(
-            `Error in localStorage observer callback for key ${key}:`,
-            error
-          );
+          // Callback error handled silently in production
         }
       });
     }
@@ -102,14 +99,11 @@ class LocalStorageObserver {
         this.notify(key, data);
         this.debounceTimers.delete(key);
       } catch (error) {
-        console.error(`Failed to persist data for key ${key}:`, error);
-
         // Check if quota exceeded
         if (
           error instanceof DOMException &&
           error.name === "QuotaExceededError"
         ) {
-          console.warn("localStorage quota exceeded. Attempting cleanup...");
           this.cleanup();
 
           // Retry once after cleanup
@@ -118,7 +112,6 @@ class LocalStorageObserver {
             localStorage.setItem(key, serialized);
             this.notify(key, data);
           } catch (retryError) {
-            console.error("Failed to persist even after cleanup:", retryError);
           }
         }
       }
@@ -138,7 +131,6 @@ class LocalStorageObserver {
       if (!item) return null;
       return JSON.parse(item) as T;
     } catch (error) {
-      console.error(`Failed to get data for key ${key}:`, error);
       return null;
     }
   }
@@ -152,7 +144,6 @@ class LocalStorageObserver {
       localStorage.removeItem(key);
       this.notify(key, null);
     } catch (error) {
-      console.error(`Failed to remove key ${key}:`, error);
     }
   }
 
@@ -165,7 +156,6 @@ class LocalStorageObserver {
         const data = JSON.parse(event.newValue);
         this.notify(event.key, data);
       } catch (error) {
-        console.error("Failed to parse storage event data:", error);
       }
     }
   };
@@ -207,9 +197,7 @@ class LocalStorageObserver {
     keysToRemove.forEach((key) => {
       try {
         localStorage.removeItem(key);
-        console.log(`Removed old localStorage item: ${key}`);
       } catch (error) {
-        console.error(`Failed to remove old item ${key}:`, error);
       }
     });
   }

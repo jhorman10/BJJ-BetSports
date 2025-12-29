@@ -17,7 +17,6 @@ class DataReconciliationService {
    */
   async reconcileAll(): Promise<void> {
     if (this.isReconciling) {
-      console.log("Reconciliation already in progress, skipping...");
       return;
     }
 
@@ -25,21 +24,17 @@ class DataReconciliationService {
 
     // Only reconcile if we're online and backend is available
     if (!offlineStore.isOnline || !offlineStore.isBackendAvailable) {
-      console.log("Not online or backend unavailable, skipping reconciliation");
       return;
     }
 
     this.isReconciling = true;
-    console.log("🔄 Starting data reconciliation...");
 
     try {
       // Run reconciliations in parallel for efficiency
       await Promise.all([this.reconcilePredictions(), this.reconcileBotData()]);
 
-      console.log("✅ Data reconciliation complete");
       offlineStore.updateLastSync();
     } catch (error) {
-      console.error("❌ Reconciliation error:", error);
     } finally {
       this.isReconciling = false;
     }
@@ -52,8 +47,6 @@ class DataReconciliationService {
     const predictionStore = usePredictionStore.getState();
 
     try {
-      console.log("🔄 Reconciling predictions...");
-
       // Refetch leagues (lightweight)
       await predictionStore.fetchLeagues();
 
@@ -61,10 +54,7 @@ class DataReconciliationService {
       if (predictionStore.selectedLeague) {
         await predictionStore.fetchPredictions();
       }
-
-      console.log("✅ Predictions reconciled");
     } catch (error) {
-      console.error("Failed to reconcile predictions:", error);
       // Don't throw - allow other reconciliations to continue
     }
   }
@@ -76,14 +66,9 @@ class DataReconciliationService {
     const botStore = useBotStore.getState();
 
     try {
-      console.log("🔄 Reconciling bot data...");
-
       // Use the store's built-in reconcile method
       await botStore.reconcile();
-
-      console.log("✅ Bot data reconciled");
     } catch (error) {
-      console.error("Failed to reconcile bot data:", error);
       // Don't throw - keep using cached data
     }
   }

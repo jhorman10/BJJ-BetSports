@@ -191,7 +191,6 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
         if (err.response && err.response.status === 404) {
           setError("Datos insuficientes para generar picks");
         } else {
-          console.error("Error fetching suggested picks:", err);
           setError("No se pudieron cargar los picks");
         }
         setApiPicks(null);

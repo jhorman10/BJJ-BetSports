@@ -81,7 +81,7 @@ export const useBotStore = create<BotState>()(
                 return; // Use cached data
               }
             } catch (cacheError) {
-              console.log("No cached training data, calculating...");
+              // No cached training data
             }
           }
 
@@ -129,8 +129,6 @@ export const useBotStore = create<BotState>()(
             });
           }
         } catch (err: any) {
-          console.error("Training error:", err);
-
           // Check for network error
           const isNetworkError =
             err.message === "Network Error" || err.code === "ERR_NETWORK";
@@ -205,8 +203,6 @@ export const useBotStore = create<BotState>()(
 
             // If server data is newer, update
             if (serverUpdateTime > localUpdateTime) {
-              console.log("🔄 Reconciling bot data with server...");
-
               set({
                 stats: cachedResponse.data,
                 lastUpdate: new Date(cachedResponse.last_update!),
@@ -225,7 +221,6 @@ export const useBotStore = create<BotState>()(
             }
           }
         } catch (error) {
-          console.error("Reconciliation error:", error);
           // Don't set error state - keep using cached data
         } finally {
           set({ isReconciling: false });

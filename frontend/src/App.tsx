@@ -68,7 +68,6 @@ const App: React.FC = () => {
   // Reconciliation: Use centralized service when connectivity restores
   useEffect(() => {
     if (isOnline && isBackendAvailable) {
-      console.log("🔄 Connection restored. Reconciling data...");
       dataReconciliationService.reconcileAll();
     }
   }, [isOnline, isBackendAvailable]);

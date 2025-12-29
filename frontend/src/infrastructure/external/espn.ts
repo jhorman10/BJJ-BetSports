@@ -290,7 +290,6 @@ export const fetchESPNLiveMatches = async (): Promise<
     publicApiCache = { data: liveMatches, timestamp: Date.now() };
     return liveMatches;
   } catch (error) {
-    console.error("Error consultando API pública:", error);
     return [];
   }
 };

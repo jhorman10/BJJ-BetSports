@@ -36,7 +36,6 @@ export function useTeamSearch() {
           }));
           setSearchMatches(predictions);
         } catch (e) {
-          console.error(e);
           setSearchMatches([]);
         } finally {
           setLoading(false);
