@@ -28,7 +28,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 const createApiClient = (): AxiosInstance => {
   const client = axios.create({
     baseURL: API_BASE_URL,
-    timeout: 30000,
+    timeout: 60000, // 60s timeout (increased from 30s for slow pick generation)
     headers: {
       "Content-Type": "application/json",
     },
@@ -157,7 +157,10 @@ export const api = {
    */
   async getSuggestedPicks(matchId: string): Promise<MatchSuggestedPicks> {
     const response = await apiClient.get<MatchSuggestedPicks>(
-      `/api/v1/suggested-picks/match/${matchId}`
+      `/api/v1/suggested-picks/match/${matchId}`,
+      {
+        timeout: 90000, // 90s timeout for slow pick generation
+      }
     );
     return response.data;
   },
