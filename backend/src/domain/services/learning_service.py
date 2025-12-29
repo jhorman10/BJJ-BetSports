@@ -11,6 +11,7 @@ import logging
 from datetime import datetime
 from typing import Optional
 from dataclasses import asdict
+from pytz import timezone
 
 from src.domain.entities.betting_feedback import (
     BettingFeedback,
@@ -74,7 +75,7 @@ class LearningService:
             if last_saved and isinstance(last_saved, str):
                 last_saved = datetime.fromisoformat(last_saved)
             else:
-                last_saved = datetime.utcnow()
+                last_saved = datetime.now(timezone('America/Bogota'))
             
             return LearningWeights(
                 market_performances=market_perfs,
@@ -94,7 +95,7 @@ class LearningService:
                 "market_performances": {},
                 "global_adjustments": self.learning_weights.global_adjustments,
                 "version": self.learning_weights.version,
-                "last_saved": datetime.utcnow().isoformat(),
+                "last_saved": datetime.now(timezone('America/Bogota')).isoformat(),
             }
             
             for market_type, perf in self.learning_weights.market_performances.items():

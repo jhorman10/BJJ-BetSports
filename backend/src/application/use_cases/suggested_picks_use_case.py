@@ -8,6 +8,7 @@ import logging
 from datetime import datetime
 from typing import Optional
 import uuid
+from pytz import timezone
 
 from src.domain.entities.entities import Match, League, Team
 from src.domain.entities.suggested_pick import MatchSuggestedPicks, SuggestedPick
@@ -116,7 +117,7 @@ class GetSuggestedPicksUseCase:
                 match_id=match_id,
                 suggested_picks=[],
                 combination_warning="No se pudieron generar picks debido a datos insuficientes.",
-                generated_at=datetime.utcnow(),
+                generated_at=datetime.now(timezone('America/Bogota')),
             )
     
     async def _get_match(self, match_id: str) -> Optional[Match]:
@@ -471,7 +472,7 @@ class GetLearningStatsUseCase:
         total_count = sum(p.total_predictions for p in all_stats.values())
         last_updated = max(
             (p.last_updated for p in all_stats.values()),
-            default=datetime.utcnow()
+            default=datetime.now(timezone('America/Bogota'))
         )
         
         return LearningStatsResponseDTO(

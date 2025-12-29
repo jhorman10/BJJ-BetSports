@@ -8,6 +8,7 @@ combining real-time data with historical statistics.
 from datetime import datetime
 from typing import Optional, List
 from dataclasses import dataclass
+from pytz import timezone
 import logging
 
 from src.domain.entities.entities import Match, Prediction
@@ -471,5 +472,5 @@ class GetLivePredictionsUseCase:
             data_sources=[],
             recommended_bet="N/A",
             over_under_recommendation="N/A",
-            created_at=get_current_time(),
+            created_at=datetime.now(timezone('America/Bogota')),
         )

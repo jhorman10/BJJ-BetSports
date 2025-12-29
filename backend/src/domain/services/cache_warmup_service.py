@@ -128,7 +128,7 @@ class CacheWarmupService:
                     season=league_obj.season
                 ),
                 predictions=preds,
-                generated_at=datetime.utcnow()
+                generated_at=datetime.now(timezone('America/Bogota'))
             )
             
             cache_key = f"forecasts:league_{league_id}:date_{today_str}"

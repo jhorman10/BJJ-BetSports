@@ -8,6 +8,7 @@ the flow of data between the domain layer and the infrastructure layer.
 from datetime import datetime
 from typing import Optional
 from dataclasses import dataclass
+from pytz import timezone
 import logging
 import asyncio
 
@@ -219,7 +220,7 @@ class GetPredictionsUseCase:
         # Get historical data
         # 1. Dynamic Season Calculation
         # Instead of hardcoding "2425", we calculate based on current date
-        now = datetime.now()
+        now = datetime.now(timezone('America/Bogota'))
         current_year = now.year
         
         # Football seasons usually run from July to June
@@ -265,7 +266,7 @@ class GetPredictionsUseCase:
         upcoming_matches = await self._get_upcoming_matches(league_id, limit=1000)
         
         # Strict Date Filter: Only show matches in the future
-        now = datetime.now()
+        now = datetime.now(timezone('America/Bogota'))
         upcoming_matches = [m for m in upcoming_matches if m.match_date > now]
         
         if not upcoming_matches:
@@ -277,7 +278,7 @@ class GetPredictionsUseCase:
                     country=meta["country"],
                 ),
                 predictions=[],
-                generated_at=datetime.utcnow()
+                generated_at=datetime.now(timezone('America/Bogota'))
             )
         
         # Build predictions
@@ -360,7 +361,7 @@ class GetPredictionsUseCase:
                 country=league.country,
             ),
             predictions=predictions,
-            generated_at=datetime.utcnow(),
+            generated_at=datetime.now(timezone('America/Bogota')),
         )
     
 
@@ -580,7 +581,7 @@ class GetMatchDetailsUseCase:
                         recommended_bet="See Picks",
                         over_under_recommendation="See Picks",
                         suggested_picks=picks_dtos,
-                        created_at=datetime.utcnow(), # Placeholder
+                        created_at=datetime.now(timezone('America/Bogota')), # Placeholder
                     )
                     
                     # Update probabilities if we can infer them from picks or if added to history later
