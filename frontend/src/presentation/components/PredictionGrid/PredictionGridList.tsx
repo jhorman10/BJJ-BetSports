@@ -80,5 +80,5 @@ const PredictionGridList: React.FC<PredictionGridListProps> = ({
   );
 };
 
-export default PredictionGridList;
+export default React.memo(PredictionGridList);
 export { MatchCardSkeleton };
