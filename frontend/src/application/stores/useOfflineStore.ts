@@ -10,7 +10,7 @@ interface OfflineState {
   checkConnectivity: () => Promise<void>;
 }
 
-export const useOfflineStore = create<OfflineState>((set, get) => ({
+export const useOfflineStore = create<OfflineState>((set) => ({
   isOnline: navigator.onLine,
   isBackendAvailable: true,
   lastSync: null,

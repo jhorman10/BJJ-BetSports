@@ -106,38 +106,6 @@ class DataReconciliationService {
   }
 
   /**
-   * Merge cached and fresh data
-   * Strategy: Prefer fresh data, but keep local-only changes if any
-   */
-  private mergeData<T extends Record<string, any>>(
-    cached: T | null,
-    fresh: T | null,
-    timestampKey: string = "timestamp"
-  ): T | null {
-    // If no cached data, use fresh
-    if (!cached) return fresh;
-
-    // If no fresh data, keep cached
-    if (!fresh) return cached;
-
-    // Compare timestamps if available
-    const cachedTime = cached[timestampKey]
-      ? new Date(cached[timestampKey]).getTime()
-      : 0;
-    const freshTime = fresh[timestampKey]
-      ? new Date(fresh[timestampKey]).getTime()
-      : Date.now();
-
-    // Fresh data is newer, use it
-    if (freshTime > cachedTime) {
-      return fresh;
-    }
-
-    // Cached data is newer or equal, keep it
-    return cached;
-  }
-
-  /**
    * Get reconciliation status
    */
   isReconciliationInProgress(): boolean {
