@@ -79,6 +79,7 @@ class TrainingCache:
                     else:
                         self._last_update = None
                     self._cache_date = date.today()
+                    self._last_load_time = datetime.now()
                     logger.info(f"Loaded training cache from {cache_file}")
             except Exception as e:
                 logger.warning(f"Failed to load cache from disk: {e}")
@@ -137,6 +138,21 @@ class TrainingCache:
     
     def get(self, key: str) -> Optional[Any]:
         """Retrieve a value from cache."""
+        # Fix for Inter-Process Communication:
+        # Check if file on disk has changed (e.g. updated by standalone training script)
+        # If so, reload the cache before serving.
+        try:
+            cache_file = self._get_cache_file()
+            if cache_file.exists():
+                file_mtime = datetime.fromtimestamp(cache_file.stat().st_mtime)
+                # If we haven't loaded yet, or file is newer than our last load time
+                # Note: using a separate _last_load_time to track memory sync vs data freshness
+                if not hasattr(self, '_last_load_time') or (self._last_load_time and file_mtime > self._last_load_time):
+                    logger.info("Cache file changed on disk, reloading...")
+                    self._load_from_disk()
+        except Exception as e:
+            logger.warning(f"Error checking cache file freshness: {e}")
+
         # Check if cache is stale (older than 24 hours)
         if self._last_update:
             from datetime import timedelta

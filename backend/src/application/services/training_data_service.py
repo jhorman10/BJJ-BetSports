@@ -95,14 +95,15 @@ class TrainingDataService:
                 logger.error(f"Error fetching CSV/Backfill for {league_id}: {e}")
 
         # 3. API-Football (Highest detail stats)
-        try:
-            from src.infrastructure.data_sources.api_football import APIFootballSource
-            api_fb = APIFootballSource()
-            if api_fb.is_configured:
-                today = get_current_time()
-                date_from = (today - timedelta(days=30)).strftime("%Y-%m-%d")
-                api_fb_matches = await api_fb.get_finished_matches(date_from, today.strftime("%Y-%m-%d"), leagues)
-        except Exception: pass
+        # DISABLED PER USER REQUEST for local training optimization
+        # try:
+        #     from src.infrastructure.data_sources.api_football import APIFootballSource
+        #     api_fb = APIFootballSource()
+        #     if api_fb.is_configured:
+        #         today = get_current_time()
+        #         date_from = (today - timedelta(days=30)).strftime("%Y-%m-%d")
+        #         api_fb_matches = await api_fb.get_finished_matches(date_from, today.strftime("%Y-%m-%d"), leagues)
+        # except Exception: pass
 
         # 4. ESPN (Detailed recent stats)
         try:
@@ -152,17 +153,18 @@ class TrainingDataService:
         """
         Fetch matches from API-Football to fill gap between static CSVs and today.
         """
-        try:
-            from src.infrastructure.data_sources.api_football import APIFootballSource
-            api_fb = APIFootballSource()
-            if not api_fb.is_configured:
-                return []
-                
-            return await api_fb.get_finished_matches(
-                date_from=start_date.strftime("%Y-%m-%d"),
-                date_to=end_date.strftime("%Y-%m-%d"),
-                league_codes=[league_code]
-            )
-        except Exception as e:
-            logger.warning(f"Backfill failed for {league_code}: {e}")
-            return []
+        return [] # DISABLED PER USER REQUEST
+        # try:
+        #     from src.infrastructure.data_sources.api_football import APIFootballSource
+        #     api_fb = APIFootballSource()
+        #     if not api_fb.is_configured:
+        #         return []
+        #         
+        #     return await api_fb.get_finished_matches(
+        #         date_from=start_date.strftime("%Y-%m-%d"),
+        #         date_to=end_date.strftime("%Y-%m-%d"),
+        #         league_codes=[league_code]
+        #     )
+        # except Exception as e:
+        #     logger.warning(f"Backfill failed for {league_code}: {e}")
+        #     return []
