@@ -12,6 +12,7 @@ import {
   Tabs,
   Tab,
   Button,
+  Snackbar,
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
 import {
@@ -268,6 +269,46 @@ const BotDashboard: React.FC = () => {
     const timer = setTimeout(() => setInitialLoading(false), 1000);
     return () => clearTimeout(timer);
   }, []);
+
+  // Notification State
+  const [notification, setNotification] = React.useState<{
+    open: boolean;
+    message: string;
+    severity: "success" | "error" | "info";
+  }>({
+    open: false,
+    message: "",
+    severity: "info",
+  });
+
+  const handleCloseNotification = () => {
+    setNotification((prev) => ({ ...prev, open: false }));
+  };
+
+  // Watch for training completion to show notification
+  const prevLoadingRef = React.useRef(loading);
+
+  React.useEffect(() => {
+    if (prevLoadingRef.current && !loading) {
+      // Just finished loading
+      if (error) {
+        setNotification({
+          open: true,
+          message: `Error en el entrenamiento: ${error}`,
+          severity: "error",
+        });
+      } else if (stats) {
+        setNotification({
+          open: true,
+          message: `¡Entrenamiento completado! Precisión: ${(
+            stats.accuracy * 100
+          ).toFixed(1)}% | ROI: ${stats.roi.toFixed(1)}%`,
+          severity: "success",
+        });
+      }
+    }
+    prevLoadingRef.current = loading;
+  }, [loading, error, stats]);
 
   return (
     <Box sx={{ pb: 6 }}>
@@ -577,6 +618,22 @@ const BotDashboard: React.FC = () => {
             )}
           </Box>
         )}
+        {/* Training Notification Snackbar */}
+        <Snackbar
+          open={notification.open}
+          autoHideDuration={6000}
+          onClose={handleCloseNotification}
+          anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        >
+          <Alert
+            onClose={handleCloseNotification}
+            severity={notification.severity}
+            variant="filled"
+            sx={{ width: "100%", fontWeight: 600 }}
+          >
+            {notification.message}
+          </Alert>
+        </Snackbar>
       </Box>
     </Box>
   );
