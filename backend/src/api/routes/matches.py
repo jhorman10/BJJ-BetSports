@@ -97,9 +97,24 @@ async def get_live_matches(
 ) -> List[MatchDTO]:
     """Get all live matches using aggregated sources (NO MOCK DATA)."""
     try:
+        # Check Cache First
+        cache = get_cache_service()
+        cached_data = cache.get_live_matches("global")
+        if cached_data:
+            # logger.info("Using cached global live matches")
+            return [MatchDTO(**m) if isinstance(m, dict) else m for m in cached_data]
+
         from src.application.use_cases.use_cases import GetGlobalLiveMatchesUseCase
         use_case = GetGlobalLiveMatchesUseCase(data_sources)
-        return await use_case.execute()
+        result = await use_case.execute()
+        
+        # Cache Result (Small TTL: 30s)
+        if result:
+            # Serialize for cache
+            serialized_result = [m.model_dump() for m in result]
+            cache.set_live_matches(serialized_result, "global")
+            
+        return result
     except HTTPException:
         raise
     except Exception as e:
@@ -122,9 +137,28 @@ async def get_daily_matches(
 ) -> List[MatchDTO]:
     """Get all daily matches using aggregated sources (NO MOCK DATA)."""
     try:
+        from src.utils.time_utils import get_today_str
+        target_date = date_str if date_str else get_today_str()
+        
+        # Check Cache First
+        cache = get_cache_service()
+        cache_key = f"daily_matches_global:{target_date}"
+        cached_data = cache.get(cache_key)
+        
+        if cached_data:
+            # logger.info(f"Using cached daily matches for {target_date}")
+            return [MatchDTO(**m) if isinstance(m, dict) else m for m in cached_data]
+
         from src.application.use_cases.use_cases import GetGlobalDailyMatchesUseCase
         use_case = GetGlobalDailyMatchesUseCase(data_sources)
-        return await use_case.execute(date_str)
+        result = await use_case.execute(date_str)
+        
+        # Cache Result (Medium TTL: 5 min = 300s)
+        if result:
+            serialized_result = [m.model_dump() for m in result]
+            cache.set(cache_key, serialized_result, ttl_seconds=300)
+            
+        return result
     except HTTPException:
         raise
     except Exception as e:
