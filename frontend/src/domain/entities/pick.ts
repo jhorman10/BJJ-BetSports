@@ -11,11 +11,20 @@ export interface SuggestedPick {
   is_recommended: boolean;
   priority_score: number;
   // Historical/result properties
+  // Historical/result properties
   was_correct?: boolean;
   expected_value?: number;
   confidence?: number;
   is_contrarian?: boolean;
   pick_code?: string; // Short code like '1', 'X', '2', 'O2.5'
+
+  // Betting Management (Merged from prediction.ts)
+  suggested_stake?: number;
+  kelly_percentage?: number;
+  opening_odds?: number;
+  closing_odds?: number;
+  clv_beat?: boolean;
+  odds?: number;
 }
 
 /**

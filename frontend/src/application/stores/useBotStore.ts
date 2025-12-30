@@ -53,7 +53,7 @@ export const useBotStore = create<BotState>()(
       isReconciling: false,
 
       fetchTrainingData: async (options = {}) => {
-        const { forceRecalculate = false, daysBack = 365, startDate } = options;
+        const { forceRecalculate = false } = options;
 
         set({ loading: true, error: null });
 
@@ -133,13 +133,56 @@ export const useBotStore = create<BotState>()(
             return;
           }
 
-          // No cache or force recalculate - run full training
-          const data = await api.post<TrainingStatus>("/train", {
-            league_ids: ["E0", "SP1", "D1", "I1", "F1"],
-            days_back: daysBack,
-            start_date: startDate,
-            reset_weights: false,
-          });
+          // No cache or force recalculate - run full training via BACKGROUND JOB (Polling)
+          // Avoids CORS/Timeout errors on long-running training (1-2 mins)
+          // Note: detailed params (daysBack, startDate) are ignored in this background mode
+          // as /train/run-now uses default scheduler settings.
+
+          await api.post("/train/run-now");
+
+          let attempts = 0;
+          const maxAttempts = 60; // 5 minutes (5s * 60)
+          let newData: TrainingStatus | null = null;
+          // const startTime = Date.now();
+
+          while (attempts < maxAttempts) {
+            await new Promise((resolve) => setTimeout(resolve, 5000));
+
+            try {
+              const pollResponse = await api.get<{
+                cached: boolean;
+                data: TrainingStatus | null;
+                last_update: string | null;
+              }>("/train/cached");
+
+              if (
+                pollResponse.cached &&
+                pollResponse.data &&
+                pollResponse.last_update
+              ) {
+                const updateTime = new Date(pollResponse.last_update).getTime();
+                // Check if data is fresher than when we started
+                // Note: Server time might differ slightly, but usually training takes time.
+                // If the last_update is > startTime (or very close), we assume it's the new result.
+                // Or simply, if it's "fresh enough" (e.g. within last minute)
+                const oneMinuteAgo = Date.now() - 60000;
+
+                if (updateTime > oneMinuteAgo) {
+                  newData = pollResponse.data;
+                  break;
+                }
+              }
+            } catch (e) {
+              console.warn("Polling error (ignoring):", e);
+            }
+            attempts++;
+          }
+
+          if (!newData) {
+            throw new Error("Training timed out or failed to produce results.");
+          }
+
+          const data = newData;
 
           const now = new Date();
           set({
