@@ -145,16 +145,20 @@ class CacheWarmupService:
         - Matches starting in 6-24h: 6h TTL  
         - Matches starting in <6h: 2h TTL
         """
-        if not match.utc_date:
+        if not match.match_date:
             return 3600 * 12  # Default 12h
         
         COLOMBIA_TZ = timezone('America/Bogota')
         now = datetime.now(COLOMBIA_TZ)
         
-        # Parse match start time
         try:
-            match_start = datetime.fromisoformat(match.utc_date.replace('Z', '+00:00'))
-            match_start = match_start.astimezone(COLOMBIA_TZ)
+            # Match date is already a datetime object (localized or naive)
+            match_start = match.match_date
+            if match_start.tzinfo is None:
+                match_start = COLOMBIA_TZ.localize(match_start)
+            else:
+                match_start = match_start.astimezone(COLOMBIA_TZ)
+                
             time_until_match = (match_start - now).total_seconds()
             
             if time_until_match > 86400:  # >24 hours
@@ -171,12 +175,15 @@ class CacheWarmupService:
     async def _process_single_match(self, match: Match) -> Optional[MatchSuggestedPicksDTO]:
         """Generate and cache picks for a single match."""
         try:
+            # Generate using the use case
             result = await self.picks_use_case.execute(match.id)
             
             if result:
                 # Use dynamic TTL based on match start time
                 ttl = self._calculate_cache_ttl(match)
                 cache_key = f"forecasts:match_{match.id}"
+                
+                # Cache the individual match result
                 self.cache_service.set(cache_key, result.model_dump(), ttl_seconds=ttl)
                 logger.info(f"  ✓ Cached: {match.home_team.name} vs {match.away_team.name} (TTL: {ttl//3600}h)")
                 return result
@@ -203,8 +210,9 @@ class CacheWarmupService:
                 
                 # List of leagues we want to warmup
                 # We interpret "supported_leagues" as our INTERNAL codes
-                # Prioritizing I1 (Serie A) for debugging user request
-                supported_leagues = ["I1", "E0", "SP1", "D1", "F1", "N1", "P1"] 
+                from src.core.constants import DEFAULT_LEAGUES
+                # Extend default leagues with lower divisions that users might track
+                supported_leagues = list(set(DEFAULT_LEAGUES + ["E1", "E2", "E3", "SP2", "I2", "F2", "D2", "N2", "P2", "SC1"]))
                 
                 tasks = []
                 # NOTE: We must run these SEQUENTIALLY to avoid rate limits (10 req/min for free tier)
@@ -251,37 +259,3 @@ class CacheWarmupService:
                  
         return list(unique.values())
 
-    async def _process_single_match(self, match: Match):
-        """Generate and cache picks for a single match."""
-        try:
-            # This calls the use case which does ALL the heavy lifting:
-            # - History Aggregation
-            # - Stats Calc
-            # - Prediction Engine
-            # - Pick Generation
-            result = await self.picks_use_case.execute(match.id)
-            
-            if result:
-                # The Use Case returns DTO but doesn't explicitly cache it in Redis under the simplistic key?
-                # The Use Case actually *generates* it.
-                # We need to manually cache it here to ensure the API finds it immediately.
-                
-                # The API endpoint looks for: f"forecasts:match_{match_id}"
-                # We should serialize the result and store it there.
-                
-                # Wait, the API endpoint code says:
-                # cached_match = cache.get(cache_key)
-                # if cached_match... return MatchSuggestedPicksDTO...
-                
-                # So we just cache the DTO.
-                cache_key = f"forecasts:match_{match.id}"
-                
-                # We can store the whole object as dict
-                self.cache_service.set(cache_key, result.model_dump(), ttl_seconds=3600*24) # 24h cache
-                
-                logger.info(f"  ✓ Cached: {match.home_team.name} vs {match.away_team.name}")
-            else:
-                logger.warning(f"  ✗ Failed to generate picks for: {match.id}")
-                
-        except Exception as e:
-            logger.error(f"  ⚠ Warmup Error for {match.id}: {e}")

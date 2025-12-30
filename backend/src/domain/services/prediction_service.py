@@ -806,6 +806,7 @@ class PredictionService:
         home_missing_players: int = 0,
         away_missing_players: int = 0,
         opening_odds: Optional[Odds] = None,
+        min_matches: int = 6,
     ) -> Prediction:
         """
         Generate a prediction for a match using ONLY real data.
@@ -830,11 +831,10 @@ class PredictionService:
         home_played = home_stats.matches_played if home_stats else 0
         away_played = away_stats.matches_played if away_stats else 0
         
-        # PROFITABILITY FIX: Increase minimum matches to 6 to ensure statistical significance
-        MIN_MATCHES = 6
+        # PROFITABILITY FIX: Use provided threshold (default 6 for live, less for training)
         
-        # FIX: If league_averages is None but we have Stats, use a default global average
-        if not league_averages and (home_played >= MIN_MATCHES and away_played >= MIN_MATCHES):
+        # If league_averages is None, use a default global average
+        if not league_averages:
             # Global average ~2.6-2.7 goals. Home typically 1.5, Away 1.2
             from src.domain.value_objects.value_objects import LeagueAverages
             league_averages = LeagueAverages(
@@ -843,10 +843,8 @@ class PredictionService:
                 avg_total_goals=2.70
             ) 
 
-        has_league_data = league_averages is not None
-        
         # If insufficient data, return empty prediction (no fake values)
-        if home_played < MIN_MATCHES or away_played < MIN_MATCHES or not has_league_data:
+        if (home_played < min_matches or away_played < min_matches) and not (match.home_odds and match.draw_odds and match.away_odds):
             # FALLBACK TO ODDS: If we have odds, use them as implied probability
             if match.home_odds and match.draw_odds and match.away_odds:
                 odds = Odds(home=match.home_odds, draw=match.draw_odds, away=match.away_odds)

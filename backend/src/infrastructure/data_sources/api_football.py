@@ -39,6 +39,7 @@ class APIFootballConfig:
 LEAGUE_ID_MAPPING = {
     "E0": 39,   # Premier League
     "E1": 40,   # Championship
+    "E2": 41,   # League One
     "E_FA": 45, # FA Cup
     "SP1": 140, # La Liga
     "SP2": 141, # Segunda División
@@ -61,6 +62,14 @@ LEAGUE_ID_MAPPING = {
     "G2": 198,  # Super League 2 Greece
     "SC0": 179, # Scottish Premiership
     "SC1": 180, # Scottish Championship
+    "I1": 135,  # Serie A
+    "I2": 136,  # Serie B
+    "D1": 78,   # Bundesliga
+    "D2": 79,   # 2. Bundesliga
+    "F1": 61,   # Ligue 1
+    "F2": 62,   # Ligue 2
+    "N1": 88,   # Eredivisie
+    "N2": 89,   # Eerste Divisie (Netherlands 2)
     "UCL": 2,   # UEFA Champions League
     "UEL": 3,   # UEFA Europa League
     "UECL": 848, # UEFA Conference League

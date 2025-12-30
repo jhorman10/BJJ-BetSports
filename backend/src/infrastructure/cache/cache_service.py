@@ -126,6 +126,15 @@ class CacheService:
         self.set(f"historical:{league_code}:{seasons_key}", data, self.TTL_HISTORICAL)
 
 
+    
+    def get_league_averages(self, league_id: str) -> Optional[Any]:
+        """Get league averages from cache."""
+        return self.get(f"league_averages:{league_id}")
+    
+    def set_league_averages(self, league_id: str, data: Any) -> None:
+        """Set league averages in cache."""
+        self.set(f"league_averages:{league_id}", data, self.TTL_HISTORICAL) # 1 hour TTL seems appropriate or LEAGUES TTL
+
 # Singleton instance
 _cache_instance: Optional[CacheService] = None
 _instance_lock = threading.Lock()

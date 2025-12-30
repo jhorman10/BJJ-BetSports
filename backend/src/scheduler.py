@@ -23,6 +23,17 @@ class BotScheduler:
         for league_id in leagues_dict.keys():
             yield league_id
 
+    async def run_audit_only_job(self):
+        """Standalone audit job (08:00 AM)."""
+        logger.info("Starting scheduled data audit...")
+        try:
+             from src.api.dependencies import get_audit_service
+             audit_service = get_audit_service()
+             report = await audit_service.audit_and_fix(fix_missing=True)
+             logger.info(f"Scheduled Audit Complete. Status: {report['status']}")
+        except Exception as e:
+             logger.error(f"Scheduled audit failed: {e}")
+
     async def run_daily_orchestrated_job(self):
         """
         Execute the daily orchestrated job pipeline with 512MB RAM constraint.
@@ -40,37 +51,23 @@ class BotScheduler:
             logger.info(f"ARCHITECT: Starting memory-optimized job at {datetime.now(COLOMBIA_TZ)}")
             
             # Dynamic imports to keep initial memory low
-            from src.api.routes.learning import BacktestRequest, run_training_session
-            from src.api.dependencies import (
-                get_learning_service, 
-                get_prediction_service, 
-                get_statistics_service, 
-                get_data_sources
-            )
-            from src.infrastructure.cache.cache_service import get_cache_service
+            # 1. RETRAINING (Execute via centralized orchestrator)
+            logger.info("Step 1/5: Starting retraining (Memory window active)...")
+            from src.api.dependencies import get_ml_training_orchestrator, get_cache_service, get_data_sources, get_prediction_service, get_statistics_service, get_audit_service
             from src.application.use_cases.use_cases import GetPredictionsUseCase
             from src.infrastructure.data_sources.football_data_uk import LEAGUES_METADATA
             
-            # 1. RETRAINING (Execute once and clear)
-            logger.info("Step 1/3: Starting retraining (Memory window active)...")
-            learning_service = get_learning_service()
+            orchestrator = get_ml_training_orchestrator()
+            cache = get_cache_service()
             data_sources = get_data_sources()
             prediction_service = get_prediction_service()
             statistics_service = get_statistics_service()
             
-            request = BacktestRequest(
-                league_ids=list(LEAGUES_METADATA.keys()),
-                days_back=365,
-                reset_weights=False
-            )
+            leagues = list(LEAGUES_METADATA.keys())
             
-            training_result = await run_training_session(
-                request=request,
-                learning_service=learning_service,
-                data_sources=data_sources,
-                prediction_service=prediction_service,
-                statistics_service=statistics_service,
-                background_tasks=None
+            training_result = await orchestrator.run_training_pipeline(
+                league_ids=leagues,
+                days_back=365
             )
             accuracy = getattr(training_result, 'accuracy', 0)
             logger.info(f"Retraining completed. Accuracy: {accuracy:.2%}")
@@ -130,6 +127,15 @@ class BotScheduler:
                     gc.collect() # Ensure we clean up even on error
             
             logger.info(f"ARCHITECT: Orchestrated job finished. {leagues_processed} leagues processed. Memory stabilized.")
+            
+            # 4. AUDIT & AUTO-FIX (Self-Healing)
+            logger.info("Step 4/4: Running post-execution audit...")
+            try:
+                audit_service = get_audit_service()
+                report = await audit_service.audit_and_fix(fix_missing=True)
+                logger.info(f"Audit Status: {report['status']} - Actions: {report['actions_taken']}")
+            except Exception as e:
+                logger.error(f"Audit failed: {e}")
                        
         except Exception as e:
             logger.error(f"CRITICAL Error during orchestrated job: {str(e)}", exc_info=True)
@@ -153,6 +159,15 @@ class BotScheduler:
                 name='Daily Orchestrated Job at 06:00 AM COT',
                 replace_existing=True,
                 max_instances=1
+            )
+            
+            # Secondary Audit Job at 08:00 AM
+            self.scheduler.add_job(
+                self.run_audit_only_job,
+                trigger=CronTrigger(hour=8, minute=0, timezone=COLOMBIA_TZ),
+                id='daily_audit_job',
+                name='Daily Data Audit at 08:00 AM COT',
+                replace_existing=True
             )
             
             self.scheduler.start()

@@ -45,6 +45,7 @@ COMPETITION_CODE_MAPPING = {
     "F1": "FL1",  # Ligue 1
     "N1": "DED",  # Eredivisie
     "P1": "PPL",  # Primeira Liga
+    "B1": "BL1",  # Belgium Jupiler Pro League (Checking if BL1 is correct - usually it's different)
     "UCL": "CL",  # Champions League
     "EURO": "EC", # European Championship
     "WC": "WC",   # World Cup

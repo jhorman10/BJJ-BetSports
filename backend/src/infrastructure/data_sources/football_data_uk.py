@@ -111,21 +111,36 @@ class FootballDataUKSource:
     def _get_csv_url(self, league_code: str, season: str) -> str:
         """
         Construct CSV URL for a league and season.
-        
-        Args:
-            league_code: League code (e.g., "E0" for Premier League)
-            season: Season in format "2324" for 2023-2024
-            
-        Returns:
-            Full URL to the CSV file
         """
         # Football-Data.co.uk URL pattern: /mmz4281/{season}/{league_code}.csv
         return f"{self.config.base_url}/mmz4281/{season}/{league_code}.csv"
-    
+
+    def _get_current_season(self, date: Optional[datetime] = None) -> str:
+        """
+        Calculate the current football-data.co.uk season code.
+        Format: "2425" for 2024-2025.
+        Season changes in August.
+        """
+        if date is None:
+            date = datetime.now()
+            
+        year = date.year
+        if date.month >= 8:
+            # August to December: current year + next year
+            start = year % 100
+            end = (year + 1) % 100
+        else:
+            # January to July: previous year + current year
+            start = (year - 1) % 100
+            end = year % 100
+            
+        return f"{start:02d}{end:02d}"
+
     async def download_csv(
         self,
         league_code: str,
         season: str,
+        force_refresh: bool = False,
     ) -> Optional[tuple[pd.DataFrame, datetime]]:
         """
         Download and parse CSV data for a league.
@@ -133,13 +148,14 @@ class FootballDataUKSource:
         Args:
             league_code: League code
             season: Season code (e.g., "2324")
+            force_refresh: If True, ignore cache and re-download
             
         Returns:
             Tuple of (DataFrame, timestamp) or None if failed
         """
         cache_key = f"{league_code}_{season}"
         
-        if cache_key in self._cache:
+        if not force_refresh and cache_key in self._cache:
             return self._cache[cache_key]
         
         url = self._get_csv_url(league_code, season)
@@ -158,7 +174,15 @@ class FootballDataUKSource:
                 
                 now = datetime.utcnow()
                 self._cache[cache_key] = (df, now)
-                logger.info(f"Downloaded {len(df)} matches from {url}")
+                
+                # Diagnostic Log: Check latest date in CSV
+                latest_date = "Unknown"
+                if 'Date' in df.columns and not df.empty:
+                    try:
+                        latest_date = df['Date'].iloc[-1]
+                    except: pass
+                
+                logger.info(f"Downloaded {len(df)} matches from {url}. Latest match date in CSV: {latest_date}")
                 return (df, now)
                 
         except httpx.HTTPStatusError as e:
@@ -294,6 +318,7 @@ class FootballDataUKSource:
         self,
         league_code: str,
         seasons: Optional[list[str]] = None,
+        force_refresh: bool = False,
     ) -> list[Match]:
         """
         Get historical matches for a league.
@@ -301,13 +326,26 @@ class FootballDataUKSource:
         Args:
             league_code: League code (e.g., "E0")
             seasons: List of season codes or None for current season
+            force_refresh: Whether to force re-download of data
             
         Returns:
             List of Match entities
         """
         if seasons is None:
-            # Default to current and previous season
-            seasons = ["2425", "2324"]
+            # Dynamic season calculation with fallback
+            current_season = self._get_current_season()
+            
+            # Previous season calculation
+            try:
+                # Format is "2425" -> 2024
+                start_year = int(current_season[:2])
+                prev_start = (start_year - 1) % 100
+                prev_season = f"{prev_start:02d}{start_year:02d}"
+                seasons = [current_season, prev_season]
+            except Exception:
+                seasons = [current_season, "2324"]
+                
+            logger.info(f"Targeting seasons for {league_code}: {seasons}")
         
         if league_code not in LEAGUES_METADATA:
             logger.warning(f"Unknown league code: {league_code}")
@@ -322,14 +360,28 @@ class FootballDataUKSource:
         )
         
         all_matches = []
-        tasks = [self.download_csv(league_code, season) for season in seasons]
-        all_matches = []
-        for result in await asyncio.gather(*tasks):
+        tasks = [self.download_csv(league_code, season, force_refresh=force_refresh) for season in seasons]
+        
+        results = await asyncio.gather(*tasks)
+        has_current_data = False
+        
+        for i, result in enumerate(results):
+            season_code = seasons[i]
             if result is not None:
                 df, timestamp = result
-                matches = self.parse_matches(df, league, timestamp)
-                all_matches.extend(matches)
+                if not df.empty:
+                    matches = self.parse_matches(df, league, timestamp)
+                    all_matches.extend(matches)
+                    if i == 0: # Current season
+                        has_current_data = True
+                        logger.info(f"Successfully loaded {len(matches)} matches for {league_code} season {season_code}")
+            else:
+                if i == 0:
+                    logger.warning(f"Failed to load current season ({season_code}) for {league_code}. Falling back to historical data only.")
         
+        if not all_matches:
+            logger.error(f"No matches found for {league_code} in seasons {seasons}")
+            
         return all_matches
     
     def calculate_team_statistics(

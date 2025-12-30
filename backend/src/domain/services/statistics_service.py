@@ -386,7 +386,69 @@ class StatisticsService:
         )
 
     @staticmethod
-    def calculate_league_averages(matches: List[Match]) -> 'LeagueAverages':
+    def create_empty_stats_dict() -> dict:
+        """Create a dictionary for tracking stats incrementally."""
+        return {
+            "matches_played": 0, "wins": 0, "draws": 0, "losses": 0,
+            "goals_scored": 0, "goals_conceded": 0,
+            "corners_for": 0, "corners_against": 0,
+            "yellow_cards": 0, "red_cards": 0,
+            "home_wins": 0, "away_wins": 0
+        }
+
+    @staticmethod
+    def update_team_stats_dict(stats: dict, match: Match, is_home: bool):
+        """Update a stats dictionary with a new match result."""
+        goals_for = match.home_goals if is_home else match.away_goals
+        goals_against = match.away_goals if is_home else match.home_goals
+        
+        if goals_for is None or goals_against is None:
+            return
+
+        stats["matches_played"] += 1
+        stats["goals_scored"] += goals_for
+        stats["goals_conceded"] += goals_against
+        
+        if goals_for > goals_against:
+            stats["wins"] += 1
+            if is_home: stats["home_wins"] += 1
+            else: stats["away_wins"] += 1
+        elif goals_for == goals_against:
+            stats["draws"] += 1
+        else:
+            stats["losses"] += 1
+            
+        if match.home_corners is not None and match.away_corners is not None:
+            stats["corners_for"] += match.home_corners if is_home else match.away_corners
+            stats["corners_against"] += match.away_corners if is_home else match.home_corners
+            
+        if match.home_yellow_cards is not None:
+            stats["yellow_cards"] += match.home_yellow_cards if is_home else match.away_yellow_cards
+            
+        if match.home_red_cards is not None:
+            stats["red_cards"] += match.home_red_cards if is_home else match.away_red_cards
+
+    @staticmethod
+    def convert_to_domain_stats(team_name: str, raw_stats: dict) -> TeamStatistics:
+        """Convert a raw stats dictionary to a TeamStatistics domain entity."""
+        mp = raw_stats["matches_played"]
+        return TeamStatistics(
+            team_id=team_name.lower().replace(" ", "_"),
+            matches_played=mp,
+            wins=raw_stats.get("wins", 0),
+            draws=raw_stats.get("draws", 0),
+            losses=raw_stats.get("losses", 0),
+            goals_scored=raw_stats["goals_scored"],
+            goals_conceded=raw_stats["goals_conceded"],
+            home_wins=raw_stats.get("home_wins", 0),
+            away_wins=raw_stats.get("away_wins", 0),
+            total_corners=raw_stats.get("corners_for", 0),
+            total_yellow_cards=raw_stats.get("yellow_cards", 0),
+            total_red_cards=raw_stats.get("red_cards", 0),
+            recent_form="" # Form is calculated from full history if needed
+        )
+
+    def calculate_league_averages(self, matches: List[Match]) -> 'LeagueAverages':
         """
         Calculate league-wide averages from match history.
         
@@ -396,15 +458,6 @@ class StatisticsService:
         Returns:
             LeagueAverages value object with computed averages
         """
-        from src.domain.value_objects.value_objects import LeagueAverages
-        
-        if not matches:
-            # STRICT: Return ZEROS when no data. Do not use mock averages.
-            return LeagueAverages(
-                avg_home_goals=0.0,
-                avg_away_goals=0.0,
-                avg_total_goals=0.0,
-            )
         
         total_home_goals = 0
         total_away_goals = 0
@@ -414,19 +467,19 @@ class StatisticsService:
             if not match.is_played:
                 continue
                 
-            # Goals
             if match.home_goals is not None and match.away_goals is not None:
                 total_home_goals += match.home_goals
                 total_away_goals += match.away_goals
                 matches_with_goals += 1
         
         # Calculate averages with fallbacks
-        avg_home = total_home_goals / matches_with_goals if matches_with_goals > 0 else 0.0
-        avg_away = total_away_goals / matches_with_goals if matches_with_goals > 0 else 0.0
-        avg_total = avg_home + avg_away
-        
+        from src.domain.value_objects.value_objects import LeagueAverages
+
+        if matches_with_goals == 0:
+            return LeagueAverages()
+            
         return LeagueAverages(
-            avg_home_goals=avg_home,
-            avg_away_goals=avg_away,
-            avg_total_goals=avg_total,
+            avg_home_goals=total_home_goals / matches_with_goals,
+            avg_away_goals=total_away_goals / matches_with_goals,
+            avg_total_goals=(total_home_goals + total_away_goals) / matches_with_goals
         )

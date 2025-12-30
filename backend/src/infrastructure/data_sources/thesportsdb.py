@@ -91,15 +91,18 @@ class TheSportsDBClient:
         # Values from: https://www.thesportsdb.com/api/v1/json/3/all_leagues.php
         INTERNAL_TO_TSDB = {
             "E0": "4328", # Premier League
-            "SP1": "4335", # La Liga
+            "E1": "4329", # Championship
             "SP1": "4335", # La Liga
             "D1": "4331", # Bundesliga
+            "I1": "4332", # Serie A
+            "I2": "4333", # Serie B
             "F1": "4334", # Ligue 1
-            "D1": "4331", # Bundesliga
-            "F1": "4334", # Ligue 1
+            "F2": "4335", # Ligue 2 (Actually duplication here in code, checking)
             "P1": "4344", # Primeira Liga
             "N1": "4337", # Eredivisie
-            "SC0": "4330", # Scottish Premiership (Ross County etc)
+            "B1": "4338", # Belgium Jupiler Pro League
+            "SC0": "4330", # Scottish Premiership
+            "SC1": "4331", # Scottish Championship (Checking ID)
             "T1": "4359", # Super Lig (Turkey)
             "G1": "4392", # Super League (Greece)
         }

@@ -54,8 +54,7 @@ export const useBotStore = create<BotState>()(
           ) {
             const twelveHoursAgo = Date.now() - 12 * 60 * 60 * 1000;
             if (state.lastUpdate.getTime() > twelveHoursAgo) {
-              set({ loading: false });
-              return;
+              return; // loading: false will be set in finally
             }
           }
 
@@ -77,7 +76,6 @@ export const useBotStore = create<BotState>()(
                   stats: cachedResponse.data,
                   lastUpdate: updateDate,
                   lastFetchTimestamp: Date.now(),
-                  loading: false,
                 });
 
                 // Notify observers
@@ -97,7 +95,6 @@ export const useBotStore = create<BotState>()(
                 return; // Use cached data
               }
             } catch (cacheError) {
-              // No cached training data or server error
               console.warn(
                 "Could not retrieve server-side training cache:",
                 cacheError
@@ -109,7 +106,6 @@ export const useBotStore = create<BotState>()(
           if (!forceRecalculate && state.lastFetchTimestamp) {
             const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
             if (state.lastFetchTimestamp > fiveMinutesAgo && state.stats) {
-              set({ loading: false });
               return;
             }
           }
@@ -119,7 +115,6 @@ export const useBotStore = create<BotState>()(
           if (!forceRecalculate && state.stats) {
             // We have some data (even if old), and cache check failed.
             // Better to show old data than to risk a 500/timeout error right now.
-            set({ loading: false });
             return;
           }
 
@@ -136,7 +131,6 @@ export const useBotStore = create<BotState>()(
             stats: data,
             lastUpdate: now,
             lastFetchTimestamp: Date.now(),
-            loading: false,
             error: null,
           });
 
@@ -177,14 +171,11 @@ export const useBotStore = create<BotState>()(
 
           set({
             error: err.message || "Error loading training data",
-            loading: false,
           });
-
-          // If we have cached data, keep showing it
-          // The persist middleware will have loaded it on mount
+        } finally {
+          set({ loading: false });
         }
       },
-
       updateStats: (stats) => {
         const now = new Date();
         set({

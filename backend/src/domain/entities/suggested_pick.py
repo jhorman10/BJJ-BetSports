@@ -82,6 +82,7 @@ class SuggestedPick:
     is_recommended: bool = True
     priority_score: float = 0.0
     expected_value: float = 0.0
+    result: Optional[str] = None # "WIN", "LOSS", "VOID", or None
     
     def __post_init__(self):
         """Validate probability and risk level."""

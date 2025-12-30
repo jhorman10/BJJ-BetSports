@@ -62,8 +62,13 @@ async def get_league_predictions(
     if cached_result:
         # If it's a dict (from Redis), parse it back to DTO
         if isinstance(cached_result, dict):
-            return PredictionsResponseDTO(**cached_result)
-        return cached_result
+            dto = PredictionsResponseDTO(**cached_result)
+            # Only return if we actually have predictions
+            if dto.predictions:
+                return dto
+            logger.warning(f"Cached data for {league_id} has 0 predictions. Ignoring cache and recalculating...")
+        else:
+            return cached_result
     
     # FALLBACK: Calculate predictions in real-time if no pre-calculated data
     logger.info(f"No pre-calculated data for {league_id}. Calculating in real-time...")

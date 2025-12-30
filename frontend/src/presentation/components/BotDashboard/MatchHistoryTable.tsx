@@ -413,17 +413,79 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                               bgcolor: "rgba(15, 23, 42, 0.6)",
                             }}
                           >
-                            <Typography
-                              variant="h6"
-                              fontWeight={700}
-                              color="white"
+                            <Box
+                              display="flex"
+                              alignItems="center"
+                              justifyContent="space-between"
                               mb={2}
                             >
-                              📊 Todos los Picks del Partido
-                            </Typography>
+                              <Typography
+                                variant="h6"
+                                fontWeight={700}
+                                color="white"
+                              >
+                                📊 Todos los Picks del Partido
+                              </Typography>
+
+                              {(() => {
+                                const uniquePicks = getUniquePicks(
+                                  match.picks || []
+                                );
+                                const correctCount = uniquePicks.filter(
+                                  (p) => p.was_correct
+                                ).length;
+                                const wrongCount = uniquePicks.filter(
+                                  (p) => !p.was_correct
+                                ).length;
+
+                                return (
+                                  <Box display="flex" gap={1}>
+                                    <Chip
+                                      icon={
+                                        <CheckCircle
+                                          sx={{ fontSize: "16px !important" }}
+                                        />
+                                      }
+                                      label={`${correctCount} Aciertos`}
+                                      size="small"
+                                      sx={{
+                                        bgcolor: "rgba(16, 185, 129, 0.1)",
+                                        color: "#10b981",
+                                        border:
+                                          "1px solid rgba(16, 185, 129, 0.2)",
+                                        fontWeight: 600,
+                                        height: 24,
+                                      }}
+                                    />
+                                    <Chip
+                                      icon={
+                                        <Cancel
+                                          sx={{ fontSize: "16px !important" }}
+                                        />
+                                      }
+                                      label={`${wrongCount} Fallos`}
+                                      size="small"
+                                      sx={{
+                                        bgcolor: "rgba(239, 68, 68, 0.1)",
+                                        color: "#ef4444",
+                                        border:
+                                          "1px solid rgba(239, 68, 68, 0.2)",
+                                        fontWeight: 600,
+                                        height: 24,
+                                      }}
+                                    />
+                                  </Box>
+                                );
+                              })()}
+                            </Box>
                             <Grid container spacing={2}>
-                              {getUniquePicks(match.picks || []).map(
-                                (pick, index) => {
+                              {getUniquePicks(match.picks || [])
+                                .sort(
+                                  (a, b) =>
+                                    (b.probability || b.confidence || 0) -
+                                    (a.probability || a.confidence || 0)
+                                )
+                                .map((pick, index) => {
                                   const confColor = getPickColor(
                                     pick.probability || pick.confidence || 0
                                   );
@@ -549,8 +611,7 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                                       </Card>
                                     </Grid>
                                   );
-                                }
-                              )}
+                                })}
                             </Grid>
                           </Box>
                         </Collapse>
@@ -719,9 +780,42 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                       color="text.secondary"
                       fontWeight={600}
                     >
-                      📊 TODOS LOS PICKS (
-                      {getUniquePicks(match.picks || []).length})
+                      📊 TODOS ({getUniquePicks(match.picks || []).length})
                     </Typography>
+
+                    {(() => {
+                      const uniquePicks = getUniquePicks(match.picks || []);
+                      const correctCount = uniquePicks.filter(
+                        (p) => p.was_correct
+                      ).length;
+                      const wrongCount = uniquePicks.filter(
+                        (p) => !p.was_correct
+                      ).length;
+
+                      return (
+                        <Box display="flex" gap={1} mr={1}>
+                          <span
+                            style={{
+                              color: "#10b981",
+                              fontSize: "0.75rem",
+                              fontWeight: 600,
+                            }}
+                          >
+                            ✓ {correctCount}
+                          </span>
+                          <span
+                            style={{
+                              color: "#ef4444",
+                              fontSize: "0.75rem",
+                              fontWeight: 600,
+                            }}
+                          >
+                            ✗ {wrongCount}
+                          </span>
+                        </Box>
+                      );
+                    })()}
+
                     <IconButton
                       size="small"
                       sx={{
@@ -742,119 +836,127 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                     timeout="auto"
                     unmountOnExit
                   >
-                    {getUniquePicks(match.picks || []).map((pick, index) => {
-                      const confColor = getPickColor(pick.confidence || 0);
-                      return (
-                        <Box
-                          key={index}
-                          sx={{
-                            p: 2,
-                            mb: 1.5,
-                            borderRadius: 2,
-                            background: pick.was_correct
-                              ? "linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.1) 100%)"
-                              : "linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(220, 38, 38, 0.1) 100%)",
-                            border: `1px solid ${
-                              pick.was_correct
-                                ? "rgba(16, 185, 129, 0.3)"
-                                : "rgba(239, 68, 68, 0.3)"
-                            }`,
-                          }}
-                        >
+                    {getUniquePicks(match.picks || [])
+                      .sort(
+                        (a, b) =>
+                          (b.probability || b.confidence || 0) -
+                          (a.probability || a.confidence || 0)
+                      )
+                      .map((pick, index) => {
+                        const confColor = getPickColor(pick.confidence || 0);
+                        return (
                           <Box
-                            display="flex"
-                            justifyContent="space-between"
-                            alignItems="flex-start"
-                            mb={1}
+                            key={index}
+                            sx={{
+                              p: 2,
+                              mb: 1.5,
+                              borderRadius: 2,
+                              background: pick.was_correct
+                                ? "linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.1) 100%)"
+                                : "linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(220, 38, 38, 0.1) 100%)",
+                              border: `1px solid ${
+                                pick.was_correct
+                                  ? "rgba(16, 185, 129, 0.3)"
+                                  : "rgba(239, 68, 68, 0.3)"
+                              }`,
+                            }}
                           >
-                            <Typography
-                              variant="caption"
-                              color="text.secondary"
-                              fontWeight={600}
-                              textTransform="uppercase"
-                              sx={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 0.5,
-                                flexWrap: "wrap",
-                                wordBreak: "break-word",
-                                overflowWrap: "break-word",
-                              }}
+                            <Box
+                              display="flex"
+                              justifyContent="space-between"
+                              alignItems="flex-start"
+                              mb={1}
                             >
-                              <span
-                                style={{ fontSize: "1.2em", flexShrink: 0 }}
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                fontWeight={600}
+                                textTransform="uppercase"
+                                sx={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 0.5,
+                                  flexWrap: "wrap",
+                                  wordBreak: "break-word",
+                                  overflowWrap: "break-word",
+                                }}
                               >
-                                {getMarketIcon(pick.market_type)}
-                              </span>{" "}
-                              <span style={{ wordBreak: "break-word" }}>
-                                {pick.market_label ||
-                                  getMarketLabel(pick.market_type)}
-                              </span>
-                              {pick.is_contrarian && (
-                                <Chip
-                                  label="VALUE BET"
-                                  size="small"
+                                <span
+                                  style={{ fontSize: "1.2em", flexShrink: 0 }}
+                                >
+                                  {getMarketIcon(pick.market_type)}
+                                </span>{" "}
+                                <span style={{ wordBreak: "break-word" }}>
+                                  {pick.market_label ||
+                                    getMarketLabel(pick.market_type)}
+                                </span>
+                                {pick.is_contrarian && (
+                                  <Chip
+                                    label="VALUE BET"
+                                    size="small"
+                                    sx={{
+                                      bgcolor: "rgba(139, 92, 246, 0.2)",
+                                      color: "#8b5cf6",
+                                      fontSize: "0.65rem",
+                                      height: 20,
+                                      fontWeight: 700,
+                                      border:
+                                        "1px solid rgba(139, 92, 246, 0.3)",
+                                      flexShrink: 0,
+                                    }}
+                                  />
+                                )}
+                              </Typography>
+                              {pick.was_correct ? (
+                                <CheckCircle
                                   sx={{
-                                    bgcolor: "rgba(139, 92, 246, 0.2)",
-                                    color: "#8b5cf6",
-                                    fontSize: "0.65rem",
-                                    height: 20,
-                                    fontWeight: 700,
-                                    border: "1px solid rgba(139, 92, 246, 0.3)",
-                                    flexShrink: 0,
+                                    fontSize: 20,
+                                    color: "#10b981",
+                                  }}
+                                />
+                              ) : (
+                                <Cancel
+                                  sx={{
+                                    fontSize: 20,
+                                    color: "#ef4444",
                                   }}
                                 />
                               )}
-                            </Typography>
-                            {pick.was_correct ? (
-                              <CheckCircle
+                            </Box>
+                            <Box display="flex" gap={1} flexWrap="wrap">
+                              {pick.expected_value !== undefined &&
+                                pick.expected_value > 0 && (
+                                  <Chip
+                                    label={`EV: +${pick.expected_value.toFixed(
+                                      1
+                                    )}%`}
+                                    size="small"
+                                    sx={{
+                                      bgcolor: "rgba(251, 191, 36, 0.2)",
+                                      color: "#fbbf24",
+                                      fontSize: "0.65rem",
+                                      height: 20,
+                                    }}
+                                  />
+                                )}
+                              <Chip
+                                label={`Conf: ${(
+                                  (pick.probability || pick.confidence || 0) *
+                                  100
+                                ).toFixed(0)}%`}
+                                size="small"
                                 sx={{
-                                  fontSize: 20,
-                                  color: "#10b981",
+                                  bgcolor: `${confColor}20`,
+                                  color: confColor,
+                                  fontSize: "0.65rem",
+                                  height: 20,
+                                  fontWeight: 700,
                                 }}
                               />
-                            ) : (
-                              <Cancel
-                                sx={{
-                                  fontSize: 20,
-                                  color: "#ef4444",
-                                }}
-                              />
-                            )}
+                            </Box>
                           </Box>
-                          <Box display="flex" gap={1} flexWrap="wrap">
-                            {pick.expected_value !== undefined &&
-                              pick.expected_value > 0 && (
-                                <Chip
-                                  label={`EV: +${pick.expected_value.toFixed(
-                                    1
-                                  )}%`}
-                                  size="small"
-                                  sx={{
-                                    bgcolor: "rgba(251, 191, 36, 0.2)",
-                                    color: "#fbbf24",
-                                    fontSize: "0.65rem",
-                                    height: 20,
-                                  }}
-                                />
-                              )}
-                            <Chip
-                              label={`Conf: ${(
-                                (pick.confidence ?? 0) * 100
-                              ).toFixed(0)}%`}
-                              size="small"
-                              sx={{
-                                bgcolor: `${confColor}20`,
-                                color: confColor,
-                                fontSize: "0.65rem",
-                                height: 20,
-                                fontWeight: 700,
-                              }}
-                            />
-                          </Box>
-                        </Box>
-                      );
-                    })}
+                        );
+                      })}
                   </Collapse>
                 </Box>
               )}

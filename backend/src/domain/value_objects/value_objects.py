@@ -171,6 +171,6 @@ class PredictionConfidence:
 @dataclass(frozen=True)
 class LeagueAverages:
     """Average statistics for a league used in predictions."""
-    avg_home_goals: float
-    avg_away_goals: float
-    avg_total_goals: float
+    avg_home_goals: float = 1.5
+    avg_away_goals: float = 1.2
+    avg_total_goals: float = 2.7
