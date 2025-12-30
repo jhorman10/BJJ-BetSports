@@ -310,13 +310,13 @@ const BotDashboard: React.FC = () => {
     prevLoadingRef.current = loading;
   }, [loading, error, stats]);
 
-  // Calculate time since last update (moved to top level to fix hook rule violation)
-  const canTrain = React.useMemo(() => {
+  // Calculate time since last update (direct calculation for immediate reactivity)
+  const canTrain = (() => {
     if (!lastUpdate) return true;
     const hoursSinceUpdate =
-      (new Date().getTime() - lastUpdate.getTime()) / (1000 * 60 * 60);
+      (Date.now() - lastUpdate.getTime()) / (1000 * 60 * 60);
     return hoursSinceUpdate >= 3;
-  }, [lastUpdate]);
+  })();
 
   return (
     <Box sx={{ pb: 6 }}>
