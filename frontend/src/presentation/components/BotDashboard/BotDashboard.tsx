@@ -290,16 +290,21 @@ const BotDashboard: React.FC = () => {
     severity: "info",
   });
 
+  // Track if training was manually triggered (not initial load or cache fetch)
+  const isManualTrainingRef = React.useRef(false);
+
   const handleCloseNotification = () => {
     setNotification((prev) => ({ ...prev, open: false }));
   };
 
-  // Watch for training completion to show notification
+  // Watch for training completion to show notification (only for manual training)
   const prevLoadingRef = React.useRef(loading);
 
   React.useEffect(() => {
-    if (prevLoadingRef.current && !loading) {
-      // Just finished loading
+    if (prevLoadingRef.current && !loading && isManualTrainingRef.current) {
+      // Just finished manual training
+      isManualTrainingRef.current = false; // Reset flag
+
       if (error) {
         setNotification({
           open: true,
@@ -348,7 +353,10 @@ const BotDashboard: React.FC = () => {
                 <Button
                   variant="contained"
                   disabled={!canTrain}
-                  onClick={() => runTraining(true)}
+                  onClick={() => {
+                    isManualTrainingRef.current = true;
+                    runTraining(true);
+                  }}
                   startIcon={<SmartToy />}
                   sx={{
                     background: canTrain
