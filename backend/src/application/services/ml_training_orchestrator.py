@@ -135,7 +135,13 @@ class MLTrainingOrchestrator:
                  # For now, let's retrain every ~50 samples to simulate periodic model updates
                  if len(ml_features) % 50 < len(daily_matches) or len(ml_features) == MIN_TRAIN_SAMPLES:
                      try:
-                        clf = RandomForestClassifier(n_estimators=100, max_depth=8, random_state=42, n_jobs=-1)
+                        clf = RandomForestClassifier(
+                            n_estimators=150, 
+                            max_depth=8, 
+                            random_state=42, 
+                            n_jobs=-1,
+                            class_weight='balanced' # Optimize for identifying winning minority class
+                        )
                         clf.fit(ml_features, ml_targets)
                         picks_service_instance.ml_model = clf # Use NEW model for today's predictions
                      except Exception as e:
@@ -314,7 +320,12 @@ class MLTrainingOrchestrator:
                 
                 # Offload CPU-bound training to a thread
                 def _train_and_save():
-                    clf = RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42)
+                    clf = RandomForestClassifier(
+                        n_estimators=150, 
+                        max_depth=10, 
+                        random_state=42,
+                        class_weight='balanced'
+                    )
                     clf.fit(ml_features, ml_targets)
                     joblib.dump(clf, "ml_picks_classifier.joblib")
                     return clf

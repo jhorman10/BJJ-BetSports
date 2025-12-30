@@ -17,6 +17,7 @@
     "@mui/icons-material": "^7.3.6",
     "@mui/material": "^7.3.6",
     "axios": "^1.7.9",
+    "localforage": "^1.10.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "react-router-dom": "^7.11.0",

@@ -114,9 +114,6 @@ const getPickCategory = (marketType: string): string => {
     type.includes("OVER") ||
     type.includes("UNDER")
   ) {
-    // "OVER" and "UNDER" can be corners/cards too, but typically if it's not corner/card specific it's goals
-    // Wait, OVER_CORNERS contains "OVER". Order matters.
-    // Checked CORNER/CARD first.
     return "GOALS";
   }
   if (
@@ -132,7 +129,7 @@ const getPickCategory = (marketType: string): string => {
 
 /**
  * Suggested Picks Tab Component
- * Separated by tabs: Winner, Goals, Corners, Cards, Others
+ * Separated by tabs: Top ML, Winner, Goals, Corners, Cards, Others
  */
 const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
   matchPrediction,
@@ -142,7 +139,10 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
   const [loading, setLoading] = useState(true);
   const [apiPicks, setApiPicks] = useState<MatchSuggestedPicks | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Initialize with ALL, but we will try to switch to TOP_ML if available
   const [currentTab, setCurrentTab] = useState("ALL");
+  const [initialized, setInitialized] = useState(false);
 
   // Fetch picks from backend API with localStorage caching
   useEffect(() => {
@@ -151,35 +151,27 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
 
     const fetchPicks = async () => {
       try {
-        // 1. Try to load from localStorage first (instant)
         const cached = localStorage.getItem(CACHE_KEY);
         if (cached) {
           try {
             const { data, timestamp } = JSON.parse(cached);
-            const age = Date.now() - timestamp;
-
-            // Show cached data immediately
-            setApiPicks(data);
-            setLoading(false);
-
-            // If cache is still fresh (< 30min), skip API call
-            if (age < CACHE_TTL) {
+            if (Date.now() - timestamp < CACHE_TTL) {
+              setApiPicks(data);
+              setLoading(false);
               return;
+            } else {
+              // Show outdated while fetching
+              setApiPicks(data);
             }
-          } catch (e) {
-            // Invalid cache, continue to fetch
-          }
+          } catch (e) {}
         } else {
-          // No cache, show loading
           setLoading(true);
         }
 
-        // 2. Fetch fresh data from API (in background if cache exists)
         setError(null);
         const data = await api.getSuggestedPicks(match.id);
         setApiPicks(data);
 
-        // 3. Update localStorage
         localStorage.setItem(
           CACHE_KEY,
           JSON.stringify({
@@ -188,12 +180,14 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
           })
         );
       } catch (err: any) {
-        if (err.response && err.response.status === 404) {
-          setError("Datos insuficientes para generar picks");
-        } else {
-          setError("No se pudieron cargar los picks");
+        if (!apiPicks) {
+          // Only set error if we don't have cached data
+          if (err.response && err.response.status === 404) {
+            setError("Datos insuficientes para generar picks");
+          } else {
+            setError("No se pudieron cargar los picks");
+          }
         }
-        setApiPicks(null);
       } finally {
         setLoading(false);
       }
@@ -206,15 +200,11 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
   const sortedPicks = useMemo(() => {
     let picks = apiPicks?.suggested_picks ? [...apiPicks.suggested_picks] : [];
 
-    // Fallback Frontend
     if (picks.length === 0 && matchPrediction.prediction) {
       picks = generateFallbackPicks(matchPrediction);
     }
 
-    // Filter duplicates
     picks = getUniquePicks(picks);
-
-    // Sort by probability (highest first)
     return picks.sort((a, b) => b.probability - a.probability);
   }, [apiPicks, matchPrediction]);
 
@@ -225,9 +215,55 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
     }
   }, [sortedPicks.length, onPicksCount]);
 
+  // Calculate counts for each category to conditionally hide tabs
+  const categoryCounts = useMemo(() => {
+    const counts = {
+      TOP_ML: 0,
+      WINNER: 0,
+      GOALS: 0,
+      CORNERS: 0,
+      CARDS: 0,
+      OTHER: 0,
+    };
+
+    sortedPicks.forEach((p) => {
+      // Check Top ML condition: MUST have "ML Confianza Alta" tag from backend
+      // This ensures strictly ML recommended picks (>70% confidence)
+      if (p.reasoning && p.reasoning.includes("ML Confianza Alta")) {
+        counts.TOP_ML++;
+      }
+
+      const cat = getPickCategory(p.market_type);
+      if (cat in counts) {
+        counts[cat as keyof typeof counts]++;
+      } else {
+        counts.OTHER++;
+      }
+    });
+    return counts;
+  }, [sortedPicks]);
+
+  // Auto-select TOP_ML if available and not yet initialized
+  useEffect(() => {
+    if (!loading && !initialized && sortedPicks.length > 0) {
+      if (categoryCounts.TOP_ML > 0) {
+        setCurrentTab("TOP_ML");
+      }
+      setInitialized(true);
+    }
+  }, [loading, initialized, categoryCounts, sortedPicks.length]);
+
   // Filtered picks based on tab
   const filteredPicks = useMemo(() => {
     if (currentTab === "ALL") return sortedPicks;
+
+    if (currentTab === "TOP_ML") {
+      // Filter strictly for ML High Confidence picks
+      return sortedPicks.filter(
+        (p) => p.reasoning && p.reasoning.includes("ML Confianza Alta")
+      );
+    }
+
     return sortedPicks.filter(
       (p) => getPickCategory(p.market_type) === currentTab
     );
@@ -288,11 +324,19 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
           },
         }}
       >
+        {/* Reordered: TOP_ML first if available, then ALL */}
+        {categoryCounts.TOP_ML > 0 && (
+          <Tab
+            value="TOP_ML"
+            label="🔥 Top ML"
+            sx={{ color: "#fbbf24 !important" }}
+          />
+        )}
         <Tab value="ALL" label="Todos" />
-        <Tab value="WINNER" label="Ganador" />
-        <Tab value="GOALS" label="Goles" />
-        <Tab value="CORNERS" label="Córners" />
-        <Tab value="CARDS" label="Tarjetas" />
+        {categoryCounts.WINNER > 0 && <Tab value="WINNER" label="Ganador" />}
+        {categoryCounts.GOALS > 0 && <Tab value="GOALS" label="Goles" />}
+        {categoryCounts.CORNERS > 0 && <Tab value="CORNERS" label="Córners" />}
+        {categoryCounts.CARDS > 0 && <Tab value="CARDS" label="Tarjetas" />}
       </Tabs>
 
       <Box sx={{ maxHeight: "350px", overflowY: "auto", pr: 0.5 }}>

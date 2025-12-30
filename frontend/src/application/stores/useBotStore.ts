@@ -1,9 +1,17 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { persist, createJSONStorage } from "zustand/middleware";
 import { TrainingStatus } from "../../types";
 import { api } from "../../services/api";
 import { useOfflineStore } from "./useOfflineStore";
 import { localStorageObserver } from "../../infrastructure/storage/LocalStorageObserver";
+import localforage from "localforage";
+
+// Configure localforage for large dataset storage (IndexedDB)
+localforage.config({
+  name: "BJJ-BetSports",
+  storeName: "bot_storage",
+  description: "Storage for AI Training Data & History",
+});
 
 interface BotState {
   // Data
@@ -25,6 +33,13 @@ interface BotState {
   updateStats: (stats: TrainingStatus) => void;
   clearCache: () => void;
   reconcile: () => Promise<void>;
+}
+
+// Clean up old localStorage to prevent quota errors during migration
+try {
+  localStorage.removeItem("bot-storage");
+} catch (e) {
+  console.warn("Failed to clean up old localStorage", e);
 }
 
 export const useBotStore = create<BotState>()(
@@ -203,6 +218,7 @@ export const useBotStore = create<BotState>()(
           error: null,
         });
         localStorageObserver.remove("bot-training-data");
+        localforage.removeItem("bot-storage");
       },
 
       reconcile: async () => {
@@ -258,42 +274,36 @@ export const useBotStore = create<BotState>()(
     }),
     {
       name: "bot-storage",
-      partialize: (state) => {
-        // Persist essential data. Now that backend truncates history to 500 records,
-        // it's safe to persist everything as it won't exceed LocalStorage limits (~5MB).
-        if (!state.stats) {
-          return {
-            stats: null,
-            lastUpdate: state.lastUpdate,
-            lastFetchTimestamp: state.lastFetchTimestamp,
-          };
+      storage: createJSONStorage(() => ({
+        getItem: async (name: string) => {
+          const val = await localforage.getItem(name);
+          if (!val) return null;
+          // handle ancient plain strings vs parsed objects if necessary,
+          // but here we trust zustand writes objects.
+          // Helper to revive dates if needed, but createJSONStorage usually handles stringifying.
+          // localforage stores actual JS objects (IndexedDB), so JSON.parse/stringify
+          // might be redundant but createJSONStorage expects string/null mapping.
+          // Actually, createJSONStorage + localforage is tricky because localforage is async
+          // and createJSONStorage enables async.
+
+          // Wait, standard localforage.getItem() returns the Object if it was setItem() as object.
+          // But createJSONStorage expects string.
+          // Let's wrap it to return string, or use the object directly if we didn't use createJSONStorage.
+          // Best practice with Zustand async:
+          return JSON.stringify(val);
+        },
+        setItem: async (name: string, value: string) => {
+          await localforage.setItem(name, JSON.parse(value));
+        },
+        removeItem: async (name: string) => {
+          await localforage.removeItem(name);
+        },
+      })),
+      onRehydrateStorage: () => (state) => {
+        // Fix Date deserialization after rehydration
+        if (state && state.lastUpdate && typeof state.lastUpdate === "string") {
+          state.lastUpdate = new Date(state.lastUpdate);
         }
-
-        return {
-          stats: state.stats,
-          lastUpdate: state.lastUpdate,
-          lastFetchTimestamp: state.lastFetchTimestamp,
-        };
-      },
-      // Fix Date deserialization from localStorage
-      storage: {
-        getItem: (name) => {
-          const str = localStorage.getItem(name);
-          if (!str) return null;
-
-          const { state } = JSON.parse(str);
-          // Convert lastUpdate string back to Date
-          if (state.lastUpdate) {
-            state.lastUpdate = new Date(state.lastUpdate);
-          }
-          return { state };
-        },
-        setItem: (name, value) => {
-          localStorage.setItem(name, JSON.stringify(value));
-        },
-        removeItem: (name) => {
-          localStorage.removeItem(name);
-        },
       },
     }
   )

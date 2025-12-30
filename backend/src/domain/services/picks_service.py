@@ -374,7 +374,7 @@ class PicksService:
         suggested_stake = self.bankroll_service.calculate_stake(
             probability=display_prob,
             odds=odds if odds > 1.0 else (1/(display_prob) * 0.95), # Estimate odds if missing
-            confidence=confidence_score_modifier # We need to pass a confidence modifier? No, let's stick to base logic
+            confidence=1.0 # Base confidence is handled by probability and odds
         )
         
         # 7. Instantiate Pick
@@ -564,7 +564,7 @@ class PicksService:
                 
                 # Adjust priority score based on ML confidence
                 # If ML is very confident (>70%), boost score. If low (<40%), penalize.
-                if ml_confidence > 0.70:
+                if ml_confidence > 0.65:
                     pick.priority_score *= 1.25
                     pick.reasoning += f" 🤖 ML Confianza Alta ({ml_confidence:.0%})."
                 elif ml_confidence < 0.40:
