@@ -71,7 +71,13 @@ class TrainingCache:
                 with open(cache_file, 'r') as f:
                     data = json.load(f)
                     self._cache = data.get('results', {})
-                    self._last_update = datetime.fromisoformat(data.get('last_update', ''))
+                    last_update_str = data.get('last_update', '')
+                    if last_update_str:
+                        from src.utils.time_utils import to_colombia_time
+                        dt = datetime.fromisoformat(last_update_str)
+                        self._last_update = to_colombia_time(dt)
+                    else:
+                        self._last_update = None
                     self._cache_date = date.today()
                     logger.info(f"Loaded training cache from {cache_file}")
             except Exception as e:
