@@ -140,10 +140,10 @@ export const useBotStore = create<BotState>()(
 
           await api.post("/train/run-now");
 
+          let serverTimestamp: Date | null = null;
           let attempts = 0;
           const maxAttempts = 60; // 5 minutes (5s * 60)
           let newData: TrainingStatus | null = null;
-          // const startTime = Date.now();
 
           while (attempts < maxAttempts) {
             await new Promise((resolve) => setTimeout(resolve, 5000));
@@ -162,13 +162,11 @@ export const useBotStore = create<BotState>()(
               ) {
                 const updateTime = new Date(pollResponse.last_update).getTime();
                 // Check if data is fresher than when we started
-                // Note: Server time might differ slightly, but usually training takes time.
-                // If the last_update is > startTime (or very close), we assume it's the new result.
-                // Or simply, if it's "fresh enough" (e.g. within last minute)
                 const oneMinuteAgo = Date.now() - 60000;
 
                 if (updateTime > oneMinuteAgo) {
                   newData = pollResponse.data;
+                  serverTimestamp = new Date(pollResponse.last_update);
                   break;
                 }
               }
@@ -183,11 +181,11 @@ export const useBotStore = create<BotState>()(
           }
 
           const data = newData;
+          const updateDate = serverTimestamp || new Date();
 
-          const now = new Date();
           set({
             stats: data,
-            lastUpdate: now,
+            lastUpdate: updateDate,
             lastFetchTimestamp: Date.now(),
             error: null,
           });
@@ -197,7 +195,7 @@ export const useBotStore = create<BotState>()(
             "bot-training-data",
             {
               stats: data,
-              timestamp: now.toISOString(),
+              timestamp: updateDate.toISOString(),
             },
             1000
           );
