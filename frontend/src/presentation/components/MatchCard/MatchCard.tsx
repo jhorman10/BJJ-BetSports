@@ -484,6 +484,26 @@ const MatchCard: React.FC<MatchCardProps> = memo(
                 color="primary"
                 sx={{ fontWeight: 600 }}
               />
+              {/* Stake Display */}
+              {(() => {
+                const recPick = prediction.suggested_picks?.find(
+                  (p) =>
+                    p.market_label === prediction.recommended_bet ||
+                    p.market_type === prediction.recommended_bet
+                );
+                if (recPick?.suggested_stake) {
+                  return (
+                    <Chip
+                      label={`Stake: ${recPick.suggested_stake}u`}
+                      color="warning"
+                      variant="filled"
+                      size="small"
+                      sx={{ fontWeight: 700, color: "#000" }}
+                    />
+                  );
+                }
+                return null;
+              })()}
               <Chip
                 label={translateOverUnder(prediction.over_under_recommendation)}
                 color="secondary"

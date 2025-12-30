@@ -32,6 +32,27 @@ export interface Prediction {
   created_at: string;
   data_updated_at?: string;
   fundamental_analysis?: Record<string, boolean>;
+  suggested_picks?: SuggestedPick[];
+}
+
+export interface SuggestedPick {
+  market_type: string;
+  market_label: string;
+  probability: number;
+  confidence_level: "high" | "medium" | "low";
+  reasoning: string;
+  risk_level: number;
+  is_recommended: boolean;
+  priority_score: number;
+  was_correct?: boolean;
+  expected_value?: number;
+  confidence?: number;
+  suggested_stake?: number;
+  kelly_percentage?: number;
+  opening_odds?: number;
+  closing_odds?: number;
+  clv_beat?: boolean;
+  odds?: number;
 }
 
 export interface MatchPrediction {
