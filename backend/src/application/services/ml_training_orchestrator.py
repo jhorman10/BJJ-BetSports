@@ -92,6 +92,9 @@ class MLTrainingOrchestrator:
         # ML Training Data accumulation
         ml_features = []
         ml_targets = []
+        
+        # Team stats cache for rolling historical stats
+        team_stats_cache = {}
 
         # 2. Fetch & Unify matches (Centralized Orchestration)
         leagues = league_ids if league_ids else DEFAULT_LEAGUES
@@ -115,7 +118,15 @@ class MLTrainingOrchestrator:
         }
 
         # 4. SORT MATCHES BY DATE (CRITICAL for TimeSeriesSplit)
-        all_matches.sort(key=lambda m: m.match_date)
+        # Normalize datetimes to naive for comparison (some sources return aware, others naive)
+        def get_sort_key(m):
+            dt = m.match_date
+            if dt.tzinfo is not None:
+                # Convert to naive by removing timezone info (already in local time)
+                return dt.replace(tzinfo=None)
+            return dt
+        
+        all_matches.sort(key=get_sort_key)
         
         # --- ROLLING WINDOW BACKTESTING (Day-by-Day Portfolio Simulation) ---
         # We group matches by day to enforce daily risk limits.
