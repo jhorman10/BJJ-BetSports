@@ -5,14 +5,13 @@ import {
   CardContent,
   Typography,
   Alert,
-  IconButton,
-  Tooltip,
   CircularProgress,
   TextField,
   ToggleButton,
   ToggleButtonGroup,
   Tabs,
   Tab,
+  Button,
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
 import {
@@ -145,6 +144,22 @@ const BotDashboard: React.FC = () => {
     } as TrainingStatus;
   }, [stats, displayStartDate]);
 
+  const clvBeatRate = useMemo(() => {
+    if (!filteredStats?.match_history) return 0;
+    let beat = 0;
+    let total = 0;
+    filteredStats.match_history.forEach((m) => {
+      m.picks?.forEach((p) => {
+        // Check if CLV data is available (some older picks might not have it)
+        if (p.clv_beat !== undefined) {
+          total++;
+          if (p.clv_beat) beat++;
+        }
+      });
+    });
+    return total > 0 ? (beat / total) * 100 : 0;
+  }, [filteredStats]);
+
   // Helper to generate mock data for local development
   const generateMockData = React.useCallback(
     async (days: number) => {
@@ -271,17 +286,20 @@ const BotDashboard: React.FC = () => {
             {loading ? (
               <CircularProgress size={40} sx={{ color: "#fbbf24" }} />
             ) : (
-              <Tooltip title="Recalcular data del modelo">
-                <IconButton onClick={() => runTraining(true)} sx={{ p: 0 }}>
-                  <SmartToy
-                    sx={{
-                      fontSize: 40,
-                      color: stats ? "#fbbf24" : "rgba(255, 255, 255, 0.3)",
-                      transition: "color 0.3s ease",
-                    }}
-                  />
-                </IconButton>
-              </Tooltip>
+              <Button
+                variant="contained"
+                onClick={() => runTraining(true)}
+                startIcon={<SmartToy />}
+                sx={{
+                  bgcolor: "#fbbf24",
+                  color: "#0f172a",
+                  fontWeight: 700,
+                  "&:hover": { bgcolor: "#f59e0b" },
+                  boxShadow: "0 4px 6px -1px rgba(251, 191, 36, 0.2)",
+                }}
+              >
+                Recalcular Modelo
+              </Button>
             )}
           </Box>
           <Box>
@@ -437,6 +455,15 @@ const BotDashboard: React.FC = () => {
                       icon={<Assessment />}
                       color="#3b82f6"
                       subtitle={`En ${filteredStats.matches_processed} partidos analizados`}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 3 }}>
+                    <StatCard
+                      title="CLV Beat Rate"
+                      value={`${clvBeatRate.toFixed(1)}%`}
+                      icon={<TrendingUp />}
+                      color={clvBeatRate > 50 ? "#10b981" : "#f59e0b"}
+                      subtitle="% Picks mejor que línea de cierre"
                     />
                   </Grid>
                   <Grid size={{ xs: 12, md: 3 }}>

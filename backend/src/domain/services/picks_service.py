@@ -25,6 +25,7 @@ from src.domain.services.context_analyzer import ContextAnalyzer
 from src.domain.services.confidence_calculator import ConfidenceCalculator
 from src.domain.services.pick_resolution_service import PickResolutionService
 from src.domain.services.ml_feature_extractor import MLFeatureExtractor
+from src.domain.services.risk_management.bankroll_service import BankrollService
 
 # Try to import joblib for ML model loading
 try:
@@ -113,6 +114,7 @@ class PicksService:
         self.context_analyzer = ContextAnalyzer()
         self.resolution_service = PickResolutionService() # Centralized validator
         self.confidence_calculator = ConfidenceCalculator()
+        self.bankroll_service = BankrollService() # New Risk Management Module
         
         # Load ML Model if available
         self.ml_model = self._load_ml_model_safely("ml_picks_classifier.joblib")
@@ -368,7 +370,14 @@ class PicksService:
         # 5. Build Final Reasoning
         final_reasoning = f"{reasoning}{penalty_note}{suffix}"
 
-        # 6. Instantiate Pick
+        # 6. Calculate Stake (Risk Management)
+        suggested_stake = self.bankroll_service.calculate_stake(
+            probability=display_prob,
+            odds=odds if odds > 1.0 else (1/(display_prob) * 0.95), # Estimate odds if missing
+            confidence=confidence_score_modifier # We need to pass a confidence modifier? No, let's stick to base logic
+        )
+        
+        # 7. Instantiate Pick
         return SuggestedPick(
             market_type=market_type,
             market_label=label,
@@ -378,7 +387,10 @@ class PicksService:
             risk_level=risk,
             is_recommended=is_rec,
             priority_score=display_prob * self.MARKET_PRIORITY.get(market_type, 1.0) * internal_prio_mult * priority_multiplier,
+            odds=odds,
             expected_value=ev,
+            suggested_stake=suggested_stake.units,
+            kelly_percentage=suggested_stake.percentage
         )
 
     def generate_suggested_picks(

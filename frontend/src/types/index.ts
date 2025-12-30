@@ -153,6 +153,13 @@ export interface SuggestedPick {
   confidence?: number;
   is_contrarian?: boolean;
   pick_code?: string; // Short code like '1', 'X', '2', 'O2.5'
+
+  // Risk & Professional fields
+  suggested_stake?: number;
+  kelly_percentage?: number;
+  opening_odds?: number;
+  closing_odds?: number;
+  clv_beat?: boolean;
 }
 
 /**

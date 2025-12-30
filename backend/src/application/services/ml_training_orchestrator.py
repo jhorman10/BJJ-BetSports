@@ -112,144 +112,190 @@ class MLTrainingOrchestrator:
             for lid, ms in league_matches_map.items()
         }
 
-        # 4. Process matches
-        team_stats_cache = {}
-
-        for match in all_matches:
-            if match.home_goals is None or match.away_goals is None:
-                continue
-
-            # Get/Create stats (Centralized in StatisticsService)
-            if match.home_team.name not in team_stats_cache: 
-                team_stats_cache[match.home_team.name] = self.statistics_service.create_empty_stats_dict()
-            if match.away_team.name not in team_stats_cache: 
-                team_stats_cache[match.away_team.name] = self.statistics_service.create_empty_stats_dict()
-                
-            raw_home = team_stats_cache[match.home_team.name]
-            raw_away = team_stats_cache[match.away_team.name]
+        # 4. SORT MATCHES BY DATE (CRITICAL for TimeSeriesSplit)
+        all_matches.sort(key=lambda m: m.match_date)
+        
+        # --- ROLLING WINDOW BACKTESTING (Walk-Forward Validation) ---
+        # 1. Initial Training Window (e.g. first 100 matches)
+        # 2. Predict Next Batch (e.g. next 7 days or next 50 matches)
+        # 3. Retrain Model including new batch
+        # 4. Repeat
+        
+        current_train_set = []
+        validation_queue = all_matches[:] 
+        
+        # Minimum samples to start using ML model
+        MIN_TRAIN_SAMPLES = 50 
+        BATCH_SIZE = 50
+        
+        while validation_queue:
+            # 1. Take next batch (matches to PREDICT)
+            current_batch = validation_queue[:BATCH_SIZE]
+            validation_queue = validation_queue[BATCH_SIZE:]
             
-            home_stats = self.statistics_service.convert_to_domain_stats(match.home_team.name, raw_home)
-            away_stats = self.statistics_service.convert_to_domain_stats(match.away_team.name, raw_away)
-            league_averages = league_averages_map.get(match.league.id) 
+            if not current_batch: break
+            
+            # 2. Train Model on Current Train Set (if enough data)
+            if ML_AVAILABLE and RandomForestClassifier and len(ml_features) >= MIN_TRAIN_SAMPLES:
+                 try:
+                    # Train strict model only on PAST knowledge
+                    # ml_features contains features from *current_train_set* processed so far
+                    # Wait, we need to extract features from current_train_set first?
+                    # Ah, we process matches sequentially. 
+                    # We can use the accumulating ml_features list which grows as we process.
+                    
+                    # Optimization: Don't retrain EVERY batch if very large. 
+                    # Maybe every 2-3 batches or simple incremental.
+                    # For sk-learn RF, we must refit.
+                    
+                    clf = RandomForestClassifier(n_estimators=100, max_depth=8, random_state=42, n_jobs=-1)
+                    clf.fit(ml_features, ml_targets)
+                    self.cache_service.set("temp_ml_model", clf) # Fake in-memory persistence using service? No, just assign to instance or joblib.
+                    
+                    # Update the service instance with the NEW model for this batch
+                    # This ensures picks_service uses the time-travelling correct model
+                    picks_service_instance.ml_model = clf
+                 except Exception as e:
+                    logger.warning(f"Rolling Window Training Limit: {e}")
 
-            try:
-                prediction = self.prediction_service.generate_prediction(
-                    match=match, home_stats=home_stats, away_stats=away_stats, league_averages=league_averages,
-                    min_matches=0 # Allow predictions for all historical matches
-                )
-                
-                matches_processed += 1
-                
-                # --- EVALUATE PICKS ---
-                # Check cache for historical picks
-                cache_key = f"forecasts:match_{match.id}"
-                cached_result = self.cache_service.get(cache_key)
-                suggested_picks_container = None
-                
-                if cached_result and "suggested_picks" in cached_result:
-                    from src.application.dtos.dtos import MatchSuggestedPicksDTO
-                    from src.domain.entities.suggested_pick import MatchSuggestedPicks, SuggestedPick, MarketType, ConfidenceLevel
-                    try:
-                        dto = MatchSuggestedPicksDTO(**cached_result)
-                        suggested_picks_container = MatchSuggestedPicks(match_id=match.id)
-                        for p in dto.suggested_picks:
-                            suggested_picks_container.add_pick(SuggestedPick(
-                                market_type=MarketType(p.market_type),
-                                market_label=p.market_label,
-                                probability=p.probability,
-                                confidence_level=ConfidenceLevel(p.confidence_level),
-                                reasoning=p.reasoning, risk_level=p.risk_level,
-                                is_recommended=p.is_recommended, priority_score=p.priority_score,
-                                expected_value=p.expected_value or 0.0
-                            ))
-                    except Exception: 
-                        cached_result = None
+            # 3. Reference to newly processed matches to add to history later
+            batch_features = []
+            batch_targets = []
+            
+            for match in current_batch:
+                if match.home_goals is None or match.away_goals is None:
+                    continue
 
-                if not suggested_picks_container:
+                # Get/Create stats (Centralized in StatisticsService)
+                if match.home_team.name not in team_stats_cache: 
+                    team_stats_cache[match.home_team.name] = self.statistics_service.create_empty_stats_dict()
+                if match.away_team.name not in team_stats_cache: 
+                    team_stats_cache[match.away_team.name] = self.statistics_service.create_empty_stats_dict()
+                    
+                raw_home = team_stats_cache[match.home_team.name]
+                raw_away = team_stats_cache[match.away_team.name]
+                
+                home_stats = self.statistics_service.convert_to_domain_stats(match.home_team.name, raw_home)
+                away_stats = self.statistics_service.convert_to_domain_stats(match.away_team.name, raw_away)
+                league_averages = league_averages_map.get(match.league.id) 
+
+                try:
+                    # PREDICT (Using model trained only on data BEFORE this batch)
+                    prediction = self.prediction_service.generate_prediction(
+                        match=match, home_stats=home_stats, away_stats=away_stats, league_averages=league_averages,
+                        min_matches=0
+                    )
+                    
+                    matches_processed += 1
+                    
+                    # --- EVALUATE PICKS ---
+                    # (Here we use picks_service_instance, which has the updated model!)
                     suggested_picks_container = picks_service_instance.generate_suggested_picks(
                         match=match, home_stats=home_stats, away_stats=away_stats, league_averages=league_averages,
                         predicted_home_goals=prediction.predicted_home_goals, predicted_away_goals=prediction.predicted_away_goals,
                         home_win_prob=prediction.home_win_probability, draw_prob=prediction.draw_probability, away_win_prob=prediction.away_win_probability
                     )
-                
-                # Resolve picks
-                picks_list = []
-                suggested_pick_label = None
-                pick_was_correct = False
-                max_ev_value = -100.0
-                
-                picks_to_process = suggested_picks_container.suggested_picks if suggested_picks_container else []
-                
-                for pick in picks_to_process:
-                    result_str, payout = self.resolution_service.resolve_pick(pick, match)
-                    is_won = (result_str == "WIN")
                     
-                    p_detail = {
-                        "market_type": pick.market_type.value if hasattr(pick.market_type, "value") else str(pick.market_type),
-                        "market_label": pick.market_label,
-                        "was_correct": is_won,
-                        "probability": float(pick.probability),
-                        "expected_value": float(pick.expected_value),
-                        "confidence": float(pick.priority_score or pick.probability),
-                        "reasoning": pick.reasoning,
-                        "result": result_str
-                    }
-                    picks_list.append(p_detail)
+                    # Resolve picks
+                    picks_list = []
+                    suggested_pick_label = None
+                    pick_was_correct = False
+                    max_ev_value = -100.0
                     
-                    # Accumulate for ML
-                    ml_features.append(self.feature_extractor.extract_features(pick))
-                    ml_targets.append(1 if is_won else 0)
+                    picks_to_process = suggested_picks_container.suggested_picks if suggested_picks_container else []
                     
-                    # Track ROI
-                    if p_detail["market_type"] in ["winner", "draw", "result_1x2"]:
-                        total_bets += 1
-                        total_staked += 1.0
-                        total_return += payout
-                        if float(pick.expected_value) > max_ev_value:
-                             suggested_pick_label = pick.market_label
-                             pick_was_correct = is_won
-                             max_ev_value = float(pick.expected_value)
+                    for pick in picks_to_process:
+                        result_str, payout = self.resolution_service.resolve_pick(pick, match)
+                        is_won = (result_str == "WIN")
+                        
+                        p_detail = {
+                            "market_type": pick.market_type.value if hasattr(pick.market_type, "value") else str(pick.market_type),
+                            "market_label": pick.market_label,
+                            "was_correct": is_won,
+                            "probability": float(pick.probability),
+                            "expected_value": float(pick.expected_value),
+                            "confidence": float(pick.priority_score or pick.probability),
+                            "reasoning": pick.reasoning,
+                            "result": result_str,
+                            "suggested_stake": getattr(pick, "suggested_stake", 0.0),
+                            "kelly_percentage": getattr(pick, "kelly_percentage", 0.0)
+                        }
+                        
+                        # Store Features for FUTURE training (Data Leakage Prevention: We store now, train later)
+                        batch_features.append(self.feature_extractor.extract_features(pick))
+                        batch_targets.append(1 if is_won else 0)
+                        
+                        # Track ROI
+                        if p_detail["market_type"] in ["winner", "draw", "result_1x2"]:
+                            total_bets += 1
+                            total_staked += 1.0
+                            total_return += payout
+                            if float(pick.expected_value) > max_ev_value:
+                                 suggested_pick_label = pick.market_label
+                                 pick_was_correct = is_won
+                                 max_ev_value = float(pick.expected_value)
 
-                # Daily stats
-                date_key = match.match_date.strftime("%Y-%m-%d")
-                if date_key not in daily_stats: 
-                    daily_stats[date_key] = {'staked': 0.0, 'return': 0.0, 'count': 0}
-                daily_stats[date_key]['staked'] += 1.0
-                daily_stats[date_key]['return'] += 2.0 if pick_was_correct else 0.0
-                daily_stats[date_key]['count'] += 1
+                        # --- CLV CALCULATION ---
+                        closing_odds = 0.0
+                        if pick.market_type == "winner":
+                             if match.home_goals > match.away_goals: closing_odds = match.home_odds or 0.0
+                             elif match.away_goals > match.home_goals: closing_odds = match.away_odds or 0.0
+                             else: closing_odds = match.draw_odds or 0.0
+                        elif pick.market_type == "draw":
+                             closing_odds = match.draw_odds or 0.0
+                        
+                        p_detail["opening_odds"] = pick.odds
+                        p_detail["closing_odds"] = closing_odds
+                        p_detail["clv_beat"] = pick.odds > closing_odds if closing_odds > 1.0 else False
+                        
+                        picks_list.append(p_detail)
 
-                # Match history entry
-                match_history.append({
-                    "match_id": match.id,
-                    "home_team": match.home_team.name,
-                    "away_team": match.away_team.name,
-                    "match_date": match.match_date.isoformat(),
-                    "predicted_winner": self._get_predicted_winner(prediction),
-                    "actual_winner": self._get_actual_winner(match),
-                    "predicted_home_goals": round(prediction.predicted_home_goals, 2),
-                    "predicted_away_goals": round(prediction.predicted_away_goals, 2),
-                    "actual_home_goals": match.home_goals,
-                    "actual_away_goals": match.away_goals,
-                    "was_correct": self._get_predicted_winner(prediction) == self._get_actual_winner(match),
-                    "confidence": round(prediction.confidence, 3),
-                    "home_win_probability": round(prediction.home_win_probability, 4),
-                    "draw_probability": round(prediction.draw_probability, 4),
-                    "away_win_probability": round(prediction.away_win_probability, 4),
-                    "picks": picks_list,
-                    "suggested_pick": suggested_pick_label,
-                    "pick_was_correct": pick_was_correct,
-                    "expected_value": max_ev_value
-                })
-                
-                if matches_processed % 100 == 0: await asyncio.sleep(0)
+                    # Daily stats
+                    date_key = match.match_date.strftime("%Y-%m-%d")
+                    if date_key not in daily_stats: 
+                        daily_stats[date_key] = {'staked': 0.0, 'return': 0.0, 'count': 0}
+                    daily_stats[date_key]['staked'] += 1.0
+                    daily_stats[date_key]['return'] += 2.0 if pick_was_correct else 0.0
+                    daily_stats[date_key]['count'] += 1
 
-            except Exception as e:
-                logger.error(f"Error processing match {match.id}: {e}")
-                continue
+                    match_history.append({
+                        "match_id": match.id,
+                        "home_team": match.home_team.name,
+                        "away_team": match.away_team.name,
+                        "match_date": match.match_date.isoformat(),
+                        "predicted_winner": self._get_predicted_winner(prediction),
+                        "actual_winner": self._get_actual_winner(match),
+                        "predicted_home_goals": round(prediction.predicted_home_goals, 2),
+                        "predicted_away_goals": round(prediction.predicted_away_goals, 2),
+                        "actual_home_goals": match.home_goals,
+                        "actual_away_goals": match.away_goals,
+                        "was_correct": self._get_predicted_winner(prediction) == self._get_actual_winner(match),
+                        "confidence": round(prediction.confidence, 3),
+                        "home_win_probability": round(prediction.home_win_probability, 4),
+                        "draw_probability": round(prediction.draw_probability, 4),
+                        "away_win_probability": round(prediction.away_win_probability, 4),
+                        "picks": picks_list,
+                        "suggested_pick": suggested_pick_label,
+                        "pick_was_correct": pick_was_correct,
+                        "expected_value": max_ev_value
+                    })
+                    
+                    if matches_processed % 100 == 0: await asyncio.sleep(0)
 
-            # 5. Update stats incrementally
-            self.statistics_service.update_team_stats_dict(raw_home, match, is_home=True)
-            self.statistics_service.update_team_stats_dict(raw_away, match, is_home=False)
+                except Exception as e:
+                    logger.error(f"Error processing match {match.id}: {e}")
+                    continue
+
+                # 5. Update stats incrementally (AFTER prediction)
+                # This ensures we predict utilizing knowledge up to THIS match, then update knowledge for NEXT
+                self.statistics_service.update_team_stats_dict(raw_home, match, is_home=True)
+                self.statistics_service.update_team_stats_dict(raw_away, match, is_home=False)
+            
+            # 6. ADD BATCH TO HISTORY FOR NEXT TRAINING LOOP
+            # This is the "Walk Forward" step
+            ml_features.extend(batch_features)
+            ml_targets.extend(batch_targets)
+            current_train_set.extend(current_batch)
         
         # --- TRAIN ML MODEL ---
         if ML_AVAILABLE and RandomForestClassifier and len(ml_features) > 100:

@@ -606,6 +606,52 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                                                 fontWeight: 700,
                                               }}
                                             />
+                                            {pick.suggested_stake !==
+                                              undefined &&
+                                              pick.suggested_stake > 0 && (
+                                                <Chip
+                                                  label={`Stake: ${pick.suggested_stake.toFixed(
+                                                    2
+                                                  )}u`}
+                                                  size="small"
+                                                  sx={{
+                                                    bgcolor:
+                                                      "rgba(56, 189, 248, 0.1)",
+                                                    color: "#38bdf8",
+                                                    fontSize: "0.65rem",
+                                                    height: 20,
+                                                    fontWeight: 600,
+                                                    border:
+                                                      "1px solid rgba(56, 189, 248, 0.2)",
+                                                  }}
+                                                />
+                                              )}
+                                            {pick.clv_beat !== undefined && (
+                                              <Chip
+                                                label={
+                                                  pick.clv_beat
+                                                    ? "CLV WIN"
+                                                    : "CLV LOSS"
+                                                }
+                                                size="small"
+                                                sx={{
+                                                  bgcolor: pick.clv_beat
+                                                    ? "rgba(16, 185, 129, 0.1)"
+                                                    : "rgba(239, 68, 68, 0.1)",
+                                                  color: pick.clv_beat
+                                                    ? "#10b981"
+                                                    : "#ef4444",
+                                                  fontSize: "0.65rem",
+                                                  height: 20,
+                                                  fontWeight: 600,
+                                                  borderColor: pick.clv_beat
+                                                    ? "rgba(16, 185, 129, 0.2)"
+                                                    : "rgba(239, 68, 68, 0.2)",
+                                                  borderWidth: 1,
+                                                  borderStyle: "solid",
+                                                }}
+                                              />
+                                            )}
                                           </Box>
                                         </CardContent>
                                       </Card>
@@ -953,6 +999,46 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                                   fontWeight: 700,
                                 }}
                               />
+                              {pick.suggested_stake !== undefined &&
+                                pick.suggested_stake > 0 && (
+                                  <Chip
+                                    label={`Stake: ${pick.suggested_stake.toFixed(
+                                      2
+                                    )}u`}
+                                    size="small"
+                                    sx={{
+                                      bgcolor: "rgba(56, 189, 248, 0.1)",
+                                      color: "#38bdf8",
+                                      fontSize: "0.65rem",
+                                      height: 20,
+                                      fontWeight: 600,
+                                      border:
+                                        "1px solid rgba(56, 189, 248, 0.2)",
+                                    }}
+                                  />
+                                )}
+                              {pick.clv_beat !== undefined && (
+                                <Chip
+                                  label={pick.clv_beat ? "CLV WIN" : "CLV LOSS"}
+                                  size="small"
+                                  sx={{
+                                    bgcolor: pick.clv_beat
+                                      ? "rgba(16, 185, 129, 0.1)"
+                                      : "rgba(239, 68, 68, 0.1)",
+                                    color: pick.clv_beat
+                                      ? "#10b981"
+                                      : "#ef4444",
+                                    fontSize: "0.65rem",
+                                    height: 20,
+                                    fontWeight: 600,
+                                    borderColor: pick.clv_beat
+                                      ? "rgba(16, 185, 129, 0.2)"
+                                      : "rgba(239, 68, 68, 0.2)",
+                                    borderWidth: 1,
+                                    borderStyle: "solid",
+                                  }}
+                                />
+                              )}
                             </Box>
                           </Box>
                         );

@@ -81,7 +81,10 @@ class SuggestedPick:
     risk_level: int  # 1-5 scale
     is_recommended: bool = True
     priority_score: float = 0.0
+    odds: float = 0.0 # Odds at the time of pick generation (Opening Odds)
     expected_value: float = 0.0
+    suggested_stake: float = 0.0  # units (e.g. 1.5u)
+    kelly_percentage: float = 0.0 # e.g. 0.015 (1.5%)
     result: Optional[str] = None # "WIN", "LOSS", "VOID", or None
     
     def __post_init__(self):
