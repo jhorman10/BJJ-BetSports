@@ -92,6 +92,25 @@ class GetParleysUseCase:
             predicted_away_goals=dto.predicted_away_goals,
             confidence=dto.confidence,
             data_sources=dto.data_sources,
-            created_at=dto.created_at
+            created_at=dto.created_at,
+            suggested_picks=self._map_dto_picks_to_entity(dto.suggested_picks)
         )
+
+    def _map_dto_picks_to_entity(self, pick_dtos) -> List["SuggestedPick"]:
+        from src.domain.entities.suggested_pick import SuggestedPick, MarketType, ConfidenceLevel
+        
+        entities = []
+        for p in pick_dtos:
+            entities.append(SuggestedPick(
+                market_type=MarketType(p.market_type),
+                market_label=p.market_label,
+                probability=p.probability,
+                confidence_level=ConfidenceLevel(p.confidence_level),
+                reasoning=p.reasoning,
+                risk_level=p.risk_level,
+                is_recommended=p.is_recommended,
+                priority_score=p.priority_score,
+                odds=0.0 # DTO might not have it or we default
+            ))
+        return entities
 

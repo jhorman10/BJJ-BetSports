@@ -49,77 +49,45 @@ class ParleyService:
         min_probability: float
     ) -> List[SuggestedPick]:
         """
-        Extracts high-probability picks from a list of match predictions.
-        Currently simple logic: checks prediction probabilities.
-        In a real scenario, this would interface with a Strategy engine or examine all SuggestedPicks.
-        Here we will assume we can generate picks from the prediction data or use existing suggested picks if available.
+        Extracts valid picks. Now strictly uses pre-calculated AI picks 
+        marked as 'ML Confianza Alta'.
         """
-        picks = []
-        # Define threshold for no-odds scenario to ensure safety
-        no_odds_threshold = max(min_probability, 0.75)
+        eligible_picks = []
         
         for pred in predictions:
-            match = pred.match
-            
-            # Helper: Calculate EV (Expected Value)
-            # EV = (Probability * Odds) - 1
-            def get_ev(prob, odds):
-                return (prob * odds) - 1 if odds and odds > 1 else -1.0
-
-            # Check Home Win
-            ev_home = get_ev(pred.prediction.home_win_probability, match.home_odds)
-            # Condition: Positive EV OR (No Odds AND High Probability)
-            if ev_home > 0.02 or (not match.home_odds and pred.prediction.home_win_probability >= no_odds_threshold):
-                confidence = SuggestedPick.get_confidence_level(pred.prediction.home_win_probability)
-                risk = self._calculate_risk_level(pred.prediction.home_win_probability)
+            if not pred.prediction.suggested_picks:
+                continue
                 
-                picks.append(SuggestedPick(
-                    market_type=MarketType.WINNER,
-                    market_label=f"Victoria {pred.match.home_team.name}",
-                    probability=pred.prediction.home_win_probability,
-                    confidence_level=confidence,
-                    reasoning="Alta probabilidad de victoria local basada en modelo predictivo.",
-                    risk_level=risk,
-                    is_recommended=True,
-                    # Priority based on EV if available, else probability
-                    priority_score=ev_home if ev_home > 0 else pred.prediction.home_win_probability
-                ))
+            # Filter for Top ML picks
+            # User Requirement: "Select Top ML, highest probability and ML confidence"
+            # Logic: Look for "ML Confianza Alta" tag in reasoning.
             
-            # Check Away Win
-            ev_away = get_ev(pred.prediction.away_win_probability, match.away_odds)
-            if ev_away > 0.02 or (not match.away_odds and pred.prediction.away_win_probability >= no_odds_threshold):
-                confidence = SuggestedPick.get_confidence_level(pred.prediction.away_win_probability)
-                risk = self._calculate_risk_level(pred.prediction.away_win_probability)
+            # 1. Try to find Top ML picks (Priority)
+            top_ml_picks = [
+                p for p in pred.prediction.suggested_picks 
+                if (
+                    "ML Confianza Alta" in (p.reasoning or "") and
+                    p.probability >= min_probability
+                )
+            ]
+            
+            if top_ml_picks:
+                # Best Scenario: We have an ML validated pick
+                top_ml_picks.sort(key=lambda x: x.priority_score, reverse=True)
+                eligible_picks.append(top_ml_picks[0])
+            else:
+                # 2. Fallback: Select highest probability pick (Safety net)
+                # User Requirement: "If no top ML picks, select the pick with highest probability"
+                other_picks = [
+                    p for p in pred.prediction.suggested_picks 
+                    if p.probability >= min_probability
+                ]
                 
-                picks.append(SuggestedPick(
-                    market_type=MarketType.WINNER,
-                    market_label=f"Victoria {pred.match.away_team.name}",
-                    probability=pred.prediction.away_win_probability,
-                    confidence_level=confidence,
-                    reasoning="Alta probabilidad de victoria visitante basada en modelo predictivo.",
-                    risk_level=risk,
-                    is_recommended=True,
-                    priority_score=ev_away if ev_away > 0 else pred.prediction.away_win_probability
-                ))
-
-            # Check Over 2.5
-            # Note: Match entity usually doesn't carry Over/Under odds in this simple model, so we stick to probability
-            if pred.prediction.over_25_probability >= min_probability:
-                 confidence = SuggestedPick.get_confidence_level(pred.prediction.over_25_probability)
-                 risk = self._calculate_risk_level(pred.prediction.over_25_probability)
-                 
-                 picks.append(SuggestedPick(
-                    market_type=MarketType.GOALS_OVER,
-                    market_label=f"Más de 2.5 Goles en {pred.match.home_team.name} vs {pred.match.away_team.name}",
-                    probability=pred.prediction.over_25_probability,
-                    confidence_level=confidence,
-                    reasoning="Alta probabilidad de goles basada en modelo predictivo.",
-                    risk_level=risk,
-                    is_recommended=True,
-                    priority_score=pred.prediction.over_25_probability
-                ))
+                if other_picks:
+                    other_picks.sort(key=lambda x: x.probability, reverse=True)
+                    eligible_picks.append(other_picks[0])
         
-        return picks
+        return eligible_picks
 
     def _calculate_risk_level(self, probability: float) -> int:
         """Calculate risk level (1-5) from probability."""

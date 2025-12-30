@@ -8,8 +8,11 @@ These entities represent the core business concepts and are independent of any i
 from dataclasses import dataclass, field
 from datetime import datetime
 from src.utils.time_utils import get_current_time
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from enum import Enum
+
+if TYPE_CHECKING:
+    from .suggested_pick import SuggestedPick
 
 
 class MatchOutcome(Enum):
@@ -222,6 +225,7 @@ class Prediction:
     created_at: datetime = field(default_factory=get_current_time)
     data_updated_at: Optional[datetime] = None
     fundamental_analysis: Optional[dict] = field(default=None)
+    suggested_picks: list["SuggestedPick"] = field(default_factory=list)
     
     def __post_init__(self):
         """Validate probability values."""
