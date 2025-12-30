@@ -72,9 +72,36 @@ class BotScheduler:
             accuracy = getattr(training_result, 'accuracy', 0)
             logger.info(f"Retraining completed. Accuracy: {accuracy:.2%}")
             
+            # CRITICAL: Update TrainingCache so frontend gets the fresh timestamp
+            try:
+                from src.infrastructure.cache import get_training_cache
+                training_cache = get_training_cache()
+                
+                # Convert TrainingResult to dict for storage (matching /train endpoint format)
+                history_limit = 500
+                display_history = training_result.match_history[-history_limit:] if len(training_result.match_history) > history_limit else training_result.match_history
+                
+                training_data = {
+                    "matches_processed": training_result.matches_processed,
+                    "correct_predictions": training_result.correct_predictions,
+                    "accuracy": training_result.accuracy,
+                    "total_bets": training_result.total_bets,
+                    "roi": training_result.roi,
+                    "profit_units": training_result.profit_units,
+                    "market_stats": training_result.market_stats,
+                    "match_history": [h.model_dump() if hasattr(h, 'model_dump') else h for h in display_history],
+                    "roi_evolution": training_result.roi_evolution,
+                    "pick_efficiency": training_result.pick_efficiency,
+                    "team_stats": training_result.team_stats
+                }
+                
+                training_cache.set_training_results(training_data)
+                logger.info(f"TrainingCache updated with fresh timestamp.")
+            except Exception as e:
+                logger.error(f"Failed to update TrainingCache: {e}")
+            
             # Cleanup training objects
             del training_result
-            del request
             gc.collect()
 
             # 2. PRE-CACHE LEAGUES (Fast startup for frontend)
