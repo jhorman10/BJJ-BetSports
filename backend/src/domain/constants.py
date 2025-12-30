@@ -39,18 +39,6 @@ LEAGUES_METADATA = {
     # Portugal
     "P1": {"name": "Primeira Liga", "country": "Portugal"},
     "P2": {"name": "Liga Portugal 2", "country": "Portugal"},
-    
-    # Turkey
-    "T1": {"name": "Süper Lig", "country": "Turkey"},
-    "T2": {"name": "1. Lig", "country": "Turkey"},
-    
-    # Greece
-    "G1": {"name": "Super League", "country": "Greece"},
-    "G2": {"name": "Super League 2", "country": "Greece"},
-
-    # Scotland
-    "SC0": {"name": "Premiership", "country": "Scotland"},
-    "SC1": {"name": "Championship", "country": "Scotland"},
 
     # International (Europe & Americas)
     "UCL": {"name": "Champions League", "country": "International"},

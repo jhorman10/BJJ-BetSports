@@ -8,9 +8,6 @@ export const COUNTRY_DATA: Record<string, { flag: string; name: string }> = {
   Netherlands: { flag: "🇳🇱", name: "Países Bajos" },
   Belgium: { flag: "🇧🇪", name: "Bélgica" },
   Portugal: { flag: "🇵🇹", name: "Portugal" },
-  Turkey: { flag: "🇹🇷", name: "Turquía" },
-  Greece: { flag: "🇬🇷", name: "Grecia" },
-  Scotland: { flag: "🏴󠁧󠁢󠁳󠁣󠁴󠁿", name: "Escocia" },
   International: { flag: "🌎", name: "Torneos Internacionales" },
 };
 

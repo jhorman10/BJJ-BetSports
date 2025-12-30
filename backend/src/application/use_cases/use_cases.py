@@ -266,8 +266,26 @@ class GetPredictionsUseCase:
         upcoming_matches = await self._get_upcoming_matches(league_id, limit=1000)
         
         # Strict Date Filter: Only show matches in the future
-        now = datetime.now(timezone('America/Bogota'))
-        upcoming_matches = [m for m in upcoming_matches if m.match_date > now]
+        # Ensure 'now' and 'match.match_date' are comparable (timezone-aware)
+        from src.utils.time_utils import get_current_time
+        now = get_current_time() # Returns Bogota time
+        
+        filtered_upcoming = []
+        for m in upcoming_matches:
+            # Ensure match date is timezone aware (convert to Bogota if needed)
+            m_date = m.match_date
+            if m_date.tzinfo is None:
+                m_date = now.tzinfo.localize(m_date)
+            else:
+                m_date = m_date.astimezone(now.tzinfo)
+            
+            # Allow a small buffer? No, strict future.
+            # If match started 1 second ago, it's not "upcoming" for prediction purposes usually, 
+            # unless we support live. But user asked to "no enviar partidos que ya se jugaron".
+            if m_date > now:
+                filtered_upcoming.append(m)
+        
+        upcoming_matches = filtered_upcoming
         
         if not upcoming_matches:
             logger.info(f"No upcoming future matches found for {league_id}")

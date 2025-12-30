@@ -70,7 +70,25 @@ export const usePredictionStore = create<PredictionState>()(
         set({ leaguesLoading: true, leaguesError: null });
         try {
           const data = await leaguesApi.getLeagues();
-          set({ leaguesData: data });
+          // Filter out excluded countries
+          const excludedCountries = [
+            "Turkey",
+            "Greece",
+            "Scotland",
+            "Turquía",
+            "Grecia",
+            "Escocia",
+          ];
+          const filteredCountries = data.countries.filter(
+            (c) => !excludedCountries.includes(c.name)
+          );
+
+          set({
+            leaguesData: {
+              ...data,
+              countries: filteredCountries,
+            },
+          });
 
           // Successful fetch means backend is likely available
           useOfflineStore.getState().setBackendAvailable(true);

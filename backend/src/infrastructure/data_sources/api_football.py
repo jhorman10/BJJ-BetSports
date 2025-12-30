@@ -56,12 +56,6 @@ LEAGUE_ID_MAPPING = {
     "B2": 145,  # Challenger Pro League (Belgium 2)
     "P1": 94,   # Primeira Liga
     "P2": 95,   # Liga Portugal 2
-    "T1": 203,  # Super Lig
-    "T2": 204,  # 1. Lig (Turkey 2)
-    "G1": 197,  # Super League Greece
-    "G2": 198,  # Super League 2 Greece
-    "SC0": 179, # Scottish Premiership
-    "SC1": 180, # Scottish Championship
     "I1": 135,  # Serie A
     "I2": 136,  # Serie B
     "D1": 78,   # Bundesliga

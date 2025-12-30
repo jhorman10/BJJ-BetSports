@@ -212,7 +212,7 @@ class CacheWarmupService:
                 # We interpret "supported_leagues" as our INTERNAL codes
                 from src.core.constants import DEFAULT_LEAGUES
                 # Extend default leagues with lower divisions that users might track
-                supported_leagues = list(set(DEFAULT_LEAGUES + ["E1", "E2", "E3", "SP2", "I2", "F2", "D2", "N2", "P2", "SC1"]))
+                supported_leagues = list(set(DEFAULT_LEAGUES + ["E1", "E2", "E3", "SP2", "I2", "F2", "D2", "N2", "P2"]))
                 
                 tasks = []
                 # NOTE: We must run these SEQUENTIALLY to avoid rate limits (10 req/min for free tier)

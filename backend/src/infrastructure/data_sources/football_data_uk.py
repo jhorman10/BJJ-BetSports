@@ -69,18 +69,7 @@ LEAGUE_CSV_PATHS = {
     # Portugal
     "P1": "portugal/primeira-liga",     # Primeira Liga
     "P2": "portugal/liga-portugal-2",   # Liga Portugal 2 (Placeholder)
-    
-    # Turkey
-    "T1": "turkey/super-lig",           # Super Lig
-    "T2": "turkey/1-lig",               # 1. Lig (Placeholder)
-    
-    # Greece
-    "G1": "greece/super-league",        # Super League
-    "G2": "greece/super-league-2",      # Super League 2 (Placeholder)
 
-    # Scotland
-    "SC0": "scotland/premiership",      # Premiership
-    "SC1": "scotland/championship",     # Championship
 
     # International (Europe & Americas)
     "UCL": "international/champions-league",   # Champions League
@@ -165,11 +154,15 @@ class FootballDataUKSource:
                 response = await client.get(url, timeout=self.config.timeout)
                 response.raise_for_status()
                 
-                # Parse CSV
-                df = pd.read_csv(
-                    StringIO(response.text),
-                    encoding='utf-8',
-                    on_bad_lines='skip',
+                # Parse CSV (CPU-bound, offload to thread)
+                loop = asyncio.get_running_loop()
+                df = await loop.run_in_executor(
+                    None, 
+                    lambda: pd.read_csv(
+                        StringIO(response.text),
+                        encoding='utf-8',
+                        on_bad_lines='skip',
+                    )
                 )
                 
                 now = datetime.utcnow()

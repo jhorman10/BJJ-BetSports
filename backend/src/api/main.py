@@ -139,8 +139,17 @@ async def lifespan(app: FastAPI):
     
     # Run warmup in background so we don't block server startup
     import asyncio
-    asyncio.create_task(warmup_service.warm_up_predictions(lookahead_days=7))
-    logger.info("🚀 Background Cache Warmup Task Started for upcoming 7 days")
+    
+    # STARTUP OPTIMIZATION:
+    # Give the server a moment (5s) to bind to port and handle initial health checks
+    # from K8s/Render before starting heavy CPU/Network tasks.
+    async def delayed_warmup():
+        logger.info("⏳ Waiting 5s before starting heavy background tasks...")
+        await asyncio.sleep(5)
+        asyncio.create_task(warmup_service.warm_up_predictions(lookahead_days=7))
+        logger.info("🚀 Background Cache Warmup Task Started for upcoming 7 days")
+        
+    asyncio.create_task(delayed_warmup())
     
     # ----------------------------------
     

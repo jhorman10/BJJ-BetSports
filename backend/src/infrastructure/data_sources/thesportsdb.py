@@ -101,10 +101,6 @@ class TheSportsDBClient:
             "P1": "4344", # Primeira Liga
             "N1": "4337", # Eredivisie
             "B1": "4338", # Belgium Jupiler Pro League
-            "SC0": "4330", # Scottish Premiership
-            "SC1": "4331", # Scottish Championship (Checking ID)
-            "T1": "4359", # Super Lig (Turkey)
-            "G1": "4392", # Super League (Greece)
         }
         
         tsdb_id = INTERNAL_TO_TSDB.get(league_id)
@@ -264,9 +260,6 @@ class TheSportsDBClient:
             "F1": "4334",   # Ligue 1
             "P1": "4344",   # Primeira Liga
             "N1": "4337",   # Eredivisie
-            "SC0": "4330",  # Scottish Premiership
-            "T1": "4359",   # Super Lig (Turkey)
-            "G1": "4392",   # Super League (Greece)
         }
         
         tsdb_id = INTERNAL_TO_TSDB.get(league_id)
