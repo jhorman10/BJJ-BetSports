@@ -348,61 +348,39 @@ const BotDashboard: React.FC = () => {
           <Box position="relative">
             {loading ? (
               <CircularProgress size={40} sx={{ color: "#fbbf24" }} />
-            ) : (
+            ) : canTrain ? (
               <Box>
                 <Button
                   variant="contained"
-                  disabled={!canTrain}
                   onClick={() => {
                     isManualTrainingRef.current = true;
                     runTraining(true);
                   }}
                   startIcon={<SmartToy />}
                   sx={{
-                    background: canTrain
-                      ? "linear-gradient(135deg, #fbbf24 0%, #d97706 100%)"
-                      : "rgba(255, 255, 255, 0.12)",
-                    color: canTrain ? "#fff" : "rgba(255, 255, 255, 0.3)",
+                    background:
+                      "linear-gradient(135deg, #fbbf24 0%, #d97706 100%)",
+                    color: "#fff",
                     fontWeight: 700,
                     textTransform: "none",
                     fontSize: "0.95rem",
                     padding: "8px 24px",
                     borderRadius: "12px",
-                    boxShadow: canTrain
-                      ? "0 4px 15px rgba(251, 191, 36, 0.4)"
-                      : "none",
-                    border: canTrain
-                      ? "1px solid rgba(255, 255, 255, 0.2)"
-                      : "1px solid rgba(255, 255, 255, 0.05)",
+                    boxShadow: "0 4px 15px rgba(251, 191, 36, 0.4)",
+                    border: "1px solid rgba(255, 255, 255, 0.2)",
                     transition: "all 0.3s ease",
                     "&:hover": {
-                      background: canTrain
-                        ? "linear-gradient(135deg, #f59e0b 0%, #b45309 100%)"
-                        : "rgba(255, 255, 255, 0.12)",
-                      transform: canTrain ? "translateY(-2px)" : "none",
-                      boxShadow: canTrain
-                        ? "0 8px 25px rgba(251, 191, 36, 0.5)"
-                        : "none",
-                    },
-                    "&:disabled": {
-                      background: "rgba(255, 255, 255, 0.05)",
-                      color: "rgba(255, 255, 255, 0.2)",
-                      border: "1px solid rgba(255, 255, 255, 0.05)",
+                      background:
+                        "linear-gradient(135deg, #f59e0b 0%, #b45309 100%)",
+                      transform: "translateY(-2px)",
+                      boxShadow: "0 8px 25px rgba(251, 191, 36, 0.5)",
                     },
                   }}
                 >
-                  {canTrain
-                    ? "Recalcular Modelo IA"
-                    : `Disponible en ${Math.max(
-                        0,
-                        3 -
-                          (new Date().getTime() -
-                            (lastUpdate?.getTime() || 0)) /
-                            (1000 * 60 * 60)
-                      ).toFixed(1)}h`}
+                  Recalcular Modelo IA
                 </Button>
               </Box>
-            )}
+            ) : null}
           </Box>
           <Box>
             <Typography variant="h4" fontWeight={700} color="white">
