@@ -2,6 +2,8 @@ import asyncio
 import logging
 import sys
 import os
+from fastapi import FastAPI
+import uvicorn
 
 # Ensure the root directory is in the path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
@@ -13,11 +15,32 @@ from src.core.constants import DEFAULT_LEAGUES
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+async def start_health_check_server():
+    """
+    Starts a lightweight web server to satisfy Render's port binding requirement.
+    This prevents the deployment from timing out while the script runs.
+    """
+    app = FastAPI()
+    
+    @app.get("/")
+    async def root():
+        return {"status": "training_in_progress"}
+        
+    port = int(os.environ.get("PORT", 10000))
+    logger.info(f"Starting health check server on port {port}")
+    
+    config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="warning")
+    server = uvicorn.Server(config)
+    await server.serve()
+
 async def main():
     """
     Main entry point for standalone ML training.
     Uses the same orchestrator as the API to ensure logic parity.
     """
+    # Start health check server immediately to satisfy Render's port requirement
+    asyncio.create_task(start_health_check_server())
+    
     logger.info("Starting standalone ML Training Session...")
     
     # Get the orchestrator instance
@@ -62,6 +85,11 @@ async def main():
         
         cache.set_training_results(cache_data)
         logger.info("Training results persisted to application cache.")
+        
+        # Keep the process alive if running on Render to prevent restart loops
+        if os.environ.get("RENDER"):
+            logger.info("Running on Render: Keeping process alive to serve health checks.")
+            await asyncio.Event().wait()
         
     except Exception as e:
         logger.error(f"Training session failed: {e}")
