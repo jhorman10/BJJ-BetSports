@@ -13,6 +13,7 @@ from datetime import datetime, date
 from typing import Optional, Dict, Any
 from pathlib import Path
 import threading
+from src.utils.time_utils import get_current_time
 
 logger = logging.getLogger(__name__)
 
@@ -124,7 +125,7 @@ class TrainingCache:
         """Store a value in cache."""
         with self._lock:
             self._cache[key] = value
-            self._last_update = datetime.now()
+            self._last_update = get_current_time()
             self._cache_date = date.today()
             self._save_to_disk()
     
@@ -133,7 +134,7 @@ class TrainingCache:
         # Check if cache is stale (older than 24 hours)
         if self._last_update:
             from datetime import timedelta
-            if datetime.now() - self._last_update > timedelta(hours=24):
+            if get_current_time() - self._last_update > timedelta(hours=24):
                 logger.info("Cache is older than 24 hours, returning None")
                 return None
             
@@ -158,7 +159,7 @@ class TrainingCache:
             return False
             
         from datetime import timedelta
-        return (datetime.now() - self._last_update) < timedelta(hours=24)
+        return (get_current_time() - self._last_update) < timedelta(hours=24)
     
     def invalidate(self):
         """Invalidate the cache."""
