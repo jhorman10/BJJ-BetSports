@@ -55,7 +55,7 @@ async def main():
     try:
         result = await orchestrator.run_training_pipeline(
             league_ids=DEFAULT_LEAGUES,
-            days_back=365
+            days_back=3650
         )
         
         logger.info("Training session completed successfully.")
