@@ -1,9 +1,13 @@
 import asyncio
 import logging
 import os
+import warnings
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 from pydantic import BaseModel
+
+# Suppress DeprecationWarnings from utcnow() used in ML libraries
+warnings.filterwarnings("ignore", category=DeprecationWarning, message=".*utcnow.*")
 
 # ML Imports
 try:
@@ -143,8 +147,8 @@ class MLTrainingOrchestrator:
             # We check this at the START of each day to use the latest available model
             if ML_AVAILABLE and RandomForestClassifier and len(ml_features) >= MIN_TRAIN_SAMPLES:
                  # Retrain periodically (e.g. every 50 new samples) or every day if fast enough
-                 # For now, let's retrain every ~50 samples to simulate periodic model updates
-                     if len(ml_features) % 50 < len(daily_matches) or len(ml_features) == MIN_TRAIN_SAMPLES:
+                 # For now, let's retrain every ~200 samples to simulate periodic model updates
+                     if len(ml_features) % 200 < len(daily_matches) or len(ml_features) == MIN_TRAIN_SAMPLES:
                          try:
                             # Run CPU-bound training in thread to avoid blocking event loop
                             def _train_step(features, targets):

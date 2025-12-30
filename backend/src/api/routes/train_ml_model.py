@@ -26,6 +26,10 @@ async def start_health_check_server():
     async def root():
         return {"status": "training_in_progress"}
         
+    @app.get("/health")
+    async def health():
+        return {"status": "ok"}
+        
     port = int(os.environ.get("PORT", 10000))
     logger.info(f"Starting health check server on port {port}")
     

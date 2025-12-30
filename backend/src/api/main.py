@@ -7,8 +7,12 @@ This module configures the FastAPI app, middleware, and routes.
 
 import os
 import logging
+import warnings
 from contextlib import asynccontextmanager
 from datetime import datetime
+
+# Suppress DeprecationWarnings from utcnow() used in external libraries or old code
+warnings.filterwarnings("ignore", category=DeprecationWarning, message=".*utcnow.*")
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -152,16 +156,15 @@ async def lifespan(app: FastAPI):
         logger.info("✓ Cached forecasts found. Starting scheduler in background...")
         scheduler.start(run_immediate=False)
     else:
-        # No cache - run job synchronously and wait for completion
-        logger.info("⚠ No cached forecasts found. Running initial job synchronously...")
-        logger.info("   This may take a few minutes on first deployment...")
+        # No cache - run job in background to avoid blocking port binding
+        logger.info("⚠ No cached forecasts found. Triggering initial job in background...")
         
-        # Start scheduler without immediate run first
+        # Start scheduler
         scheduler.start(run_immediate=False)
         
-        # Run the job and WAIT for it to complete
-        await scheduler.run_daily_orchestrated_job()
-        logger.info("✓ Initial cache population complete")
+        # Run the job in background
+        asyncio.create_task(scheduler.run_daily_orchestrated_job())
+        logger.info("✓ Initial cache population triggered in background")
     
     logger.info("✓ Daily training scheduler started (06:00 AM Colombia time)")
     
