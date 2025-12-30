@@ -11,3 +11,11 @@ def get_current_time() -> datetime:
 def get_today_str() -> str:
     """Get today's date string in Colombia timezone (YYYY-MM-DD)."""
     return get_current_time().strftime("%Y-%m-%d")
+
+def to_colombia_time(dt: datetime) -> datetime:
+    """Convert any datetime to Colombia timezone."""
+    if dt.tzinfo is None:
+        # Assume UTC if naive, then convert
+        from pytz import utc
+        dt = utc.localize(dt)
+    return dt.astimezone(COLOMBIA_TZ)

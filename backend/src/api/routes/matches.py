@@ -20,6 +20,7 @@ from src.api.dependencies import (
     get_cache_service,
     get_picks_service,
 )
+from src.utils.time_utils import to_colombia_time
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -46,7 +47,7 @@ def _map_match_to_dto(match: Any) -> MatchDTO:
             country=match.league.country,
             season=match.league.season,
         ),
-        match_date=match.match_date,
+        match_date=to_colombia_time(match.match_date),
         home_goals=match.home_goals,
         away_goals=match.away_goals,
         status=match.status,
