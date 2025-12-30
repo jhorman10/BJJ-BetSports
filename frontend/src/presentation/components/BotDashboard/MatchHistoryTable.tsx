@@ -1075,4 +1075,4 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
   );
 };
 
-export default MatchHistoryTable;
+export default React.memo(MatchHistoryTable);

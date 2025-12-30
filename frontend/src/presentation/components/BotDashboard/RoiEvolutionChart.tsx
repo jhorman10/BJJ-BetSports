@@ -333,4 +333,4 @@ const RoiEvolutionChart: React.FC<RoiEvolutionChartProps> = ({ data }) => {
   );
 };
 
-export default RoiEvolutionChart;
+export default React.memo(RoiEvolutionChart);

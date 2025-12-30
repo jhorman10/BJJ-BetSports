@@ -30,6 +30,7 @@ import RoiEvolutionChart from "./RoiEvolutionChart";
 import PicksStatsTable from "./PicksStatsTable";
 import { TrainingStatus, MatchPredictionHistory } from "../../../types";
 import { useBotStore } from "../../../application/stores/useBotStore";
+import { useSmartPolling } from "../../../hooks/useSmartPolling";
 
 const BotDashboard: React.FC = () => {
   // Use Bot Store for persistent state
@@ -40,7 +41,15 @@ const BotDashboard: React.FC = () => {
     error,
     isReconciling,
     fetchTrainingData,
+    reconcile,
   } = useBotStore();
+
+  // Smart polling: check backend every 30 seconds while tab is visible
+  useSmartPolling({
+    intervalMs: 30000,
+    onPoll: reconcile,
+    enabled: !loading, // Don't poll while training
+  });
 
   const [startDate, setStartDate] = React.useState<string>(() => {
     const year = new Date().getFullYear();

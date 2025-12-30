@@ -73,6 +73,21 @@ const App: React.FC = () => {
     }
   }, [isOnline, isBackendAvailable]);
 
+  // Auto-sync when tab becomes visible (user returns to page)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && isOnline && isBackendAvailable) {
+        // Reconcile all stores when user returns to tab
+        dataReconciliationService.reconcileAll();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [isOnline, isBackendAvailable]);
+
   // PWA Install state
   const [installPrompt, setInstallPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
