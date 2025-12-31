@@ -109,6 +109,9 @@ const App: React.FC = () => {
     // 2. We have connectivity
     if (!predictionsLoading && predictions.length > 0 && isOnline) {
       const runPrefetch = async () => {
+        // Wait for initial heavy requests (like training data) to settle
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+
         // Use requestIdleCallback if available to not block main thread
         // or just simple async loop with small delay
         if ("requestIdleCallback" in window) {
@@ -138,13 +141,15 @@ const App: React.FC = () => {
           return bPrio - aPrio;
         });
 
-        // Limit to, say, first 20 visual items initially to save bandwidth
-        const queue = sorted.slice(0, 20);
+        // Limit to first 10 items to prevent network congestion
+        const queue = sorted.slice(0, 10);
 
         for (const match of queue) {
           // Fire and forget, but maybe stagger slightly?
           // Since browser handles network queue, we can just call it unless we want to be super polite
           await prefetchMatch(match.match.id);
+          // Throttle: Wait 1.5s between requests to avoid backend timeouts
+          await new Promise((resolve) => setTimeout(resolve, 1500));
         }
       };
 
@@ -444,10 +449,11 @@ const App: React.FC = () => {
             color="text.disabled"
             sx={{ display: "block", mb: 2, maxWidth: 800, mx: "auto" }}
           >
-            Fuentes de datos: Football-Data.org, Football-Data.co.uk,
-            TheSportsDB, ESPN, ClubElo, Understat, FotMob, The Odds API,
-            ScoreBat y OpenFootball. Las predicciones son probabilísticas y no
-            garantizan resultados. Juegue con responsabilidad.
+            Fuentes de datos: Football-Data.org, API-Football,
+            Football-Data.co.uk, TheSportsDB, ESPN, ClubElo, Understat, FotMob,
+            The Odds API, ScoreBat y OpenFootball. Las predicciones son
+            probabilísticas y no garantizan resultados. Juegue con
+            responsabilidad.
           </Typography>
           <Typography variant="caption" color="text.disabled" display="block">
             © 2025 BJJ - BetSports
