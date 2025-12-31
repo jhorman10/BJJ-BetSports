@@ -45,6 +45,7 @@ class CacheWarmupService:
             prediction_service=prediction_service,
             statistics_service=statistics_service,
             learning_service=learning_service,
+            cache_service=cache_service,
         )
 
     async def warm_up_predictions(self, lookahead_days: int = 7):

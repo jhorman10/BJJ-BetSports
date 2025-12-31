@@ -27,6 +27,7 @@ import {
   Info,
   Diamond,
   PlayCircleOutline,
+  AutoGraph,
 } from "@mui/icons-material";
 import { styled } from "@mui/material/styles";
 import type { MatchPrediction } from "../../../types";
@@ -34,6 +35,7 @@ import {
   translateRecommendedBet,
   translateOverUnder,
 } from "../../../utils/translationUtils";
+import { useCacheStore } from "../../../application/stores/useCacheStore";
 
 interface MatchCardProps {
   matchPrediction: MatchPrediction;
@@ -72,10 +74,11 @@ const formatDate = (dateString: string): string => {
   });
 };
 
+// CORRECCIÓN: Lógica de colores arreglada
 const getProbabilityColor = (value: number): string => {
-  if (value >= 0.5) return "#10b981";
-  if (value >= 0.35) return "#f59e0b";
-  return "#ef4444";
+  if (value >= 0.5) return "#10b981"; // Verde para probabilidad alta (≥50%)
+  if (value >= 0.35) return "#f59e0b"; // Amarillo para probabilidad media (35-49%)
+  return "#ef4444"; // Rojo para probabilidad baja (<35%)
 };
 
 const getCardSx = (highlight?: boolean, clickable?: boolean) => ({
@@ -121,6 +124,12 @@ const MatchCard: React.FC<MatchCardProps> = memo(
     onToggleSelection,
   }) => {
     const { match, prediction } = matchPrediction;
+    const { prefetchMatch } = useCacheStore();
+
+    // Prefetch on hover (Just-in-Time)
+    const handleMouseEnter = () => {
+      prefetchMatch(match.id);
+    };
 
     // ... useMemos ...
     const formattedDate = useMemo(
@@ -174,11 +183,35 @@ const MatchCard: React.FC<MatchCardProps> = memo(
       [prediction.data_sources]
     );
 
+    // CORRECCIÓN: Memoizar colores de probabilidad
+    const homeWinColor = useMemo(
+      () => getProbabilityColor(prediction.home_win_probability),
+      [prediction.home_win_probability]
+    );
+
+    const drawColor = useMemo(
+      () => getProbabilityColor(prediction.draw_probability),
+      [prediction.draw_probability]
+    );
+
+    const awayWinColor = useMemo(
+      () => getProbabilityColor(prediction.away_win_probability),
+      [prediction.away_win_probability]
+    );
+
     const isLive = ["1H", "2H", "HT", "LIVE", "ET", "P"].includes(match.status);
     const isFinished = ["FT", "AET", "PEN"].includes(match.status);
 
+    const hasRichData = prediction.data_sources.some((s) =>
+      s.includes("FotMob")
+    );
+
     return (
-      <Card sx={getCardSx(highlight, !!onClick)} onClick={onClick}>
+      <Card
+        sx={getCardSx(highlight, !!onClick)}
+        onClick={onClick}
+        onMouseEnter={handleMouseEnter}
+      >
         {/* Selection Checkbox - Only if handler provided */}
         {onToggleSelection && (
           <Box
@@ -247,13 +280,43 @@ const MatchCard: React.FC<MatchCardProps> = memo(
                 href={prediction.highlights_url}
                 target="_blank"
                 size="small"
-                color="primary"
                 sx={{
-                  bgcolor: "rgba(59, 130, 246, 0.2)",
-                  "&:hover": { bgcolor: "rgba(59, 130, 246, 0.4)" },
+                  bgcolor: "rgba(59, 130, 246, 0.3)", // Stronger blue background
+                  color: "#ffffff", // White text
+                  border: "1px solid rgba(59, 130, 246, 0.5)",
+                  "&:hover": { bgcolor: "rgba(59, 130, 246, 0.5)" },
+                  "& .MuiChip-icon": { color: "#ffffff" },
                 }}
               />
             )}
+          </Box>
+        )}
+
+        {/* Rich Data Badge (FotMob) */}
+        {hasRichData && !highlight && (
+          <Box sx={{ position: "absolute", top: 12, right: 12, zIndex: 1 }}>
+            <Tooltip title="Datos enriquecidos (Córners/Tarjetas) disponibles">
+              <Chip
+                icon={
+                  <AutoGraph
+                    sx={{
+                      fontSize: "0.9rem !important",
+                      color: "#a78bfa !important",
+                    }}
+                  />
+                }
+                label="Data+"
+                size="small"
+                sx={{
+                  bgcolor: "rgba(139, 92, 246, 0.15)",
+                  color: "#a78bfa",
+                  border: "1px solid rgba(139, 92, 246, 0.3)",
+                  fontWeight: 700,
+                  height: 24,
+                  "& .MuiChip-label": { px: 1 },
+                }}
+              />
+            </Tooltip>
           </Box>
         )}
 
@@ -262,7 +325,7 @@ const MatchCard: React.FC<MatchCardProps> = memo(
           <Box
             sx={{
               position: "absolute",
-              top: highlight ? 40 : 12, // Stack below Destacado if highlighted
+              top: highlight ? 40 : hasRichData ? 40 : 12, // Stack correctly
               right: 12,
               zIndex: 1,
             }}
@@ -274,10 +337,11 @@ const MatchCard: React.FC<MatchCardProps> = memo(
               )}%`}
               size="small"
               sx={{
-                bgcolor: "rgba(255, 215, 0, 0.15)",
-                color: "#fbbf24",
-                border: "1px solid rgba(251, 191, 36, 0.5)",
-                fontWeight: "bold",
+                bgcolor: "rgba(251, 191, 36, 0.2)", // Amber background
+                color: "#ffffff", // White text
+                border: "1px solid #fbbf24",
+                fontWeight: 800,
+                "& .MuiChip-icon": { color: "#fbbf24" }, // Icon keeps amber color for contrast
               }}
             />
           </Box>
@@ -300,15 +364,24 @@ const MatchCard: React.FC<MatchCardProps> = memo(
                 label="EN VIVO"
                 color="error"
                 size="small"
-                sx={{ height: 20, fontSize: "0.625rem" }}
+                sx={{
+                  height: 20,
+                  fontSize: "0.625rem",
+                  color: "#ffffff",
+                  fontWeight: 700,
+                }}
               />
             )}
             {isFinished && (
               <Chip
                 label="FINALIZADO"
                 color="default"
-                size="small"
-                sx={{ height: 20, fontSize: "0.625rem" }}
+                sx={{
+                  height: 20,
+                  fontSize: "0.625rem",
+                  color: "#ffffff",
+                  bgcolor: "rgba(255,255,255,0.2)",
+                }}
               />
             )}
           </Box>
@@ -399,19 +472,35 @@ const MatchCard: React.FC<MatchCardProps> = memo(
               sx={{ bgcolor: "rgba(59, 130, 246, 0.1)" }} // Neon Blue background
             >
               <Box textAlign="center">
-                <Typography variant="h5" color="primary" fontWeight={700}>
+                <Typography
+                  variant="h5"
+                  color="primary"
+                  fontWeight={800}
+                  sx={{ textShadow: "0 0 10px rgba(59, 130, 246, 0.5)" }}
+                >
                   {homeGoals}
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
+                <Typography
+                  variant="caption"
+                  sx={{ color: "rgba(255,255,255,0.7)" }}
+                >
                   Goles esperados
                 </Typography>
               </Box>
               <SportsSoccer sx={{ color: "text.secondary" }} />
               <Box textAlign="center">
-                <Typography variant="h5" color="primary" fontWeight={700}>
+                <Typography
+                  variant="h5"
+                  color="primary"
+                  fontWeight={800}
+                  sx={{ textShadow: "0 0 10px rgba(59, 130, 246, 0.5)" }}
+                >
                   {awayGoals}
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
+                <Typography
+                  variant="caption"
+                  sx={{ color: "rgba(255,255,255,0.7)" }}
+                >
                   Goles esperados
                 </Typography>
               </Box>
@@ -420,7 +509,7 @@ const MatchCard: React.FC<MatchCardProps> = memo(
 
           <Divider sx={{ mb: 2 }} />
 
-          {/* Probabilities */}
+          {/* Probabilities - CORRECCIÓN: Usar colores memoizados */}
           <Box mb={3}>
             <Typography variant="subtitle2" color="text.secondary" mb={2}>
               Probabilidades
@@ -437,7 +526,7 @@ const MatchCard: React.FC<MatchCardProps> = memo(
               <ProbabilityBar
                 variant="determinate"
                 value={prediction.home_win_probability * 100}
-                barcolor={getProbabilityColor(prediction.home_win_probability)}
+                barcolor={homeWinColor}
               />
             </Box>
 
@@ -452,7 +541,7 @@ const MatchCard: React.FC<MatchCardProps> = memo(
               <ProbabilityBar
                 variant="determinate"
                 value={prediction.draw_probability * 100}
-                barcolor={getProbabilityColor(prediction.draw_probability)}
+                barcolor={drawColor}
               />
             </Box>
 
@@ -467,7 +556,7 @@ const MatchCard: React.FC<MatchCardProps> = memo(
               <ProbabilityBar
                 variant="determinate"
                 value={prediction.away_win_probability * 100}
-                barcolor={getProbabilityColor(prediction.away_win_probability)}
+                barcolor={awayWinColor}
               />
             </Box>
 
@@ -520,7 +609,7 @@ const MatchCard: React.FC<MatchCardProps> = memo(
 
           <Divider sx={{ mb: 2 }} />
 
-          {/* Over/Under */}
+          {/* Over/Under - CORRECCIÓN: Lógica de colores mejorada */}
           <Box mb={2}>
             <Typography variant="subtitle2" color="text.secondary" mb={1}>
               Más/Menos de 2.5 Goles
@@ -536,6 +625,18 @@ const MatchCard: React.FC<MatchCardProps> = memo(
                   prediction.over_25_probability > 0.5 ? "filled" : "outlined"
                 }
                 size="small"
+                sx={{
+                  color: "#ffffff", // White text enforced
+                  fontWeight: 700,
+                  bgcolor:
+                    prediction.over_25_probability > 0.5
+                      ? "success.main"
+                      : "transparent",
+                  borderColor: "success.main",
+                  ...(prediction.over_25_probability > 0.5 && {
+                    boxShadow: "0 0 10px rgba(16, 185, 129, 0.4)",
+                  }),
+                }}
               />
               <Chip
                 icon={<TrendingDown />}
@@ -547,6 +648,18 @@ const MatchCard: React.FC<MatchCardProps> = memo(
                   prediction.under_25_probability > 0.5 ? "filled" : "outlined"
                 }
                 size="small"
+                sx={{
+                  color: "#ffffff", // White text enforced
+                  fontWeight: 700,
+                  bgcolor:
+                    prediction.under_25_probability > 0.5
+                      ? "error.main"
+                      : "transparent",
+                  borderColor: "error.main",
+                  ...(prediction.under_25_probability > 0.5 && {
+                    boxShadow: "0 0 10px rgba(239, 68, 68, 0.4)",
+                  }),
+                }}
               />
             </Box>
           </Box>
@@ -579,7 +692,13 @@ const MatchCard: React.FC<MatchCardProps> = memo(
               <Chip
                 label={translateRecommendedBet(prediction.recommended_bet)}
                 color="primary"
-                sx={{ fontWeight: 600 }}
+                sx={{
+                  fontWeight: 800,
+                  color: "#ffffff",
+                  bgcolor: "rgba(59, 130, 246, 0.8)",
+                  boxShadow: "0 0 10px rgba(59, 130, 246, 0.4)",
+                  border: "1px solid #3b82f6",
+                }}
               />
               {/* Stake Display */}
               {(() => {
@@ -595,7 +714,11 @@ const MatchCard: React.FC<MatchCardProps> = memo(
                       color="warning"
                       variant="filled"
                       size="small"
-                      sx={{ fontWeight: 700, color: "#000" }}
+                      sx={{
+                        fontWeight: 700,
+                        color: "#1a1a1a",
+                        bgcolor: "#f59e0b",
+                      }} // Dark text on amber
                     />
                   );
                 }

@@ -831,6 +831,8 @@ class PredictionService:
         min_matches: int = 6,
         highlights_url: Optional[str] = None,
         real_time_odds: Optional[dict[str, float]] = None,
+        home_elo: Optional[float] = None,
+        away_elo: Optional[float] = None,
     ) -> Prediction:
         """
         Generate a prediction for a match using ONLY real data.
@@ -931,6 +933,25 @@ class PredictionService:
             away_lineup_factor=away_lineup_factor * market_factor_away
         )
         
+        # 3. ELO ADJUSTMENT (New)
+        # If we have Elo ratings, we can calculate an expected win probability
+        # P(A) = 1 / (1 + 10^((Rb-Ra)/400))
+        elo_home_prob = 0.0
+        if home_elo and away_elo:
+            elo_diff = home_elo - away_elo
+            # Add home advantage to Elo (typically +100 points)
+            elo_home_prob = 1 / (1 + 10 ** (-(elo_diff + 100) / 400))
+            
+            # Blend Elo expectation into goals? 
+            # Or just use it to boost confidence?
+            # Let's use it to adjust expected goals slightly towards the Elo favorite
+            if elo_home_prob > 0.6: # Home is strong favorite
+                home_expected *= 1.1
+            elif elo_home_prob < 0.4: # Away is strong favorite
+                away_expected *= 1.1
+            
+            if "ClubElo" not in data_sources: data_sources.append("ClubElo")
+        
         # Calculate outcome probabilities
         home_win, draw, away_win = self.calculate_outcome_probabilities(
             home_expected, away_expected
@@ -979,6 +1000,10 @@ class PredictionService:
             calculated_probs=(home_win, draw, away_win),
             odds=odds_obj,
         )
+        
+        # Boost confidence if Elo data is present (it adds robustness)
+        if home_elo and away_elo:
+            confidence = min(0.99, confidence * 1.1)
         
         # Calculate data updated time
         data_updated_at = None

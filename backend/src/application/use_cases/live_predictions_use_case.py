@@ -25,6 +25,7 @@ from src.infrastructure.data_sources.api_football import (
     LEAGUE_ID_MAPPING,
     TARGET_LEAGUE_IDS,
 )
+from src.infrastructure.data_sources.fotmob_source import FotMobSource
 from src.application.dtos.dtos import (
     TeamDTO,
     LeagueDTO,
@@ -72,6 +73,7 @@ class GetLivePredictionsUseCase:
         self.statistics_service = statistics_service
         self.cache_service = cache_service
         self.picks_service = picks_service
+        self.fotmob = data_sources.fotmob or FotMobSource()
     
     async def execute(
         self,
@@ -216,7 +218,10 @@ class GetLivePredictionsUseCase:
              
              league_averages = self.statistics_service.calculate_league_averages(historical_matches) if historical_matches else None
              if historical_matches:
-                 data_sources_used.append("Aggregated History (CSV/API)")
+                 data_sources_used.append("Aggregated History")
+                 # Check if we have rich stats (likely from FotMob in minor leagues)
+                 if any(m.home_corners is not None for m in historical_matches):
+                     data_sources_used.append("FotMob")
         else:
              # We used deep stats, but maybe we still want league averages from recent data?
              historical_matches = await self._get_aggregated_history(match)
@@ -326,6 +331,15 @@ class GetLivePredictionsUseCase:
             try:
                 h_hist = await self.data_sources.football_data_org.get_team_history(match.home_team.name, limit=HISTORY_LIMIT)
                 a_hist = await self.data_sources.football_data_org.get_team_history(match.away_team.name, limit=HISTORY_LIMIT)
+                team_matches.extend(h_hist + a_hist)
+            except Exception:
+                pass
+
+        # Strategy C: FotMob
+        if self.fotmob and self.fotmob.is_configured:
+            try:
+                h_hist = await self.fotmob.get_team_history(match.home_team.name, limit=10)
+                a_hist = await self.fotmob.get_team_history(match.away_team.name, limit=10)
                 team_matches.extend(h_hist + a_hist)
             except Exception:
                 pass

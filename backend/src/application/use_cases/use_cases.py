@@ -25,6 +25,9 @@ from src.infrastructure.data_sources.api_football import APIFootballSource
 from src.infrastructure.data_sources.football_data_org import FootballDataOrgSource
 from src.infrastructure.data_sources.openfootball import OpenFootballSource
 from src.infrastructure.data_sources.thesportsdb import TheSportsDBClient
+from src.infrastructure.data_sources.club_elo import ClubEloSource
+from src.infrastructure.data_sources.understat_source import UnderstatSource
+from src.infrastructure.data_sources.fotmob_source import FotMobSource
 from src.application.dtos.dtos import (
     TeamDTO,
     LeagueDTO,
@@ -48,6 +51,9 @@ class DataSources:
     football_data_org: FootballDataOrgSource
     openfootball: OpenFootballSource
     thesportsdb: TheSportsDBClient
+    club_elo: Optional[ClubEloSource] = None
+    understat: Optional[UnderstatSource] = None
+    fotmob: Optional[FotMobSource] = None
 
 
 class GetLeaguesUseCase:
@@ -589,6 +595,9 @@ class GetMatchDetailsUseCase:
         home_stats = self.statistics_service.calculate_team_statistics(match.home_team.name, historical_matches)
         away_stats = self.statistics_service.calculate_team_statistics(match.away_team.name, historical_matches)
         
+        # Calculate league averages from history to enable fallback picks (Corners/Cards)
+        league_averages = self.statistics_service.calculate_league_averages(historical_matches)
+        
         # 5. Generate prediction
         try:
             prediction = self.prediction_service.generate_prediction(
@@ -625,7 +634,7 @@ class GetMatchDetailsUseCase:
             match=match,
             home_stats=home_stats,
             away_stats=away_stats,
-            league_averages=None,
+            league_averages=league_averages,
             predicted_home_goals=prediction.predicted_home_goals,
             predicted_away_goals=prediction.predicted_away_goals,
             home_win_prob=prediction.home_win_probability,
@@ -780,6 +789,9 @@ class GetTeamPredictionsUseCase:
                 home_stats = self.statistics_service.calculate_team_statistics(match.home_team.name, historical_matches)
                 away_stats = self.statistics_service.calculate_team_statistics(match.away_team.name, historical_matches)
                 
+                # Calculate league averages
+                league_averages = self.statistics_service.calculate_league_averages(historical_matches)
+                
                 # 5. Generate prediction
                 try:
                     prediction = self.prediction_service.generate_prediction(
@@ -797,7 +809,7 @@ class GetTeamPredictionsUseCase:
                     match=match,
                     home_stats=home_stats,
                     away_stats=away_stats,
-                    league_averages=None,
+                    league_averages=league_averages,
                     predicted_home_goals=prediction.predicted_home_goals,
                     predicted_away_goals=prediction.predicted_away_goals,
                     home_win_prob=prediction.home_win_probability,

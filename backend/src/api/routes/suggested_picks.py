@@ -13,7 +13,9 @@ from src.api.dependencies import (
     get_prediction_service,
     get_statistics_service,
     get_learning_service,
+    get_cache_service,
 )
+from src.infrastructure.cache.cache_service import CacheService
 from src.application.use_cases.suggested_picks_use_case import (
     GetSuggestedPicksUseCase,
     RegisterFeedbackUseCase,
@@ -48,13 +50,12 @@ async def get_suggested_picks(
     prediction_service=Depends(get_prediction_service),
     statistics_service=Depends(get_statistics_service),
     learning_service=Depends(get_learning_service),
+    cache_service: CacheService = Depends(get_cache_service),
 ) -> MatchSuggestedPicksDTO:
     """Get AI-suggested picks for a match (Cache -> Live)."""
-    from src.infrastructure.cache.cache_service import get_cache_service
-    
     # 1. Try Cache First (from warmup service or live predictions)
     try:
-        cache = get_cache_service()
+        cache = cache_service
         
         # Check both potential keys for consistency
         # 'forecasts:' is used by batch warmup, 'predictions:' by live updates
@@ -77,13 +78,14 @@ async def get_suggested_picks(
         prediction_service=prediction_service,
         statistics_service=statistics_service,
         learning_service=learning_service,
+        cache_service=cache_service,
     )
     
     result = await use_case.execute(match_id)
     if result:
         # Cache the result for future requests (12h TTL) using both keys for consistency
         try:
-            cache = get_cache_service()
+            cache = cache_service
             # We cache in both namespaces to ensure future hits regardless of endpoint entry point
             for key in [f"forecasts:match_{match_id}", f"predictions:{match_id}"]:
                 cache.set(key, result.model_dump(), ttl_seconds=3600*12)

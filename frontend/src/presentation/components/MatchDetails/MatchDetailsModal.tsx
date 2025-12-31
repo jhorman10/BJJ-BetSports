@@ -233,10 +233,22 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                   />
                 )}
               </Box>
-              <SuggestedPicksTab
-                matchPrediction={details}
-                onPicksCount={setPicksCount}
-              />
+              {/* Render SuggestedPicksTab only if picks exist, otherwise show fallback */}
+              {details &&
+              details.prediction &&
+              details.prediction.suggested_picks &&
+              details.prediction.suggested_picks.length > 0 ? (
+                <SuggestedPicksTab
+                  matchPrediction={details}
+                  onPicksCount={setPicksCount}
+                />
+              ) : (
+                <Box py={4} textAlign="center">
+                  <Typography variant="caption" color="text.secondary">
+                    No hay picks disponibles para este partido.
+                  </Typography>
+                </Box>
+              )}
             </Box>
 
             <Divider sx={{ mb: 2.5 }} />

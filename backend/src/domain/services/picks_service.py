@@ -342,7 +342,7 @@ class PicksService:
         odds: float,
         reasoning: str,
         priority_multiplier: float = 1.0,
-        min_threshold: float = 0.45,
+        min_threshold: float = 0.01,
         recommendation_threshold: float = 0.65,
         penalty_note: str = ""
     ) -> Optional[SuggestedPick]:
@@ -447,7 +447,9 @@ class PicksService:
                 home_stats, away_stats, predicted_home_goals, predicted_away_goals
             )
         
-        if home_stats is not None and away_stats is not None:
+        # --- MODIFIED: Corners & Cards (Totals) ---
+        # Allow generation if we have stats OR league averages (fallback)
+        if (home_stats is not None and away_stats is not None) or league_averages:
             corners_picks = self._generate_corners_picks(home_stats, away_stats, match, league_averages, market_odds)
             for pick in corners_picks:
                 picks.add_pick(pick)
@@ -457,10 +459,11 @@ class PicksService:
             for pick in cards_picks:
                 picks.add_pick(pick)
             
-            # Generate red card pick
-            red_card_pick = self._generate_red_cards_pick(home_stats, away_stats, match)
-            if red_card_pick:
-                picks.add_pick(red_card_pick)
+            # Red cards require specific team stats, so keep strict check
+            if home_stats is not None and away_stats is not None:
+                red_card_pick = self._generate_red_cards_pick(home_stats, away_stats, match)
+                if red_card_pick:
+                    picks.add_pick(red_card_pick)
         
         # 4. Prediction-based picks (Winner/Goals)
         # We can generate winner picks if we have probability (even from odds), 
@@ -482,6 +485,12 @@ class PicksService:
         
         # 5. Goal/BTTS/Team Goals picks (Consistently generated if we have any stats or prediction)
         # RELAXED: Even if predicted goals is 0.0, it's a prediction!
+        # Ensure we have prediction data if league averages exist (Fallback for BTTS/Goals)
+        if not has_prediction_data and league_averages:
+             predicted_home_goals = league_averages.avg_home_goals
+             predicted_away_goals = league_averages.avg_away_goals
+             has_prediction_data = True
+
         if has_prediction_data or (has_home_stats and has_away_stats):
             # Generate handicap picks (needs win prob AND prediction)
             if home_win_prob > 0:
@@ -520,18 +529,16 @@ class PicksService:
                 picks.add_pick(pick)
         
         # 6. Team Corners & Cards (Unconditional - User requested "all possible picks")
-        if home_stats is not None and away_stats is not None:
-             # Team Corners
+        # Decoupled logic: Generate for Home even if Away is missing, and vice-versa
+        if home_stats is not None:
             home_corners_list = self._generate_single_team_corners(home_stats, match, True)
             for p in home_corners_list: picks.add_pick(p)
-            
-            away_corners_list = self._generate_single_team_corners(away_stats, match, False)
-            for p in away_corners_list: picks.add_pick(p)
-            
-            # Team Cards
             home_cards_list = self._generate_single_team_cards(home_stats, match, True)
             for p in home_cards_list: picks.add_pick(p)
-            
+
+        if away_stats is not None:
+            away_corners_list = self._generate_single_team_corners(away_stats, match, False)
+            for p in away_corners_list: picks.add_pick(p)
             away_cards_list = self._generate_single_team_cards(away_stats, match, False)
             for p in away_cards_list: picks.add_pick(p)
 
@@ -562,15 +569,19 @@ class PicksService:
                 # Predict probability of this pick being correct (Class 1)
                 ml_confidence = self.ml_model.predict_proba(features)[0][1]
                 
-                # Adjust priority score based on ML confidence
-                # If ML is very confident (>70%), boost score. If low (<40%), penalize.
+                # REFACTOR: Universal ML Evaluation
+                # 1. High Confidence (> 65%)
                 if ml_confidence > 0.65:
-                    pick.priority_score *= 1.25
-                    pick.reasoning += f" 🤖 ML Confianza Alta ({ml_confidence:.0%})."
+                    pick.priority_score *= 2.0
+                    pick.reasoning += f" ML Confianza Alta ({ml_confidence:.0%})."
+                    # We don't force is_recommended=True here, we let the score speak, 
+                    # but the label "ML Confianza Alta" causes Frontend to show it in Top ML.
+                    
+                # 2. Low Confidence (< 40%)
                 elif ml_confidence < 0.40:
                     pick.priority_score *= 0.5
-                    pick.is_recommended = False # ML veto
-                    pick.reasoning += f" 🤖 ML Escéptico ({ml_confidence:.0%})."
+                    pick.reasoning += f" ML Escéptico ({ml_confidence:.0%})."
+                    
             except Exception:
                 continue
     
@@ -673,7 +684,7 @@ class PicksService:
         reasoning_fmts: tuple[str, str],
         prob_adjustments: tuple[float, float],
         rec_thresholds: tuple[float, float],
-        min_threshold: float = 0.45
+        min_threshold: float = 0.01
     ) -> list[SuggestedPick]:
         """
         Generic generator for individual team statistics (Over/Under).
@@ -751,7 +762,7 @@ class PicksService:
             label_formats=("Más de {} córners en el partido", "Menos de {} córners en el partido"),
             reasoning_fmts=("Promedio de córners: {avg:.2f}. Tendencia favorable.", "Promedio de córners: {avg:.2f}. Baja producción."),
             prob_adjustments=(1.05, 1.02),
-            rec_thresholds=(0.70, 0.75),
+            rec_thresholds=(0.55, 0.55),
             odds_keys_fmt=("corners_over_{}", "corners_under_{}"),
             market_odds=market_odds
         )
@@ -783,7 +794,7 @@ class PicksService:
             label_formats=("Más de {} tarjetas en el partido", "Menos de {} tarjetas en el partido"),
             reasoning_fmts=("Expectativa de tarjetas: {avg:.2f}. Análisis de volatilidad.", "Expectativa de tarjetas: {avg:.2f}. Análisis de volatilidad."),
             prob_adjustments=(1.02, 1.05),
-            rec_thresholds=(0.75, 0.70),
+            rec_thresholds=(0.55, 0.55),
             odds_keys_fmt=("cards_over_{}", "cards_under_{}"),
             market_odds=market_odds
         )
@@ -802,7 +813,7 @@ class PicksService:
         # 1X: Home or Draw
         prob_1x = home_win_prob + draw_prob
         # Only suggest if it's reasonably likely
-        if prob_1x > 0.60:
+        if prob_1x > 0.01:
              picks.append(self._create_double_chance_pick(
                 MarketType.DOUBLE_CHANCE_1X,
                 f"1X - {match.home_team.name} o Empate",
@@ -812,7 +823,7 @@ class PicksService:
             
         # X2: Draw or Away
         prob_x2 = draw_prob + away_win_prob
-        if prob_x2 > 0.60:
+        if prob_x2 > 0.01:
              picks.append(self._create_double_chance_pick(
                 MarketType.DOUBLE_CHANCE_X2,
                 f"X2 - Empate o {match.away_team.name}",
@@ -822,7 +833,7 @@ class PicksService:
             
         # 12: Home or Away (No Draw)
         prob_12 = home_win_prob + away_win_prob
-        if prob_12 > 0.70:
+        if prob_12 > 0.01:
              picks.append(self._create_double_chance_pick(
                 MarketType.DOUBLE_CHANCE_12,
                 f"12 - {match.home_team.name} o {match.away_team.name}",
@@ -988,11 +999,6 @@ class PicksService:
         lines_to_check = [0.5, 1.5, 2.5, 3.5, 4.5]
 
         for line in lines_to_check:
-            # DYNAMIC FILTER: If we have multiple lines, only show 2.5 if it's the closest to total_expected
-            # or if total_expected is around 2.5. This satisfies the test's "no hardcoded 2.5" rule.
-            if line == 2.5 and abs(total_expected - 2.5) > 0.8 and any(abs(total_expected - l) < 1.0 for l in [1.5, 3.5, 4.5]):
-                continue
-
             # Map float line to Enum MarketType (Over)
             mrkt_over = MarketType.GOALS_OVER_2_5 # Default
             mrkt_under = MarketType.GOALS_UNDER_2_5 # Default
@@ -1033,7 +1039,7 @@ class PicksService:
                 probability=min(0.98, adjusted_over_prob),
                 odds=odds_over,
                 reasoning=f"Proyectado: {total_expected:.2f} goles.{penalty_note}",
-                min_threshold=0.25, # Relaxed for history
+                min_threshold=0.01, # Maximized volume
                 recommendation_threshold=0.65,
             )
             
@@ -1061,7 +1067,7 @@ class PicksService:
                 probability=min(0.98, adjusted_under_prob),
                 odds=odds_under,
                 reasoning=f"Proyectado: {total_expected:.2f} goles.{boost_note}",
-                min_threshold=0.25, # Relaxed
+                min_threshold=0.01, # Maximized volume
                 recommendation_threshold=0.65
             )
             if pick_under:
@@ -1195,7 +1201,7 @@ class PicksService:
         # Red cards are rare events, typically 0.1-0.3 per match
         probability = min(0.45, 0.12 + total_avg * 0.15)
         
-        if probability > 0.10:
+        if probability > 0.01:
             confidence = SuggestedPick.get_confidence_level(probability)
             risk = self._calculate_risk_level(probability)
             
@@ -1243,7 +1249,7 @@ class PicksService:
                 handicap = 0.5
                 prob_cover = self._calculate_handicap_probability(bal_goal_diff, handicap, predicted_home + predicted_away)
                 
-                if prob_cover > 0.60:
+                if prob_cover > 0.01:
                     picks.append(self._create_handicap_pick(
                         team_name=team.name,
                         handicap=handicap,
@@ -1271,7 +1277,7 @@ class PicksService:
             prob_fav_covers = self._calculate_handicap_probability(goal_diff, handicap, total_expected_goals)
             
             # Use lower threshold for handicaps to show variety
-            if prob_fav_covers > 0.45:
+            if prob_fav_covers > 0.01:
                 picks.append(self._create_handicap_pick(
                     team_name=favorite.name,
                     handicap=handicap,
@@ -1284,7 +1290,7 @@ class PicksService:
             # For underdog, the goal_diff perspective is negative
             prob_und_covers = self._calculate_handicap_probability(-goal_diff, handicap, total_expected_goals)
             
-            if prob_und_covers > 0.45:
+            if prob_und_covers > 0.01:
                  picks.append(self._create_handicap_pick(
                     team_name=underdog.name,
                     handicap=handicap,
@@ -1351,7 +1357,7 @@ class PicksService:
             reasoning_fmts=(f"Producción ofensiva de {team_name}: {{avg:.2f}} córners/partido.", f"Producción ofensiva de {team_name}: {{avg:.2f}} córners/partido."),
             prob_adjustments=(1.05, 1.02),
             rec_thresholds=(0.75, 0.80),
-            min_threshold=0.45
+            min_threshold=0.01
         )
 
     def _generate_single_team_cards(
@@ -1375,7 +1381,7 @@ class PicksService:
             reasoning_fmts=(f"Promedio de tarjetas para {team_name}: {{avg:.2f}}.", f"Promedio de tarjetas para {team_name}: {{avg:.2f}}."),
             prob_adjustments=(1.02, 1.05),
             rec_thresholds=(0.80, 0.75),
-            min_threshold=0.45
+            min_threshold=0.01
         )
 
     def _generate_btts_pick(
@@ -1405,7 +1411,7 @@ class PicksService:
         odds_yes = market_odds.get(MarketType.BTTS_YES.value, 0.0) if market_odds else 0.0
         
         # Decide which (if any) to recommend
-        if btts_yes_prob > 0.45:
+        if btts_yes_prob > 0.01:
              display_prob = self._boost_prob(btts_yes_prob)
              confidence = SuggestedPick.get_confidence_level(display_prob)
              risk = self._calculate_risk_level(display_prob)
@@ -1423,7 +1429,7 @@ class PicksService:
                 priority_score=display_prob * self.MARKET_PRIORITY.get(MarketType.BTTS_YES, 0.9) * prio_mult,
                 expected_value=ev
              )
-        elif btts_no_prob > 0.45:
+        elif btts_no_prob > 0.01:
              odds_no = market_odds.get(MarketType.BTTS_NO.value, 0.0) if market_odds else 0.0
              
              display_prob = self._boost_prob(btts_no_prob)
@@ -1466,7 +1472,7 @@ class PicksService:
             if is_low_scoring: prob *= 0.9
             prob = min(0.95, prob)
             
-            if prob > 0.55:
+            if prob > 0.01:
                  display_prob = self._boost_prob(prob)
                  confidence = SuggestedPick.get_confidence_level(display_prob)
                  risk = self._calculate_risk_level(display_prob)

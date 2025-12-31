@@ -8,18 +8,14 @@ import {
   Tab,
 } from "@mui/material";
 import { TipsAndUpdates } from "@mui/icons-material";
-import {
-  MatchPrediction,
-  SuggestedPick,
-  MatchSuggestedPicks,
-} from "../../../types";
-import api from "../../../services/api";
+import { MatchPrediction, SuggestedPick } from "../../../types";
 import { generateFallbackPicks } from "../../../utils/predictionUtils";
 import {
   getPickColor,
   getMarketIcon,
   getUniquePicks,
 } from "../../../utils/marketUtils";
+import { useCacheStore } from "../../../application/stores/useCacheStore";
 
 interface SuggestedPicksTabProps {
   matchPrediction: MatchPrediction;
@@ -136,83 +132,29 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
   onPicksCount,
 }) => {
   const { match } = matchPrediction;
-  const [loading, setLoading] = useState(true);
-  const [apiPicks, setApiPicks] = useState<MatchSuggestedPicks | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
-  // Initialize with ALL, but we will try to switch to TOP_ML if available
+  // Use Cache Store
+  const { getPicks, prefetchMatch, isFetching } = useCacheStore();
+
+  // Get picks directly from synchronous local cache
+  const cachedPicks = getPicks(match.id);
+  const isLoading = isFetching(match.id);
+  const hasPicks = cachedPicks && cachedPicks.length > 0;
+
+  // Manual fallback fetching if needed (JIT)
+  // This handles the edge case where prefetch hasn't happened yet
+  useEffect(() => {
+    if (!hasPicks && !isLoading) {
+      prefetchMatch(match.id);
+    }
+  }, [match.id, hasPicks, isLoading, prefetchMatch]);
+
   const [currentTab, setCurrentTab] = useState("ALL");
   const [initialized, setInitialized] = useState(false);
 
-  // Fetch picks from backend API with localStorage caching
-  useEffect(() => {
-    const CACHE_KEY = `suggested-picks-${match.id}`;
-    const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
-
-    const fetchPicks = async () => {
-      try {
-        const cached = localStorage.getItem(CACHE_KEY);
-        if (cached) {
-          try {
-            const { data, timestamp } = JSON.parse(cached);
-
-            // Check if backend data is newer than cache
-            const backendDate = matchPrediction.prediction.data_updated_at
-              ? new Date(matchPrediction.prediction.data_updated_at).getTime()
-              : 0;
-
-            const isCacheFresh = Date.now() - timestamp < CACHE_TTL;
-            const isCacheNewerThanBackend = timestamp > backendDate;
-
-            if (isCacheFresh && isCacheNewerThanBackend) {
-              console.log("Using cached picks (Fresh & Newer than backend)");
-              setApiPicks(data);
-              setLoading(false);
-              return;
-            } else {
-              console.log("Cache invalid: ", {
-                fresh: isCacheFresh,
-                newer: isCacheNewerThanBackend,
-                cacheTime: new Date(timestamp).toISOString(),
-                backendTime: matchPrediction.prediction.data_updated_at,
-              });
-              // Show outdated while fetching
-              setApiPicks(data);
-            }
-          } catch (e) {
-            console.error("Cache parse error", e);
-          }
-        } else {
-          setLoading(true);
-        }
-
-        setError(null);
-        const data = await api.getSuggestedPicks(match.id);
-        setApiPicks(data);
-
-        localStorage.setItem(
-          CACHE_KEY,
-          JSON.stringify({
-            data,
-            timestamp: Date.now(),
-          })
-        );
-      } catch (err: any) {
-        if (!apiPicks) {
-          // Only set error if we don't have cached data
-          if (err.response && err.response.status === 404) {
-            setError("Datos insuficientes para generar picks");
-          } else {
-            setError("No se pudieron cargar los picks");
-          }
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchPicks();
-  }, [match.id]);
+  const loading = isLoading && !hasPicks;
+  const error = !hasPicks && !isLoading ? "No suggested picks available" : null;
+  const apiPicks = cachedPicks ? { suggested_picks: cachedPicks } : null;
 
   // Sort picks by probability (highest first)
   const sortedPicks = useMemo(() => {
@@ -363,7 +305,28 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
         {categoryCounts.CARDS > 0 && <Tab value="CARDS" label="Tarjetas" />}
       </Tabs>
 
-      <Box sx={{ maxHeight: "350px", overflowY: "auto", pr: 0.5 }}>
+      <Box
+        sx={{
+          maxHeight: { xs: "50vh", md: "400px" }, // Responsive max-height
+          minHeight: "150px", // Allow it to shrink but keep some substance
+          overflowY: "auto",
+          pr: 1,
+          // Custom Scrollbar
+          "&::-webkit-scrollbar": {
+            width: "6px",
+          },
+          "&::-webkit-scrollbar-track": {
+            background: "rgba(255, 255, 255, 0.05)",
+          },
+          "&::-webkit-scrollbar-thumb": {
+            background: "rgba(255, 255, 255, 0.2)",
+            borderRadius: "4px",
+          },
+          "&::-webkit-scrollbar-thumb:hover": {
+            background: "rgba(255, 255, 255, 0.3)",
+          },
+        }}
+      >
         {filteredPicks.length > 0 ? (
           filteredPicks.map((pick, index) => (
             <PickRow key={`pick-${currentTab}-${index}`} pick={pick} />

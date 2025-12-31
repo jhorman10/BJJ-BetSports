@@ -11,13 +11,17 @@ import uuid
 from pytz import timezone
 
 from src.domain.entities.entities import Match, League, Team
+from src.infrastructure.cache.cache_service import CacheService
 from src.domain.entities.suggested_pick import MatchSuggestedPicks, SuggestedPick
 from src.domain.entities.betting_feedback import BettingFeedback
 from src.domain.services.picks_service import PicksService
+# Use the new AI-driven service
+from src.domain.services.ai_picks_service import AIPicksService
 from src.domain.services.learning_service import LearningService
 from src.infrastructure.data_sources.the_odds_api import TheOddsAPISource
 from src.infrastructure.data_sources.scorebat import ScoreBatSource
 from src.infrastructure.data_sources.five_thirty_eight import FiveThirtyEightSource
+from src.infrastructure.data_sources.fotmob_source import FotMobSource
 from src.domain.services.prediction_service import PredictionService
 from src.domain.services.statistics_service import StatisticsService
 from src.domain.exceptions import InsufficientDataException
@@ -43,15 +47,23 @@ class GetSuggestedPicksUseCase:
         prediction_service: PredictionService,
         statistics_service: StatisticsService,
         learning_service: LearningService,
+        cache_service: CacheService,
     ):
         self.data_sources = data_sources
         self.prediction_service = prediction_service
         self.statistics_service = statistics_service
         self.learning_service = learning_service
+        self.cache_service = cache_service
         self.odds_api = TheOddsAPISource()
         self.scorebat = ScoreBatSource()
         self.five_thirty_eight = FiveThirtyEightSource()
-        self.picks_service = PicksService(
+        # Initialize new sources if not passed in data_sources (fallback)
+        self.club_elo = data_sources.club_elo or ClubEloSource()
+        self.understat = data_sources.understat or UnderstatSource()
+        self.fotmob = data_sources.fotmob or FotMobSource()
+        
+        # Upgrade to AI Picks Service
+        self.picks_service = AIPicksService(
             learning_weights=learning_service.get_learning_weights()
         )
     
@@ -99,6 +111,7 @@ class GetSuggestedPicksUseCase:
             # 4. Enrich with new sources (Best effort, no blocking)
             highlights_url = None
             rt_odds = None
+            home_elo, away_elo = None, None
             try:
                 # Get real-time odds from The Odds API
                 odds_data = await self.odds_api.get_odds(match.league.id)
@@ -130,8 +143,28 @@ class GetSuggestedPicksUseCase:
                 # Assign to match object for later DTO mapping if needed
                 match.home_spi = home_spi
                 match.away_spi = away_spi
+                
+                # Get Elo from ClubElo
+                home_elo, away_elo = await self.club_elo.get_elo_for_match(match.home_team.name, match.away_team.name)
+                
             except Exception as e:
                 logger.warning(f"Secondary data enrichment failed: {e}")
+
+            # Define sources used
+            prediction_sources = ["Historical Data"]
+            if self.data_sources.api_football.is_configured:
+                prediction_sources.append("API-Football")
+            if self.data_sources.football_data_org.is_configured:
+                prediction_sources.append("Football-Data.org")
+            if rt_odds:
+                prediction_sources.append("The Odds API")
+            if highlights_url:
+                prediction_sources.append("ScoreBat")
+            if home_elo:
+                prediction_sources.append("ClubElo")
+            # Check if stats imply FotMob usage (corners available)
+            if home_stats and home_stats.matches_with_corners > 0:
+                prediction_sources.append("FotMob")
 
             # 5. Generate prediction
             prediction = self.prediction_service.generate_prediction(
@@ -143,6 +176,8 @@ class GetSuggestedPicksUseCase:
                 data_sources=prediction_sources,
                 highlights_url=highlights_url,
                 real_time_odds=rt_odds,
+                home_elo=home_elo,
+                away_elo=away_elo,
             )
             
             # 6. Generate suggested picks
@@ -468,6 +503,15 @@ class GetSuggestedPicksUseCase:
             except Exception as e:
                 logger.warning(f"API-Football history fetch failed: {e}")
                 
+        # Strategy C: FotMob (Best for Corners/Cards in minor leagues)
+        if self.fotmob and self.fotmob.is_configured:
+            try:
+                h_hist = await self.fotmob.get_team_history(match.home_team.name, limit=5)
+                a_hist = await self.fotmob.get_team_history(match.away_team.name, limit=5)
+                team_matches.extend(h_hist + a_hist)
+            except Exception as e:
+                logger.warning(f"FotMob history fetch failed: {e}")
+
         return team_matches
 
     def _deduplicate_and_merge(self, matches: list[Match]) -> list[Match]:
