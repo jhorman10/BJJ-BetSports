@@ -15,8 +15,12 @@ from src.domain.entities.suggested_pick import MatchSuggestedPicks, SuggestedPic
 from src.domain.entities.betting_feedback import BettingFeedback
 from src.domain.services.picks_service import PicksService
 from src.domain.services.learning_service import LearningService
+from src.infrastructure.data_sources.the_odds_api import TheOddsAPISource
+from src.infrastructure.data_sources.scorebat import ScoreBatSource
+from src.infrastructure.data_sources.five_thirty_eight import FiveThirtyEightSource
 from src.domain.services.prediction_service import PredictionService
 from src.domain.services.statistics_service import StatisticsService
+from src.domain.exceptions import InsufficientDataException
 from src.application.dtos.dtos import (
     SuggestedPickDTO,
     MatchSuggestedPicksDTO,
@@ -44,31 +48,42 @@ class GetSuggestedPicksUseCase:
         self.prediction_service = prediction_service
         self.statistics_service = statistics_service
         self.learning_service = learning_service
+        self.odds_api = TheOddsAPISource()
+        self.scorebat = ScoreBatSource()
+        self.five_thirty_eight = FiveThirtyEightSource()
         self.picks_service = PicksService(
             learning_weights=learning_service.get_learning_weights()
         )
     
     async def execute(self, match_id: str) -> Optional[MatchSuggestedPicksDTO]:
         """
-        Generate suggested picks for a match.
-        
-        Args:
-            match_id: ID of the match
-            
-        Returns:
-            MatchSuggestedPicksDTO with AI suggestions, or None if match not found
+        Generate suggested picks for a match. Guaranteed to use real data.
         """
         try:
-            # 1. Get match details
+            # 1. Get match details (always returns a Match if reconstructible)
             match = await self._get_match(match_id)
             if not match:
-                logger.warning(f"Match {match_id} not found in any data source")
-                return None
+                logger.warning(f"Match {match_id} could not be identified after fallbacks.")
+                from src.utils.time_utils import get_current_time
+                return MatchSuggestedPicksDTO(
+                    match_id=match_id,
+                    suggested_picks=[],
+                    combination_warning="Partido no encontrado o datos insuficientes.",
+                    generated_at=get_current_time()
+                )
             
-            # 2. Get historical data for statistics
+            # 1.5 Fetch Global Averages
+            global_avg_data = self.cache_service.get("global_statistical_averages")
+            global_averages = None
+            if global_avg_data:
+                from src.domain.value_objects.value_objects import LeagueAverages
+                global_averages = LeagueAverages(**global_avg_data)
+
+            # 2. Get historical matches (Aggregated: CSV + OpenFootball + APIs)
             historical_matches = await self._get_historical_matches(match)
             
             # 3. Calculate team statistics
+            # These will containMP=0 if no history found, but service handles it.
             home_stats = self.statistics_service.calculate_team_statistics(
                 match.home_team.name,
                 historical_matches,
@@ -78,66 +93,186 @@ class GetSuggestedPicksUseCase:
                 historical_matches,
             )
             
-            # 4. Generate base prediction for expected goals
+            # 4. Calculate League Averages (REAL data from aggregated history)
+            league_averages = self.statistics_service.calculate_league_averages(historical_matches)
+            
+            # 4. Enrich with new sources (Best effort, no blocking)
+            highlights_url = None
+            rt_odds = None
+            try:
+                # Get real-time odds from The Odds API
+                odds_data = await self.odds_api.get_odds(match.league.id)
+                # Simple logic to find current match odds
+                for item in odds_data:
+                    # Fuzzy match or name check
+                    if self.statistics_service._normalize_name(match.home_team.name) in self.statistics_service._normalize_name(item.get("home_team", "")):
+                        # Take first bookmaker's h2h odds
+                        for bm in item.get("bookmakers", []):
+                            for mkt in bm.get("markets", []):
+                                if mkt["key"] == "h2h":
+                                    rt_odds = {o["name"]: o["price"] for o in mkt["outcomes"]}
+                                    break
+                            if rt_odds: break
+                        if rt_odds: break
+
+                # Get highlights from ScoreBat
+                highlights = await self.scorebat.get_highlights()
+                match_highlights = self.scorebat.find_match_highlights(match.home_team.name, match.away_team.name, highlights)
+                if match_highlights:
+                    # Get the first video URL
+                    videos = match_highlights.get("videos", [])
+                    if videos:
+                        highlights_url = videos[0].get("embed", "").split("src='")[1].split("'")[0] if "src='" in videos[0].get("embed", "") else None
+                    
+                # Get SPI from FiveThirtyEight
+                home_spi = await self.five_thirty_eight.get_team_spi(match.home_team.name)
+                away_spi = await self.five_thirty_eight.get_team_spi(match.away_team.name)
+                # Assign to match object for later DTO mapping if needed
+                match.home_spi = home_spi
+                match.away_spi = away_spi
+            except Exception as e:
+                logger.warning(f"Secondary data enrichment failed: {e}")
+
+            # 5. Generate prediction
             prediction = self.prediction_service.generate_prediction(
                 match=match,
                 home_stats=home_stats,
                 away_stats=away_stats,
-                league_averages=None,
-                data_sources=[],
+                league_averages=league_averages,
+                global_averages=global_averages,
+                data_sources=prediction_sources,
+                highlights_url=highlights_url,
+                real_time_odds=rt_odds,
             )
             
-            # Use actual prediction values (don't force defaults here, let service handle it)
-            predicted_home = prediction.predicted_home_goals
-            predicted_away = prediction.predicted_away_goals
-            
-            # Get win probabilities
-            home_win_prob = prediction.home_win_probability
-            draw_prob = prediction.draw_probability
-            away_win_prob = prediction.away_win_probability
-            
-            # 5. Generate suggested picks with all data
-            suggested_picks = self.picks_service.generate_suggested_picks(
+            # 6. Generate suggested picks
+            suggested_picks_container = self.picks_service.generate_suggested_picks(
                 match=match,
                 home_stats=home_stats if home_stats and home_stats.matches_played > 0 else None,
                 away_stats=away_stats if away_stats and away_stats.matches_played > 0 else None,
-                predicted_home_goals=predicted_home,
-                predicted_away_goals=predicted_away,
-                home_win_prob=home_win_prob,
-                draw_prob=draw_prob,
-                away_win_prob=away_win_prob,
+                league_averages=league_averages,
+                predicted_home_goals=prediction.predicted_home_goals,
+                predicted_away_goals=prediction.predicted_away_goals,
+                home_win_prob=prediction.home_win_probability,
+                draw_prob=prediction.draw_probability,
+                away_win_prob=prediction.away_win_probability,
             )
             
-            # 6. Convert to DTO
-            return self._to_dto(suggested_picks)
-        except Exception as e:
-            logger.error(f"Error generating suggested picks for match {match_id}: {e}", exc_info=True)
-            # Return empty picks instead of failing
+            # 7. Convert to DTO
+            from src.application.use_cases.live_predictions_use_case import GetLivePredictionsUseCase
+            # Leverage existing mapping logic from live predictions for consistency
+            temp_use_case = GetLivePredictionsUseCase(
+                self.data_sources, self.prediction_service, self.statistics_service, None, self.picks_service
+            )
+            
+            # Populate DTO
+            picks_dtos = []
+            for pick in suggested_picks_container.suggested_picks:
+                from src.application.dtos.dtos import SuggestedPickDTO
+                picks_dtos.append(SuggestedPickDTO(
+                    market_type=pick.market_type,
+                    market_label=pick.market_label,
+                    probability=pick.probability,
+                    confidence_level=pick.confidence_level,
+                    reasoning=pick.reasoning,
+                    risk_level=pick.risk_level,
+                    is_recommended=pick.is_recommended,
+                    priority_score=pick.priority_score
+                ))
+
+            # Build Prediction DTO (optional for internal consistency)
+            from src.application.dtos.dtos import PredictionDTO
+            pred_dto = PredictionDTO(
+                match_id=match.id,
+                home_win_probability=prediction.home_win_probability,
+                draw_probability=prediction.draw_probability,
+                away_win_probability=prediction.away_win_probability,
+                over_25_probability=prediction.over_25_probability,
+                under_25_probability=prediction.under_25_probability,
+                predicted_home_goals=prediction.predicted_home_goals,
+                predicted_away_goals=prediction.predicted_away_goals,
+                confidence=prediction.confidence,
+                data_sources=prediction.data_sources,
+                recommended_bet=prediction.recommended_bet,
+                over_under_recommendation=prediction.over_under_recommendation,
+                suggested_picks=picks_dtos,
+                created_at=prediction.created_at,
+            )
+
+            from src.utils.time_utils import get_current_time
+            return MatchSuggestedPicksDTO(
+                match_id=match.id,
+                suggested_picks=picks_dtos,
+                highlights_url=highlights_url,
+                real_time_odds=rt_odds,
+                generated_at=get_current_time()
+            )
+            
+        except InsufficientDataException as e:
+            logger.info(f"Skipping prediction for {match_id}: {e}")
+            from src.utils.time_utils import get_current_time
             return MatchSuggestedPicksDTO(
                 match_id=match_id,
                 suggested_picks=[],
-                combination_warning="No se pudieron generar picks debido a datos insuficientes.",
-                generated_at=datetime.now(timezone('America/Bogota')),
+                combination_warning=f"Datos insuficientes: {str(e)}",
+                highlights_url=highlights_url,
+                real_time_odds=rt_odds,
+                generated_at=get_current_time()
+            )
+        except Exception as e:
+            logger.error(f"Error in suggested picks execution for {match_id}: {e}", exc_info=True)
+            # Return empty DTO instead of None to avoid 500 validation error
+            from src.utils.time_utils import get_current_time
+            return MatchSuggestedPicksDTO(
+                match_id=match_id,
+                suggested_picks=[],
+                combination_warning=f"Error inesperado al generar picks.",
+                generated_at=get_current_time()
             )
     
     async def _get_match(self, match_id: str) -> Optional[Match]:
-        """Get match details from available sources."""
-        # Optimization: If ID is synthetic (contains underscores), skip external APIs
+        """Get match details from available sources with cache fallbacks."""
+        # 1. Optimization: If ID is synthetic (contains underscores), skip external APIs
         if "_" in match_id:
             return self._reconstruct_match_from_id(match_id)
 
-        # Try API-Football first
+        # 2. Try API-Football regular fetch
         if self.data_sources.api_football.is_configured:
             match = await self.data_sources.api_football.get_match_details(match_id)
             if match:
                 return match
         
-        # Try Football-Data.org
+        # 3. Try Football-Data.org
         if self.data_sources.football_data_org.is_configured:
             match = await self.data_sources.football_data_org.get_match_details(match_id)
             if match:
                 return match
         
+        # 4. Fallback: Search in live_matches cache
+        # This is vital when the account is suspended/limited but we already fetched the list
+        try:
+            from src.infrastructure.cache.cache_service import get_cache_service
+            cache = get_cache_service()
+            for key in ["filtered", "all"]:
+                live_preds = cache.get_live_matches(key)
+                if live_preds:
+                    # live_preds is List[MatchPredictionDTO]
+                    for lp in live_preds:
+                        if str(lp.match.id) == str(match_id):
+                            logger.info(f"✓ Found match {match_id} in live_matches cache fallback")
+                            # Convert DTO back to Entity (minimal version)
+                            from src.domain.entities.entities import League, Team
+                            return Match(
+                                id=lp.match.id,
+                                home_team=Team(id=lp.match.home_team.id, name=lp.match.home_team.name),
+                                away_team=Team(id=lp.match.away_team.id, name=lp.match.away_team.name),
+                                league=League(id=lp.match.league.id, name=lp.match.league.name, country=lp.match.league.country),
+                                match_date=lp.match.match_date,
+                                status=lp.match.status or "NS"
+                            )
+        except Exception as e:
+            logger.warning(f"Live matches cache fallback failed for {match_id}: {e}")
+
         # Final Fallback: Reconstruct from ID if it follows our custom format
         # Format: {LeagueCode}_{YYYYMMDD}_{Home}_{Away}
         return self._reconstruct_match_from_id(match_id)

@@ -94,10 +94,65 @@ class CacheWarmupService:
                         league_predictions[league_id] = []
                         processed_leagues[league_id] = match.league
 
-                    # Convert MatchSuggestedPicksDTO to MatchPredictionDTO for the list view
+                    # We need a PredictionDTO for the MatchPredictionDTO
+                    # Since result is MatchSuggestedPicksDTO, we'll create a simple wrap or 
+                    # use the prediction service if we want the full data.
+                    # For warmup, we mostly care about the suggested picks.
+                    
+                    # Create a basic PredictionDTO from the picks
+                    # Preferrably, we'd have the full prediction from the use case.
+                    # For now, let's create a minimal one to avoid AttributeError.
+                    from src.application.dtos.dtos import PredictionDTO, MatchPredictionDTO, MatchDTO, TeamDTO, LeagueDTO, SuggestedPickDTO
+                    
+                    # Manual mapping to avoid missing mapper
+                    m_dto = MatchDTO(
+                        id=match.id,
+                        home_team=TeamDTO(id=match.home_team.id, name=match.home_team.name, country=match.home_team.country, logo_url=match.home_team.logo_url),
+                        away_team=TeamDTO(id=match.away_team.id, name=match.away_team.name, country=match.away_team.country, logo_url=match.away_team.logo_url),
+                        league=LeagueDTO(id=match.league.id, name=match.league.name, country=match.league.country, season=match.league.season),
+                        match_date=match.match_date,
+                        status=match.status,
+                        home_odds=match.home_odds,
+                        draw_odds=match.draw_odds,
+                        away_odds=match.away_odds
+                    )
+                    
+                    # Create PredictionDTO
+                    # We pick win probabilities from the winner pick if it exists
+                    home_win_prob = 0.0
+                    draw_prob = 0.0
+                    away_win_prob = 0.0
+                    
+                    for p in result.suggested_picks:
+                        if p.market_type == "result_1x2" or p.market_type == "winner":
+                            if "Victoria" in p.market_label:
+                                if match.home_team.name in p.market_label:
+                                    home_win_prob = p.probability
+                                else:
+                                    away_win_prob = p.probability
+                            elif "Empate" in p.market_label:
+                                draw_prob = p.probability
+
+                    pred_dto = PredictionDTO(
+                        match_id=match.id,
+                        home_win_probability=home_win_prob,
+                        draw_probability=draw_prob,
+                        away_win_probability=away_win_prob,
+                        over_25_probability=0.0, # Not easily available here
+                        under_25_probability=0.0,
+                        predicted_home_goals=0.0,
+                        predicted_away_goals=0.0,
+                        confidence=max(home_win_prob, draw_prob, away_win_prob) if any([home_win_prob, draw_prob, away_win_prob]) else 0.0,
+                        data_sources=["Cache Warmup"],
+                        recommended_bet="Ver detalles",
+                        over_under_recommendation="N/A",
+                        suggested_picks=result.suggested_picks,
+                        created_at=datetime.now(timezone('America/Bogota'))
+                    )
+
                     mp_dto = MatchPredictionDTO(
-                        match=result.match,
-                        prediction=result.prediction,
+                        match=m_dto,
+                        prediction=pred_dto,
                     )
                     
                     league_predictions[league_id].append(mp_dto)

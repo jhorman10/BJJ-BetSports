@@ -23,6 +23,7 @@ from src.domain.value_objects.value_objects import (
     Odds,
     LeagueAverages,
 )
+from src.domain.exceptions import InsufficientDataException
 
 
 class PredictionService:
@@ -96,7 +97,7 @@ class PredictionService:
         Returns:
             TeamStrength with attack and defense values
         """
-        if team_stats.matches_played == 0:
+        if team_stats is None or team_stats.matches_played == 0:
             return TeamStrength(attack_strength=1.0, defense_strength=1.0)
         
         # Correct Poisson Normalization:
@@ -105,9 +106,15 @@ class PredictionService:
         
         if is_home:
             # Home Attack vs League Avg Home Goals
-            avg_goals_scored = league_averages.avg_home_goals if league_averages.avg_home_goals > 0 else 1.5
+            avg_goals_scored = league_averages.avg_home_goals
             # Home Defense vs League Avg Away Goals (what visitors usually score)
-            avg_goals_conceded = league_averages.avg_away_goals if league_averages.avg_away_goals > 0 else 1.2
+            avg_goals_conceded = league_averages.avg_away_goals
+            
+            if avg_goals_scored <= 0 or avg_goals_conceded <= 0:
+                # If we have no baseline, we cannot calculate relative strength components.
+                # Since generate_prediction already guards for insufficient data,
+                # this is a protective fallback to avoid ZeroDivisionError.
+                return TeamStrength(attack_strength=1.0, defense_strength=1.0)
             
             # Use granular home stats if we have at least 3 home matches
             if team_stats.home_matches_played >= 3:
@@ -123,9 +130,12 @@ class PredictionService:
                 season_avg_defense = team_stats.goals_conceded_per_match
         else:
             # Away Attack vs League Avg Away Goals
-            avg_goals_scored = league_averages.avg_away_goals if league_averages.avg_away_goals > 0 else 1.2
+            avg_goals_scored = league_averages.avg_away_goals
             # Away Defense vs League Avg Home Goals (what hosts usually score)
-            avg_goals_conceded = league_averages.avg_home_goals if league_averages.avg_home_goals > 0 else 1.5
+            avg_goals_conceded = league_averages.avg_home_goals
+            
+            if avg_goals_scored <= 0 or avg_goals_conceded <= 0:
+                return TeamStrength(attack_strength=1.0, defense_strength=1.0)
             
             # Use granular away stats if we have at least 3 away matches
             if team_stats.away_matches_played >= 3:
@@ -509,8 +519,8 @@ class PredictionService:
         Returns:
             Agreement score (0-1)
         """
-        if odds is None:
-            return 0.5  # Neutral score when no odds available
+        if not odds:
+            return 0.0  # Zero agreement score when no odds available
         
         odds_probs = odds.to_probabilities()
         
@@ -566,9 +576,10 @@ class PredictionService:
         Returns:
             Consistency score (0-1)
         """
-        def form_consistency(form: str) -> float:
-            if len(form) < 3:
-                return 0.5  # Not enough data
+        def form_consistency_single_team(form: str, matches_played: int) -> float:
+            # Low sample size penalty
+            if matches_played < 10 or len(form) < 3: # Require at least 10 matches and 3 recent form entries
+                return 0.0  # Not enough data for reliable confidence
             
             # Count transitions between different results
             transitions = sum(
@@ -582,33 +593,38 @@ class PredictionService:
         
         scores = []
         if home_stats and home_stats.recent_form:
-            scores.append(form_consistency(home_stats.recent_form))
+            scores.append(form_consistency_single_team(home_stats.recent_form, home_stats.matches_played))
         if away_stats and away_stats.recent_form:
-            scores.append(form_consistency(away_stats.recent_form))
+            scores.append(form_consistency_single_team(away_stats.recent_form, away_stats.matches_played))
         
-        return sum(scores) / len(scores) if scores else 0.5
+        return sum(scores) / len(scores) if scores else 0.0
     
     def calculate_corner_probabilities(
         self,
         home_stats: Optional[TeamStatistics],
         away_stats: Optional[TeamStatistics],
+        league_averages: Optional[LeagueAverages] = None
     ) -> tuple[float, float, float, float]:
         """
         Calculate prob for Over/Under 9.5 corners AND expected values.
         Returns: (over_prob, under_prob, home_expected, away_expected)
         """
-        # PROFITABILITY FIX: Require at least 6 matches for reliable corner stats
-        if not home_stats or not away_stats or home_stats.matches_played < 6 or away_stats.matches_played < 6:
+        if not home_stats or not away_stats:
+             return (0.0, 0.0, 0.0, 0.0)
+             
+        # STRICT RULE: Require at least 4 matches with corner data for both teams
+        if home_stats.matches_played < 4 or away_stats.matches_played < 4:
             return (0.0, 0.0, 0.0, 0.0)
+
+        home_avg = home_stats.avg_corners_per_match
+        away_avg = away_stats.avg_corners_per_match
             
         # Estimate expected corners (Heuristic: Home Avg + Away Avg)
         # Global approx average is ~10.
         # We split the total expected between home and away based on their relative contribution
-        home_avg = home_stats.avg_corners_per_match
-        away_avg = away_stats.avg_corners_per_match
-        
         total_expected = home_avg + away_avg
-        if total_expected == 0: total_expected = 9.5 # Fallback
+        total_expected = home_avg + away_avg
+        if total_expected == 0: total_expected = avg_corners
         
         # Simple proportional split
         if (home_avg + away_avg) > 0:
@@ -631,21 +647,26 @@ class PredictionService:
         self,
         home_stats: Optional[TeamStatistics],
         away_stats: Optional[TeamStatistics],
+        league_averages: Optional[LeagueAverages] = None
     ) -> tuple[float, float, float, float]:
         """
         Calculate prob for Over/Under 4.5 yellow cards AND expected values.
         Returns: (over_prob, under_prob, home_expected, away_expected)
         """
-        # PROFITABILITY FIX: Require at least 6 matches for reliable card stats
-        if not home_stats or not away_stats or home_stats.matches_played < 6 or away_stats.matches_played < 6:
+        if not home_stats or not away_stats:
+             return (0.0, 0.0, 0.0, 0.0)
+
+        # STRICT RULE: Require at least 4 matches with card data for both teams
+        if home_stats.matches_played < 4 or away_stats.matches_played < 4:
             return (0.0, 0.0, 0.0, 0.0)
-            
-        # Estimate expected cards
+
         home_avg = home_stats.avg_yellow_cards_per_match
         away_avg = away_stats.avg_yellow_cards_per_match
-        
+            
+        # Estimate expected cards
         total_expected = home_avg + away_avg
-        if total_expected == 0: total_expected = 4.0 # Fallback
+        total_expected = home_avg + away_avg
+        if total_expected == 0: total_expected = avg_cards
         
         # Simple proportional split
         if (home_avg + away_avg) > 0:
@@ -802,11 +823,14 @@ class PredictionService:
         home_stats: Optional[TeamStatistics],
         away_stats: Optional[TeamStatistics],
         league_averages: Optional[LeagueAverages] = None,
+        global_averages: Optional[LeagueAverages] = None,
         data_sources: Optional[list[str]] = None,
         home_missing_players: int = 0,
         away_missing_players: int = 0,
         opening_odds: Optional[Odds] = None,
         min_matches: int = 6,
+        highlights_url: Optional[str] = None,
+        real_time_odds: Optional[dict[str, float]] = None,
     ) -> Prediction:
         """
         Generate a prediction for a match using ONLY real data.
@@ -827,81 +851,44 @@ class PredictionService:
         Returns:
             Prediction object (with zeros if no data available)
         """
-        # Check for sufficient data - STRICT: require both teams AND league data (or use defaults)
-        home_played = home_stats.matches_played if home_stats else 0
-        away_played = away_stats.matches_played if away_stats else 0
+        # STRICT RULE: NO DATA = NO PREDICTION
+        if not home_stats or not away_stats:
+            raise InsufficientDataException(f"Missing team statistics for {match.home_team.name} vs {match.away_team.name}")
+
+        home_played = home_stats.matches_played
+        away_played = away_stats.matches_played
         
-        # PROFITABILITY FIX: Use provided threshold (default 6 for live, less for training)
+        # logger.debug(f"DEBUG: {match.home_team.name} ({home_played}) vs {match.away_team.name} ({away_played}) | min_matches={min_matches}")
         
+        if home_played < min_matches or away_played < min_matches:
+            raise InsufficientDataException(
+                f"Insufficient historical data: {match.home_team.name} ({home_played} matches) "
+                f"or {match.away_team.name} ({away_played} matches) below threshold of {min_matches}"
+            )
+
         # If league_averages is None, use a default global average
         if not league_averages:
-            # Global average ~2.6-2.7 goals. Home typically 1.5, Away 1.2
-            from src.domain.value_objects.value_objects import LeagueAverages
-            league_averages = LeagueAverages(
-                avg_home_goals=1.50,
-                avg_away_goals=1.20,
-                avg_total_goals=2.70
-            ) 
+            if global_averages:
+                league_averages = global_averages
+            else:
+                raise InsufficientDataException("Baseline league/global averages unavailable.")
 
-        # If insufficient data, return empty prediction (no fake values)
-        if (home_played < min_matches or away_played < min_matches) and not (match.home_odds and match.draw_odds and match.away_odds):
-            # FALLBACK TO ODDS: If we have odds, use them as implied probability
-            if match.home_odds and match.draw_odds and match.away_odds:
-                odds = Odds(home=match.home_odds, draw=match.draw_odds, away=match.away_odds)
-                h_prob, d_prob, a_prob = odds.to_probabilities()
-                
-                # We can't predict exact goals reliably without stats, 
-                # but we can provide win probabilities which is better than nothing.
-                return Prediction(
-                    match_id=match.id,
-                    home_win_probability=round(h_prob, 4),
-                    draw_probability=round(d_prob, 4),
-                    away_win_probability=round(a_prob, 4),
-                    over_25_probability=0.0, # Cannot infer from simple 1X2 odds
-                    under_25_probability=0.0,
-                    predicted_home_goals=0.0,
-                    predicted_away_goals=0.0,
-                    
-                    over_95_corners_probability=0.0,
-                    under_95_corners_probability=0.0,
-                    over_45_cards_probability=0.0,
-                    under_45_cards_probability=0.0,
-                    handicap_line=0.0,
-                    handicap_home_probability=0.0,
-                    handicap_away_probability=0.0,
-
-                    expected_value=0.0,
-                    is_value_bet=False,
-
-                    confidence=0.3, # Low confidence as it's just market implied
-                    data_sources=["Mercado de Apuestas (Odds)"],
-                )
-
-            return Prediction(
-                match_id=match.id,
-                home_win_probability=0.0,
-                draw_probability=0.0,
-                away_win_probability=0.0,
-                over_25_probability=0.0,
-                under_25_probability=0.0,
-                predicted_home_goals=0.0,
-                predicted_away_goals=0.0,
-                
-                over_95_corners_probability=0.0,
-                under_95_corners_probability=0.0,
-                over_45_cards_probability=0.0,
-                under_45_cards_probability=0.0,
-                handicap_line=0.0,
-                handicap_home_probability=0.0,
-                handicap_away_probability=0.0,
-
-                expected_value=0.0,
-                is_value_bet=False,
-
-                confidence=0.0,
-                data_sources=["Datos Insuficientes"],
-            )
+        # Baseline Confidence
+        h_played = home_stats.matches_played if home_stats else 0
+        a_played = away_stats.matches_played if away_stats else 0
+        avg_played = (h_played + a_played) / 2
+        base_confidence = 0.5 # Start with neutral 50% confidence for baseline predictions
         
+        # If we have odds, we'll use them as a factor later (market implied)
+        market_probs = None
+        if match.home_odds and match.draw_odds and match.away_odds:
+            odds = Odds(home=match.home_odds, draw=match.draw_odds, away=match.away_odds)
+            market_probs = odds.to_probabilities()
+            if not data_sources: data_sources = []
+            if "Mercado de Apuestas (Odds)" not in data_sources:
+                data_sources.append("Mercado de Apuestas (Odds)")
+            # Boost confidence slightly if we have market verification
+            base_confidence = 0.55
         # Calculate team strengths (using REAL data only)
         home_strength = self.calculate_team_strength(
             home_stats, league_averages, is_home=True
@@ -960,10 +947,10 @@ class PredictionService:
             odds_obj = Odds(home=match.home_odds, draw=match.draw_odds, away=match.away_odds)
         
         # Calculate Over/Under Corners (9.5) and Expected Values
-        over_95_corners, under_95_corners, exp_home_corners, exp_away_corners = self.calculate_corner_probabilities(home_stats, away_stats)
+        over_95_corners, under_95_corners, exp_home_corners, exp_away_corners = self.calculate_corner_probabilities(home_stats, away_stats, league_averages)
         
         # Calculate Over/Under Cards (4.5) and Expected Values
-        over_45_cards, under_45_cards, exp_home_cards, exp_away_cards = self.calculate_card_probabilities(home_stats, away_stats)
+        over_45_cards, under_45_cards, exp_home_cards, exp_away_cards = self.calculate_card_probabilities(home_stats, away_stats, league_averages)
         
         # Calculate Handicap
         handicap_line, handicap_home, handicap_away = self.calculate_handicap_probabilities(home_expected, away_expected)
@@ -1040,4 +1027,6 @@ class PredictionService:
             confidence=round(confidence, 2),
             data_sources=data_sources or [],
             data_updated_at=data_updated_at,
+            highlights_url=highlights_url,
+            real_time_odds=real_time_odds,
         )

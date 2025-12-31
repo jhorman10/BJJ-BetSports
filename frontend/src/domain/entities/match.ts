@@ -44,6 +44,8 @@ export interface Match {
   away_fouls?: number;
   home_offsides?: number;
   away_offsides?: number;
+  home_spi?: number;
+  away_spi?: number;
   events?: MatchEvent[];
 }
 

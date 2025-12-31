@@ -276,7 +276,7 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
   if (loading) {
     return (
       <Box display="flex" alignItems="center" justifyContent="center" py={3}>
-        <CircularProgress size={24} sx={{ color: "#22c55e", mr: 1 }} />
+        <CircularProgress size={24} color="secondary" sx={{ mr: 1 }} />
         <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.6)" }}>
           Cargando picks...
         </Typography>
@@ -316,11 +316,11 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
             color: "rgba(255,255,255,0.6)",
             textTransform: "none",
             "&.Mui-selected": {
-              color: "#22c55e",
+              color: "#10b981", // Neon Green
             },
           },
           "& .MuiTabs-indicator": {
-            backgroundColor: "#22c55e",
+            backgroundColor: "#10b981", // Neon Green
           },
         }}
       >

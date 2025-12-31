@@ -111,6 +111,8 @@ class Match:
     away_fouls: Optional[int] = None
     home_offsides: Optional[int] = None
     away_offsides: Optional[int] = None
+    home_spi: Optional[float] = None
+    away_spi: Optional[float] = None
     events: list["MatchEvent"] = field(default_factory=list)
     data_fetched_at: Optional[datetime] = None
 
@@ -226,6 +228,8 @@ class Prediction:
     data_updated_at: Optional[datetime] = None
     fundamental_analysis: Optional[dict] = field(default=None)
     suggested_picks: list["SuggestedPick"] = field(default_factory=list)
+    highlights_url: Optional[str] = None
+    real_time_odds: Optional[dict[str, float]] = None
     
     def __post_init__(self):
         """Validate probability values."""
@@ -304,6 +308,8 @@ class TeamStatistics:
     total_corners: int = 0
     total_yellow_cards: int = 0
     total_red_cards: int = 0
+    matches_with_corners: int = 0
+    matches_with_cards: int = 0
     recent_form: str = ""  # e.g., "WWDLW"
     data_updated_at: Optional[datetime] = None
     
@@ -363,18 +369,21 @@ class TeamStatistics:
     
     @property
     def avg_corners_per_match(self) -> float:
-        if self.matches_played == 0: return 0.0
-        return round(self.total_corners / self.matches_played, 2)
+        denom = self.matches_with_corners or self.matches_played
+        if denom == 0: return 0.0
+        return round(self.total_corners / denom, 2)
         
     @property
     def avg_yellow_cards_per_match(self) -> float:
-        if self.matches_played == 0: return 0.0
-        return round(self.total_yellow_cards / self.matches_played, 2)
+        denom = self.matches_with_cards or self.matches_played
+        if denom == 0: return 0.0
+        return round(self.total_yellow_cards / denom, 2)
         
     @property
     def avg_red_cards_per_match(self) -> float:
-        if self.matches_played == 0: return 0.0
-        return round(self.total_red_cards / self.matches_played, 2)
+        denom = self.matches_with_cards or self.matches_played
+        if denom == 0: return 0.0
+        return round(self.total_red_cards / denom, 2)
 
 
 @dataclass

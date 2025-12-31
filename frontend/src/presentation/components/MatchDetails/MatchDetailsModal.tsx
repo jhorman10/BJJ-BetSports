@@ -55,6 +55,10 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
           margin: { xs: 1, sm: 2 },
           maxHeight: { xs: "90vh", sm: "calc(100% - 64px)" },
           borderRadius: 2,
+          background: "rgba(15, 23, 42, 0.85)", // Deep blue glass
+          backdropFilter: "blur(16px)",
+          border: "1px solid rgba(255, 255, 255, 0.1)",
+          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
         },
       }}
     >
@@ -82,9 +86,10 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
               sx={{
                 mb: 3,
                 p: { xs: 1.5, sm: 2 },
-                bgcolor: "background.paper",
+                bgcolor: "rgba(0, 0, 0, 0.2)",
                 borderRadius: 2,
                 mt: 1,
+                border: "1px solid rgba(255, 255, 255, 0.05)",
               }}
             >
               <Box
@@ -121,6 +126,11 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                   >
                     {details.match.home_team.name}
                   </Typography>
+                  {details.match.home_spi && (
+                    <Typography variant="caption" color="text.secondary">
+                      SPI: {details.match.home_spi.toFixed(1)}
+                    </Typography>
+                  )}
                 </Box>
 
                 {/* Score & Status */}
@@ -186,6 +196,11 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                   >
                     {details.match.away_team.name}
                   </Typography>
+                  {details.match.away_spi && (
+                    <Typography variant="caption" color="text.secondary">
+                      SPI: {details.match.away_spi.toFixed(1)}
+                    </Typography>
+                  )}
                 </Box>
               </Box>
             </Paper>
@@ -340,6 +355,8 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                     display: "flex",
                     flexDirection: "column",
                     justifyContent: "center",
+                    bgcolor: "rgba(255, 255, 255, 0.02)",
+                    border: "1px solid rgba(255, 255, 255, 0.05)",
                   }}
                 >
                   <Box display="flex" justifyContent="space-between" mb={0.5}>
@@ -379,6 +396,8 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                     display: "flex",
                     flexDirection: "column",
                     justifyContent: "center",
+                    bgcolor: "rgba(255, 255, 255, 0.02)",
+                    border: "1px solid rgba(255, 255, 255, 0.05)",
                   }}
                 >
                   <Box
@@ -495,6 +514,38 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                 </Box>
               ))}
             </Paper>
+
+            {/* highlights video */}
+            {details.prediction.highlights_url && (
+              <Box mb={3}>
+                <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                  📺 Video Highlights
+                </Typography>
+                <Box
+                  sx={{
+                    position: "relative",
+                    paddingBottom: "56.25%", // 16:9
+                    height: 0,
+                    overflow: "hidden",
+                    borderRadius: 2,
+                    bgcolor: "black",
+                  }}
+                >
+                  <iframe
+                    src={details.prediction.highlights_url}
+                    frameBorder="0"
+                    width="100%"
+                    height="100%"
+                    allowFullScreen
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                    }}
+                  />
+                </Box>
+              </Box>
+            )}
 
             {/* Recomendación Final - Specified Layout Refinement */}
             <Box
@@ -614,7 +665,20 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
         )}
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose} variant="outlined" color="inherit">
+        <Button
+          onClick={onClose}
+          variant="outlined"
+          color="inherit"
+          sx={{
+            borderColor: "rgba(255, 255, 255, 0.2)",
+            color: "rgba(255, 255, 255, 0.7)",
+            "&:hover": {
+              borderColor: "#3b82f6",
+              color: "#3b82f6",
+              background: "rgba(59, 130, 246, 0.1)",
+            },
+          }}
+        >
           Cerrar
         </Button>
       </DialogActions>

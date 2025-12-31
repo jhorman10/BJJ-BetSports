@@ -16,6 +16,7 @@ from src.domain.entities.entities import Match, League, Prediction, TeamStatisti
 from src.domain.services.prediction_service import PredictionService
 from src.domain.services.picks_service import PicksService
 from src.domain.value_objects.value_objects import LeagueAverages
+from src.domain.exceptions import InsufficientDataException
 from src.infrastructure.data_sources.football_data_uk import (
     FootballDataUKSource,
     LEAGUES_METADATA,
@@ -59,97 +60,9 @@ class GetLeaguesUseCase:
         """Get all available leagues grouped by country."""
         leagues = self.data_sources.football_data_uk.get_available_leagues()
         
-        # Filter leagues by data sufficiency (>= 5 matches in current season)
-        # We do this concurrently to minimize latency
-        async def check_league_sufficiency(league_id: str) -> bool:
-            try:
-                # Use default seasons (current + previous) to ensure we have data 
-                # even if new season just started (using past data for stats)
-                matches = await self.data_sources.football_data_uk.get_historical_matches(
-                    league_id, 
-                    seasons=None 
-                )
-                
-                # Count only FINISHED matches (matches with goals)
-                # This filters out leagues that only have fixtures but no results yet
-                finished_matches = [m for m in matches if m.home_goals is not None]
-                return len(finished_matches) >= 5
-            except Exception:
-                return False
-
-        # Run checks in parallel
-        results = await asyncio.gather(*[check_league_sufficiency(l.id) for l in leagues])
-        
-        # Filter the leagues list
-        active_leagues = [
-            league for league, is_sufficient in zip(leagues, results) 
-            if is_sufficient
-        ]
-        
-        # Update generic leagues list to only include sufficient ones
-        leagues = active_leagues
-
-        # Get active league IDs from API-Football to filter out empty ones
-        active_api_ids = set()
-        api_configured = self.data_sources.api_football.is_configured
-        
-        if api_configured:
-            try:
-                active_api_ids = await self.data_sources.api_football.get_active_league_ids(days=10)
-            except Exception as e:
-                logger.error(f"Failed to get active leagues from API-Football: {e}")
-        
-        # Get active codes from Football-Data.org
-        active_org_codes = set()
-        org_configured = self.data_sources.football_data_org.is_configured
-        
-        if org_configured:
-            try:
-                from src.infrastructure.data_sources.football_data_org import COMPETITION_CODE_MAPPING
-                # Create reverse mapping: "PL" -> "E0"
-                org_code_to_internal = {v: k for k, v in COMPETITION_CODE_MAPPING.items()}
-                
-                competitions = await self.data_sources.football_data_org.get_competitions()
-                for comp in competitions:
-                    code = comp.get("code")
-                    if code in org_code_to_internal:
-                        active_org_codes.add(org_code_to_internal[code])
-            except Exception as e:
-                logger.error(f"Failed to get active leagues from Football-Data.org: {e}")
-
-        from src.infrastructure.data_sources.api_football import LEAGUE_ID_MAPPING
-
         # Group by country
         countries_dict: dict[str, list[League]] = {}
         for league in leagues:
-            is_active = False
-            
-            # Check API-Football validity
-            if api_configured:
-                api_id = LEAGUE_ID_MAPPING.get(league.id)
-                if api_id and api_id in active_api_ids:
-                    is_active = True
-            
-            # Check Football-Data.org validity (if not already found active)
-            if not is_active and org_configured:
-                if league.id in active_org_codes:
-                    is_active = True
-            
-            # Relaxed Filtering Logic:
-            # We show ALL leagues that we know about (from CSV metadata).
-            # We try to mark them as 'active' for API usage if possible, but we don't hide them.
-
-            if api_configured:
-                api_id = LEAGUE_ID_MAPPING.get(league.id)
-                if api_id and api_id in active_api_ids:
-                    is_active = True
-            
-            if not is_active and org_configured:
-                if league.id in active_org_codes:
-                    is_active = True
-            
-            # Use 'is_active' logic to potentially tag leagues in the future, 
-            # but for now we include EVERYTHING from 'leagues' (which comes from metadata).
 
             if league.country not in countries_dict:
                 countries_dict[league.country] = []
@@ -322,13 +235,27 @@ class GetPredictionsUseCase:
             )
             
             # Generate prediction
-            prediction = self.prediction_service.generate_prediction(
-                match=match,
-                home_stats=home_stats,
-                away_stats=away_stats,
-                league_averages=league_averages,
-                data_sources=data_sources_used,
-            )
+            try:
+                # Fetch global averages for fallback
+                from src.infrastructure.cache.cache_service import get_cache_service
+                cache = get_cache_service()
+                global_avg_data = cache.get("global_statistical_averages")
+                global_averages = None
+                if global_avg_data:
+                    from src.domain.value_objects.value_objects import LeagueAverages
+                    global_averages = LeagueAverages(**global_avg_data)
+
+                prediction = self.prediction_service.generate_prediction(
+                    match=match,
+                    home_stats=home_stats,
+                    away_stats=away_stats,
+                    league_averages=league_averages,
+                    global_averages=global_averages,
+                    data_sources=data_sources_used,
+                )
+            except InsufficientDataException as e:
+                logger.info(f"Skipping match {match.id} in league view: {e}")
+                continue
             
             # Generate suggested picks
             suggested_picks = self.picks_service.generate_suggested_picks(
@@ -557,8 +484,8 @@ class GetMatchDetailsUseCase:
                     if 'picks' in history_item:
                         for p in history_item['picks']:
                             # PickDetail -> SuggestedPickDTO
-                            prob = p.get('probability', 0.5)
-                            conf = p.get('confidence', 0.5)
+                            prob = p.get('probability', 0.0)
+                            conf = p.get('confidence', 0.0)
                             
                             # Estimate risk/confidence text
                             conf_level = "MEDIA"
@@ -663,13 +590,35 @@ class GetMatchDetailsUseCase:
         away_stats = self.statistics_service.calculate_team_statistics(match.away_team.name, historical_matches)
         
         # 5. Generate prediction
-        prediction = self.prediction_service.generate_prediction(
-            match=match,
-            home_stats=home_stats,
-            away_stats=away_stats,
-            league_averages=None, # Will use defaults
-            data_sources=[APIFootballSource.SOURCE_NAME] + ([FootballDataUKSource.SOURCE_NAME] if historical_matches else []),
-        )
+        try:
+            prediction = self.prediction_service.generate_prediction(
+                match=match,
+                home_stats=home_stats,
+                away_stats=away_stats,
+                league_averages=None, # Will use defaults
+                data_sources=[APIFootballSource.SOURCE_NAME] + ([FootballDataUKSource.SOURCE_NAME] if historical_matches else []),
+            )
+        except InsufficientDataException as e:
+            logger.warning(f"Insufficient data for match details {match_id}: {e}")
+            # Map exception to a clear message in the DTO or handle as None
+            # For match details, it's better to return a "Skeleton" prediction with zero probs
+            from src.utils.time_utils import get_current_time
+            return MatchPredictionDTO(
+                match=self._match_to_dto(match),
+                prediction=PredictionDTO(
+                    match_id=match_id,
+                    home_win_probability=0.0,
+                    draw_probability=0.0,
+                    away_win_probability=0.0,
+                    over_25_probability=0.0,
+                    under_25_probability=0.0,
+                    predicted_home_goals=0.0,
+                    predicted_away_goals=0.0,
+                    confidence=0.0,
+                    data_sources=[],
+                    created_at=get_current_time()
+                )
+            )
 
         # Generate suggested picks
         suggested_picks = self.picks_service.generate_suggested_picks(
@@ -832,13 +781,16 @@ class GetTeamPredictionsUseCase:
                 away_stats = self.statistics_service.calculate_team_statistics(match.away_team.name, historical_matches)
                 
                 # 5. Generate prediction
-                prediction = self.prediction_service.generate_prediction(
-                    match=match,
-                    home_stats=home_stats,
-                    away_stats=away_stats,
-                    league_averages=None,
-                    data_sources=["API-Football", "Football-Data.co.uk"] if historical_matches else ["API-Football"],
-                )
+                try:
+                    prediction = self.prediction_service.generate_prediction(
+                        match=match,
+                        home_stats=home_stats,
+                        away_stats=away_stats,
+                        league_averages=None,
+                        data_sources=["API-Football", "Football-Data.co.uk"] if historical_matches else ["API-Football"],
+                    )
+                except InsufficientDataException:
+                    continue
                 
                 # Generate suggested picks
                 suggested_picks = self.picks_service.generate_suggested_picks(

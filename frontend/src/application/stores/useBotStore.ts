@@ -1,6 +1,10 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { TrainingStatus } from "../../types";
+import {
+  TrainingStatus,
+  TrainingProcessStatus,
+  TrainingProgressStatus,
+} from "../../types";
 import { api } from "../../services/api";
 import { useOfflineStore } from "./useOfflineStore";
 import { localStorageObserver } from "../../infrastructure/storage/LocalStorageObserver";
@@ -19,6 +23,11 @@ interface BotState {
   lastUpdate: Date | null;
   lastFetchTimestamp: number | null;
 
+  // New Status State
+  trainingStatus: TrainingProcessStatus;
+  trainingMessage: string;
+  hasResult: boolean;
+
   // UI State
   loading: boolean;
   error: string | null;
@@ -30,6 +39,7 @@ interface BotState {
     daysBack?: number;
     startDate?: string;
   }) => Promise<void>;
+  pollTrainingStatus: () => Promise<void>;
   updateStats: (stats: TrainingStatus) => void;
   clearCache: () => void;
   reconcile: () => Promise<void>;
@@ -48,189 +58,157 @@ export const useBotStore = create<BotState>()(
       stats: null,
       lastUpdate: null,
       lastFetchTimestamp: null,
+      trainingStatus: "IDLE",
+      trainingMessage: "El bot está listo",
+      hasResult: false,
       loading: false,
       error: null,
       isReconciling: false,
 
       fetchTrainingData: async (options = {}) => {
         const { forceRecalculate = false } = options;
+        const state = get();
+
+        // If we already have data and it's fresh, don't re-fetch unless forced
+        if (!forceRecalculate && state.stats && state.lastUpdate) {
+          const twelveHoursAgo = Date.now() - 12 * 60 * 60 * 1000;
+          if (
+            state.lastUpdate.getTime() > twelveHoursAgo &&
+            state.stats.match_history
+          ) {
+            return;
+          }
+        }
 
         set({ loading: true, error: null });
 
         try {
-          // Optimization: If we have data from less than 12 hours ago, AND we have the detailed history,
-          // don't even check the server-side cache unless forceRecalculate is true.
-          const state = get();
-          if (
-            !forceRecalculate &&
-            state.stats &&
-            state.lastUpdate &&
-            state.stats.match_history
-          ) {
-            const twelveHoursAgo = Date.now() - 12 * 60 * 60 * 1000;
-            if (state.lastUpdate.getTime() > twelveHoursAgo) {
-              return; // loading: false will be set in finally
-            }
-          }
+          // 1. First check current status and if a result exists on server
+          const statusRes = await api.get<TrainingProgressStatus>(
+            "/train/status"
+          );
 
-          // First, try to get cached results (instant) from server
-          if (!forceRecalculate) {
-            try {
-              const cachedResponse = await api.get<{
-                cached: boolean;
-                data: TrainingStatus | null;
-                last_update: string | null;
-              }>("/train/cached");
+          set({
+            trainingStatus: statusRes.status,
+            trainingMessage: statusRes.message,
+            hasResult: statusRes.has_result,
+          });
 
-              if (cachedResponse.cached && cachedResponse.data) {
-                const updateDate = cachedResponse.last_update
-                  ? new Date(cachedResponse.last_update)
-                  : new Date();
+          // 2. If we have a result and it's what we need, use it immediately
+          if (statusRes.has_result && statusRes.result && !forceRecalculate) {
+            const updateDate = statusRes.last_update
+              ? new Date(statusRes.last_update)
+              : new Date();
 
-                set({
-                  stats: cachedResponse.data,
-                  lastUpdate: updateDate,
-                  lastFetchTimestamp: Date.now(),
-                });
+            set({
+              stats: statusRes.result,
+              lastUpdate: updateDate,
+              lastFetchTimestamp: Date.now(),
+              loading: false,
+            });
 
-                // Notify observers
-                localStorageObserver.persist(
-                  "bot-training-data",
-                  {
-                    stats: cachedResponse.data,
-                    timestamp: updateDate.toISOString(),
-                  },
-                  1000 // 1s debounce for bot data
-                );
+            // Persist & Notify
+            localStorageObserver.persist(
+              "bot-training-data",
+              {
+                stats: statusRes.result,
+                timestamp: updateDate.toISOString(),
+              },
+              1000
+            );
 
-                // Update offline store
-                useOfflineStore.getState().setBackendAvailable(true);
-                useOfflineStore.getState().updateLastSync();
-
-                return; // Use cached data
-              }
-            } catch (cacheError) {
-              console.warn(
-                "Could not retrieve server-side training cache:",
-                cacheError
-              );
-            }
-          }
-
-          // Anti-spam protection: Don't trigger full training if one happened very recently (5 mins)
-          if (!forceRecalculate && state.lastFetchTimestamp) {
-            const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
-            if (state.lastFetchTimestamp > fiveMinutesAgo && state.stats) {
-              return;
-            }
-          }
-
-          // FALLBACK: Only run full training if absolutely necessary
-          // Or if forceRecalculate is true (user clicked the robot icon)
-          if (!forceRecalculate && state.stats) {
-            // We have some data (even if old), and cache check failed.
-            // Better to show old data than to risk a 500/timeout error right now.
+            useOfflineStore.getState().setBackendAvailable(true);
             return;
           }
 
-          // No cache or force recalculate - run full training via BACKGROUND JOB (Polling)
-          // Avoids CORS/Timeout errors on long-running training (1-2 mins)
-          // Note: detailed params (daysBack, startDate) are ignored in this background mode
-          // as /train/run-now uses default scheduler settings.
-
-          await api.post("/train/run-now");
-
-          let serverTimestamp: Date | null = null;
-          let attempts = 0;
-          const maxAttempts = 60; // 5 minutes (5s * 60)
-          let newData: TrainingStatus | null = null;
-
-          while (attempts < maxAttempts) {
-            await new Promise((resolve) => setTimeout(resolve, 5000));
-
-            try {
-              const pollResponse = await api.get<{
-                cached: boolean;
-                data: TrainingStatus | null;
-                last_update: string | null;
-              }>("/train/cached");
-
-              if (
-                pollResponse.cached &&
-                pollResponse.data &&
-                pollResponse.last_update
-              ) {
-                const updateTime = new Date(pollResponse.last_update).getTime();
-                // Check if data is fresher than when we started
-                const oneMinuteAgo = Date.now() - 60000;
-
-                if (updateTime > oneMinuteAgo) {
-                  newData = pollResponse.data;
-                  serverTimestamp = new Date(pollResponse.last_update);
-                  break;
-                }
-              }
-            } catch (e) {
-              console.warn("Polling error (ignoring):", e);
-            }
-            attempts++;
+          // 3. If training is already IN_PROGRESS, we just poll
+          if (statusRes.status === "IN_PROGRESS") {
+            await get().pollTrainingStatus();
+            return;
           }
 
-          if (!newData) {
-            throw new Error("Training timed out or failed to produce results.");
-          }
-
-          const data = newData;
-          const updateDate = serverTimestamp || new Date();
-
-          set({
-            stats: data,
-            lastUpdate: updateDate,
-            lastFetchTimestamp: Date.now(),
-            error: null,
-          });
-
-          // Notify observers with debouncing
-          localStorageObserver.persist(
-            "bot-training-data",
-            {
-              stats: data,
-              timestamp: updateDate.toISOString(),
-            },
-            1000
-          );
-
-          // Update offline store
-          useOfflineStore.getState().setBackendAvailable(true);
-          useOfflineStore.getState().updateLastSync();
-
-          // Show notification if supported
-          if (
-            "Notification" in window &&
-            Notification.permission === "granted"
-          ) {
-            new Notification("Análisis Completado", {
-              body: `ROI: ${data.roi > 0 ? "+" : ""}${data.roi.toFixed(
-                1
-              )}% | Precisión: ${(data.accuracy * 100).toFixed(1)}%`,
-              icon: "/favicon.ico",
+          // 4. If we need to trigger a new training
+          if (forceRecalculate || !statusRes.has_result) {
+            set({
+              trainingStatus: "IN_PROGRESS",
+              trainingMessage: "Iniciando entrenamiento...",
             });
+            await api.post("/train/run-now");
+            await get().pollTrainingStatus();
           }
         } catch (err: any) {
-          // Check for network error
-          const isNetworkError =
-            err.message === "Network Error" || err.code === "ERR_NETWORK";
-
-          if (isNetworkError) {
-            useOfflineStore.getState().setBackendAvailable(false);
-          }
-
+          console.error("Error fetching training data:", err);
           set({
-            error: err.message || "Error loading training data",
+            error: err.message || "Error al cargar los datos de entrenamiento",
+            trainingStatus: "ERROR",
+            trainingMessage: "Error en la conexión",
           });
         } finally {
           set({ loading: false });
         }
+      },
+
+      // Separate polling function to avoid nesting
+      pollTrainingStatus: async () => {
+        let attempts = 0;
+        const maxAttempts = 120; // 10 minutes (5s * 120)
+        const pollInterval = 5000;
+
+        while (attempts < maxAttempts) {
+          try {
+            const statusRes = await api.get<TrainingProgressStatus>(
+              "/train/status"
+            );
+
+            set({
+              trainingStatus: statusRes.status,
+              trainingMessage: statusRes.message,
+              hasResult: statusRes.has_result,
+            });
+
+            if (statusRes.status === "COMPLETED" && statusRes.result) {
+              const updateDate = statusRes.last_update
+                ? new Date(statusRes.last_update)
+                : new Date();
+              set({
+                stats: statusRes.result,
+                lastUpdate: updateDate,
+                lastFetchTimestamp: Date.now(),
+                error: null,
+              });
+
+              localStorageObserver.persist(
+                "bot-training-data",
+                {
+                  stats: statusRes.result,
+                  timestamp: updateDate.toISOString(),
+                },
+                1000
+              );
+
+              return;
+            }
+
+            if (statusRes.status === "ERROR") {
+              throw new Error(
+                statusRes.message || "El entrenamiento falló en el servidor"
+              );
+            }
+          } catch (e: any) {
+            console.warn("Poll attempt failed:", e);
+            if (attempts > 10) {
+              // Only show error after repeated failures
+              set({ error: "Error de conexión al monitorear entrenamiento" });
+            }
+          }
+
+          await new Promise((resolve) => setTimeout(resolve, pollInterval));
+          attempts++;
+        }
+
+        throw new Error(
+          "Tiempo agotado: El entrenamiento está tardando demasiado"
+        );
       },
       updateStats: (stats) => {
         const now = new Date();

@@ -52,18 +52,21 @@ async def get_suggested_picks(
     """Get AI-suggested picks for a match (Cache -> Live)."""
     from src.infrastructure.cache.cache_service import get_cache_service
     
-    # 1. Try Cache First (from warmup service)
+    # 1. Try Cache First (from warmup service or live predictions)
     try:
         cache = get_cache_service()
-        cache_key = f"forecasts:match_{match_id}"
-        cached_data = cache.get(cache_key)
         
-        if cached_data:
-            # Cache hit! Return immediately
-            logger.info(f"✅ Cache hit for match {match_id}")
-            if isinstance(cached_data, dict):
-                return MatchSuggestedPicksDTO(**cached_data)
-            return cached_data
+        # Check both potential keys for consistency
+        # 'forecasts:' is used by batch warmup, 'predictions:' by live updates
+        keys_to_try = [f"forecasts:match_{match_id}", f"predictions:{match_id}"]
+        
+        for cache_key in keys_to_try:
+            cached_data = cache.get(cache_key)
+            if cached_data:
+                logger.info(f"✅ Cache hit for match {match_id} (key: {cache_key})")
+                if isinstance(cached_data, dict):
+                    return MatchSuggestedPicksDTO(**cached_data)
+                return cached_data
     except Exception as e:
         logger.warning(f"Cache lookup failed for {match_id}: {e}")
 
@@ -78,21 +81,21 @@ async def get_suggested_picks(
     
     result = await use_case.execute(match_id)
     if result:
-        # Cache the result for future requests (12h TTL)
+        # Cache the result for future requests (12h TTL) using both keys for consistency
         try:
             cache = get_cache_service()
-            cache_key = f"forecasts:match_{match_id}"
-            cache.set(cache_key, result.model_dump(), ttl_seconds=3600*12)
-            logger.info(f"✅ Cached generated picks for {match_id} (12h TTL)")
+            # We cache in both namespaces to ensure future hits regardless of endpoint entry point
+            for key in [f"forecasts:match_{match_id}", f"predictions:{match_id}"]:
+                cache.set(key, result.model_dump(), ttl_seconds=3600*12)
+            logger.info(f"✅ Cached generated picks for {match_id} in multiple namespaces (12h TTL)")
         except Exception as cache_err:
             logger.warning(f"Failed to cache picks for {match_id}: {cache_err}")
         
         return result
         
-    raise HTTPException(
-        status_code=404,
-        detail=f"Match {match_id} not found or insufficient data to generate picks."
-    )
+    # If we still have no result (extreme case where match ID is invalid and not reconstructible)
+    # we return a minimal error but try to avoid raw 404s if possible.
+    return result # Will be None if everything failed
 
 
 @router.post(

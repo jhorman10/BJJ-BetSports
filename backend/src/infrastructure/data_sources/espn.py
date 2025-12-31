@@ -26,10 +26,12 @@ ESPN_LEAGUE_MAPPING = {
     "D1": "ger.1",   # Bundesliga
     "I1": "ita.1",   # Serie A
     "F1": "fra.1",   # Ligue 1
+    "B1": "bel.1",     # Jupiler Pro League (Belgium)
     "P1": "por.1",   # Primeira Liga (check availability)
     "N1": "ned.1",   # Eredivisie
     "UCL": "uefa.champions",
     "UEL": "uefa.europa",
+    "UECL": "uefa.conference", # Added conference league
 }
 
 class ESPNSource:
@@ -93,9 +95,9 @@ class ESPNSource:
             # Simple approach: Loop days. 
             # If days_back is large (e.g. 365), this is slow.
             # If user asks for historical data, we prefer CSV or GitHub.
-            # ESPN is best for RECENT detailed stats (last 30 days).
+            # ESPN is best for RECENT detailed stats (last 60 days).
             # So we enforce cap if this source is called generally.
-            eff_days_back = min(days_back, 30) 
+            eff_days_back = min(days_back, 60) 
             
             for i in range(1, eff_days_back + 1):
                 date_str = (datetime.utcnow() - timedelta(days=i)).strftime("%Y%m%d")

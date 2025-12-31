@@ -189,6 +189,61 @@ export const PreMatchPrediction: React.FC<PreMatchPredictionProps> = ({
             </>
           )}
       </Paper>
+
+      {prediction.real_time_odds && (
+        <Paper
+          variant="outlined"
+          sx={{
+            mt: 2,
+            p: 1.5,
+            bgcolor: "rgba(255,255,255,0.02)",
+            borderColor: "rgba(255,255,255,0.1)",
+            borderStyle: "dashed",
+          }}
+        >
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            display="block"
+            mb={1}
+          >
+            Cuotas en Tiempo Real (vía The Odds API):
+          </Typography>
+          <Box display="flex" justifyContent="space-between">
+            {Object.entries(prediction.real_time_odds).map(([name, price]) => (
+              <Box key={name} textAlign="center">
+                <Typography variant="caption" color="text.secondary">
+                  {name}
+                </Typography>
+                <Typography variant="body2" fontWeight="bold" color="primary">
+                  {price.toFixed(2)}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+        </Paper>
+      )}
+
+      {prediction.highlights_url && (
+        <Box mt={2}>
+          <Typography
+            variant="body2"
+            component="a"
+            href={prediction.highlights_url}
+            target="_blank"
+            sx={{
+              color: "primary.light",
+              textDecoration: "none",
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              "&:hover": { textDecoration: "underline" },
+            }}
+          >
+            📺 Ver Highlights del Partido
+          </Typography>
+        </Box>
+      )}
     </Box>
   );
 };

@@ -155,6 +155,13 @@ class GetLivePredictionsUseCase:
         home_stats = None
         away_stats = None
         data_sources_used = [APIFootballSource.SOURCE_NAME]
+
+        # Fetch Global Averages (Universal Baseline)
+        global_avg_data = self.cache_service.get("global_statistical_averages")
+        global_averages = None
+        if global_avg_data:
+            from src.domain.value_objects.value_objects import LeagueAverages
+            global_averages = LeagueAverages(**global_avg_data)
         
         if training_results and 'team_stats' in training_results:
             team_stats_map = training_results['team_stats']
@@ -221,6 +228,7 @@ class GetLivePredictionsUseCase:
             home_stats=home_stats,
             away_stats=away_stats,
             league_averages=league_averages,
+            global_averages=global_averages,
             data_sources=data_sources_used,
         )
         

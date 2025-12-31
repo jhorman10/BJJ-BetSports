@@ -26,6 +26,7 @@ import {
   SportsSoccer,
   Info,
   Diamond,
+  PlayCircleOutline,
 } from "@mui/icons-material";
 import { styled } from "@mui/material/styles";
 import type { MatchPrediction } from "../../../types";
@@ -48,7 +49,7 @@ const ProbabilityBar = styled(LinearProgress)<{ barcolor: string }>(
   ({ barcolor }) => ({
     height: 10,
     borderRadius: 5,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
     "& .MuiLinearProgress-bar": {
       backgroundColor: barcolor,
       borderRadius: 5,
@@ -57,7 +58,8 @@ const ProbabilityBar = styled(LinearProgress)<{ barcolor: string }>(
 );
 
 // Helper functions
-const formatPercent = (value: number): string => `${(value * 100).toFixed(1)}%`;
+const formatPercent = (value: number): string =>
+  value === 0 ? "-" : `${(value * 100).toFixed(1)}%`;
 
 const formatDate = (dateString: string): string => {
   const date = new Date(dateString);
@@ -84,23 +86,26 @@ const getCardSx = (highlight?: boolean, clickable?: boolean) => ({
     "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
   position: "relative" as const,
   cursor: clickable ? "pointer" : "default",
-  ...(highlight
-    ? {
-        border: "2px solid #10b981",
-        boxShadow: "0 0 20px rgba(16, 185, 129, 0.3)",
-      }
-    : {}),
+  background: "rgba(30, 41, 59, 0.6)", // Explicit Glass Base
+  backdropFilter: "blur(12px)",
+  border: highlight
+    ? "1px solid #3b82f6"
+    : "1px solid rgba(255, 255, 255, 0.08)",
+  boxShadow: highlight
+    ? "0 0 20px rgba(59, 130, 246, 0.3)"
+    : "0 8px 32px 0 rgba(0, 0, 0, 0.37)",
   "&:hover": {
     transform: highlight
       ? "scale(1.03)"
       : clickable
-      ? "translateY(-8px) scale(1.02)"
+      ? "translateY(-5px)"
       : "translateY(0)",
     boxShadow: highlight
-      ? "0 0 30px rgba(16, 185, 129, 0.5)"
+      ? "0 0 30px rgba(59, 130, 246, 0.5)"
       : clickable
-      ? "0 12px 24px rgba(0, 0, 0, 0.3)"
-      : "none",
+      ? "0 15px 40px rgba(0, 0, 0, 0.4), 0 0 20px rgba(59, 130, 246, 0.1)" // Neon glow on hover
+      : "0 8px 32px 0 rgba(0, 0, 0, 0.37)",
+    border: "1px solid rgba(59, 130, 246, 0.5)", // Light up border on hover
   },
   // Hint to browser for performance
   willChange: clickable || highlight ? "transform, box-shadow" : "auto",
@@ -193,7 +198,7 @@ const MatchCard: React.FC<MatchCardProps> = memo(
             onClick={(e) => e.stopPropagation()}
           >
             {isLoading ? (
-              <CircularProgress size={18} sx={{ color: "#6366f1" }} />
+              <CircularProgress size={18} sx={{ color: "#3b82f6" }} />
             ) : (
               <Checkbox
                 checked={!!isSelected}
@@ -223,6 +228,22 @@ const MatchCard: React.FC<MatchCardProps> = memo(
             }}
           >
             <Chip label="Destacado" color="success" size="small" />
+            {prediction.highlights_url && (
+              <Chip
+                icon={<PlayCircleOutline />}
+                label="Highlights"
+                clickable
+                component="a"
+                href={prediction.highlights_url}
+                target="_blank"
+                size="small"
+                color="primary"
+                sx={{
+                  bgcolor: "rgba(59, 130, 246, 0.2)",
+                  "&:hover": { bgcolor: "rgba(59, 130, 246, 0.4)" },
+                }}
+              />
+            )}
           </Box>
         )}
 
@@ -304,6 +325,16 @@ const MatchCard: React.FC<MatchCardProps> = memo(
                 <Typography variant="h6" fontWeight={600} noWrap>
                   {match.home_team.name}
                 </Typography>
+                {match.home_spi && (
+                  <Tooltip title="Soccer Power Index (SPI)">
+                    <Typography
+                      variant="caption"
+                      sx={{ color: "text.secondary", fontSize: "0.6rem" }}
+                    >
+                      SPI: {match.home_spi.toFixed(1)}
+                    </Typography>
+                  </Tooltip>
+                )}
               </Box>
 
               <Typography variant="body2" color="text.secondary" mx={1}>
@@ -326,6 +357,16 @@ const MatchCard: React.FC<MatchCardProps> = memo(
                 >
                   {match.away_team.name}
                 </Typography>
+                {match.away_spi && (
+                  <Tooltip title="Soccer Power Index (SPI)">
+                    <Typography
+                      variant="caption"
+                      sx={{ color: "text.secondary", fontSize: "0.6rem" }}
+                    >
+                      SPI: {match.away_spi.toFixed(1)}
+                    </Typography>
+                  </Tooltip>
+                )}
                 {match.away_team.logo_url && (
                   <Box
                     component="img"
@@ -345,7 +386,7 @@ const MatchCard: React.FC<MatchCardProps> = memo(
               px={2}
               py={1}
               borderRadius={1}
-              bgcolor="rgba(99, 102, 241, 0.1)"
+              sx={{ bgcolor: "rgba(59, 130, 246, 0.1)" }} // Neon Blue background
             >
               <Box textAlign="center">
                 <Typography variant="h5" color="primary" fontWeight={700}>
@@ -419,6 +460,52 @@ const MatchCard: React.FC<MatchCardProps> = memo(
                 barcolor={getProbabilityColor(prediction.away_win_probability)}
               />
             </Box>
+
+            {/* Real-time Odds comparison if available */}
+            {prediction.real_time_odds && (
+              <Box
+                mt={2}
+                p={1}
+                borderRadius={1}
+                bgcolor="rgba(255, 255, 255, 0.05)"
+                border="1px dashed rgba(255, 255, 255, 0.1)"
+              >
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  display="block"
+                  mb={0.5}
+                >
+                  Cuotas en Tiempo Real (The Odds API):
+                </Typography>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  justifyContent="space-between"
+                >
+                  {Object.entries(
+                    prediction.real_time_odds as Record<string, number>
+                  ).map(([name, price]) => (
+                    <Box key={name} textAlign="center">
+                      <Typography
+                        variant="caption"
+                        display="block"
+                        sx={{ fontSize: "0.6rem", color: "text.secondary" }}
+                      >
+                        {name.substring(0, 3)}
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        fontWeight={700}
+                        color="primary.light"
+                      >
+                        {price.toFixed(2)}
+                      </Typography>
+                    </Box>
+                  ))}
+                </Stack>
+              </Box>
+            )}
           </Box>
 
           <Divider sx={{ mb: 2 }} />

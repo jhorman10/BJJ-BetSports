@@ -126,6 +126,14 @@ class LocalGithubDataSource:
                     return int(float(val))
                 except (ValueError, TypeError):
                     return None
+            
+            def safe_float(val):
+                if not val:
+                    return None
+                try:
+                    return float(val)
+                except (ValueError, TypeError):
+                    return None
 
             home_goals = safe_int(row.get("FTHome"))
             away_goals = safe_int(row.get("FTAway"))
@@ -142,6 +150,17 @@ class LocalGithubDataSource:
             
             home_red = safe_int(row.get("HomeRed"))
             away_red = safe_int(row.get("AwayRed"))
+            
+            # Betting Odds
+            home_odds = safe_float(row.get("OddHome"))
+            draw_odds = safe_float(row.get("OddDraw"))
+            away_odds = safe_float(row.get("OddAway"))
+            
+            # Shots
+            home_shots_on = safe_int(row.get("HomeTarget"))
+            away_shots_on = safe_int(row.get("AwayTarget"))
+            home_total_shots = safe_int(row.get("HomeShots"))
+            away_total_shots = safe_int(row.get("AwayShots"))
             
             # Simple ID generation
             match_id = f"gh_{division}_{match_date.strftime('%Y%m%d')}_{home_team_name[:3]}_{away_team_name[:3]}"
@@ -169,7 +188,14 @@ class LocalGithubDataSource:
                 home_yellow_cards=home_yellow,
                 away_yellow_cards=away_yellow,
                 home_red_cards=home_red,
-                away_red_cards=away_red
+                away_red_cards=away_red,
+                home_odds=home_odds,
+                draw_odds=draw_odds,
+                away_odds=away_odds,
+                home_shots_on_target=home_shots_on,
+                away_shots_on_target=away_shots_on,
+                home_total_shots=home_total_shots,
+                away_total_shots=away_total_shots
             )
         except Exception:
             return None

@@ -2,8 +2,17 @@ import asyncio
 import logging
 import sys
 import os
+import gc
 from fastapi import FastAPI
 import uvicorn
+
+# OPTIMIZATION: Limit thread usage for low-resource environments (0.1 CPU / 512MB RAM)
+# This prevents numpy/sklearn from spawning multiple threads which causes OOM and CPU thrashing
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
 
 # Ensure the root directory is in the path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
@@ -43,7 +52,7 @@ async def main():
     Uses the same orchestrator as the API to ensure logic parity.
     """
     # Start health check server immediately to satisfy Render's port requirement
-    asyncio.create_task(start_health_check_server())
+    health_check_task = asyncio.create_task(start_health_check_server())
     
     logger.info("Starting standalone ML Training Session...")
     
@@ -55,8 +64,11 @@ async def main():
     try:
         result = await orchestrator.run_training_pipeline(
             league_ids=DEFAULT_LEAGUES,
-            days_back=3650
+            days_back=365  # Reduced from 730 to 365 (1 Year) to fit in 512MB RAM
         )
+        
+        # Force garbage collection to free up memory immediately
+        gc.collect()
         
         logger.info("Training session completed successfully.")
         logger.info(f"Processed Matches: {result.matches_processed}")
@@ -97,7 +109,16 @@ async def main():
         
     except Exception as e:
         logger.error(f"Training session failed: {e}")
-        sys.exit(1)
+        # Don't exit here, allows finally block to run
+    finally:
+        # Graceful cleanup of background task
+        logger.info("Stopping health check server...")
+        health_check_task.cancel()
+        try:
+            await health_check_task
+        except asyncio.CancelledError:
+            pass # Expected behavior
+        logger.info("Shutdown complete.")
 
 if __name__ == "__main__":
     asyncio.run(main())

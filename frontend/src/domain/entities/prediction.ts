@@ -32,6 +32,8 @@ export interface Prediction {
   over_under_recommendation: string;
   created_at: string;
   data_updated_at?: string;
+  highlights_url?: string;
+  real_time_odds?: Record<string, number>;
   fundamental_analysis?: Record<string, boolean>;
   suggested_picks?: SuggestedPick[];
 }

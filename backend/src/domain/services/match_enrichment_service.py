@@ -75,11 +75,21 @@ class MatchEnrichmentService:
         if base.home_red_cards is None: base.home_red_cards = source.home_red_cards
         if base.away_red_cards is None: base.away_red_cards = source.away_red_cards
         
-        # Shots (Advanced stats)
-        if hasattr(base, 'home_shots_on_target') and hasattr(source, 'home_shots_on_target'):
-            if base.home_shots_on_target is None: base.home_shots_on_target = source.home_shots_on_target
-        if hasattr(base, 'away_shots_on_target') and hasattr(source, 'away_shots_on_target'):
-            if base.away_shots_on_target is None: base.away_shots_on_target = source.away_shots_on_target
+        # Betting Odds (Crucial for EV/Training)
+        if base.home_odds is None: base.home_odds = source.home_odds
+        if base.draw_odds is None: base.draw_odds = source.draw_odds
+        if base.away_odds is None: base.away_odds = source.away_odds
+        
+        # Shots (Advanced stats for training)
+        if hasattr(base, 'home_shots') and hasattr(source, 'home_shots'):
+            if base.home_shots is None: base.home_shots = source.home_shots
+        if hasattr(base, 'away_shots') and hasattr(source, 'away_shots'):
+            if base.away_shots is None: base.away_shots = source.away_shots
+        
+        # Update timestamp
+        if source.data_fetched_at:
+            if not base.data_fetched_at or source.data_fetched_at > base.data_fetched_at:
+                base.data_fetched_at = source.data_fetched_at
 
     def find_match_overlap(self, target: Match, candidates: List[Match]) -> Optional[Match]:
         """

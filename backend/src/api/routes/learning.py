@@ -7,6 +7,7 @@ import re
 import logging
 import os
 import zlib
+import gc
 
 # ML Imports
 try:
@@ -104,6 +105,15 @@ class TrainingStatus(BaseModel):
     roi_evolution: List[RoiEvolutionPoint] = []
     pick_efficiency: List[dict] = [] # Granular stats per pick type
     team_stats: dict = {} # Consolidated team stats after training, for live predictions use
+    global_averages: dict = {} # Ultimate baseline from 10-year history
+
+class TrainingProgressStatus(BaseModel):
+    """Status of the ongoing or completed training process."""
+    status: str  # "IN_PROGRESS", "COMPLETED", "ERROR", "IDLE"
+    message: str = ""
+    last_update: Optional[str] = None
+    has_result: bool = False
+    result: Optional[TrainingStatus] = None
 
 
 @router.post("/train", response_model=TrainingStatus)
@@ -128,6 +138,9 @@ async def run_training_session(
         start_date=request.start_date,
         force_refresh=request.force_refresh
     )
+    
+    # Force garbage collection to free up memory after training
+    gc.collect()
 
     # Convert Result to Response DTO (Payload optimization)
     # The UI only needs the most recent match history to avoid 50MB responses
@@ -145,7 +158,8 @@ async def run_training_session(
         match_history=display_history,
         roi_evolution=result.roi_evolution,
         pick_efficiency=result.pick_efficiency,
-        team_stats=result.team_stats
+        team_stats=result.team_stats,
+        global_averages=result.global_averages
     )
     
     # Cache the result for the dashboard
@@ -186,14 +200,14 @@ async def get_cached_training_data():
             cached=True,
             last_update=last_update.isoformat() if last_update else None,
             data=TrainingStatus(**results),
-            message="Cached training data retrieved successfully"
+            message="Datos de entrenamiento recuperados exitosamente"
         )
     else:
         return CachedTrainingResponse(
             cached=False,
             last_update=None,
             data=None,
-            message="No cached data available. Training runs daily at 7:00 AM COT or call POST /train to generate."
+            message="No hay datos en caché disponibles. El entrenamiento se ejecuta diariamente a las 7:00 AM COT o use POST /train para generar."
         )
 
 
@@ -216,5 +230,41 @@ async def trigger_training_now(
     
     return {
         "status": "started",
-        "message": "Training started in background. Results will be cached when complete."
+        "message": "Entrenamiento iniciado en segundo plano. Los resultados se guardarán al completar."
     }
+
+
+@router.get("/train/status", response_model=TrainingProgressStatus)
+async def get_training_status(
+    cache_service: CacheService = Depends(get_cache_service)
+):
+    """
+    Get the current status of the ML training process.
+    Returns: IN_PROGRESS, COMPLETED, ERROR, or IDLE.
+    If COMPLETED, includes the training result.
+    """
+    # Keys used in MLTrainingOrchestrator
+    CACHE_KEY_STATUS = "ml_training_status"
+    CACHE_KEY_MESSAGE = "ml_training_message"
+    CACHE_KEY_RESULT = "ml_training_result_data"
+    
+    status = cache_service.get(CACHE_KEY_STATUS) or "IDLE"
+    message = cache_service.get(CACHE_KEY_MESSAGE)
+    result_data = None
+    
+    if not message:
+        if status == "IDLE": message = "El bot está listo"
+        elif status == "IN_PROGRESS": message = "Entrenamiento en curso"
+        elif status == "COMPLETED": message = "Entrenamiento completado"
+        elif status == "ERROR": message = "Error en el entrenamiento"
+        else: message = f"Estado: {status}"
+
+    if status == "COMPLETED":
+        result_data = cache_service.get(CACHE_KEY_RESULT)
+
+    return TrainingProgressStatus(
+        status=status,
+        message=message, 
+        has_result=(result_data is not None),
+        result=result_data if result_data else None
+    )

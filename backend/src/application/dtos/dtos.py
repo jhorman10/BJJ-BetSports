@@ -94,6 +94,8 @@ class MatchDTO(BaseModel):
     away_fouls: Optional[int] = None
     home_offsides: Optional[int] = None
     away_offsides: Optional[int] = None
+    home_spi: Optional[float] = None
+    away_spi: Optional[float] = None
     events: list["MatchEventDTO"] = Field(default_factory=list)
     
     model_config = ConfigDict(from_attributes=True)
@@ -149,6 +151,8 @@ class PredictionDTO(BaseModel):
     recommended_bet: str
     over_under_recommendation: str
     suggested_picks: list["SuggestedPickDTO"] = Field(default_factory=list) # Full list of picks
+    highlights_url: Optional[str] = None
+    real_time_odds: Optional[dict[str, float]] = None
     created_at: datetime
     
     model_config = ConfigDict(from_attributes=True)
@@ -220,6 +224,8 @@ class MatchSuggestedPicksDTO(BaseModel):
     match_id: str
     suggested_picks: list[SuggestedPickDTO] = Field(default_factory=list)
     combination_warning: Optional[str] = None
+    highlights_url: Optional[str] = None
+    real_time_odds: Optional[dict[str, float]] = None
     generated_at: datetime = Field(default_factory=datetime.utcnow)
     
     model_config = ConfigDict(from_attributes=True)

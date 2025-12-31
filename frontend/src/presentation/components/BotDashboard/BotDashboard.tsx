@@ -13,6 +13,7 @@ import {
   Tab,
   Button,
   Snackbar,
+  LinearProgress,
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
 import {
@@ -39,6 +40,8 @@ const BotDashboard: React.FC = () => {
     lastUpdate,
     loading,
     error,
+    trainingStatus,
+    trainingMessage,
     isReconciling,
     fetchTrainingData,
     reconcile,
@@ -450,15 +453,28 @@ const BotDashboard: React.FC = () => {
           />
         </Box>
 
-        {loading && (
+        {trainingStatus === "IN_PROGRESS" && (
           <Alert severity="info" sx={{ mb: 4, mt: 3 }}>
             <Typography variant="body2">
-              ⏳ Se están calculando los datos del modelo...
+              ⏳{" "}
+              {trainingMessage || "Se están calculando los datos del modelo..."}
+            </Typography>
+            <LinearProgress sx={{ mt: 1, borderRadius: 2 }} />
+          </Alert>
+        )}
+
+        {trainingStatus === "ERROR" && (
+          <Alert severity="error" sx={{ mb: 4, mt: 3 }}>
+            <Typography variant="body2">
+              ❌ Error:{" "}
+              {trainingMessage ||
+                error ||
+                "Ocurrió un error durante el entrenamiento"}
             </Typography>
           </Alert>
         )}
 
-        {isReconciling && (
+        {isReconciling && trainingStatus !== "IN_PROGRESS" && (
           <Alert severity="info" sx={{ mb: 4, mt: 3 }}>
             <Typography variant="body2">
               🔄 Sincronizando datos con el servidor...

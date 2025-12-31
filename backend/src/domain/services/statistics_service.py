@@ -279,6 +279,8 @@ class StatisticsService:
         total_corners = 0
         total_yellow_cards = 0
         total_red_cards = 0
+        matches_with_corners = 0
+        matches_with_cards = 0
         
         recent_results = []
         
@@ -345,6 +347,7 @@ class StatisticsService:
             # Accumulate corners/cards
             if match.home_corners is not None and match.away_corners is not None:
                 total_corners += match.home_corners if is_home else match.away_corners
+                matches_with_corners += 1
                 
             # Accumulate cards
             y_cards = match.home_yellow_cards if is_home else match.away_yellow_cards
@@ -352,6 +355,7 @@ class StatisticsService:
             
             if y_cards is not None:
                 total_yellow_cards += y_cards
+                matches_with_cards += 1
             if r_cards is not None:
                 total_red_cards += r_cards
         
@@ -381,6 +385,8 @@ class StatisticsService:
             total_corners=total_corners,
             total_yellow_cards=total_yellow_cards,
             total_red_cards=total_red_cards,
+            matches_with_corners=matches_with_corners,
+            matches_with_cards=matches_with_cards,
             recent_form=recent_form,
             data_updated_at=last_updated,
         )
@@ -393,7 +399,9 @@ class StatisticsService:
             "goals_scored": 0, "goals_conceded": 0,
             "corners_for": 0, "corners_against": 0,
             "yellow_cards": 0, "red_cards": 0,
-            "home_wins": 0, "away_wins": 0
+            "home_wins": 0, "away_wins": 0,
+            "matches_with_corners": 0,
+            "matches_with_cards": 0
         }
 
     @staticmethod
@@ -421,9 +429,11 @@ class StatisticsService:
         if match.home_corners is not None and match.away_corners is not None:
             stats["corners_for"] += match.home_corners if is_home else match.away_corners
             stats["corners_against"] += match.away_corners if is_home else match.home_corners
+            stats["matches_with_corners"] += 1
             
         if match.home_yellow_cards is not None:
             stats["yellow_cards"] += match.home_yellow_cards if is_home else match.away_yellow_cards
+            stats["matches_with_cards"] += 1
             
         if match.home_red_cards is not None:
             stats["red_cards"] += match.home_red_cards if is_home else match.away_red_cards
@@ -445,6 +455,8 @@ class StatisticsService:
             total_corners=raw_stats.get("corners_for", 0),
             total_yellow_cards=raw_stats.get("yellow_cards", 0),
             total_red_cards=raw_stats.get("red_cards", 0),
+            matches_with_corners=raw_stats.get("matches_with_corners", 0),
+            matches_with_cards=raw_stats.get("matches_with_cards", 0),
             recent_form="" # Form is calculated from full history if needed
         )
 
@@ -461,7 +473,11 @@ class StatisticsService:
         
         total_home_goals = 0
         total_away_goals = 0
+        total_corners = 0
+        total_cards = 0
         matches_with_goals = 0
+        matches_with_corners = 0
+        matches_with_cards = 0
         
         for match in matches:
             if not match.is_played:
@@ -471,15 +487,25 @@ class StatisticsService:
                 total_home_goals += match.home_goals
                 total_away_goals += match.away_goals
                 matches_with_goals += 1
+
+            if match.home_corners is not None and match.away_corners is not None:
+                total_corners += (match.home_corners + match.away_corners)
+                matches_with_corners += 1
+
+            if match.home_yellow_cards is not None and match.away_yellow_cards is not None:
+                total_cards += (match.home_yellow_cards + match.away_yellow_cards)
+                matches_with_cards += 1
         
         # Calculate averages with fallbacks
         from src.domain.value_objects.value_objects import LeagueAverages
 
         if matches_with_goals == 0:
-            return LeagueAverages()
+            return None
             
         return LeagueAverages(
             avg_home_goals=total_home_goals / matches_with_goals,
             avg_away_goals=total_away_goals / matches_with_goals,
-            avg_total_goals=(total_home_goals + total_away_goals) / matches_with_goals
+            avg_total_goals=(total_home_goals + total_away_goals) / matches_with_goals,
+            avg_corners=total_corners / matches_with_corners if matches_with_corners > 0 else 9.5,
+            avg_cards=total_cards / matches_with_cards if matches_with_cards > 0 else 4.5
         )

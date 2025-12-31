@@ -60,6 +60,20 @@ export interface TrainingStatus {
   team_stats: any;
 }
 
+export type TrainingProcessStatus =
+  | "IDLE"
+  | "IN_PROGRESS"
+  | "COMPLETED"
+  | "ERROR";
+
+export interface TrainingProgressStatus {
+  status: TrainingProcessStatus;
+  message: string;
+  last_update: string | null;
+  has_result: boolean;
+  result: TrainingStatus | null;
+}
+
 export interface MatchHistoryTableProps {
   matches: MatchPredictionHistory[];
 }

@@ -447,13 +447,13 @@ class PicksService:
                 home_stats, away_stats, predicted_home_goals, predicted_away_goals
             )
         
-        if has_home_stats and has_away_stats:
-            corners_picks = self._generate_corners_picks(home_stats, away_stats, match, market_odds)
+        if home_stats is not None and away_stats is not None:
+            corners_picks = self._generate_corners_picks(home_stats, away_stats, match, league_averages, market_odds)
             for pick in corners_picks:
                 picks.add_pick(pick)
         
             # Generate cards picks
-            cards_picks = self._generate_cards_picks(home_stats, away_stats, match, market_odds)
+            cards_picks = self._generate_cards_picks(home_stats, away_stats, match, league_averages, market_odds)
             for pick in cards_picks:
                 picks.add_pick(pick)
             
@@ -520,7 +520,7 @@ class PicksService:
                 picks.add_pick(pick)
         
         # 6. Team Corners & Cards (Unconditional - User requested "all possible picks")
-        if has_home_stats and has_away_stats:
+        if home_stats is not None and away_stats is not None:
              # Team Corners
             home_corners_list = self._generate_single_team_corners(home_stats, match, True)
             for p in home_corners_list: picks.add_pick(p)
@@ -728,10 +728,22 @@ class PicksService:
         home_stats: TeamStatistics,
         away_stats: TeamStatistics,
         match: Match,
+        league_averages: Optional[LeagueAverages] = None,
         market_odds: Optional[dict[str, float]] = None,
     ) -> list[SuggestedPick]:
         """Generate corners picks for combined match total."""
-        total_avg = home_stats.avg_corners_per_match + away_stats.avg_corners_per_match
+        # Tiered fallback: Team Averages -> League Averages
+        h_avg = home_stats.avg_corners_per_match if home_stats and home_stats.matches_played >= 3 else None
+        a_avg = away_stats.avg_corners_per_match if away_stats and away_stats.matches_played >= 3 else None
+        
+        if h_avg is not None and a_avg is not None:
+            total_avg = h_avg + a_avg
+        elif league_averages:
+            total_avg = league_averages.avg_corners
+        else:
+            # Fallback to zero (will result in no picks) instead of hardcoding
+            total_avg = 0.0
+            
         return self._generate_total_stat_picks(
             stat_avg=total_avg,
             lines=[8.5, 9.5, 10.5],
@@ -749,10 +761,21 @@ class PicksService:
         home_stats: TeamStatistics,
         away_stats: TeamStatistics,
         match: Match,
+        league_averages: Optional[LeagueAverages] = None,
         market_odds: Optional[dict[str, float]] = None,
     ) -> list[SuggestedPick]:
         """Generate cards picks for combined match total."""
-        total_avg = home_stats.avg_yellow_cards_per_match + away_stats.avg_yellow_cards_per_match
+        # Tiered fallback: Team Averages -> League Averages
+        h_avg = home_stats.avg_yellow_cards_per_match if home_stats and home_stats.matches_played >= 3 else None
+        a_avg = away_stats.avg_yellow_cards_per_match if away_stats and away_stats.matches_played >= 3 else None
+        
+        if h_avg is not None and a_avg is not None:
+            total_avg = h_avg + a_avg
+        elif league_averages:
+            total_avg = league_averages.avg_cards
+        else:
+            total_avg = 0.0
+            
         return self._generate_total_stat_picks(
             stat_avg=total_avg,
             lines=[3.5, 4.5, 5.5],
@@ -855,25 +878,16 @@ class PicksService:
         # Note: We don't have explicit 'market_odds' passed here in original method signature, 
         # but 'match' object has them!
         
-        odds = 0.0
-        market_type = MarketType.RESULT_1X2 # Generic container, usually 'winner' enum for specific outcome
-        label = ""
         selection_prob = max_prob
         
         if idx == 0: # Home
-            market_type = MarketType.HOME_WIN # If exists? No, usually RESULT_1X2 or specific
-            # Let's check available enums or use generic WINNER
-            market_type = MarketType.WINNER # Or RESULT_1X2
             label = f"Victoria {match.home_team.name} (1)"
             odds = match.home_odds or 0.0
         elif idx == 1: # Draw
-             # Typically we don't bet on draws as primary suggested winner unless very high prob
-             market_type = MarketType.DRAW if hasattr(MarketType, 'DRAW') else MarketType.RESULT_1X2
              label = "Empate (X)"
              odds = match.draw_odds or 0.0
              base_threshold = 0.35 # Draws are harder
         else: # Away
-            market_type = MarketType.WINNER # Or RESULT_1X2
             label = f"Victoria {match.away_team.name} (2)"
             odds = match.away_odds or 0.0
             
@@ -905,13 +919,12 @@ class PicksService:
         # RELAXED: During early season/training, we lower this to 0.3 to ensure we always have a candidate
         if selection_prob < 0.3 and ev < 0.05:
             return None
-            
         # Construct Pick
         # Boost probability for confidence display only if valid bet
         display_prob = self._boost_prob(selection_prob)
         
         return SuggestedPick(
-            market_type=MarketType.RESULT_1X2, # Using standard enum
+            market_type=MarketType.RESULT_1X2,
             market_label=label,
             probability=round(display_prob, 3),
             confidence_level=SuggestedPick.get_confidence_level(display_prob),
@@ -1314,96 +1327,6 @@ class PicksService:
             expected_value=self._calculate_ev(adj_prob), # EV on raw
         )
 
-    def _generate_winner_pick(
-        self,
-        match: Match,
-        home_win_prob: float,
-        draw_prob: float,
-        away_win_prob: float,
-    ) -> Optional[SuggestedPick]:
-        """Generate match winner pick."""
-        max_prob = max(home_win_prob, draw_prob, away_win_prob)
-        
-        selected_odds = 0.0
-        
-        if home_win_prob == max_prob:
-            label = f"Victoria {match.home_team.name} (1)"
-            reasoning = "Análisis estadístico favorece al equipo local."
-            selected_odds = match.home_odds if match.home_odds else 0.0
-        elif away_win_prob == max_prob:
-            label = f"Victoria {match.away_team.name} (2)"
-            reasoning = "Análisis estadístico favorece al equipo visitante."
-            selected_odds = match.away_odds if match.away_odds else 0.0
-        else:
-            label = "Empate (X)"
-            reasoning = "Equipos equilibrados, el empate es el resultado más probable."
-            selected_odds = match.draw_odds if match.draw_odds else 0.0
-        
-        # Profitability Check: Calculate Expected Value (EV)
-        # EV = (Probability * Odds) - 1
-        ev = 0.0
-        ev_note = ""
-        is_value_bet = False
-        kelly_stake = 0.0
-        
-        if selected_odds > 0:
-            ev = (max_prob * selected_odds) - 1
-            if ev > 0:
-                # Kelly Criterion: f* = (bp - q) / b
-                # b = odds - 1 (net odds)
-                b = selected_odds - 1
-                if b > 0:
-                    q = 1 - max_prob
-                    f = ((b * max_prob) - q) / b
-                    # Use Quarter Kelly (1/4) for safety in sports betting
-                    kelly_stake = max(0, (f * 0.25) * 100)
-                
-                ev_note = f" 💎 VALUE BET (EV +{ev:.1%}). Stake sugerido (Kelly 1/4): {kelly_stake:.1f}%."
-                is_value_bet = True
-            else:
-                ev_note = f". ⚠️ Precaución: Cuota {selected_odds} sin valor matemático (EV {ev:.1%}). No apostar."
-
-        confidence = SuggestedPick.get_confidence_level(max_prob)
-        risk = self._calculate_risk_level(max_prob)
-        
-        # Priority Score Calculation
-        # We want Value Bets to be visible, but EV (e.g. 0.10) is smaller than Prob (e.g. 0.60).
-        # So we use Prob as base and add EV boost for value bets.
-        base_score = max_prob
-        priority_mult = 1.0
-        
-        if is_value_bet:
-            base_score += ev  # Boost by EV amount
-            priority_mult = 1.2 # Extra boost for being a value bet
-        else:
-            priority_mult = 0.5 # Penalize non-value bets (odds too low for risk)
-        
-        # Recommendation Logic for Profitability:
-        # 1. If Value Bet: Recommend if prob > 35% (allow underdogs if value exists)
-        # 2. If No Odds: Recommend if prob > 60% (blind prediction)
-        # 3. If Negative EV: Do NOT recommend (long term loss guaranteed)
-        
-        should_recommend = False
-        if is_value_bet:
-            # PROFITABILITY FIX: Allow lower probability for Value Bets if EV is positive.
-            # E.g. Odds 4.0 (25%) with Model 30% is a massive value bet.
-            should_recommend = max_prob > 0.30
-        elif selected_odds == 0:
-            # PROFITABILITY FIX: Without odds, we are betting blind. Require high certainty.
-            should_recommend = max_prob > 0.70
-        
-        return SuggestedPick(
-            market_type=MarketType.WINNER,
-            market_label=label,
-            probability=round(max_prob, 3),
-            confidence_level=confidence,
-            reasoning=reasoning + ev_note,
-            risk_level=risk,
-            is_recommended=should_recommend,
-            # PROFITABILITY FIX: Use EV as priority score component if available
-            priority_score=base_score * self.MARKET_PRIORITY.get(MarketType.RESULT_1X2, 1.0) * priority_mult,
-            expected_value=ev if is_value_bet else 0.0,
-        )
 
     # Fallback pick removed to strictly comply with 'no invented data' policy
 

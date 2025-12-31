@@ -109,16 +109,6 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [searchQuery, setSearchQuery] = useState("");
 
-  if (!matches || matches.length === 0) {
-    return (
-      <Box p={3} textAlign="center">
-        <Typography color="text.secondary">
-          No hay histórico de predicciones disponible
-        </Typography>
-      </Box>
-    );
-  }
-
   const handleSort = (column: SortColumn) => {
     if (sortColumn === column) {
       // Toggle direction if same column
@@ -142,6 +132,7 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
   };
 
   const filteredMatches = React.useMemo(() => {
+    if (!matches) return [];
     if (!searchQuery) return matches;
     const lowerQuery = searchQuery.toLowerCase();
     return matches.filter(
@@ -152,6 +143,7 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
   }, [matches, searchQuery]);
 
   const sortedMatches = React.useMemo(() => {
+    if (!filteredMatches || filteredMatches.length === 0) return [];
     const sorted = [...filteredMatches];
 
     // Helper to get timestamp
@@ -193,6 +185,16 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
     page * rowsPerPage,
     page * rowsPerPage + rowsPerPage
   );
+
+  if (!matches || matches.length === 0) {
+    return (
+      <Box p={3} textAlign="center">
+        <Typography color="text.secondary">
+          No hay histórico de predicciones disponible
+        </Typography>
+      </Box>
+    );
+  }
 
   return (
     <>

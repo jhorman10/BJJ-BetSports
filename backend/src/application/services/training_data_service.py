@@ -109,7 +109,7 @@ class TrainingDataService:
         try:
             from src.infrastructure.data_sources.espn import ESPNSource
             espn = ESPNSource()
-            espn_matches = await espn.get_finished_matches(league_codes=leagues, days_back=30)
+            espn_matches = await espn.get_finished_matches(league_codes=leagues, days_back=60)
         except Exception: pass
 
         # 5. Football-Data.org (High coverage base)
@@ -118,7 +118,7 @@ class TrainingDataService:
             fd_org = FootballDataOrgSource()
             if fd_org.is_configured:
                 today = get_current_time()
-                date_from = (today - timedelta(days=60)).strftime("%Y-%m-%d")
+                date_from = (today - timedelta(days=90)).strftime("%Y-%m-%d")
                 fd_org_matches = await fd_org.get_finished_matches(date_from, today.strftime("%Y-%m-%d"), leagues)
         except Exception: pass
 

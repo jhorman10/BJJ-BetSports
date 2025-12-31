@@ -1,6 +1,9 @@
-/**
- * Global CSS styles
- */
+/* Global CSS styles */
+
+:root {
+  --primary-glow: 0 0 10px rgba(59, 130, 246, 0.5);
+  --secondary-glow: 0 0 10px rgba(16, 185, 129, 0.5);
+}
 
 * {
   margin: 0;
@@ -14,6 +17,8 @@ body {
     Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: #0f172a; /* Deep Blue fallback */
+  color: #f1f5f9;
 }
 
 #root {
@@ -31,17 +36,33 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(99, 102, 241, 0.5);
+  background: rgba(59, 130, 246, 0.5); /* Neon Blue */
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(99, 102, 241, 0.7);
+  background: rgba(59, 130, 246, 0.8);
 }
 
 /* Selection styling */
 ::selection {
-  background: rgba(99, 102, 241, 0.3);
+  background: rgba(59, 130, 246, 0.3);
+  color: #ffffff;
+}
+
+/* Utility Classes */
+.text-glow {
+  text-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+}
+
+.text-glow-green {
+  text-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+}
+
+.glass-panel {
+  background: rgba(30, 41, 59, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 /* ========================================

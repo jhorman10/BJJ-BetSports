@@ -46,6 +46,8 @@ export interface Match {
   away_fouls?: number;
   home_offsides?: number;
   away_offsides?: number;
+  home_spi?: number;
+  away_spi?: number;
 }
 
 export interface Prediction {
@@ -79,6 +81,8 @@ export interface Prediction {
   over_under_recommendation: string;
   created_at: string;
   suggested_picks?: import("./index").SuggestedPick[];
+  highlights_url?: string;
+  real_time_odds?: Record<string, number>;
   data_updated_at?: string;
   fundamental_analysis?: Record<string, boolean>;
 }
@@ -169,6 +173,8 @@ export interface MatchSuggestedPicks {
   match_id: string;
   suggested_picks: SuggestedPick[];
   combination_warning?: string;
+  highlights_url?: string;
+  real_time_odds?: Record<string, number>;
   generated_at: string;
 }
 

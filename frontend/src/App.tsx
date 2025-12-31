@@ -33,6 +33,7 @@ import LiveMatchDetailsModal from "./presentation/components/MatchDetails/LiveMa
 import { useUIStore } from "./application/stores/useUIStore";
 import { usePredictionStore } from "./application/stores/usePredictionStore";
 import { useLiveStore } from "./application/stores/useLiveStore";
+import { useBotStore } from "./application/stores/useBotStore";
 import OfflineIndicator from "./presentation/components/common/OfflineIndicator";
 import { useOfflineStore } from "./application/stores/useOfflineStore";
 import { dataReconciliationService } from "./application/services/DataReconciliationService";
@@ -65,6 +66,10 @@ const App: React.FC = () => {
   } = useLiveStore();
 
   const { isOnline, isBackendAvailable } = useOfflineStore();
+  const { trainingStatus, fetchTrainingData } = useBotStore();
+
+  // Only show the bot icon if training is fully completed
+  const showBotIcon = trainingStatus === "COMPLETED";
 
   // Reconciliation: Use centralized service when connectivity restores
   useEffect(() => {
@@ -101,12 +106,13 @@ const App: React.FC = () => {
   // Initialize data on mount
   useEffect(() => {
     fetchLeagues();
+    fetchTrainingData(); // Check bot/training status on startup
     startPolling(30000); // Poll every 30 seconds to match backend cache TTL
 
     return () => {
       stopPolling();
     };
-  }, [fetchLeagues, startPolling, stopPolling]);
+  }, [fetchLeagues, fetchTrainingData, startPolling, stopPolling]);
 
   // Detect goals in live matches
   useEffect(() => {
@@ -185,7 +191,8 @@ const App: React.FC = () => {
       <Box
         sx={{
           minHeight: "100vh",
-          background: "linear-gradient(180deg, #0f172a 0%, #1e293b 100%)",
+          // Background handled by theme/CssBaseline
+          bgcolor: "background.default",
         }}
       >
         {/* Navigation */}
@@ -206,20 +213,22 @@ const App: React.FC = () => {
             >
               BJJ - BetSports
             </Typography>
-            <Tooltip
-              title={
-                isPredictions ? "Ir al Bot de Inversión" : "Ver Predicciones"
-              }
-            >
-              <Link
-                to={isPredictions ? "/bot" : "/"}
-                style={{ textDecoration: "none" }}
+            {showBotIcon && (
+              <Tooltip
+                title={
+                  isPredictions ? "Ir al Bot de Inversión" : "Ver Predicciones"
+                }
               >
-                <IconButton sx={{ color: "white", mr: 1 }}>
-                  {isPredictions ? <SmartToy /> : <Dashboard />}
-                </IconButton>
-              </Link>
-            </Tooltip>
+                <Link
+                  to={isPredictions ? "/bot" : "/"}
+                  style={{ textDecoration: "none" }}
+                >
+                  <IconButton sx={{ color: "white", mr: 1 }}>
+                    {isPredictions ? <SmartToy /> : <Dashboard />}
+                  </IconButton>
+                </Link>
+              </Tooltip>
+            )}
 
             {installPrompt && !isInstalled && (
               <Button
