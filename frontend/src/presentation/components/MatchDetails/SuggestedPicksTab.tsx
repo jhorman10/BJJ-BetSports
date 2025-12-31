@@ -155,15 +155,33 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
         if (cached) {
           try {
             const { data, timestamp } = JSON.parse(cached);
-            if (Date.now() - timestamp < CACHE_TTL) {
+
+            // Check if backend data is newer than cache
+            const backendDate = matchPrediction.prediction.data_updated_at
+              ? new Date(matchPrediction.prediction.data_updated_at).getTime()
+              : 0;
+
+            const isCacheFresh = Date.now() - timestamp < CACHE_TTL;
+            const isCacheNewerThanBackend = timestamp > backendDate;
+
+            if (isCacheFresh && isCacheNewerThanBackend) {
+              console.log("Using cached picks (Fresh & Newer than backend)");
               setApiPicks(data);
               setLoading(false);
               return;
             } else {
+              console.log("Cache invalid: ", {
+                fresh: isCacheFresh,
+                newer: isCacheNewerThanBackend,
+                cacheTime: new Date(timestamp).toISOString(),
+                backendTime: matchPrediction.prediction.data_updated_at,
+              });
               // Show outdated while fetching
               setApiPicks(data);
             }
-          } catch (e) {}
+          } catch (e) {
+            console.error("Cache parse error", e);
+          }
         } else {
           setLoading(true);
         }
@@ -200,7 +218,9 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
   const sortedPicks = useMemo(() => {
     let picks = apiPicks?.suggested_picks ? [...apiPicks.suggested_picks] : [];
 
-    if (picks.length === 0 && matchPrediction.prediction) {
+    // If API failed or returned explicit empty list, and we have prediction data, GENERATE FALLBACKS
+    if ((!picks || picks.length === 0) && matchPrediction.prediction) {
+      console.log("Generating fallback picks for", match.id);
       picks = generateFallbackPicks(matchPrediction);
     }
 
@@ -284,7 +304,11 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
     );
   }
 
-  if (error || sortedPicks.length === 0) {
+  // Only show error if we truly have NO picks (neither from API nor fallback)
+  if (
+    (error && sortedPicks.length === 0) ||
+    (sortedPicks.length === 0 && !loading)
+  ) {
     return (
       <Box display="flex" alignItems="center" justifyContent="center" py={2}>
         <TipsAndUpdates

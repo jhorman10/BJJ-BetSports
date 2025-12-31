@@ -59,7 +59,7 @@ const ProbabilityBar = styled(LinearProgress)<{ barcolor: string }>(
 
 // Helper functions
 const formatPercent = (value: number): string =>
-  value === 0 ? "-" : `${(value * 100).toFixed(1)}%`;
+  value === 0 ? "Pendiente" : `${(value * 100).toFixed(1)}%`;
 
 const formatDate = (dateString: string): string => {
   const date = new Date(dateString);
@@ -227,7 +227,17 @@ const MatchCard: React.FC<MatchCardProps> = memo(
               alignItems: "flex-end",
             }}
           >
-            <Chip label="Destacado" color="success" size="small" />
+            <Chip
+              label="Destacado"
+              size="small"
+              sx={{
+                bgcolor: "#3b82f6", // Neon Blue
+                color: "#ffffff",
+                fontWeight: 700,
+                boxShadow: "0 0 15px rgba(59, 130, 246, 0.6)", // Prominent glow
+                border: "1px solid rgba(255, 255, 255, 0.2)",
+              }}
+            />
             {prediction.highlights_url && (
               <Chip
                 icon={<PlayCircleOutline />}
@@ -573,7 +583,7 @@ const MatchCard: React.FC<MatchCardProps> = memo(
               />
               {/* Stake Display */}
               {(() => {
-                const recPick = prediction.suggested_picks?.find(
+                const recPick = (prediction.suggested_picks || []).find(
                   (p) =>
                     p.market_label === prediction.recommended_bet ||
                     p.market_type === prediction.recommended_bet
