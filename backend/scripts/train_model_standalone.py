@@ -62,7 +62,7 @@ async def train_model():
         result = await orchestrator.run_training_pipeline(
             league_ids=None, # All default leagues
             days_back=365,
-            force_refresh=False
+            force_refresh=True
         )
         
         logger.info(f"Training Complete!")

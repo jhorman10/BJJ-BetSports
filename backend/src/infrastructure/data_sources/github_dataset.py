@@ -40,6 +40,7 @@ class LocalGithubDataSource:
         # Resolve path relative to this file, not CWD
         current_dir = os.path.dirname(os.path.abspath(__file__))
         self.file_path = os.path.join(current_dir, "local_data", "matches_github.csv")
+        logger.info(f"Resolved GitHub Dataset Path: {self.file_path}")
         
     async def get_finished_matches(
         self,
