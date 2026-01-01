@@ -39,9 +39,9 @@ async def train_model():
     # Initialize Services
     data_sources = get_data_sources()
     cache_service = get_cache_service()
-    enrichment_service = MatchEnrichmentService(data_sources=data_sources)
-    training_data_service = TrainingDataService(data_sources=data_sources, enrichment_service=enrichment_service)
     statistics_service = get_statistics_service()
+    enrichment_service = MatchEnrichmentService(statistics_service=statistics_service)
+    training_data_service = TrainingDataService(data_sources=data_sources, enrichment_service=enrichment_service)
     learning_service = get_learning_service()
     prediction_service = get_prediction_service()
     resolution_service = get_pick_resolution_service()
