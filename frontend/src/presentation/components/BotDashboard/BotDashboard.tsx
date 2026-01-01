@@ -521,8 +521,11 @@ const BotDashboard: React.FC = () => {
               ⚠️ Modelo Desactualizado
             </Typography>
             <Typography variant="body2">
-              Estás viendo datos de {new Date(lastUpdate).toLocaleDateString()}.
-              Entrena nuevamente para incluir los partidos de ayer/hoy.
+              Estás viendo datos de{" "}
+              {lastUpdate
+                ? new Date(lastUpdate).toLocaleDateString()
+                : "fecha desconocida"}
+              . Entrena nuevamente para incluir los partidos de ayer/hoy.
             </Typography>
           </Alert>
         )}
@@ -531,15 +534,16 @@ const BotDashboard: React.FC = () => {
           <Alert severity="success" sx={{ mb: 4, mt: 3 }}>
             <Typography variant="body2">
               <strong>✅ Última actualización:</strong>{" "}
-              <strong>✅ Última actualización:</strong>{" "}
-              {new Date(lastUpdate).toLocaleDateString("es-ES", {
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-                timeZone: "America/Bogota",
-              })}
+              {lastUpdate
+                ? new Date(lastUpdate).toLocaleDateString("es-ES", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    timeZone: "America/Bogota",
+                  })
+                : ""}
             </Typography>
           </Alert>
         )}
