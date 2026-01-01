@@ -397,9 +397,10 @@ class GetPredictionsUseCase:
             generated_at=datetime.now(timezone('America/Bogota')),
         )
         
-        # Cache the result (30 minutes TTL to keep odds relatively fresh but load fast)
+        # Cache the result (24 hours TTL to align with daily training schedule)
         try:
-            cache_service.set(cache_key, response.model_dump(), ttl_seconds=1800)
+            # 86400 seconds = 24 hours
+            cache_service.set(cache_key, response.model_dump(), ttl_seconds=86400)
         except Exception as e:
             logger.warning(f"Failed to cache league predictions: {e}")
             
