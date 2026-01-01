@@ -163,7 +163,6 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
 
     // If API failed or returned explicit empty list, and we have prediction data, GENERATE FALLBACKS
     if ((!picks || picks.length === 0) && matchPrediction.prediction) {
-      console.log("Generating fallback picks for", match.id);
       picks = generateFallbackPicks(matchPrediction);
     }
 

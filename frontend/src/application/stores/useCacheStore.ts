@@ -63,7 +63,7 @@ export const useCacheStore = create<CacheState>()(
 
           get().cachePicks(matchId, picks);
         } catch (error) {
-          console.error(`Prefetch failed for ${matchId}`, error);
+          // Silent prefetch failure
         } finally {
           set((s) => ({ fetching: { ...s.fetching, [matchId]: false } }));
         }

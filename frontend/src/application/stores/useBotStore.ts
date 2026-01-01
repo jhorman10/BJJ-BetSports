@@ -49,7 +49,7 @@ interface BotState {
 try {
   localStorage.removeItem("bot-storage");
 } catch (e) {
-  console.warn("Failed to clean up old localStorage", e);
+  // Silent cleanup
 }
 
 export const useBotStore = create<BotState>()(
@@ -137,7 +137,6 @@ export const useBotStore = create<BotState>()(
             await get().pollTrainingStatus();
           }
         } catch (err: any) {
-          console.error("Error fetching training data:", err);
           set({
             error: err.message || "Error al cargar los datos de entrenamiento",
             trainingStatus: "ERROR",
@@ -195,7 +194,6 @@ export const useBotStore = create<BotState>()(
               );
             }
           } catch (e: any) {
-            console.warn("Poll attempt failed:", e);
             if (attempts > 10) {
               // Only show error after repeated failures
               set({ error: "Error de conexión al monitorear entrenamiento" });

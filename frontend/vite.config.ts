@@ -100,7 +100,10 @@ export default defineConfig({
     target: "esnext",
     // Enable minification
     minify: "esbuild",
-    // Generate source maps for debugging
+  },
+  esbuild: {
+    drop: ["console", "debugger"],
+  },
     sourcemap: false,
     // Chunk splitting for better caching
     rollupOptions: {
