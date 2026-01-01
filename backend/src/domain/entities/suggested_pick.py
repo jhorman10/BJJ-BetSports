@@ -120,10 +120,14 @@ class MatchSuggestedPicks:
     combination_warning: Optional[str] = None
     generated_at: datetime = field(default_factory=datetime.utcnow)
     
-    def add_pick(self, pick: SuggestedPick) -> None:
-        """Add a pick and re-sort by priority."""
-        self.suggested_picks.append(pick)
+    def sort_picks(self) -> None:
+        """Sort picks by priority score (descending)."""
         self.suggested_picks.sort(key=lambda p: p.priority_score, reverse=True)
+
+    def add_pick(self, pick: SuggestedPick) -> None:
+        """Add a pick and re-sort."""
+        self.suggested_picks.append(pick)
+        self.sort_picks()
     
     def get_recommended_picks(self, max_picks: int = 3) -> list[SuggestedPick]:
         """Get top recommended picks (default max 3 to avoid combination risk)."""

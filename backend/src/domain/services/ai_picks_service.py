@@ -130,13 +130,13 @@ class AIPicksService(PicksService):
         for pick in picks:
             market_type = pick.market_type
             
-            # --- PHASE A: Model-First Filtering (LearningWeights) ---
+            # PHASE A: Model-First Filtering (LearningWeights)
             # Automatically discard markets performing poorly historically
             weight = self.learning_weights.get_market_adjustment(market_type)
             
-            # Strict Rule: Weight < 0.9 -> Discard
-            if weight < 0.9:
-                logger.debug(f"AI Discarded {pick.market_label} (Weight {weight:.2f} < 0.9)")
+            # RELAXED: weight < 0.5 -> Discard (from 0.9)
+            if weight < 0.5:
+                logger.debug(f"AI Discarded {pick.market_label} (Weight {weight:.2f} < 0.5)")
                 continue
 
             # --- PHASE B: Integration of Context ---

@@ -21,10 +21,6 @@ services:
         value: "true"
       - key: CORS_ORIGINS
         value: "https://football-prediction-frontend-nz9r.onrender.com"
-      - key: REDIS_URL
-        fromRedis:
-          name: football-prediction-redis
-          property: connectionString
     healthCheckPath: /health
 
   # 2. Frontend Service (React Static Site)
@@ -47,11 +43,3 @@ services:
       - type: rewrite
         source: /*
         destination: /index.html
-
-# ===========================================
-# REDIS
-# ===========================================
-redis:
-  - name: football-prediction-redis
-    plan: free
-    ipAllowList: [] # Only internal access

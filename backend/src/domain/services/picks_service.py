@@ -522,12 +522,12 @@ class PicksService:
             for pick in goals_picks:
                 picks.add_pick(pick)
                 
-            # Generate BTTS picks
-            btts_pick = self._generate_btts_pick(
+            # Generate BTTS picks (returns list)
+            btts_picks = self._generate_btts_pick(
                 predicted_home_goals, predicted_away_goals, is_low_scoring, market_odds
             )
-            if btts_pick:
-                picks.add_pick(btts_pick)
+            for pick in btts_picks:
+                picks.add_pick(pick)
                 
             # Generate Team Goals picks
             home_goals_picks = self._generate_team_goals_picks(
@@ -771,7 +771,7 @@ class PicksService:
             
         return self._generate_total_stat_picks(
             stat_avg=total_avg,
-            lines=[8.5, 9.5, 10.5],
+            lines=[6.5, 7.5, 8.5, 9.5, 10.5, 11.5, 12.5],
             market_types=(MarketType.CORNERS_OVER, MarketType.CORNERS_UNDER),
             label_formats=("Más de {} córners en el partido", "Menos de {} córners en el partido"),
             reasoning_fmts=("Promedio de córners: {avg:.2f}. Tendencia favorable.", "Promedio de córners: {avg:.2f}. Baja producción."),
@@ -803,7 +803,7 @@ class PicksService:
             
         return self._generate_total_stat_picks(
             stat_avg=total_avg,
-            lines=[3.5, 4.5, 5.5],
+            lines=[1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5],
             market_types=(MarketType.CARDS_OVER, MarketType.CARDS_UNDER),
             label_formats=("Más de {} tarjetas en el partido", "Menos de {} tarjetas en el partido"),
             reasoning_fmts=("Expectativa de tarjetas: {avg:.2f}. Análisis de volatilidad.", "Expectativa de tarjetas: {avg:.2f}. Análisis de volatilidad."),
@@ -1010,7 +1010,7 @@ class PicksService:
         # We should still generate Under picks in this case.
 
         # Define lines to check: 0.5, 1.5, 2.5, 3.5, 4.5
-        lines_to_check = [0.5, 1.5, 2.5, 3.5, 4.5]
+        lines_to_check = [0.5, 1.5, 2.5, 3.5, 4.5, 5.5]
 
         for line in lines_to_check:
             # Map float line to Enum MarketType (Over)
@@ -1362,7 +1362,7 @@ class PicksService:
         
         return self._generate_team_stat_picks(
             stat_avg=avg,
-            lines=[3.5, 4.5, 5.5, 6.5],
+            lines=[2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5],
             market_types=(
                 MarketType.HOME_CORNERS_OVER if is_home else MarketType.AWAY_CORNERS_OVER,
                 MarketType.HOME_CORNERS_UNDER if is_home else MarketType.AWAY_CORNERS_UNDER
@@ -1386,7 +1386,7 @@ class PicksService:
         
         return self._generate_team_stat_picks(
             stat_avg=avg,
-            lines=[0.5, 1.5, 2.5],
+            lines=[0.5, 1.5, 2.5, 3.5, 4.5],
             market_types=(
                 MarketType.HOME_CARDS_OVER if is_home else MarketType.AWAY_CARDS_OVER,
                 MarketType.HOME_CARDS_UNDER if is_home else MarketType.AWAY_CARDS_UNDER
@@ -1404,8 +1404,9 @@ class PicksService:
         predicted_away: float,
         is_low_scoring: bool,
         market_odds: Optional[dict[str, float]] = None,
-    ) -> Optional[SuggestedPick]:
-        """Generate BTTS (Ambos Marcan) pick."""
+    ) -> list[SuggestedPick]:
+        """Generate BTTS (Ambos Marcan) picks for both outcomes."""
+        picks = []
         # P(Team Scored > 0) = 1 - P(0)
         # Using Poisson: P(0) = e^(-lambda)
         prob_home_score = 1.0 - math.exp(-predicted_home)
@@ -1417,22 +1418,22 @@ class PicksService:
         # Adjust based on logic
         if is_low_scoring:
             btts_yes_prob *= 0.9
-            btts_no_prob = min(0.95, btts_no_prob * 1.05)
+            # Recalculate NO to keep sum=1
+            btts_no_prob = 1.0 - btts_yes_prob
             
-        btts_yes_prob = min(0.95, btts_yes_prob)
-        btts_no_prob = min(0.95, btts_no_prob)
+        btts_yes_prob = min(0.98, btts_yes_prob)
+        btts_no_prob = min(0.98, btts_no_prob)
         
-        odds_yes = market_odds.get(MarketType.BTTS_YES.value, 0.0) if market_odds else 0.0
-        
-        # Decide which (if any) to recommend
-        if btts_yes_prob > 0.01:
+        # 1. BTTS YES
+        if btts_yes_prob > 0.1: # Expanded threshold
+             odds_yes = market_odds.get(MarketType.BTTS_YES.value, 0.0) if market_odds else 0.0
              display_prob = self._boost_prob(btts_yes_prob)
              confidence = SuggestedPick.get_confidence_level(display_prob)
              risk = self._calculate_risk_level(display_prob)
              ev = self._calculate_ev(btts_yes_prob, odds_yes)
              is_rec, prio_mult, suffix = self._evaluate_recommendation(btts_yes_prob, ev, 0.65)
              
-             return SuggestedPick(
+             picks.append(SuggestedPick(
                 market_type=MarketType.BTTS_YES,
                 market_label="Ambos Equipos Marcan: SÍ",
                 probability=round(display_prob, 3),
@@ -1442,28 +1443,30 @@ class PicksService:
                 is_recommended=is_rec,
                 priority_score=display_prob * self.MARKET_PRIORITY.get(MarketType.BTTS_YES, 0.9) * prio_mult,
                 expected_value=ev
-             )
-        elif btts_no_prob > 0.01:
+             ))
+
+        # 2. BTTS NO
+        if btts_no_prob > 0.1: # Expanded threshold
              odds_no = market_odds.get(MarketType.BTTS_NO.value, 0.0) if market_odds else 0.0
-             
              display_prob = self._boost_prob(btts_no_prob)
              confidence = SuggestedPick.get_confidence_level(display_prob)
              risk = self._calculate_risk_level(display_prob)
              ev = self._calculate_ev(btts_no_prob, odds_no)
              is_rec, prio_mult, suffix = self._evaluate_recommendation(btts_no_prob, ev, 0.65)
              
-             return SuggestedPick(
+             picks.append(SuggestedPick(
                 market_type=MarketType.BTTS_NO,
                 market_label="Ambos Equipos Marcan: NO",
                 probability=round(display_prob, 3),
                 confidence_level=confidence,
-                reasoning=f"Probabilidad de que al menos un equipo no marque es alta.{suffix}",
+                reasoning=f"Valla invicta o baja producción proyectada.{suffix}",
                 risk_level=risk,
                 is_recommended=is_rec,
                 priority_score=display_prob * self.MARKET_PRIORITY.get(MarketType.BTTS_NO, 0.85) * prio_mult,
                 expected_value=ev
-             )
-        return None
+             ))
+             
+        return picks
 
     def _generate_team_goals_picks(
         self,
@@ -1476,7 +1479,7 @@ class PicksService:
         picks = []
         if predicted_goals <= 0: return picks
         
-        thresholds = [0.5, 1.5, 2.5]
+        thresholds = [0.5, 1.5, 2.5, 3.5]
         
         for threshold in thresholds:
             # Over

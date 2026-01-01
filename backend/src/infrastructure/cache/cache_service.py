@@ -4,6 +4,7 @@ from typing import Any, Optional, Dict, TypeVar, Generic
 import threading
 import logging
 from src.infrastructure.cache.redis_client import get_redis_client
+import diskcache
 
 logger = logging.getLogger(__name__)
 
@@ -38,23 +39,38 @@ class CacheService:
         
         # Low Memory optimization for Render Free Tier (512MB)
         self.low_memory_mode = os.getenv("LOW_MEMORY_MODE", "false").lower() == "true"
+        
+        # Initialize DiskCache as a fallback for when Redis is missing
+        # This keeps large objects out of RAM but provides persistence
+        cache_dir = os.path.join(os.getcwd(), ".cache_data")
+        self._disk_cache = diskcache.Cache(cache_dir)
+        
         if self.low_memory_mode:
-            logger.info("CORE: Low Memory Mode enabled. Local memory cache will be bypassed for large objects.")
+            logger.info("CORE: Low Memory Mode enabled. Local memory cache will be used with disk fallback for large objects.")
         
     def get(self, key: str) -> Optional[Any]:
-        """Get a value from cache (Redis first, then memory)."""
-        # Try Redis first
+        """Get a value from cache (Redis -> Disk -> Memory)."""
+        # 1. Try Redis first
         if self.redis.is_connected:
             value = self.redis.get(key)
             if value:
                 self._hits += 1
                 return value
         
+        # 2. Try Disk Cache (Fallback for when Redis is missing)
+        try:
+            value = self._disk_cache.get(key)
+            if value:
+                self._hits += 1
+                return value
+        except Exception:
+            pass
+
         # Skip local memory if in Low Memory Mode and it's a large object
         if self.low_memory_mode and (key.startswith("forecasts:") or key.startswith("predictions:")):
             return None
 
-        # Fallback to memory
+        # 3. Fallback to memory
         with self._lock:
             value = self._memory_cache.get(key)
             if value:
@@ -65,14 +81,22 @@ class CacheService:
         return None
     
     def set(self, key: str, value: Any, ttl_seconds: int) -> None:
-        """Set a value in both Redis and Memory."""
+        """Set a value in Redis, Disk, and Memory."""
+        # 1. Set in Redis
         if self.redis.is_connected:
             self.redis.set(key, value, ttl_seconds)
             
+        # 2. Set in Disk Cache (Always as fallback)
+        try:
+            self._disk_cache.set(key, value, expire=ttl_seconds)
+        except Exception:
+            pass
+
         # Skip local memory if in Low Memory Mode and it's a large object
         if self.low_memory_mode and (key.startswith("forecasts:") or key.startswith("predictions:")):
             return
 
+        # 3. Set in Memory
         with self._lock:
             self._memory_cache[key] = value
     
