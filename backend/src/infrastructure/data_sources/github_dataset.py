@@ -37,7 +37,9 @@ class LocalGithubDataSource:
     }
     
     def __init__(self):
-        self.file_path = os.path.join(os.getcwd(), self.CSV_PATH)
+        # Resolve path relative to this file, not CWD
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        self.file_path = os.path.join(current_dir, "local_data", "matches_github.csv")
         
     async def get_finished_matches(
         self,
