@@ -94,8 +94,8 @@ class TheSportsDBClient:
             "E1": "4329", # Championship
             "SP1": "4335", # La Liga
             "D1": "4331", # Bundesliga
-            "I1": "4332", # Serie A
-            "I2": "4333", # Serie B
+            # "I1": "4332", # Serie A - DISABLED: Returns English League One data (Doncaster vs Bolton)
+            # "I2": "4333", # Serie B
             "F1": "4334", # Ligue 1
             "F2": "4335", # Ligue 2 (Actually duplication here in code, checking)
             "P1": "4344", # Primeira Liga
