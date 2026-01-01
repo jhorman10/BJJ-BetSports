@@ -64,41 +64,45 @@ class BotScheduler:
             leagues = list(LEAGUES_METADATA.keys())
             
             # 1. RETRAINING
-            logger.info("Step 1/4: Starting retraining...")
-            training_result = await orchestrator.run_training_pipeline(
-                league_ids=leagues,
-                days_back=365
-            )
-            accuracy = getattr(training_result, 'accuracy', 0)
-            logger.info(f"Retraining completed. Accuracy: {accuracy:.2%}")
-            
-            # Update TrainingCache
-            try:
-                from src.infrastructure.cache import get_training_cache
-                training_cache = get_training_cache()
-                history_limit = 500
-                display_history = training_result.match_history[-history_limit:] if len(training_result.match_history) > history_limit else training_result.match_history
+            import os
+            if os.getenv("DISABLE_ML_TRAINING") == "true":
+                 logger.info("Step 1/4: Retraining SKIPPED (DISABLE_ML_TRAINING=true)")
+            else:
+                logger.info("Step 1/4: Starting retraining...")
+                training_result = await orchestrator.run_training_pipeline(
+                    league_ids=leagues,
+                    days_back=365
+                )
+                accuracy = getattr(training_result, 'accuracy', 0)
+                logger.info(f"Retraining completed. Accuracy: {accuracy:.2%}")
                 
-                training_data = {
-                    "matches_processed": training_result.matches_processed,
-                    "correct_predictions": training_result.correct_predictions,
-                    "accuracy": training_result.accuracy,
-                    "total_bets": training_result.total_bets,
-                    "roi": training_result.roi,
-                    "profit_units": training_result.profit_units,
-                    "market_stats": training_result.market_stats,
-                    "match_history": [h.model_dump() if hasattr(h, 'model_dump') else h for h in display_history],
-                    "roi_evolution": training_result.roi_evolution,
-                    "pick_efficiency": training_result.pick_efficiency,
-                    "team_stats": training_result.team_stats
-                }
-                training_cache.set_training_results(training_data)
-                logger.info(f"TrainingCache updated.")
-            except Exception as e:
-                logger.error(f"Failed to update TrainingCache: {e}")
-            
-            del training_result
-            gc.collect()
+                # Update TrainingCache if we actually trained
+                try:
+                    from src.infrastructure.cache import get_training_cache
+                    training_cache = get_training_cache()
+                    history_limit = 500
+                    display_history = training_result.match_history[-history_limit:] if len(training_result.match_history) > history_limit else training_result.match_history
+                    
+                    training_data = {
+                        "matches_processed": training_result.matches_processed,
+                        "correct_predictions": training_result.correct_predictions,
+                        "accuracy": training_result.accuracy,
+                        "total_bets": training_result.total_bets,
+                        "roi": training_result.roi,
+                        "profit_units": training_result.profit_units,
+                        "market_stats": training_result.market_stats,
+                        "match_history": [h.model_dump() if hasattr(h, 'model_dump') else h for h in display_history],
+                        "roi_evolution": training_result.roi_evolution,
+                        "pick_efficiency": training_result.pick_efficiency,
+                        "team_stats": training_result.team_stats
+                    }
+                    training_cache.set_training_results(training_data)
+                    logger.info(f"TrainingCache updated.")
+                except Exception as e:
+                    logger.error(f"Failed to update TrainingCache: {e}")
+                
+                del training_result
+                gc.collect()
 
             # 2. PRE-CACHE LEAGUES
             logger.info("Step 2/4: Pre-caching leagues...")

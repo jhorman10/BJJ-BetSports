@@ -65,6 +65,33 @@ async def train_model():
             force_refresh=True
         )
         
+        # Update TrainingCache (Crucial for Dashboard since Render won't train)
+        try:
+             from src.infrastructure.cache import get_training_cache
+             training_cache = get_training_cache()
+             
+             # Format for dashboard
+             history_limit = 500
+             display_history = result.match_history[-history_limit:] if len(result.match_history) > history_limit else result.match_history
+             
+             training_data = {
+                 "matches_processed": result.matches_processed,
+                 "correct_predictions": result.correct_predictions,
+                 "accuracy": result.accuracy,
+                 "total_bets": result.total_bets,
+                 "roi": result.roi,
+                 "profit_units": result.profit_units,
+                 "market_stats": result.market_stats,
+                 "match_history": [h.model_dump() if hasattr(h, 'model_dump') else h for h in display_history],
+                 "roi_evolution": result.roi_evolution,
+                 "pick_efficiency": result.pick_efficiency,
+                 "team_stats": result.team_stats
+             }
+             training_cache.set_training_results(training_data)
+             logger.info(f"SUCCESS: TrainingCache updated in Redis.")
+        except Exception as e:
+             logger.error(f"Failed to update TrainingCache: {e}")
+
         logger.info(f"Training Complete!")
         logger.info(f"Accuracy: {result.accuracy * 100:.2f}%")
         logger.info(f"ROI: {result.roi}%")
