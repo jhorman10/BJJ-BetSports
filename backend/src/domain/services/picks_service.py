@@ -116,8 +116,18 @@ class PicksService:
         self.confidence_calculator = ConfidenceCalculator()
         self.bankroll_service = BankrollService() # New Risk Management Module
         
-        # Load ML Model if available
-        self.ml_model = self._load_ml_model_safely("ml_picks_classifier.joblib")
+        # Load ML Model if available (Robust Path Resolution)
+        try:
+             # Resolve absolute path to backend root
+            _service_dir = os.path.dirname(os.path.abspath(__file__))
+            # Go up: domain/services -> domain -> src -> backend
+            _backend_dir = os.path.join(_service_dir, "..", "..", "..")
+            model_path = os.path.join(_backend_dir, "ml_picks_classifier.joblib")
+            
+            self.ml_model = self._load_ml_model_safely(model_path)
+        except Exception as e:
+            logger.warning(f"Failed to resolve model path: {e}")
+            self.ml_model = None
 
     def _safe_div(self, numerator: float, denominator: float, default: float = 0.0) -> float:
         """Safe division to avoid ZeroDivisionError and NaN/Inf results."""

@@ -31,7 +31,7 @@ ESPN_LEAGUE_MAPPING = {
     "N1": "ned.1",   # Eredivisie
     "UCL": "uefa.champions",
     "UEL": "uefa.europa",
-    "UECL": "uefa.conference", # Added conference league
+    "UECL": "uefa.europa.conf", # Corrected generic slug for Conference League
 }
 
 class ESPNSource:

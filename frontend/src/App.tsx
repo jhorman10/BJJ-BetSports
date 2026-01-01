@@ -246,6 +246,8 @@ const App: React.FC = () => {
   const location = useLocation();
   const isPredictions = location.pathname === "/";
 
+  // Global Initialization Guard removed. App will load normally.
+
   return (
     <>
       <Box

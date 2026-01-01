@@ -66,6 +66,21 @@ const BotDashboard: React.FC = () => {
   const [initialLoading, setInitialLoading] = React.useState(true);
   const [activeTab, setActiveTab] = React.useState(0);
 
+  // Check if model is stale (not from today)
+  const isStale = useMemo(() => {
+    if (!lastUpdate) return true;
+    const today = new Date();
+    // Ensure lastUpdate is a Date object (zustand persistence might return string)
+    const updateDate =
+      lastUpdate instanceof Date ? lastUpdate : new Date(lastUpdate);
+
+    return (
+      updateDate.getDate() !== today.getDate() ||
+      updateDate.getMonth() !== today.getMonth() ||
+      updateDate.getFullYear() !== today.getFullYear()
+    );
+  }, [lastUpdate]);
+
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
   };
@@ -328,10 +343,13 @@ const BotDashboard: React.FC = () => {
   }, [loading, error, stats]);
 
   // Calculate time since last update (direct calculation for immediate reactivity)
+  // Calculate time since last update (direct calculation for immediate reactivity)
   const canTrain = (() => {
     if (!lastUpdate) return true;
+    const updateDate =
+      lastUpdate instanceof Date ? lastUpdate : new Date(lastUpdate);
     const hoursSinceUpdate =
-      (Date.now() - lastUpdate.getTime()) / (1000 * 60 * 60);
+      (Date.now() - updateDate.getTime()) / (1000 * 60 * 60);
     return hoursSinceUpdate >= 3;
   })();
 
@@ -482,11 +500,39 @@ const BotDashboard: React.FC = () => {
           </Alert>
         )}
 
+        {isStale && stats && trainingStatus !== "IN_PROGRESS" && (
+          <Alert
+            severity="warning"
+            sx={{ mb: 4, mt: 3 }}
+            action={
+              <Button
+                color="inherit"
+                size="small"
+                onClick={() => {
+                  isManualTrainingRef.current = true;
+                  runTraining(true);
+                }}
+              >
+                ACTUALIZAR SERVIDOR
+              </Button>
+            }
+          >
+            <Typography variant="subtitle2" fontWeight={700}>
+              ⚠️ Modelo Desactualizado
+            </Typography>
+            <Typography variant="body2">
+              Estás viendo datos de {new Date(lastUpdate).toLocaleDateString()}.
+              Entrena nuevamente para incluir los partidos de ayer/hoy.
+            </Typography>
+          </Alert>
+        )}
+
         {lastUpdate && stats && (
           <Alert severity="success" sx={{ mb: 4, mt: 3 }}>
             <Typography variant="body2">
               <strong>✅ Última actualización:</strong>{" "}
-              {lastUpdate.toLocaleDateString("es-ES", {
+              <strong>✅ Última actualización:</strong>{" "}
+              {new Date(lastUpdate).toLocaleDateString("es-ES", {
                 day: "numeric",
                 month: "long",
                 year: "numeric",
@@ -515,7 +561,7 @@ const BotDashboard: React.FC = () => {
           </Tabs>
         </Box>
 
-        {filteredStats && (
+        {filteredStats ? (
           <Box>
             {/* Tab 0: Resumen General */}
             {activeTab === 0 && (
@@ -672,6 +718,56 @@ const BotDashboard: React.FC = () => {
                 <MatchHistoryTable matches={filteredStats.match_history} />
               </Box>
             )}
+          </Box>
+        ) : (
+          /* EMPTY STATE */
+          <Box
+            display="flex"
+            flexDirection="column"
+            alignItems="center"
+            justifyContent="center"
+            minHeight="400px"
+            textAlign="center"
+            sx={{
+              bgcolor: "rgba(30, 41, 59, 0.3)",
+              borderRadius: 4,
+              p: 4,
+              border: "1px dashed rgba(148, 163, 184, 0.3)",
+            }}
+          >
+            <SmartToy
+              sx={{ fontSize: 64, color: "rgba(255, 255, 255, 0.2)", mb: 2 }}
+            />
+            <Typography variant="h6" color="white" gutterBottom>
+              Modelo no inicializado
+            </Typography>
+            <Typography
+              variant="body1"
+              color="text.secondary"
+              sx={{ maxWidth: 500, mb: 3 }}
+            >
+              No hay datos de entrenamiento disponibles. Esto es normal en el
+              primer arraque. Haz clic en "Recalcular Modelo IA" para iniciar el
+              análisis histórico.
+            </Typography>
+            <Button
+              variant="contained"
+              onClick={() => {
+                isManualTrainingRef.current = true;
+                runTraining(true);
+              }}
+              startIcon={<SmartToy />}
+              sx={{
+                background: "linear-gradient(135deg, #fbbf24 0%, #d97706 100%)",
+                color: "#fff",
+                fontWeight: 700,
+                px: 4,
+                py: 1.5,
+                borderRadius: "12px",
+              }}
+            >
+              Iniciar Entrenamiento Inicial
+            </Button>
           </Box>
         )}
         {/* Training Notification Snackbar */}

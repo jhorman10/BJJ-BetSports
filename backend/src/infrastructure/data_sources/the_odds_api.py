@@ -65,6 +65,13 @@ class TheOddsAPISource:
                 
             response.raise_for_status()
             return response.json()
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 401:
+                logger.error("The Odds API key is invalid or expired (401). Disabling source for this session.")
+                self.api_key = None # Disable future requests checks
+                return None
+            logger.error(f"The Odds API request failed: {e}")
+            return None
         except Exception as e:
             logger.error(f"The Odds API request failed: {e}")
             return None

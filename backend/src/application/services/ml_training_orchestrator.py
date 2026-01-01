@@ -393,6 +393,8 @@ class MLTrainingOrchestrator:
     
                 # E. Update Stats (After Day is Done) - The "Nightly Update"
                 # Crucial: We update stats using ALL matches of the day, even those we didn't bet on.
+                # E. Update Stats (After Day is Done) - The "Nightly Update"
+                # Crucial: We update stats using ALL matches of the day, even those we didn't bet on.
                 for match in daily_matches:
                     if match.home_team.name in team_stats_cache:
                         self.statistics_service.update_team_stats_dict(team_stats_cache[match.home_team.name], match, is_home=True)
