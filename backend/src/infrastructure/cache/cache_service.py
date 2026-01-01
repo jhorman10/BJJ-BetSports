@@ -4,22 +4,129 @@ from typing import Any, Optional, Dict, TypeVar, Generic
 import threading
 import logging
 import diskcache
+import redis
+import json
+import pickle
 
 logger = logging.getLogger(__name__)
 
 T = TypeVar('T')
 
+
+from abc import ABC, abstractmethod
+
+class CacheProvider(ABC):
+    """Abstract base class for cache providers."""
+    
+    @abstractmethod
+    def get(self, key: str) -> Optional[Any]:
+        pass
+        
+    @abstractmethod
+    def set(self, key: str, value: Any, ttl: int) -> bool:
+        pass
+        
+    @abstractmethod
+    def delete(self, key: str) -> bool:
+        pass
+        
+    @abstractmethod
+    def clear(self) -> bool:
+        pass
+
+class RedisCacheProvider(CacheProvider):
+    """Redis cache implementation."""
+    
+    def __init__(self, host='localhost', port=6379, db=0, password=None):
+        try:
+            # Flexible connection: Priorities REDIS_URL (Render/Upstash style)
+            redis_url = os.getenv("REDIS_URL")
+            if redis_url:
+                self.client = redis.Redis.from_url(redis_url, decode_responses=False)
+                host = "URL" # For logging
+            else:
+                self.client = redis.Redis(
+                    host=host, 
+                    port=port, 
+                    db=db, 
+                    password=password,
+                    decode_responses=False # Keep bytes for pickling
+                )
+            self.client.ping()
+            logger.info(f"Redis connected at {host}:{port}/{db}")
+            self._is_connected = True
+        except Exception as e:
+            logger.error(f"Redis connection failed: {e}")
+            self._is_connected = False
+            
+    def get(self, key: str) -> Optional[Any]:
+        if not self._is_connected: return None
+        try:
+            data = self.client.get(key)
+            if data:
+                return pickle.loads(data)
+        except Exception as e:
+            logger.warning(f"Redis get error for {key}: {e}")
+        return None
+        
+    def set(self, key: str, value: Any, ttl: int) -> bool:
+        if not self._is_connected: return False
+        try:
+            data = pickle.dumps(value)
+            return self.client.setex(key, ttl, data)
+        except Exception as e:
+            logger.warning(f"Redis set error for {key}: {e}")
+            return False
+            
+    def delete(self, key: str) -> bool:
+        if not self._is_connected: return False
+        try:
+            return self.client.delete(key) > 0
+        except Exception:
+            return False
+
+    def clear(self) -> bool:
+        if not self._is_connected: return False
+        try:
+            return self.client.flushdb()
+        except Exception:
+            return False
+
+class DiskCacheProvider(CacheProvider):
+    """DiskCache implementation."""
+    
+    def __init__(self, cache_dir: str):
+        self.cache = diskcache.Cache(cache_dir)
+        logger.info(f"DiskCache initialized at {cache_dir}")
+        
+    def get(self, key: str) -> Optional[Any]:
+        try:
+            return self.cache.get(key)
+        except Exception:
+            return None
+            
+    def set(self, key: str, value: Any, ttl: int) -> bool:
+        try:
+            return self.cache.set(key, value, expire=ttl)
+        except Exception:
+            return False
+            
+    def delete(self, key: str) -> bool:
+        try:
+            return self.cache.delete(key)
+        except Exception:
+            return False
+
+    def clear(self) -> bool:
+        try:
+            return self.cache.clear()
+        except Exception:
+            return False
+
 class CacheService:
     """
-    Cache service using DiskCache as primary backend and in-memory secondary layer.
-    Redis has been removed to simplify the architecture.
-    
-    Provides different TTL presets:
-    - LIVE_MATCHES: 30 seconds
-    - PREDICTIONS: 24 hours
-    - HISTORICAL: 1 hour
-    - LEAGUES: 24 hours
-    - FORECASTS: 24 hours (for scheduled batch results)
+    Multi-level Cache Service.
+    Priority: Memory -> Redis -> DiskCache
     """
     
     # TTL Presets (in seconds)
@@ -30,83 +137,72 @@ class CacheService:
     TTL_FORECASTS = 86400
     
     def __init__(self):
-        """Initialize the cache service."""
+        """Initialize the cache service with providers."""
         self._memory_cache: Dict[str, Any] = {}
         self._lock = threading.RLock()
-        self._hits = 0
-        self._misses = 0
         
-        # Low Memory optimization
-        self.low_memory_mode = os.getenv("LOW_MEMORY_MODE", "false").lower() == "true"
+        # Initialize Providers
+        self.providers: list[CacheProvider] = []
         
-        # Initialize DiskCache
+        # 1. Redis (Primary Distributed)
+        redis_host = os.getenv("REDIS_HOST", "localhost")
+        redis_port = int(os.getenv("REDIS_PORT", 6379))
+        self.redis_provider = RedisCacheProvider(host=redis_host, port=redis_port)
+        if self.redis_provider._is_connected:
+            self.providers.append(self.redis_provider)
+        
+        # 2. DiskCache (Local Persistent Fallback)
         cache_dir = os.path.join(os.getcwd(), ".cache_data")
-        self._disk_cache = diskcache.Cache(cache_dir)
-        logger.info(f"DiskCache initialized at {cache_dir}")
+        self.disk_provider = DiskCacheProvider(cache_dir)
+        self.providers.append(self.disk_provider)
         
     def get(self, key: str) -> Optional[Any]:
-        """Get a value from cache (Disk -> Memory)."""
-        # 1. Try Disk Cache First (Persistence)
-        try:
-            value = self._disk_cache.get(key)
-            if value:
-                self._hits += 1
-                return value
-        except Exception as e:
-            logger.warning(f"DiskCache get error: {e}")
-        
-        # 2. Try Memory (Fallback/Speed if we were using it for small items)
-        # Note: In previous design, memory was layer 3. Here we can check it.
-        # But usually DiskCache is fast enough. Let's keep memory for non-persistent or extremely hot items if needed.
+        """Get a value from cache (Memory -> Redis -> Disk)."""
+        # 1. Memory
         with self._lock:
-            value = self._memory_cache.get(key)
-            if value:
-                self._hits += 1
+            if key in self._memory_cache:
+                return self._memory_cache[key]
+        
+        # 2. Providers
+        for provider in self.providers:
+            value = provider.get(key)
+            if value is not None:
+                # Populate memory cache for faster subsequent access (short TTL logic could be added here)
+                with self._lock:
+                    self._memory_cache[key] = value
                 return value
-            
-        self._misses += 1
+        
         return None
     
     def set(self, key: str, value: Any, ttl_seconds: int) -> None:
-        """Set a value in Disk Cache and Memory."""
-        # 1. Set in Disk Cache
-        try:
-            self._disk_cache.set(key, value, expire=ttl_seconds)
-        except Exception as e:
-            logger.warning(f"DiskCache set error: {e}")
-
-        # Skip local memory if in Low Memory Mode and it's a large object
-        if self.low_memory_mode and (key.startswith("forecasts:") or key.startswith("predictions:")):
-            return
-
-        # 2. Set in Memory (Optional optimization)
+        """Set a value in all cache layers."""
+        # 1. Memory
         with self._lock:
             self._memory_cache[key] = value
+            
+        # 2. Providers
+        # We write to ALL active providers to keep them in sync/warm
+        for provider in self.providers:
+            provider.set(key, value, ttl_seconds)
     
     def invalidate(self, key: str) -> bool:
-        """Invalidate a specific cache entry."""
-        disk_ok = False
-        try:
-            disk_ok = self._disk_cache.delete(key)
-        except Exception:
-            pass
-            
+        """Invalidate a specific cache entry across all layers."""
         with self._lock:
-            in_mem = key in self._memory_cache
-            if in_mem:
+            if key in self._memory_cache:
                 del self._memory_cache[key]
-            return disk_ok or in_mem
+                
+        results = [p.delete(key) for p in self.providers]
+        return any(results)
     
     def clear(self) -> None:
         """Clear all cache entries."""
-        try:
-            self._disk_cache.clear()
-        except Exception:
-            pass
-        
         with self._lock:
             self._memory_cache.clear()
-            logger.info("Cache cleared")
+            
+        for provider in self.providers:
+            provider.clear()
+        
+        logger.info("Cache cleared across all layers")
     
     # --- Helper methods ---
     
@@ -145,5 +241,5 @@ def get_cache_service() -> CacheService:
         with _instance_lock:
             if _cache_instance is None:
                 _cache_instance = CacheService()
-                logger.info("CacheService initialized (DiskCache-only)")
+                logger.info("CacheService initialized (Multi-Level)")
     return _cache_instance

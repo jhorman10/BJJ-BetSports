@@ -45,7 +45,7 @@ COMPETITION_CODE_MAPPING = {
     "F1": "FL1",  # Ligue 1
     "N1": "DED",  # Eredivisie
     "P1": "PPL",  # Primeira Liga
-    "B1": "BJL",  # Belgium Jupiler Pro League
+    # "B1": "BJL",  # Belgium Jupiler Pro League (Not supported on Free Tier)
     "UCL": "CL",  # Champions League
     "EURO": "EC", # European Championship
     "WC": "WC",   # World Cup

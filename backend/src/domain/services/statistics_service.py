@@ -284,6 +284,13 @@ class StatisticsService:
         matches_with_corners = 0
         matches_with_cards = 0
         
+        # Extended Stats
+        total_shots = 0
+        total_shots_on_target = 0
+        total_fouls = 0
+        matches_with_shots = 0
+        matches_with_fouls = 0
+        
         recent_results = []
         
         # Normalize target once for strict comparison
@@ -360,6 +367,22 @@ class StatisticsService:
                 matches_with_cards += 1
             if r_cards is not None:
                 total_red_cards += r_cards
+
+            # Accumulate Extended Stats (Shots, Fouls)
+            shots = match.home_total_shots if is_home else match.away_total_shots
+            sot = match.home_shots_on_target if is_home else match.away_shots_on_target
+            
+            if shots is not None:
+                total_shots += shots
+                matches_with_shots += 1
+            if sot is not None:
+                total_shots_on_target += sot
+                # matches_with_shots counter handles both usually, but let's assume they come together
+            
+            fouls = match.home_fouls if is_home else match.away_fouls
+            if fouls is not None:
+                total_fouls += fouls
+                matches_with_fouls += 1
         
         # Get last 5 results for form
         recent_form = ''.join(recent_results[-5:]) if recent_results else ""
@@ -391,6 +414,11 @@ class StatisticsService:
             matches_with_cards=matches_with_cards,
             recent_form=recent_form,
             data_updated_at=last_updated,
+            total_shots=total_shots,
+            total_shots_on_target=total_shots_on_target,
+            total_fouls=total_fouls,
+            matches_with_shots=matches_with_shots,
+            matches_with_fouls=matches_with_fouls,
         )
 
     @staticmethod
@@ -403,7 +431,9 @@ class StatisticsService:
             "yellow_cards": 0, "red_cards": 0,
             "home_wins": 0, "away_wins": 0,
             "matches_with_corners": 0,
-            "matches_with_cards": 0
+            "matches_with_cards": 0,
+            "shots": 0, "shots_on_target": 0, "fouls": 0,
+            "matches_with_shots": 0, "matches_with_fouls": 0,
         }
 
     @staticmethod
@@ -440,6 +470,21 @@ class StatisticsService:
         if match.home_red_cards is not None:
             stats["red_cards"] += match.home_red_cards if is_home else match.away_red_cards
 
+        # Extended Stats
+        shots = match.home_total_shots if is_home else match.away_total_shots
+        sot = match.home_shots_on_target if is_home else match.away_shots_on_target
+        fouls = match.home_fouls if is_home else match.away_fouls
+        
+        if shots is not None:
+            stats["shots"] += shots
+            stats["matches_with_shots"] += 1
+        if sot is not None:
+            stats["shots_on_target"] += sot
+            
+        if fouls is not None:
+            stats["fouls"] += fouls
+            stats["matches_with_fouls"] += 1
+
     @staticmethod
     def convert_to_domain_stats(team_name: str, raw_stats: dict) -> TeamStatistics:
         """Convert a raw stats dictionary to a TeamStatistics domain entity."""
@@ -459,6 +504,11 @@ class StatisticsService:
             total_red_cards=raw_stats.get("red_cards", 0),
             matches_with_corners=raw_stats.get("matches_with_corners", 0),
             matches_with_cards=raw_stats.get("matches_with_cards", 0),
+            total_shots=raw_stats.get("shots", 0),
+            total_shots_on_target=raw_stats.get("shots_on_target", 0),
+            total_fouls=raw_stats.get("fouls", 0),
+            matches_with_shots=raw_stats.get("matches_with_shots", 0),
+            matches_with_fouls=raw_stats.get("matches_with_fouls", 0),
             recent_form="" # Form is calculated from full history if needed
         )
 

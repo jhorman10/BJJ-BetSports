@@ -133,3 +133,10 @@ def get_audit_service() -> AuditService:
     return AuditService(
         training_orchestrator=get_ml_training_orchestrator()
     )
+
+from src.infrastructure.services.background_processor import BackgroundProcessor
+
+@lru_cache()
+def get_background_processor() -> BackgroundProcessor:
+    """Get background processor (cached singleton)."""
+    return BackgroundProcessor()

@@ -19,7 +19,8 @@ aiohttp==3.13.2
 # Task scheduling
 apscheduler==3.11.2
 
-# Redis Cache - Removed
+# Redis Cache
+redis==5.0.1
 
 
 

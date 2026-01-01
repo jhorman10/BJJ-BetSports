@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pytz import timezone
 import logging
 import asyncio
+from src.infrastructure.services.background_processor import BackgroundProcessor
 
 from src.domain.entities.entities import Match, League, Prediction, TeamStatistics
 from src.domain.services.prediction_service import PredictionService
@@ -106,11 +107,13 @@ class GetPredictionsUseCase:
         data_sources: DataSources,
         prediction_service: PredictionService,
         statistics_service: StatisticsService,
+        background_processor: Optional[BackgroundProcessor] = None,
     ):
         self.data_sources = data_sources
         self.prediction_service = prediction_service
         self.statistics_service = statistics_service
         self.picks_service = PicksService()
+        self.background_processor = background_processor
     
     async def execute(self, league_id: str, limit: int = 20) -> PredictionsResponseDTO:
         """
@@ -158,15 +161,27 @@ class GetPredictionsUseCase:
         prev_season = f"{str(s2_start)[-2:]}{str(s2_end)[-2:]}"
         seasons = [current_season, prev_season]
         
-        logger.info(f"Fetching historical matches for {league_id} - Seasons: {seasons}")
+        logger.info(f"Fetching data for {league_id} in parallel...")
         
-        # 1. Try Football-Data.co.uk (CSV) - Preferred for stats
-        historical_matches = await self.data_sources.football_data_uk.get_historical_matches(
+        # Define parallel tasks
+        task_history = self.data_sources.football_data_uk.get_historical_matches(
             league_id,
             seasons=seasons,
         )
+        task_upcoming = self._get_upcoming_matches(league_id, limit=1000)
         
-        # 2. If no data, try OpenFootball (JSON) - Fallback
+        # Execute in parallel
+        results = await asyncio.gather(task_history, task_upcoming, return_exceptions=True)
+        
+        historical_matches = results[0]
+        upcoming_matches = results[1]
+        
+        # Handle History Result
+        if isinstance(historical_matches, Exception):
+            logger.warning(f"Error fetching history: {historical_matches}")
+            historical_matches = []
+            
+        # Fallback for History
         if not historical_matches:
             logger.info(f"No CSV data for {league_id}, trying OpenFootball...")
             try:
@@ -176,11 +191,13 @@ class GetPredictionsUseCase:
             except Exception as e:
                 logger.warning(f"Failed to fetch OpenFootball history: {e}")
 
+        # Handle Upcoming Result
+        if isinstance(upcoming_matches, Exception):
+             logger.error(f"Error fetching upcoming matches: {upcoming_matches}")
+             upcoming_matches = []
+        
         # Calculate league averages from historical data using the service
         league_averages = self.statistics_service.calculate_league_averages(historical_matches)
-        
-        # Get upcoming fixtures
-        upcoming_matches = await self._get_upcoming_matches(league_id, limit=1000)
         
         # Strict Date Filter: Only show matches in the future
         # Ensure 'now' and 'match.match_date' are comparable (timezone-aware)
@@ -225,6 +242,10 @@ class GetPredictionsUseCase:
         if self.data_sources.openfootball:
              data_sources_used.append(OpenFootballSource.SOURCE_NAME)
         
+        # Prepare parallel tasks
+        match_tasks = []
+        matches_processing_data = [] # To keep context for post-processing
+        
         for match in upcoming_matches[:limit]:
             # Get team statistics using the generic service
             home_stats = self.statistics_service.calculate_team_statistics(
@@ -259,34 +280,80 @@ class GetPredictionsUseCase:
                 logger.info(f"Skipping match {match.id} in league view: {e}")
                 continue
             
-            # Generate suggested picks
+            # Check validity
+            is_valid_prediction = (prediction.home_win_probability + prediction.draw_probability + prediction.away_win_probability) > 0
+            if not is_valid_prediction:
+                continue
+
+            # Calculate H2H
             h2h_stats = self.statistics_service.calculate_h2h_statistics(
                 match.home_team.name,
                 match.away_team.name,
                 historical_matches
             )
             
-            suggested_picks = self.picks_service.generate_suggested_picks(
-                match=match,
-                home_stats=home_stats,
-                away_stats=away_stats,
-                league_averages=league_averages,
-                h2h_stats=h2h_stats,
-                predicted_home_goals=prediction.predicted_home_goals,
-                predicted_away_goals=prediction.predicted_away_goals,
-                home_win_prob=prediction.home_win_probability,
-                draw_prob=prediction.draw_probability,
-                away_win_prob=prediction.away_win_probability,
-            )
+            # Prepare task data
+            task_data = {
+                'match': match,
+                'home_stats': home_stats,
+                'away_stats': away_stats,
+                'league_averages': league_averages,
+                'h2h_stats': h2h_stats,
+                'prediction_data': {
+                    'predicted_home_goals': prediction.predicted_home_goals,
+                    'predicted_away_goals': prediction.predicted_away_goals,
+                    'home_win_probability': prediction.home_win_probability,
+                    'draw_probability': prediction.draw_probability,
+                    'away_win_probability': prediction.away_win_probability
+                }
+            }
+            match_tasks.append(task_data)
+            matches_processing_data.append({
+                'match': match,
+                'prediction': prediction,
+                'home_stats': home_stats,
+                'away_stats': away_stats
+            })
             
-            # Filter: Check if we actually have something to show
-            is_valid_prediction = (prediction.home_win_probability + prediction.draw_probability + prediction.away_win_probability) > 0
-            has_picks = len(suggested_picks.suggested_picks) > 0
+        # Execute Parallel Generation
+        suggested_picks_results = []
+        if self.background_processor and match_tasks:
+            logger.info(f"Generating picks for {len(match_tasks)} matches in parallel...")
+            suggested_picks_results = await self.background_processor.process_matches_parallel(match_tasks)
+        else:
+            # Fallback synchronous
+            logger.info(f"Generating picks for {len(match_tasks)} matches synchronously...")
+            for task in match_tasks:
+                try:
+                    res = self.picks_service.generate_suggested_picks(
+                        match=task['match'],
+                        home_stats=task['home_stats'],
+                        away_stats=task['away_stats'],
+                        league_averages=task['league_averages'],
+                        h2h_stats=task['h2h_stats'],
+                        predicted_home_goals=task['prediction_data']['predicted_home_goals'],
+                        predicted_away_goals=task['prediction_data']['predicted_away_goals'],
+                        home_win_prob=task['prediction_data']['home_win_probability'],
+                        draw_prob=task['prediction_data']['draw_probability'],
+                        away_win_prob=task['prediction_data']['away_win_probability'],
+                    )
+                    suggested_picks_results.append(res)
+                except Exception as e:
+                    logger.error(f"Error generating picks sync: {e}")
+                    suggested_picks_results.append(None)
+
+        # Assemble Results
+        for i, data in enumerate(matches_processing_data):
+            match = data['match']
+            prediction = data['prediction']
+            home_stats = data['home_stats']
+            away_stats = data['away_stats']
             
-            if not (is_valid_prediction or has_picks):
-                logger.debug(f"Skipping match {match.id} due to lack of prediction/picks")
-                continue
+            suggested_picks = suggested_picks_results[i] if i < len(suggested_picks_results) else None
             
+            if not suggested_picks or len(suggested_picks.suggested_picks) == 0:
+                 continue
+
             # Convert to DTOs
             match_dto = self._match_to_dto(match)
             

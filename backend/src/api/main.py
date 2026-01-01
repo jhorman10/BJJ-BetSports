@@ -99,6 +99,12 @@ async def lifespan(app: FastAPI):
         scheduler = get_scheduler()
         cache = get_cache_service()
         
+        # Log Redis Connection Status (Securely)
+        if os.getenv("REDIS_URL"):
+            logger.info("✓ External Redis configuration detected.")
+        else:
+            logger.info("ℹ Using Local DiskCache (Persistence is ephemeral on Render Free).")
+
         if os.getenv("FOOTBALL_DATA_ORG_KEY"):
             logger.info("✓ Football-Data.org configured")
         else:

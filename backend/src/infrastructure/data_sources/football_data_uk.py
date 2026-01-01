@@ -326,6 +326,19 @@ class FootballDataUKSource:
                 home_red = int(row['HR']) if 'HR' in row and pd.notna(row['HR']) else None
                 away_red = int(row['AR']) if 'AR' in row and pd.notna(row['AR']) else None
 
+                # EXTENDED STATS (Shots, Target, Fouls)
+                # HS = Home Shots, AS = Away Shots
+                home_shots = int(row['HS']) if 'HS' in row and pd.notna(row['HS']) else None
+                away_shots = int(row['AS']) if 'AS' in row and pd.notna(row['AS']) else None
+
+                # HST = Home Shots on Target, AST = Away Shots on Target
+                home_shots_on_target = int(row['HST']) if 'HST' in row and pd.notna(row['HST']) else None
+                away_shots_on_target = int(row['AST']) if 'AST' in row and pd.notna(row['AST']) else None
+
+                # HF = Home Fouls, AF = Away Fouls
+                home_fouls = int(row['HF']) if 'HF' in row and pd.notna(row['HF']) else None
+                away_fouls = int(row['AF']) if 'AF' in row and pd.notna(row['AF']) else None
+
                 match = Match(
                     id=f"{league.id}_{match_date.strftime('%Y%m%d')}_{home_team.id}_{away_team.id}",
                     home_team=home_team,
@@ -343,6 +356,12 @@ class FootballDataUKSource:
                     away_yellow_cards=away_yellow,
                     home_red_cards=home_red,
                     away_red_cards=away_red,
+                    home_total_shots=home_shots,
+                    away_total_shots=away_shots,
+                    home_shots_on_target=home_shots_on_target,
+                    away_shots_on_target=away_shots_on_target,
+                    home_fouls=home_fouls,
+                    away_fouls=away_fouls,
                     data_fetched_at=fetch_time,
                 )
                 matches.append(match)

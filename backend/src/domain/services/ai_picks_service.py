@@ -110,7 +110,11 @@ class AIPicksService(PicksService):
         # Or calculate from extracted features if available, or implied from stats
         # We start with stats gap
         if home_stats.matches_played > 0 and away_stats.matches_played > 0:
-             points_gap = abs(home_stats.points_per_match - away_stats.points_per_match)
+             # Calculate PPG manually to avoid AttributeError on cached objects
+             home_ppg = ((home_stats.wins * 3) + home_stats.draws) / home_stats.matches_played if home_stats.matches_played > 0 else 0.0
+             away_ppg = ((away_stats.wins * 3) + away_stats.draws) / away_stats.matches_played if away_stats.matches_played > 0 else 0.0
+             
+             points_gap = abs(home_ppg - away_ppg)
              if points_gap > 1.2: # Significant PPG difference
                  semantics["one_sided"] = True
         

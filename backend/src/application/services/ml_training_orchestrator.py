@@ -9,14 +9,9 @@ from pydantic import BaseModel
 # Suppress DeprecationWarnings from utcnow() used in ML libraries
 warnings.filterwarnings("ignore", category=DeprecationWarning, message=".*utcnow.*")
 
-# ML Imports
-try:
-    from sklearn.ensemble import RandomForestClassifier
-    import joblib
-    ML_AVAILABLE = True
-except ImportError:
-    RandomForestClassifier = None
-    ML_AVAILABLE = False
+# ML Imports will be lazy-loaded in the methods that need them
+# to prevent memory spikes on startup (Render Free Tier Optimization)
+ML_AVAILABLE = True # Assumed true, checked at runtime
 
 from src.domain.services.learning_service import LearningService
 from src.domain.services.prediction_service import PredictionService
@@ -87,6 +82,15 @@ class MLTrainingOrchestrator:
         Executes the full training pipeline and returns a TrainingResult.
         """
         logger.info(f"Starting ML Training Pipeline (leagues={league_ids}, days_back={days_back})")
+        
+        # Lazy Load ML Libraries
+        try:
+            from sklearn.ensemble import RandomForestClassifier
+            import joblib
+        except ImportError:
+            RandomForestClassifier = None
+            joblib = None
+            logger.warning("ML libraries (sklearn, joblib) not found. Training will be skipped.")
         
         # 0. Set Status to IN_PROGRESS immediately
         # This tells the frontend to hide the Dashboard button but allow navigation
@@ -302,7 +306,13 @@ class MLTrainingOrchestrator:
                         }
                         
                         # Store Features for FUTURE training
-                        ml_features.append(self.feature_extractor.extract_features(pick))
+                        # Re-constitute stats for feature extraction
+                        raw_home_feat = team_stats_cache.get(match.home_team.name, {})
+                        raw_away_feat = team_stats_cache.get(match.away_team.name, {})
+                        feat_home_stats = self.statistics_service.convert_to_domain_stats(match.home_team.name, raw_home_feat)
+                        feat_away_stats = self.statistics_service.convert_to_domain_stats(match.away_team.name, raw_away_feat)
+                        
+                        ml_features.append(self.feature_extractor.extract_features(pick, match, feat_home_stats, feat_away_stats))
                         ml_targets.append(1 if is_won else 0)
                         
                         # Track ROI

@@ -310,6 +310,13 @@ class TeamStatistics:
     total_red_cards: int = 0
     matches_with_corners: int = 0
     matches_with_cards: int = 0
+    
+    # Extended Stats (Shots, Fouls)
+    total_shots: int = 0
+    total_shots_on_target: int = 0
+    total_fouls: int = 0
+    matches_with_shots: int = 0
+    matches_with_fouls: int = 0
     recent_form: str = ""  # e.g., "WWDLW"
     data_updated_at: Optional[datetime] = None
     
@@ -319,6 +326,13 @@ class TeamStatistics:
         if self.matches_played == 0:
             return 0.0
         return self.wins / self.matches_played
+    
+    @property
+    def points_per_match(self) -> float:
+        """Calculate average points per match (Win=3, Draw=1)."""
+        if self.matches_played == 0:
+            return 0.0
+        return ((self.wins * 3) + self.draws) / self.matches_played
     
     @property
     def goals_per_match(self) -> float:

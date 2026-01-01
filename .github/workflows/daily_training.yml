@@ -1,0 +1,42 @@
+name: Daily ML Model Training
+
+on:
+  schedule:
+    # Run at 06:00 AM UTC (1:00 AM Colombia) every day
+    - cron: "0 6 * * *"
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  train-model:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Run Training Script
+        env:
+          PYTHONPATH: backend
+          # Add any necessary API keys as secrets here if needed for fetching fresh data
+          # FOOTBALL_DATA_ORG_KEY: ${{ secrets.FOOTBALL_DATA_ORG_KEY }}
+        run: |
+          python backend/scripts/train_model_standalone.py
+
+      - name: Commit and Push Model
+        run: |
+          git config --global user.name 'GitHub Actions Bot'
+          git config --global user.email 'actions@github.com'
+          git add backend/ml_picks_classifier.joblib
+          # Check if there are changes before committing to avoid error
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update ML Model [skip ci]" && git push)

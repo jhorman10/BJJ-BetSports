@@ -19,8 +19,6 @@ from src.domain.services.picks_service import PicksService
 from src.domain.services.ai_picks_service import AIPicksService
 from src.domain.services.learning_service import LearningService
 from src.infrastructure.data_sources.the_odds_api import TheOddsAPISource
-from src.infrastructure.data_sources.scorebat import ScoreBatSource
-from src.infrastructure.data_sources.five_thirty_eight import FiveThirtyEightSource
 from src.infrastructure.data_sources.fotmob_source import FotMobSource
 from src.infrastructure.data_sources.club_elo import ClubEloSource
 from src.infrastructure.data_sources.understat_source import UnderstatSource
@@ -55,10 +53,9 @@ class GetSuggestedPicksUseCase:
         self.prediction_service = prediction_service
         self.statistics_service = statistics_service
         self.learning_service = learning_service
+        self.learning_service = learning_service
         self.cache_service = cache_service
         self.odds_api = TheOddsAPISource()
-        self.scorebat = ScoreBatSource()
-        self.five_thirty_eight = FiveThirtyEightSource()
         # Initialize new sources if not passed in data_sources (fallback)
         self.club_elo = getattr(data_sources, "club_elo", None) or ClubEloSource()
         self.understat = getattr(data_sources, "understat", None) or UnderstatSource()
@@ -116,35 +113,21 @@ class GetSuggestedPicksUseCase:
             home_elo, away_elo = None, None
             try:
                 # Get real-time odds from The Odds API
-                odds_data = await self.odds_api.get_odds(match.league.id)
-                # Simple logic to find current match odds
-                for item in odds_data:
-                    # Fuzzy match or name check
-                    if self.statistics_service._normalize_name(match.home_team.name) in self.statistics_service._normalize_name(item.get("home_team", "")):
-                        # Take first bookmaker's h2h odds
-                        for bm in item.get("bookmakers", []):
-                            for mkt in bm.get("markets", []):
-                                if mkt["key"] == "h2h":
-                                    rt_odds = {o["name"]: o["price"] for o in mkt["outcomes"]}
-                                    break
-                            if rt_odds: break
-                        if rt_odds: break
-
-                # Get highlights from ScoreBat
-                highlights = await self.scorebat.get_highlights()
-                match_highlights = self.scorebat.find_match_highlights(match.home_team.name, match.away_team.name, highlights)
-                if match_highlights:
-                    # Get the first video URL
-                    videos = match_highlights.get("videos", [])
-                    if videos:
-                        highlights_url = videos[0].get("embed", "").split("src='")[1].split("'")[0] if "src='" in videos[0].get("embed", "") else None
-                    
-                # Get SPI from FiveThirtyEight
-                home_spi = await self.five_thirty_eight.get_team_spi(match.home_team.name)
-                away_spi = await self.five_thirty_eight.get_team_spi(match.away_team.name)
-                # Assign to match object for later DTO mapping if needed
-                match.home_spi = home_spi
-                match.away_spi = away_spi
+                if self.odds_api:
+                     odds_data = await self.odds_api.get_odds(match.league.id)
+                     # Simple logic to find current match odds
+                     if odds_data:
+                        for item in odds_data:
+                            # Fuzzy match or name check
+                            if self.statistics_service._normalize_name(match.home_team.name) in self.statistics_service._normalize_name(item.get("home_team", "")):
+                                # Take first bookmaker's h2h odds
+                                for bm in item.get("bookmakers", []):
+                                    for mkt in bm.get("markets", []):
+                                        if mkt["key"] == "h2h":
+                                            rt_odds = {o["name"]: o["price"] for o in mkt["outcomes"]}
+                                            break
+                                    if rt_odds: break
+                                if rt_odds: break
                 
                 # Get Elo from ClubElo
                 home_elo, away_elo = await self.club_elo.get_elo_for_match(match.home_team.name, match.away_team.name)
@@ -158,8 +141,6 @@ class GetSuggestedPicksUseCase:
                 prediction_sources.append("Football-Data.org")
             if rt_odds:
                 prediction_sources.append("The Odds API")
-            if highlights_url:
-                prediction_sources.append("ScoreBat")
             if home_elo:
                 prediction_sources.append("ClubElo")
             # Check if stats imply FotMob usage (corners available)

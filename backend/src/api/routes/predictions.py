@@ -73,7 +73,7 @@ async def get_league_predictions(
     # FALLBACK: Calculate predictions in real-time if no pre-calculated data
     logger.info(f"No pre-calculated data for {league_id}. Calculating in real-time...")
     
-    from src.api.dependencies import get_data_sources, get_prediction_service
+    from src.api.dependencies import get_data_sources, get_prediction_service, get_background_processor
     from src.domain.services.statistics_service import StatisticsService
     from src.application.use_cases.use_cases import GetPredictionsUseCase
     
@@ -81,8 +81,9 @@ async def get_league_predictions(
         data_sources = get_data_sources()
         prediction_service = get_prediction_service()
         statistics_service = StatisticsService()
+        background_processor = get_background_processor()
         
-        use_case = GetPredictionsUseCase(data_sources, prediction_service, statistics_service)
+        use_case = GetPredictionsUseCase(data_sources, prediction_service, statistics_service, background_processor)
         result = await use_case.execute(league_id, limit=30)
         
         # Cache the result for future requests
