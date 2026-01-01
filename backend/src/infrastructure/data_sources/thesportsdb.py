@@ -98,7 +98,7 @@ class TheSportsDBClient:
             # "I2": "4333", # Serie B
             # "F1": "4334", # Ligue 1 - DISABLED: Returns English League One data
             "F2": "4335", # Ligue 2 (Actually duplication here in code, checking)
-            "P1": "4344", # Primeira Liga
+            # "P1": "4344", # Primeira Liga - DISABLED: Returns English League One data
             "N1": "4337", # Eredivisie
             "B1": "4338", # Belgium Jupiler Pro League
         }
