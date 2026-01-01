@@ -129,6 +129,18 @@ class GetPredictionsUseCase:
         # Get league metadata
         if league_id not in LEAGUES_METADATA:
             raise ValueError(f"Unknown league: {league_id}")
+            
+        # 0. Check Cache
+        from src.infrastructure.cache.cache_service import get_cache_service
+        cache_service = get_cache_service()
+        # Cache per league, per day (roughly) or 1 hour TTL
+        # Since matches are "upcoming", caching for 1-4 hours is safe unless configured otherwise.
+        cache_key = f"league_view_predictions:{league_id}"
+        cached_response = cache_service.get(cache_key)
+        
+        if cached_response:
+            logger.info(f"Serving cached predictions for {league_id}")
+            return PredictionsResponseDTO(**cached_response)
         
         meta = LEAGUES_METADATA[league_id]
         league = League(
@@ -375,7 +387,7 @@ class GetPredictionsUseCase:
                 prediction=prediction_dto,
             ))
         
-        return PredictionsResponseDTO(
+        response = PredictionsResponseDTO(
             league=LeagueDTO(
                 id=league.id,
                 name=league.name,
@@ -384,6 +396,14 @@ class GetPredictionsUseCase:
             predictions=predictions,
             generated_at=datetime.now(timezone('America/Bogota')),
         )
+        
+        # Cache the result (30 minutes TTL to keep odds relatively fresh but load fast)
+        try:
+            cache_service.set(cache_key, response.model_dump(), ttl_seconds=1800)
+        except Exception as e:
+            logger.warning(f"Failed to cache league predictions: {e}")
+            
+        return response
     
 
     
