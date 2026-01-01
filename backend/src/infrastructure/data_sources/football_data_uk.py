@@ -121,6 +121,22 @@ class FootballDataUKSource:
     
     SOURCE_NAME = "Football-Data.co.uk"
     
+    # Whitelist of league codes known to provide valid .csv files at /mmz4281/{season}/{code}.csv
+    # Excludes Cups (UCL, UEL) and unsupported partial leagues (P2, etc.) to prevent 404s/Redirects.
+    SUPPORTED_LEAGUES = {
+        "E0", "E1", "E2", "E3",  # England
+        "SP1", "SP2",            # Spain
+        "D1", "D2",              # Germany
+        "I1", "I2",              # Italy
+        "F1", "F2",              # France
+        "N1",                    # Netherlands (N2 often missing)
+        "B1",                    # Belgium (B2 often missing)
+        "P1",                    # Portugal (P2 redirects to SP2 - Invalid)
+        "SC0", "SC1",            # Scotland (Prem, Div 1) - Optional, adding just in case
+        "T1",                    # Turkey
+        "G1",                    # Greece
+    }
+    
     def __init__(self, config: Optional[FootballDataConfig] = None):
         """Initialize the data source."""
         self.config = config or FootballDataConfig()
@@ -408,6 +424,12 @@ class FootballDataUKSource:
         if league_code not in LEAGUES_METADATA:
             logger.warning(f"Unknown league code: {league_code}")
             return []
+            
+        # Check if this source supports this league
+        if league_code not in self.SUPPORTED_LEAGUES:
+            # Silent return or debug to avoid spamming warnings for expected unsupported leagues (like Cups)
+            logger.debug(f"Skipping {league_code}: Not in Football-Data.co.uk supported whitelist")
+            return []
         
         meta = LEAGUES_METADATA[league_code]
         league = League(
@@ -460,9 +482,10 @@ class FootballDataUKSource:
         """Get list of available leagues."""
         leagues = []
         for code, meta in LEAGUES_METADATA.items():
-            leagues.append(League(
-                id=code,
-                name=meta["name"],
-                country=meta["country"],
-            ))
+            if code in self.SUPPORTED_LEAGUES:
+                leagues.append(League(
+                    id=code,
+                    name=meta["name"],
+                    country=meta["country"],
+                ))
         return leagues

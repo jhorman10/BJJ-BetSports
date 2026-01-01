@@ -108,7 +108,8 @@ class DiskCacheProvider(CacheProvider):
     def set(self, key: str, value: Any, ttl: int) -> bool:
         try:
             return self.cache.set(key, value, expire=ttl)
-        except Exception:
+        except Exception as e:
+            logger.error(f"DiskCache set failed for {key}: {e}")
             return False
             
     def delete(self, key: str) -> bool:

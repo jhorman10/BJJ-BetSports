@@ -259,8 +259,9 @@ async def get_training_status(
         elif status == "ERROR": message = "Error en el entrenamiento"
         else: message = f"Estado: {status}"
 
-    if status == "COMPLETED":
-        result_data = cache_service.get(CACHE_KEY_RESULT)
+    # Always try to get result data if available, regardless of status
+    # This ensures that if a training crashes or is in progress, we still show the PREVIOUS result.
+    result_data = cache_service.get(CACHE_KEY_RESULT)
 
     return TrainingProgressStatus(
         status=status,
