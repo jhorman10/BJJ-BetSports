@@ -48,6 +48,12 @@ class MLTrainingOrchestrator:
     Coordinates data fetching, feature extraction, training, and result calculation.
     """
 
+    # Model Path Resolution (Robust against CWD)
+    # Saves to backend/ml_picks_classifier.joblib
+    _current_dir = os.path.dirname(os.path.abspath(__file__))
+    # Go up from application/services -> src -> backend
+    MODEL_FILE_PATH = os.path.join(_current_dir, "..", "..", "..", "ml_picks_classifier.joblib")
+
     def __init__(
         self,
         training_data_service: TrainingDataService,
@@ -416,7 +422,9 @@ class MLTrainingOrchestrator:
                             n_jobs=1
                         )
                         clf.fit(ml_features, ml_targets)
-                        joblib.dump(clf, "ml_picks_classifier.joblib")
+                        
+                        # Save to absolute path
+                        joblib.dump(clf, self.MODEL_FILE_PATH)
                         return clf
     
                     loop = asyncio.get_running_loop()
