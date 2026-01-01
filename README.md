@@ -177,4 +177,4 @@ El archivo `daily_training.yml`:
 
 ---
 
-Desarrollado con ❤️ y mucha ☕ por [Jhorman Orozco](https://github.com/jhorman10).
+Desarrollado con ❤️ y mucho ☕ por [Jhorman Orozco](https://github.com/jhorman10).
