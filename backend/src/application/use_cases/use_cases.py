@@ -288,8 +288,25 @@ class GetPredictionsUseCase:
                     global_averages=global_averages,
                     data_sources=data_sources_used,
                 )
-            except InsufficientDataException as e:
-                logger.info(f"Skipping match {match.id} in league view: {e}")
+            except InsufficientDataException:
+                logger.warning(f"Insufficient data for match {match.id}. Using League Averages fallback.")
+                # Create a fallback prediction using League Averages (neutral/conservative)
+                avg_home = league_averages.avg_home_goals if league_averages else 1.35
+                avg_away = league_averages.avg_away_goals if league_averages else 1.15
+                
+                prediction = Prediction(
+                    match_id=match.id,
+                    home_win_probability=0.38, # Slight home advantage default
+                    draw_probability=0.28,
+                    away_win_probability=0.34,
+                    predicted_home_goals=avg_home,
+                    predicted_away_goals=avg_away,
+                    confidence=0.1, # Low confidence
+                    data_sources=["League Averages Fallback"],
+                    created_at=datetime.now()
+                )
+            except Exception as e:
+                logger.error(f"Error generating prediction for {match.id}: {e}")
                 continue
             
             # Check validity
