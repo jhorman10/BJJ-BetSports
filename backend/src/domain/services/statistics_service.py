@@ -6,7 +6,9 @@ Handles calculation of team statistics from match history.
 
 from typing import List, Optional
 import unicodedata
-from src.domain.entities.entities import Match, TeamStatistics
+from src.domain.entities.entities import Match, TeamStatistics, TeamH2HStatistics
+
+
 
 class StatisticsService:
     """
@@ -508,4 +510,101 @@ class StatisticsService:
             avg_total_goals=(total_home_goals + total_away_goals) / matches_with_goals,
             avg_corners=total_corners / matches_with_corners if matches_with_corners > 0 else 9.5,
             avg_cards=total_cards / matches_with_cards if matches_with_cards > 0 else 4.5
+        )
+
+    @staticmethod
+    def calculate_h2h_statistics(
+        team_a_name: str,
+        team_b_name: str,
+        matches: List[Match],
+    ) -> TeamH2HStatistics:
+        """
+        Calculate H2H statistics between two teams.
+        
+        Args:
+            team_a_name: Name of team A
+            team_b_name: Name of team B
+            matches: List of historical matches to search
+            
+        Returns:
+            TeamH2HStatistics object
+        """
+        matches_played = 0
+        team_a_wins = 0
+        team_b_wins = 0
+        draws = 0
+        team_a_goals = 0
+        team_b_goals = 0
+        recent_matches = []
+        
+        team_a_norm = StatisticsService._normalize_name(team_a_name)
+        team_b_norm = StatisticsService._normalize_name(team_b_name)
+        
+        # Sort matches by date descending (newest first)
+        sorted_matches = sorted(matches, key=lambda x: x.match_date, reverse=True)
+        
+        for match in sorted_matches:
+            if not match.is_played:
+                continue
+                
+            home_norm = StatisticsService._normalize_name(match.home_team.name)
+            away_norm = StatisticsService._normalize_name(match.away_team.name)
+            
+            # Check if this match involves both teams
+            is_a_home = home_norm == team_a_norm
+            is_a_away = away_norm == team_a_norm
+            is_b_home = home_norm == team_b_norm
+            is_b_away = away_norm == team_b_norm
+            
+            match_found = False
+            a_score = 0
+            b_score = 0
+            
+            if is_a_home and is_b_away:
+                match_found = True
+                a_score = match.home_goals or 0
+                b_score = match.away_goals or 0
+                date_str = match.match_date.strftime("%Y-%m-%d")
+                recent_matches.append({
+                    "date": date_str,
+                    "home": match.home_team.name,
+                    "away": match.away_team.name,
+                    "score": f"{a_score}-{b_score}",
+                    "winner": "A" if a_score > b_score else "B" if b_score > a_score else "Draw"
+                })
+            elif is_b_home and is_a_away:
+                match_found = True
+                b_score = match.home_goals or 0
+                a_score = match.away_goals or 0
+                date_str = match.match_date.strftime("%Y-%m-%d")
+                recent_matches.append({
+                    "date": date_str,
+                    "home": match.home_team.name,
+                    "away": match.away_team.name,
+                    "score": f"{b_score}-{a_score}",
+                    "winner": "B" if b_score > a_score else "A" if a_score > b_score else "Draw"
+                })
+                
+            if match_found:
+                matches_played += 1
+                team_a_goals += a_score
+                team_b_goals += b_score
+                
+                if a_score > b_score:
+                    team_a_wins += 1
+                elif b_score > a_score:
+                    team_b_wins += 1
+                else:
+                    draws += 1
+        
+        return TeamH2HStatistics(
+            team_a_id=team_a_name,
+            team_b_id=team_b_name,
+            matches_played=matches_played,
+            team_a_wins=team_a_wins,
+            draws=draws,
+            team_b_wins=team_b_wins,
+            team_a_goals=team_a_goals,
+            team_b_goals=team_b_goals,
+            recent_matches=recent_matches
         )

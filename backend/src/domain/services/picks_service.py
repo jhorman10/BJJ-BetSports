@@ -11,7 +11,7 @@ import os
 import zlib
 import logging
 from typing import Optional
-from src.domain.entities.entities import Match, TeamStatistics
+from src.domain.entities.entities import Match, TeamStatistics, TeamH2HStatistics
 from src.domain.entities.suggested_pick import (
     SuggestedPick,
     MatchSuggestedPicks,
@@ -413,6 +413,7 @@ class PicksService:
         home_stats: Optional[TeamStatistics],
         away_stats: Optional[TeamStatistics],
         league_averages: Optional[LeagueAverages] = None,
+        h2h_stats: Optional[TeamH2HStatistics] = None,
         predicted_home_goals: float = 0.0,
         predicted_away_goals: float = 0.0,
         home_win_prob: float = 0.0,
@@ -422,12 +423,30 @@ class PicksService:
     ) -> MatchSuggestedPicks:
         """
         Generate suggested picks for a match using ONLY REAL DATA.
-        Ahora potenciado con Contexto y Confianza Granular.
+        Ahora potenciado con Contexto y Confianza Granular y H2H.
         """
         picks = MatchSuggestedPicks(match_id=match.id)
         
         # Analyze Context
         context = self.context_analyzer.analyze_match_context(match, home_stats, away_stats)
+        
+        # Analyze H2H Dominance
+        h2h_factor = 1.0
+        h2h_reasoning = ""
+        if h2h_stats and h2h_stats.matches_played >= 2:
+            # Check for dominance
+            if h2h_stats.team_a_id == match.home_team.name and h2h_stats.team_a_wins > h2h_stats.team_b_wins:
+                 h2h_factor = 1.1 + (0.05 * (h2h_stats.team_a_wins - h2h_stats.team_b_wins))
+                 h2h_reasoning = " 🆚 Dominio H2H Local."
+            elif h2h_stats.team_b_id == match.home_team.name and h2h_stats.team_b_wins > h2h_stats.team_a_wins:
+                 # Logic for when H2H struct might have team_a/b swapped relative to match home/away?
+                 # Assuming strict matching above in finding stats. 
+                 # Usually StatisticsService returns Team A as requested first argument.
+                 pass
+            
+            # Simplified check assuming caller passes (Home, Away)
+            if h2h_stats.team_a_wins >= (h2h_stats.matches_played * 0.5):
+                h2h_reasoning = " 🆚 Dominio H2H."
         
         # RELAXED: We attempt to generate picks even with partial data
         # but we track data quality to adjust confidence
@@ -488,6 +507,10 @@ class PicksService:
                 match, home_win_prob, draw_prob, away_win_prob
             )
             if winner_pick:
+                # Apply H2H boost to Winner Pick if directions match
+                if "Local" in winner_pick.market_label and "Dominio H2H" in h2h_reasoning:
+                    winner_pick.priority_score *= h2h_factor
+                    winner_pick.reasoning += h2h_reasoning
                 picks.add_pick(winner_pick)
             
             # Generate Double Chance picks

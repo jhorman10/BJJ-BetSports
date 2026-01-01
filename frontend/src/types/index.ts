@@ -164,6 +164,7 @@ export interface SuggestedPick {
   opening_odds?: number;
   closing_odds?: number;
   clv_beat?: boolean;
+  is_ml_confirmed?: boolean;
 }
 
 /**

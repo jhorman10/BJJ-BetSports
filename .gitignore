@@ -48,3 +48,4 @@ htmlcov/
 # Misc
 *.bak
 *.tmp
+.cache_data/

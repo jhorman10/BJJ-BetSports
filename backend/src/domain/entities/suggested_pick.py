@@ -86,6 +86,7 @@ class SuggestedPick:
     suggested_stake: float = 0.0  # units (e.g. 1.5u)
     kelly_percentage: float = 0.0 # e.g. 0.015 (1.5%)
     result: Optional[str] = None # "WIN", "LOSS", "VOID", or None
+    is_ml_confirmed: bool = False # Flag for high-confidence ML validation
     
     def __post_init__(self):
         """Validate probability and risk level."""

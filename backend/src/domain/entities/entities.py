@@ -394,3 +394,30 @@ class MatchPrediction:
     """
     match: Match
     prediction: Prediction
+
+
+@dataclass
+class TeamH2HStatistics:
+    """
+    Head-to-head statistics between two teams.
+    
+    Attributes:
+        team_a_id: ID of team A
+        team_b_id: ID of team B
+        matches_played: Total matches played between them
+        team_a_wins: Wins for team A
+        draws: Draws
+        team_b_wins: Wins for team B
+        team_a_goals: Goals scored by team A
+        team_b_goals: Goals scored by team B
+        recent_matches: List of recent match results (dates/scores)
+    """
+    team_a_id: str
+    team_b_id: str
+    matches_played: int
+    team_a_wins: int
+    draws: int
+    team_b_wins: int
+    team_a_goals: int
+    team_b_goals: int
+    recent_matches: list[dict] = field(default_factory=list)

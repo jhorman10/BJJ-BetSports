@@ -260,11 +260,18 @@ class GetPredictionsUseCase:
                 continue
             
             # Generate suggested picks
+            h2h_stats = self.statistics_service.calculate_h2h_statistics(
+                match.home_team.name,
+                match.away_team.name,
+                historical_matches
+            )
+            
             suggested_picks = self.picks_service.generate_suggested_picks(
                 match=match,
                 home_stats=home_stats,
                 away_stats=away_stats,
                 league_averages=league_averages,
+                h2h_stats=h2h_stats,
                 predicted_home_goals=prediction.predicted_home_goals,
                 predicted_away_goals=prediction.predicted_away_goals,
                 home_win_prob=prediction.home_win_probability,
@@ -615,11 +622,18 @@ class GetMatchDetailsUseCase:
             )
 
         # Generate suggested picks
+        h2h_stats = self.statistics_service.calculate_h2h_statistics(
+            match.home_team.name,
+            match.away_team.name,
+            historical_matches
+        )
+
         suggested_picks = self.picks_service.generate_suggested_picks(
             match=match,
             home_stats=home_stats,
             away_stats=away_stats,
             league_averages=league_averages,
+            h2h_stats=h2h_stats,
             predicted_home_goals=prediction.predicted_home_goals,
             predicted_away_goals=prediction.predicted_away_goals,
             home_win_prob=prediction.home_win_probability,
@@ -790,11 +804,18 @@ class GetTeamPredictionsUseCase:
                     continue
                 
                 # Generate suggested picks
+                h2h_stats = self.statistics_service.calculate_h2h_statistics(
+                    match.home_team.name,
+                    match.away_team.name,
+                    historical_matches
+                )
+                
                 suggested_picks = self.picks_service.generate_suggested_picks(
                     match=match,
                     home_stats=home_stats,
                     away_stats=away_stats,
                     league_averages=league_averages,
+                    h2h_stats=h2h_stats,
                     predicted_home_goals=prediction.predicted_home_goals,
                     predicted_away_goals=prediction.predicted_away_goals,
                     home_win_prob=prediction.home_win_probability,

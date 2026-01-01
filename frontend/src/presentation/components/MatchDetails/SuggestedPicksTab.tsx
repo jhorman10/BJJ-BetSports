@@ -191,9 +191,12 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
     };
 
     sortedPicks.forEach((p) => {
-      // Check Top ML condition: MUST have "ML Confianza Alta" tag from backend
-      // This ensures strictly ML recommended picks (>70% confidence)
-      if (p.reasoning && p.reasoning.includes("ML Confianza Alta")) {
+      // Check Top ML condition: MUST have is_ml_confirmed flag or legacy reasoning
+      // This ensures strictly ML recommended picks
+      if (
+        p.is_ml_confirmed ||
+        (p.reasoning && p.reasoning.includes("ML Confianza Alta"))
+      ) {
         counts.TOP_ML++;
       }
 
@@ -224,7 +227,9 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
     if (currentTab === "TOP_ML") {
       // Filter strictly for ML High Confidence picks
       return sortedPicks.filter(
-        (p) => p.reasoning && p.reasoning.includes("ML Confianza Alta")
+        (p) =>
+          p.is_ml_confirmed ||
+          (p.reasoning && p.reasoning.includes("ML Confianza Alta"))
       );
     }
 

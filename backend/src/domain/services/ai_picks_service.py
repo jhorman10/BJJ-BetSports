@@ -10,7 +10,7 @@ Extends the standard PicksService to provide "Exclusive AI Picks" driven by:
 
 import logging
 from typing import Optional, List
-from src.domain.entities.entities import Match, TeamStatistics
+from src.domain.entities.entities import Match, TeamStatistics, TeamH2HStatistics
 from src.domain.entities.suggested_pick import (
     SuggestedPick,
     MatchSuggestedPicks,
@@ -36,6 +36,7 @@ class AIPicksService(PicksService):
         home_stats: Optional[TeamStatistics],
         away_stats: Optional[TeamStatistics],
         league_averages: Optional[LeagueAverages] = None,
+        h2h_stats: Optional[TeamH2HStatistics] = None,
         predicted_home_goals: float = 0.0,
         predicted_away_goals: float = 0.0,
         home_win_prob: float = 0.0,
@@ -49,7 +50,7 @@ class AIPicksService(PicksService):
         # 1. Generate Base Candidate Picks using Statistical Models (Poisson/Dixon-Coles)
         # We reuse the verified mathematical core of the parent class.
         candidates_container = super().generate_suggested_picks(
-            match, home_stats, away_stats, league_averages,
+            match, home_stats, away_stats, league_averages, h2h_stats,
             predicted_home_goals, predicted_away_goals,
             home_win_prob, draw_prob, away_win_prob, market_odds
         )
@@ -134,9 +135,9 @@ class AIPicksService(PicksService):
             # Automatically discard markets performing poorly historically
             weight = self.learning_weights.get_market_adjustment(market_type)
             
-            # RELAXED: weight < 0.5 -> Discard (from 0.9)
-            if weight < 0.5:
-                logger.debug(f"AI Discarded {pick.market_label} (Weight {weight:.2f} < 0.5)")
+            # RELAXED: weight < 0.1 -> Discard (from 0.5) to allow almost everything
+            if weight < 0.1:
+                logger.debug(f"AI Discarded {pick.market_label} (Weight {weight:.2f} < 0.1)")
                 continue
 
             # --- PHASE B: Integration of Context ---
@@ -177,6 +178,7 @@ class AIPicksService(PicksService):
                 pick.priority_score *= 1.5 # Massive boost
                 pick.reasoning = f"🤖 IA CONFIRMED: {pick.reasoning}"
                 pick.is_recommended = True
+                pick.is_ml_confirmed = True
                 
             # --- PHASE E: Anomaly/Value Detection ---
             # Check implied odds vs internal probability
