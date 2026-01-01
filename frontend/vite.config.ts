@@ -1,5 +1,5 @@
 /// <reference types="vitest" />
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react-swc";
 import { fileURLToPath, URL } from "node:url";
 import compression from "vite-plugin-compression";
@@ -100,10 +100,6 @@ export default defineConfig({
     target: "esnext",
     // Enable minification
     minify: "esbuild",
-  },
-  esbuild: {
-    drop: ["console", "debugger"],
-  },
     sourcemap: false,
     // Chunk splitting for better caching
     rollupOptions: {
@@ -127,6 +123,9 @@ export default defineConfig({
     },
     // Reduce chunk size warnings threshold
     chunkSizeWarningLimit: 500,
+  },
+  esbuild: {
+    drop: ["console", "debugger"],
   },
   // Optimize dependencies
   optimizeDeps: {
