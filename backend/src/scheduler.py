@@ -51,8 +51,6 @@ class BotScheduler:
             logger.info(f"ARCHITECT: Starting memory-optimized job at {datetime.now(COLOMBIA_TZ)}")
             
             # Dynamic imports to keep initial memory low
-            # 1. RETRAINING (Execute via centralized orchestrator)
-            logger.info("Step 1/5: Starting retraining (Memory window active)...")
             from src.api.dependencies import get_ml_training_orchestrator, get_cache_service, get_data_sources, get_prediction_service, get_statistics_service, get_audit_service
             from src.application.use_cases.use_cases import GetPredictionsUseCase
             from src.infrastructure.data_sources.football_data_uk import LEAGUES_METADATA
@@ -65,6 +63,8 @@ class BotScheduler:
             
             leagues = list(LEAGUES_METADATA.keys())
             
+            # 1. RETRAINING
+            logger.info("Step 1/4: Starting retraining...")
             training_result = await orchestrator.run_training_pipeline(
                 league_ids=leagues,
                 days_back=365
@@ -72,12 +72,10 @@ class BotScheduler:
             accuracy = getattr(training_result, 'accuracy', 0)
             logger.info(f"Retraining completed. Accuracy: {accuracy:.2%}")
             
-            # CRITICAL: Update TrainingCache so frontend gets the fresh timestamp
+            # Update TrainingCache
             try:
                 from src.infrastructure.cache import get_training_cache
                 training_cache = get_training_cache()
-                
-                # Convert TrainingResult to dict for storage (matching /train endpoint format)
                 history_limit = 500
                 display_history = training_result.match_history[-history_limit:] if len(training_result.match_history) > history_limit else training_result.match_history
                 
@@ -94,73 +92,53 @@ class BotScheduler:
                     "pick_efficiency": training_result.pick_efficiency,
                     "team_stats": training_result.team_stats
                 }
-                
                 training_cache.set_training_results(training_data)
-                logger.info(f"TrainingCache updated with fresh timestamp.")
+                logger.info(f"TrainingCache updated.")
             except Exception as e:
                 logger.error(f"Failed to update TrainingCache: {e}")
             
-            # Cleanup training objects
             del training_result
             gc.collect()
 
-            # 2. PRE-CACHE LEAGUES (Fast startup for frontend)
-            logger.info("Step 2/4: Pre-caching leagues list...")
+            # 2. PRE-CACHE LEAGUES
+            logger.info("Step 2/4: Pre-caching leagues...")
             try:
                 from src.application.use_cases.use_cases import GetLeaguesUseCase
                 leagues_use_case = GetLeaguesUseCase(data_sources)
                 leagues_result = await leagues_use_case.execute()
-                cache = get_cache_service()
                 cache.set("leagues:all", leagues_result.model_dump(), cache.TTL_LEAGUES)
-                logger.info(f"Leagues cached: {len(leagues_result.countries)} countries")
                 del leagues_result
                 gc.collect()
             except Exception as e:
                 logger.warning(f"Failed to pre-cache leagues: {e}")
 
-            # 3. MASSIVE INFERENCE (The Chunking Loop)
-            logger.info("Step 3/4: Starting iterative inference (One league at a time)...")
+            # 3. MASSIVE INFERENCE
+            logger.info("Step 3/4: Iterative inference...")
             use_case = GetPredictionsUseCase(data_sources, prediction_service, statistics_service)
             
             leagues_processed = 0
-            # Use generator to avoid holding all league IDs in a list if it scales
             for league_id in self._get_league_iterator(LEAGUES_METADATA):
                 try:
-                    logger.info(f"Processing {league_id} (RAM status check needed)...")
-                    
-                    # Generate predictions for THIS league ONLY
                     predictions_dto = await use_case.execute(league_id, limit=50)
-                    
-                    # Store league forecast in Redis
                     league_cache_key = f"forecasts:league_{league_id}:date_{today_str}"
                     cache.set(league_cache_key, predictions_dto.dict(), cache.TTL_FORECASTS)
                     
-                    # Store individual match predictions
                     for match_pred in predictions_dto.predictions:
-                        match_id = match_pred.match.id
-                        match_cache_key = f"forecasts:match_{match_id}"
-                        cache.set(match_cache_key, match_pred.dict(), cache.TTL_FORECASTS)
+                        cache.set(f"forecasts:match_{match_pred.match.id}", match_pred.dict(), cache.TTL_FORECASTS)
                     
-                    # CRITICAL: Immediate memory liberation
                     del predictions_dto
                     gc.collect()
-                    
                     leagues_processed += 1
-                    # Subtle sleep to allow CPU to breathe on 0.1 CPU limit
                     await asyncio.sleep(0.5) 
-                    
                 except Exception as e:
                     logger.error(f"Error processing league {league_id}: {str(e)}")
-                    gc.collect() # Ensure we clean up even on error
+                    gc.collect()
             
-            logger.info(f"ARCHITECT: Orchestrated job finished. {leagues_processed} leagues processed. Memory stabilized.")
-            
-            # 4. AUDIT & AUTO-FIX (Self-Healing)
-            logger.info("Step 4/4: Running post-execution audit...")
+            # 4. AUDIT
+            logger.info("Step 4/4: Post-execution audit...")
             try:
                 audit_service = get_audit_service()
-                report = await audit_service.audit_and_fix(fix_missing=True)
-                logger.info(f"Audit Status: {report['status']} - Actions: {report['actions_taken']}")
+                await audit_service.audit_and_fix(fix_missing=True)
             except Exception as e:
                 logger.error(f"Audit failed: {e}")
                        
@@ -172,12 +150,7 @@ class BotScheduler:
             gc.collect()
     
     def start(self, run_immediate: bool = False):
-        """
-        Start the scheduler with daily job at 06:00 AM Colombia time.
-        
-        Args:
-            run_immediate: If True, triggers the job immediately in the background.
-        """
+        """Start the scheduler with daily job at 06:00 AM Colombia time."""
         try:
             self.scheduler.add_job(
                 self.run_daily_orchestrated_job,
@@ -198,15 +171,11 @@ class BotScheduler:
             )
             
             self.scheduler.start()
-            logger.info("Scheduler started. Daily job scheduled for 06:00 AM Colombia time")
+            logger.info("Scheduler started.")
             
             if run_immediate:
-                logger.info("Triggering immediate job execution as requested...")
+                logger.info("Triggering immediate job execution...")
                 asyncio.create_task(self.run_daily_orchestrated_job())
-            
-            job = self.scheduler.get_job('daily_orchestrated_job')
-            if job:
-                logger.info(f"Next scheduled run: {job.next_run_time}")
             
         except Exception as e:
             logger.error(f"Failed to start scheduler: {str(e)}", exc_info=True)
@@ -228,4 +197,3 @@ def get_scheduler() -> BotScheduler:
     if _scheduler_instance is None:
         _scheduler_instance = BotScheduler()
     return _scheduler_instance
-

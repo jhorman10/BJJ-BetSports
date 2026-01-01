@@ -119,6 +119,20 @@ class PicksService:
         # Load ML Model if available
         self.ml_model = self._load_ml_model_safely("ml_picks_classifier.joblib")
 
+    def _safe_div(self, numerator: float, denominator: float, default: float = 0.0) -> float:
+        """Safe division to avoid ZeroDivisionError and NaN/Inf results."""
+        try:
+            # Check for zero or non-finite denominator
+            if not denominator or math.isnan(denominator) or math.isinf(denominator):
+                return default
+            res = numerator / denominator
+            # Check for non-finite result
+            if math.isnan(res) or math.isinf(res):
+                return default
+            return res
+        except (ZeroDivisionError, ValueError, TypeError):
+            return default
+
     def _load_ml_model_safely(self, model_path: str):
         """
         Securely load the ML model with proper error handling and logging.
@@ -167,7 +181,7 @@ class PicksService:
         # Win rate 1.0 -> 1.15 factor
         # Win rate 0.5 -> 1.0 factor
         
-        win_ratio = points / (games * 3) # 0 to 1
+        win_ratio = self._safe_div(points, (games * 3), 0.33)
         
         # Map 0..1 to 0.85..1.15
         return 0.85 + (win_ratio * 0.30)
@@ -185,7 +199,7 @@ class PicksService:
         """
         if league_avg <= 0: return 1.0
         
-        raw_strength = base_avg / league_avg
+        raw_strength = self._safe_div(base_avg, league_avg, 1.0)
         form_modifier = self._calculate_recent_form_score(recent_form)
         
         # Weighted Composition: 40% Historical Strength, 60% Form
@@ -274,7 +288,7 @@ class PicksService:
         if odds <= 1: return 0.0
         b = odds - 1
         q = 1 - prob
-        f_star = (b * prob - q) / b
+        f_star = self._safe_div((b * prob - q), b, 0.0)
         
         if f_star < 0: return 0.0
         

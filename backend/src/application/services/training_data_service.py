@@ -40,7 +40,6 @@ class TrainingDataService:
         # Buckets for different sources
         csv_matches = []
         api_fb_matches = []
-        fd_org_matches = []
         gh_matches = []
         espn_matches = []
         
@@ -87,23 +86,13 @@ class TrainingDataService:
                         start_backfill = last_match_date + timedelta(days=1)
                         gap_matches = await self._backfill_gap(league_id, start_backfill, now)
                         if gap_matches:
-                            logger.info(f"Backfilled {len(gap_matches)} matches for {league_id} from API-Football")
+                            logger.info(f"Backfilled {len(gap_matches)} matches for {league_id}")
                             matches.extend(gap_matches)
                 
                 csv_matches.extend(matches)
             except Exception as e:
                 logger.error(f"Error fetching CSV/Backfill for {league_id}: {e}")
 
-        # 3. API-Football (Highest detail stats)
-        # DISABLED PER USER REQUEST for local training optimization
-        # try:
-        #     from src.infrastructure.data_sources.api_football import APIFootballSource
-        #     api_fb = APIFootballSource()
-        #     if api_fb.is_configured:
-        #         today = get_current_time()
-        #         date_from = (today - timedelta(days=30)).strftime("%Y-%m-%d")
-        #         api_fb_matches = await api_fb.get_finished_matches(date_from, today.strftime("%Y-%m-%d"), leagues)
-        # except Exception: pass
 
         # 4. ESPN (Detailed recent stats)
         try:
@@ -112,19 +101,9 @@ class TrainingDataService:
             espn_matches = await espn.get_finished_matches(league_codes=leagues, days_back=60)
         except Exception: pass
 
-        # 5. Football-Data.org (High coverage base)
-        try:
-            from src.infrastructure.data_sources.football_data_org import FootballDataOrgSource
-            fd_org = FootballDataOrgSource()
-            if fd_org.is_configured:
-                today = get_current_time()
-                date_from = (today - timedelta(days=90)).strftime("%Y-%m-%d")
-                fd_org_matches = await fd_org.get_finished_matches(date_from, today.strftime("%Y-%m-%d"), leagues)
-        except Exception: pass
 
         # --- UNIFY & ENRICH ---
         all_matches = gh_matches
-        all_matches = self.enrichment_service.merge_matches(all_matches, fd_org_matches)
         all_matches = self.enrichment_service.merge_matches(all_matches, csv_matches)
         all_matches = self.enrichment_service.merge_matches(all_matches, api_fb_matches)
         all_matches = self.enrichment_service.merge_matches(all_matches, espn_matches)

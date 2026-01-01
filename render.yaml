@@ -13,14 +13,16 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.10"
-      - key: API_FOOTBALL_KEY
-        sync: false
       - key: FOOTBALL_DATA_ORG_KEY
         sync: false
+      - key: THE_ODDS_API_KEY
+        sync: false
+      - key: LOW_MEMORY_MODE
+        value: "true"
       - key: CORS_ORIGINS
         value: "https://football-prediction-frontend-nz9r.onrender.com"
       - key: REDIS_URL
-        fromDatabase:
+        fromRedis:
           name: football-prediction-redis
           property: connectionString
     healthCheckPath: /health
@@ -29,7 +31,7 @@ services:
   - name: football-prediction-frontend
     type: web
     env: static
-    buildCommand: cd frontend && npm install && npm run build
+    buildCommand: cd frontend && npm install && npm install vite && npm run build
     staticPublishPath: ./frontend/dist
     envVars:
       - key: VITE_API_URL
@@ -47,8 +49,9 @@ services:
         destination: /index.html
 
 # ===========================================
-# DATABASES
+# REDIS
 # ===========================================
-databases:
+redis:
   - name: football-prediction-redis
     plan: free
+    ipAllowList: [] # Only internal access

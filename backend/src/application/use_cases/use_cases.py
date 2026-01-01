@@ -21,7 +21,6 @@ from src.infrastructure.data_sources.football_data_uk import (
     FootballDataUKSource,
     LEAGUES_METADATA,
 )
-from src.infrastructure.data_sources.api_football import APIFootballSource
 from src.infrastructure.data_sources.football_data_org import FootballDataOrgSource
 from src.infrastructure.data_sources.openfootball import OpenFootballSource
 from src.infrastructure.data_sources.thesportsdb import TheSportsDBClient
@@ -47,7 +46,6 @@ logger = logging.getLogger(__name__)
 class DataSources:
     """Container for all data sources."""
     football_data_uk: FootballDataUKSource
-    api_football: APIFootballSource
     football_data_org: FootballDataOrgSource
     openfootball: OpenFootballSource
     thesportsdb: TheSportsDBClient
@@ -222,8 +220,6 @@ class GetPredictionsUseCase:
         predictions = []
         data_sources_used = [FootballDataUKSource.SOURCE_NAME]
         
-        if self.data_sources.api_football.is_configured:
-            data_sources_used.append(APIFootballSource.SOURCE_NAME)
         if self.data_sources.football_data_org.is_configured:
             data_sources_used.append(FootballDataOrgSource.SOURCE_NAME)
         if self.data_sources.openfootball:
@@ -323,22 +319,14 @@ class GetPredictionsUseCase:
         limit: int,
     ) -> list[Match]:
         """Get upcoming matches from available sources."""
-        # Try API-Football first if configured
-        if self.data_sources.api_football.is_configured:
-            matches = await self.data_sources.api_football.get_upcoming_fixtures(
-                league_id,
-                next_n=limit,
+        # Try Football-Data.org first if configured
+        if self.data_sources.football_data_org.is_configured:
+            matches = await self.data_sources.football_data_org.get_upcoming_matches(
+                league_id
             )
             if matches:
                 return matches
         
-        # Try Football-Data.org
-        if self.data_sources.football_data_org.is_configured:
-            matches = await self.data_sources.football_data_org.get_upcoming_matches(
-                league_id,
-            )
-            if matches:
-                return matches[:limit]
 
         # Try TheSportsDB (Free fallback)
         try:
@@ -446,13 +434,10 @@ class GetMatchDetailsUseCase:
         # 1. Get match details
         match = None
         
-        # Try API-Football first (if configured)
-        if self.data_sources.api_football.is_configured:
-            match = await self.data_sources.api_football.get_match_details(match_id)
-            
-        # Try Football-Data.org if not found/configured
-        if not match and self.data_sources.football_data_org.is_configured:
+        # Try Football-Data.org first (if configured)
+        if self.data_sources.football_data_org.is_configured:
             match = await self.data_sources.football_data_org.get_match_details(match_id)
+            
             
         # Try TheSportsDB if not found
         if not match:
@@ -605,7 +590,7 @@ class GetMatchDetailsUseCase:
                 home_stats=home_stats,
                 away_stats=away_stats,
                 league_averages=None, # Will use defaults
-                data_sources=[APIFootballSource.SOURCE_NAME] + ([FootballDataUKSource.SOURCE_NAME] if historical_matches else []),
+                data_sources=[FootballDataOrgSource.SOURCE_NAME] + ([FootballDataUKSource.SOURCE_NAME] if historical_matches else []),
             )
         except InsufficientDataException as e:
             logger.warning(f"Insufficient data for match details {match_id}: {e}")
@@ -748,7 +733,7 @@ class GetTeamPredictionsUseCase:
             List of MatchPredictionDTOs
         """
         # 1. Get matches
-        matches = await self.data_sources.api_football.get_team_matches(team_name)
+        matches = await self.data_sources.football_data_org.get_team_history(team_name, limit=10)
         
         if not matches:
             return []
@@ -799,7 +784,7 @@ class GetTeamPredictionsUseCase:
                         home_stats=home_stats,
                         away_stats=away_stats,
                         league_averages=None,
-                        data_sources=["API-Football", "Football-Data.co.uk"] if historical_matches else ["API-Football"],
+                        data_sources=["Football-Data.org", "Football-Data.co.uk"] if historical_matches else ["Football-Data.org"],
                     )
                 except InsufficientDataException:
                     continue
@@ -939,11 +924,7 @@ class GetGlobalLiveMatchesUseCase:
         """
         tasks = []
         
-        # 1. API-Football (Primary)
-        if self.data_sources.api_football.is_configured:
-            tasks.append(self.data_sources.api_football.get_live_matches())
-            
-        # 2. Football-Data.org (Secondary)
+        # 1. Football-Data.org (Primary)
         if self.data_sources.football_data_org.is_configured:
             tasks.append(self.data_sources.football_data_org.get_live_matches())
             
@@ -972,6 +953,7 @@ class GetGlobalLiveMatchesUseCase:
             if m.events: score += 1
             return score
 
+        unique_matches = {}
         for match in all_matches:
             # Create a simple unique key
             key = f"{match.home_team.name.lower()}-{match.away_team.name.lower()}"
@@ -1040,9 +1022,9 @@ class GetGlobalDailyMatchesUseCase:
         """Get daily matches combined."""
         tasks = []
         
-        # 1. API-Football
-        if self.data_sources.api_football.is_configured:
-            tasks.append(self.data_sources.api_football.get_daily_matches(date_str))
+        # 1. Football-Data.org
+        if self.data_sources.football_data_org.is_configured:
+            tasks.append(self.data_sources.football_data_org.get_live_matches()) # Temporary fallback if no specific daily
             
         # 2. Football-Data.org (Need to implement get_matches with date range)
         # Currently no direct 'get_daily_matches', but we can assume 'upcoming' covers today if scheduled

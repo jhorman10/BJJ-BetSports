@@ -124,67 +124,63 @@ export const PreMatchPrediction: React.FC<PreMatchPredictionProps> = ({
                 🚀 Picks Sugeridos
               </Typography>
               <Box display="flex" flexDirection="column" gap={1}>
-                {prediction.suggested_picks
-                  .slice(0, 3) // Show top 3
-                  .map((pick, index) => (
+                {prediction.suggested_picks.map((pick, index) => (
+                  <Box
+                    key={index}
+                    sx={{
+                      p: 1.5,
+                      borderRadius: 1,
+                      bgcolor: "rgba(0,0,0,0.2)",
+                      border: "1px solid rgba(255,255,255,0.05)",
+                    }}
+                  >
                     <Box
-                      key={index}
-                      sx={{
-                        p: 1.5,
-                        borderRadius: 1,
-                        bgcolor: "rgba(0,0,0,0.2)",
-                        border: "1px solid rgba(255,255,255,0.05)",
-                      }}
+                      display="flex"
+                      justifyContent="space-between"
+                      alignItems="center"
                     >
-                      <Box
-                        display="flex"
-                        justifyContent="space-between"
-                        alignItems="center"
-                      >
-                        <Typography variant="body2" fontWeight="bold">
-                          {pick.market_label}
-                        </Typography>
-                        {pick.suggested_stake && (
-                          <Box
-                            component="span"
-                            sx={{
-                              bgcolor: "#fbbf24",
-                              color: "#000",
-                              px: 1,
-                              borderRadius: 1,
-                              fontSize: "0.75rem",
-                              fontWeight: "bold",
-                            }}
-                          >
-                            Stake: {pick.suggested_stake}u
-                          </Box>
-                        )}
-                      </Box>
-                      <Box
-                        display="flex"
-                        gap={2}
-                        mt={1}
-                        sx={{ fontSize: "0.75rem", color: "text.secondary" }}
-                      >
-                        <span>
-                          Prob: {(pick.probability * 100).toFixed(0)}%
-                        </span>
-                        {pick.expected_value && (
-                          <span
-                            style={{
-                              color:
-                                pick.expected_value > 0.05
-                                  ? "#4ade80"
-                                  : "inherit",
-                            }}
-                          >
-                            EV: +{(pick.expected_value * 100).toFixed(1)}%
-                          </span>
-                        )}
-                        {pick.odds && <span>Odds: {pick.odds.toFixed(2)}</span>}
-                      </Box>
+                      <Typography variant="body2" fontWeight="bold">
+                        {pick.market_label}
+                      </Typography>
+                      {pick.suggested_stake && (
+                        <Box
+                          component="span"
+                          sx={{
+                            bgcolor: "#fbbf24",
+                            color: "#000",
+                            px: 1,
+                            borderRadius: 1,
+                            fontSize: "0.75rem",
+                            fontWeight: "bold",
+                          }}
+                        >
+                          Stake: {pick.suggested_stake}u
+                        </Box>
+                      )}
                     </Box>
-                  ))}
+                    <Box
+                      display="flex"
+                      gap={2}
+                      mt={1}
+                      sx={{ fontSize: "0.75rem", color: "text.secondary" }}
+                    >
+                      <span>Prob: {(pick.probability * 100).toFixed(0)}%</span>
+                      {pick.expected_value && (
+                        <span
+                          style={{
+                            color:
+                              pick.expected_value > 0.05
+                                ? "#4ade80"
+                                : "inherit",
+                          }}
+                        >
+                          EV: +{(pick.expected_value * 100).toFixed(1)}%
+                        </span>
+                      )}
+                      {pick.odds && <span>Odds: {pick.odds.toFixed(2)}</span>}
+                    </Box>
+                  </Box>
+                ))}
               </Box>
             </>
           )}

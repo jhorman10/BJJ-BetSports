@@ -68,8 +68,7 @@ statistical analysis, and machine learning models.
 ## Data Sources
 
 - **Football-Data.co.uk** - Historical results and betting odds
-- **API-Football** - Real-time fixtures (optional, requires API key)
-- **Football-Data.org** - Team data and standings (optional, requires API key)
+- **Football-Data.org** - Fixtures, team data and standings (requires API key)
 
 ## Predictions Include
 
@@ -88,101 +87,86 @@ APP_VERSION = "1.0.0"
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler."""
-    # Startup
     logger.info(f"Starting {APP_TITLE} v{APP_VERSION}")
-    logger.info("Initializing data sources...")
     
-    # Check for API keys
-    if os.getenv("API_FOOTBALL_KEY"):
-        logger.info("✓ API-Football configured")
-    else:
-        logger.warning("⚠ API-Football not configured (optional)")
-    
-    if os.getenv("FOOTBALL_DATA_ORG_KEY"):
-        logger.info("✓ Football-Data.org configured")
-    else:
-        logger.warning("⚠ Football-Data.org not configured (optional)")
-    
-    # Start the scheduler for daily training
-    from src.scheduler import get_scheduler
-    from src.infrastructure.cache.cache_service import get_cache_service
-    from src.utils.time_utils import get_today_str, get_current_time
-    
-    scheduler = get_scheduler()
-    cache = get_cache_service()
-    
-    # --- NEW: CACHE WARMUP SEQUENCE ---
-    # We want to pre-calculate deep predictions for all upcoming matches
-    # to avoid user wait times ("loading" spinners).
-    
-    from src.domain.services.cache_warmup_service import CacheWarmupService
-    from src.api.dependencies import (
-        get_data_sources, 
-        get_prediction_service,
-        get_statistics_service,
-        get_learning_service
-    )
-    
-    # Initialize services manually since we are outside request context
-    ds = get_data_sources()
-    ps = get_prediction_service()
-    ss = get_statistics_service()
-    ls = get_learning_service()
-    
-    warmup_service = CacheWarmupService(
-        data_sources=ds,
-        cache_service=cache,
-        prediction_service=ps,
-        statistics_service=ss,
-        learning_service=ls
-    )
-    
-    # Run warmup in background so we don't block server startup
-    import asyncio
-    
-    # STARTUP OPTIMIZATION:
-    # Give the server a moment (5s) to bind to port and handle initial health checks
-    # from K8s/Render before starting heavy CPU/Network tasks.
-    async def delayed_warmup():
-        logger.info("⏳ Waiting 5s before starting heavy background tasks...")
-        await asyncio.sleep(5)
-        asyncio.create_task(warmup_service.warm_up_predictions(lookahead_days=7))
-        logger.info("🚀 Background Cache Warmup Task Started for upcoming 7 days")
+    # 1. Startup Logic wrapped in try-except for resilience
+    try:
+        from src.scheduler import get_scheduler
+        from src.infrastructure.cache.cache_service import get_cache_service
+        from src.utils.time_utils import get_today_str, get_current_time
+        import asyncio
         
-    asyncio.create_task(delayed_warmup())
-    
-    # ----------------------------------
-    
-    # Check if we already have cached forecasts for today
-    today_str = get_today_str()
-    
-    # Check for any cached forecasts (sample key pattern)
-    sample_key = f"forecasts:league_E0:date_{today_str}"
-    has_cached_forecasts = cache.get(sample_key) is not None
-    
-    if has_cached_forecasts:
-        # Cache exists, start scheduler in background (normal operation)
-        logger.info("✓ Cached forecasts found. Starting scheduler in background...")
-        scheduler.start(run_immediate=False)
-    else:
-        # No cache - run job in background to avoid blocking port binding
-        logger.info("⚠ No cached forecasts found. Triggering initial job in background...")
+        scheduler = get_scheduler()
+        cache = get_cache_service()
         
-        # Start scheduler
-        scheduler.start(run_immediate=False)
+        if os.getenv("FOOTBALL_DATA_ORG_KEY"):
+            logger.info("✓ Football-Data.org configured")
+        else:
+            logger.warning("⚠ FOOTBALL_DATA_ORG_KEY not configured (crítico para fixtures)")
+
+        if os.getenv("THE_ODDS_API_KEY"):
+            logger.info("✓ The Odds API configured")
+        else:
+            logger.warning("⚠ THE_ODDS_API_KEY not configured (opcional para cuotas)")
+
+        # Initialize CacheWarmupService
+        from src.domain.services.cache_warmup_service import CacheWarmupService
+        from src.api.dependencies import (
+            get_data_sources, get_prediction_service,
+            get_statistics_service, get_learning_service
+        )
         
-        # Run the job in background
-        asyncio.create_task(scheduler.run_daily_orchestrated_job())
-        logger.info("✓ Initial cache population triggered in background")
-    
-    logger.info("✓ Daily training scheduler started (06:00 AM Colombia time)")
-    
+        warmup_service = CacheWarmupService(
+            data_sources=get_data_sources(),
+            cache_service=cache,
+            prediction_service=get_prediction_service(),
+            statistics_service=get_statistics_service(),
+            learning_service=get_learning_service()
+        )
+        
+        # Run warmup in background
+        async def delayed_warmup():
+            try:
+                logger.info("⏳ Waiting 5s before starting heavy background tasks...")
+                await asyncio.sleep(5)
+                # Background tasks shouldn't block startup
+                asyncio.create_task(warmup_service.warm_up_predictions(lookahead_days=7))
+                logger.info("🚀 Background Cache Warmup Task Started")
+            except Exception as e:
+                logger.error(f"Background warmup scheduling failed: {e}")
+            
+        asyncio.create_task(delayed_warmup())
+
+        # Scheduler and Cache Population
+        today_str = get_today_str()
+        sample_key = f"forecasts:league_E0:date_{today_str}"
+        has_cached_forecasts = cache.get(sample_key) is not None
+        
+        if has_cached_forecasts:
+            logger.info("✓ Cached forecasts found. Starting scheduler normally...")
+            scheduler.start(run_immediate=False)
+        else:
+            logger.info("⚠ No cached forecasts. Starting scheduler and triggering initial run...")
+            scheduler.start(run_immediate=False)
+            asyncio.create_task(scheduler.run_daily_orchestrated_job())
+            logger.info("✓ Initial cache population triggered in background")
+            
+        logger.info("✓ Daily training scheduler started (06:00 AM Colombia time)")
+
+    except Exception as e:
+        logger.error(f"FAILURE: Lifespan startup error: {e}", exc_info=True)
+
     yield
     
-    # Shutdown
-    logger.info("Shutting down...")
-    scheduler.shutdown()
-    logger.info("✓ Scheduler shutdown complete")
+    # 2. Shutdown Logic wrapped in try-except
+    try:
+        logger.info("Shutting down...")
+        from src.scheduler import get_scheduler
+        scheduler_to_stop = get_scheduler()
+        scheduler_to_stop.shutdown()
+        logger.info("✓ Scheduler shutdown complete")
+    except Exception as e:
+        logger.error(f"Error during shutdown: {e}")
 
 
 # Create FastAPI app
@@ -305,7 +289,7 @@ async def root():
 # Include routers
 app.include_router(leagues.router, prefix="/api/v1")
 app.include_router(predictions.router, prefix="/api/v1")
-app.include_router(matches.router, prefix="/api/v1/matches")
+app.include_router(matches.router, prefix="/api/v1")
 app.include_router(suggested_picks.router, prefix="/api/v1")
 app.include_router(parleys.router, prefix="/api/v1")
 app.include_router(learning.router, prefix="/api/v1")

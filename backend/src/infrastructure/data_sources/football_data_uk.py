@@ -8,10 +8,11 @@ Data Source: https://www.football-data.co.uk/
 """
 
 import asyncio
-from datetime import datetime
-from typing import Optional
+from datetime import datetime, timezone
+from typing import Optional, Any, Callable
 from dataclasses import dataclass
 import logging
+import functools
 
 import httpx
 import pandas as pd
@@ -83,6 +84,34 @@ LEAGUE_CSV_PATHS = {
 
 
 
+
+def retry_async(retries: int = 3, delay: float = 1.0, backoff: float = 2.0):
+    """
+    Retry decorator for async functions.
+    """
+    def decorator(func: Callable):
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            current_delay = delay
+            for i in range(retries):
+                try:
+                    return await func(*args, **kwargs)
+                except (httpx.RequestError, httpx.HTTPStatusError) as e:
+                    if i == retries - 1:
+                        logger.error(f"Failed {func.__name__} after {retries} retries: {e}")
+                        raise
+                    logger.warning(f"Retry {i+1}/{retries} for {func.__name__} due to {e}. Waiting {current_delay}s...")
+                    await asyncio.sleep(current_delay)
+                    current_delay *= backoff
+                except Exception as e:
+                    # Non-retriable exception
+                    logger.error(f"Non-retriable error in {func.__name__}: {e}")
+                    raise
+            return None
+        return wrapper
+    return decorator
+
+
 class FootballDataUKSource:
     """
     Data source for Football-Data.co.uk.
@@ -125,11 +154,13 @@ class FootballDataUKSource:
             
         return f"{start:02d}{end:02d}"
 
+    @retry_async(retries=3, delay=1.0)
     async def download_csv(
         self,
         league_code: str,
         season: str,
         force_refresh: bool = False,
+        client: Optional[httpx.AsyncClient] = None,
     ) -> Optional[tuple[pd.DataFrame, datetime]]:
         """
         Download and parse CSV data for a league.
@@ -138,6 +169,7 @@ class FootballDataUKSource:
             league_code: League code
             season: Season code (e.g., "2324")
             force_refresh: If True, ignore cache and re-download
+            client: Optional httpx client to reuse
             
         Returns:
             Tuple of (DataFrame, timestamp) or None if failed
@@ -150,39 +182,53 @@ class FootballDataUKSource:
         url = self._get_csv_url(league_code, season)
         
         try:
-            async with httpx.AsyncClient() as client:
+            if client:
                 response = await client.get(url, timeout=self.config.timeout)
-                response.raise_for_status()
+            else:
+                async with httpx.AsyncClient() as new_client:
+                    response = await new_client.get(url, timeout=self.config.timeout)
+
+            response.raise_for_status()
+            
+            if not response.text or len(response.text.strip()) < 10:
+                logger.warning(f"Empty or malformed response from {url}")
+                return None
                 
-                # Parse CSV (CPU-bound, offload to thread)
-                loop = asyncio.get_running_loop()
-                df = await loop.run_in_executor(
-                    None, 
-                    lambda: pd.read_csv(
-                        StringIO(response.text),
-                        encoding='utf-8',
-                        on_bad_lines='skip',
-                    )
+            # Parse CSV (CPU-bound, offload to thread)
+            loop = asyncio.get_running_loop()
+            df = await loop.run_in_executor(
+                None, 
+                lambda: pd.read_csv(
+                    StringIO(response.text),
+                    encoding='utf-8',
+                    on_bad_lines='skip',
                 )
-                
-                now = datetime.utcnow()
-                self._cache[cache_key] = (df, now)
-                
-                # Diagnostic Log: Check latest date in CSV
-                latest_date = "Unknown"
-                if 'Date' in df.columns and not df.empty:
-                    try:
-                        latest_date = df['Date'].iloc[-1]
-                    except: pass
-                
-                logger.info(f"Downloaded {len(df)} matches from {url}. Latest match date in CSV: {latest_date}")
-                return (df, now)
+            )
+            
+            # Basic cleanup
+            df.columns = [c.strip() for c in df.columns]
+            df = df.dropna(subset=['Date', 'HomeTeam', 'AwayTeam'], how='any')
+            
+            now = datetime.now(timezone.utc)
+            self._cache[cache_key] = (df, now)
+            
+            # Diagnostic Log: Check latest date in CSV
+            latest_date = "Unknown"
+            if 'Date' in df.columns and not df.empty:
+                try:
+                    latest_date = df['Date'].iloc[-1]
+                except: pass
+            
+            logger.info(f"Downloaded {len(df)} matches from {url}. Latest match date in CSV: {latest_date}")
+            return (df, now)
                 
         except httpx.HTTPStatusError as e:
-            logger.warning(f"HTTP error downloading {url}: {e}")
-            return None
+            if e.response.status_code == 404:
+                logger.warning(f"CSV not found (404) for {url}. This season might not be available yet.")
+                return None
+            raise # Let retry decorator handle other status codes
         except Exception as e:
-            logger.error(f"Error downloading {url}: {e}")
+            logger.error(f"Error processing CSV from {url}: {e}")
             return None
     
     def _parse_date(self, date_str: str) -> Optional[datetime]:
@@ -353,9 +399,12 @@ class FootballDataUKSource:
         )
         
         all_matches = []
-        tasks = [self.download_csv(league_code, season, force_refresh=force_refresh) for season in seasons]
         
-        results = await asyncio.gather(*tasks)
+        # Use a shared client for all requests to improve performance
+        async with httpx.AsyncClient() as client:
+            tasks = [self.download_csv(league_code, season, force_refresh=force_refresh, client=client) for season in seasons]
+            results = await asyncio.gather(*tasks)
+
         has_current_data = False
         
         for i, result in enumerate(results):

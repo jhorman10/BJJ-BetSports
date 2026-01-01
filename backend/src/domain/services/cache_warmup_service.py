@@ -258,52 +258,15 @@ class CacheWarmupService:
         # Strategy A: Football-Data.org (Scheduled matches)
         if self.data_sources.football_data_org.is_configured:
             try:
-                from datetime import datetime, timedelta
-                from src.utils.time_utils import get_current_time
-                
-                now = get_current_time()
-                end_date = now + timedelta(days=days)
-                
-                # List of leagues we want to warmup
-                # We interpret "supported_leagues" as our INTERNAL codes
-                from src.core.constants import DEFAULT_LEAGUES
-                # Extend default leagues with lower divisions that users might track
-                supported_leagues = list(set(DEFAULT_LEAGUES + ["E1", "E2", "E3", "SP2", "I2", "F2", "D2", "N2", "P2"]))
-                
+                from src.infrastructure.data_sources.football_data_org import COMPETITION_CODE_MAPPING
                 tasks = []
-                # NOTE: We must run these SEQUENTIALLY to avoid rate limits (10 req/min for free tier)
-                # Parallel execution (asyncio.gather) triggers 429 errors instantly.
-                for internal_code in supported_leagues:
-                    try:
-                        # Fetch
-                        res = await self.data_sources.football_data_org.get_upcoming_matches(
-                            league_code=internal_code
-                        )
-
-                        # Handle Rate Limit (None)
-                        if res is None:
-                            logger.warning(f"Rate limit hit for {internal_code}. Sleeping 65s before retry...")
-                            await asyncio.sleep(65)
-                            # Retry ONCE
-                            res = await self.data_sources.football_data_org.get_upcoming_matches(
-                                league_code=internal_code
-                            )
-                        
-                        # Process results immediately
-                        if isinstance(res, list):
-                            for m in res:
-                                if m.match_date:
-                                    # Simple date comparison
-                                    m_date = m.match_date
-                                    if now.date() <= m_date.date() <= end_date.date():
-                                        matches.append(m)
-                                        
-                        # Polite delay increased to avoid consecutive 429s
-                        await asyncio.sleep(12) 
-                        
-                    except Exception as e:
-                         logger.error(f"Error fetching warmup matches for league {internal_code}: {e}")
-                        
+                for league_code in COMPETITION_CODE_MAPPING.keys():
+                    tasks.append(self.data_sources.football_data_org.get_upcoming_matches(league_code))
+                
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                for res in results:
+                    if isinstance(res, list):
+                        matches.extend(res)
             except Exception as e:
                 logger.error(f"Error fetching upcoming matches for warmup: {e}")
         

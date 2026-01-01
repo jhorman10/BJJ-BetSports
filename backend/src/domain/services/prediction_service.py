@@ -624,7 +624,8 @@ class PredictionService:
         # We split the total expected between home and away based on their relative contribution
         total_expected = home_avg + away_avg
         total_expected = home_avg + away_avg
-        if total_expected == 0: total_expected = avg_corners
+        if total_expected == 0: 
+            total_expected = league_averages.avg_corners if league_averages else 9.5
         
         # Simple proportional split
         if (home_avg + away_avg) > 0:
@@ -666,7 +667,8 @@ class PredictionService:
         # Estimate expected cards
         total_expected = home_avg + away_avg
         total_expected = home_avg + away_avg
-        if total_expected == 0: total_expected = avg_cards
+        if total_expected == 0: 
+            total_expected = league_averages.avg_cards if league_averages else 4.5
         
         # Simple proportional split
         if (home_avg + away_avg) > 0:

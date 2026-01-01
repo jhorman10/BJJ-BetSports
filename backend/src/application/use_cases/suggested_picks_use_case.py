@@ -22,6 +22,8 @@ from src.infrastructure.data_sources.the_odds_api import TheOddsAPISource
 from src.infrastructure.data_sources.scorebat import ScoreBatSource
 from src.infrastructure.data_sources.five_thirty_eight import FiveThirtyEightSource
 from src.infrastructure.data_sources.fotmob_source import FotMobSource
+from src.infrastructure.data_sources.club_elo import ClubEloSource
+from src.infrastructure.data_sources.understat_source import UnderstatSource
 from src.domain.services.prediction_service import PredictionService
 from src.domain.services.statistics_service import StatisticsService
 from src.domain.exceptions import InsufficientDataException
@@ -58,9 +60,9 @@ class GetSuggestedPicksUseCase:
         self.scorebat = ScoreBatSource()
         self.five_thirty_eight = FiveThirtyEightSource()
         # Initialize new sources if not passed in data_sources (fallback)
-        self.club_elo = data_sources.club_elo or ClubEloSource()
-        self.understat = data_sources.understat or UnderstatSource()
-        self.fotmob = data_sources.fotmob or FotMobSource()
+        self.club_elo = getattr(data_sources, "club_elo", None) or ClubEloSource()
+        self.understat = getattr(data_sources, "understat", None) or UnderstatSource()
+        self.fotmob = getattr(data_sources, "fotmob", None) or FotMobSource()
         
         # Upgrade to AI Picks Service
         self.picks_service = AIPicksService(
@@ -152,8 +154,6 @@ class GetSuggestedPicksUseCase:
 
             # Define sources used
             prediction_sources = ["Historical Data"]
-            if self.data_sources.api_football.is_configured:
-                prediction_sources.append("API-Football")
             if self.data_sources.football_data_org.is_configured:
                 prediction_sources.append("Football-Data.org")
             if rt_odds:
@@ -271,19 +271,11 @@ class GetSuggestedPicksUseCase:
         if "_" in match_id:
             return self._reconstruct_match_from_id(match_id)
 
-        # 2. Try API-Football regular fetch
-        if self.data_sources.api_football.is_configured:
-            match = await self.data_sources.api_football.get_match_details(match_id)
-            if match:
-                return match
-        
-        # 3. Try Football-Data.org
+        # 2. Try Football-Data.org regular fetch
         if self.data_sources.football_data_org.is_configured:
             match = await self.data_sources.football_data_org.get_match_details(match_id)
             if match:
                 return match
-        
-        # 4. Fallback: Search in live_matches cache
         # This is vital when the account is suspended/limited but we already fetched the list
         try:
             from src.infrastructure.cache.cache_service import get_cache_service
@@ -437,7 +429,7 @@ class GetSuggestedPicksUseCase:
         if internal_league_code and self.data_sources.openfootball:
             tasks.append(self._fetch_openfootball_history(internal_league_code))
             
-        # 3. Team History Task (Football-Data.org & API-Football)
+        # 3. Team History Task (Football-Data.org & Others)
         tasks.append(self._fetch_team_history_apis(match))
         
         # Execute all fetches in parallel
@@ -486,22 +478,15 @@ class GetSuggestedPicksUseCase:
         team_matches = []
         
         # Strategy A: Football-Data.org
+        # Strategy B: Football-Data.org
         if self.data_sources.football_data_org.is_configured:
             try:
+                # Football-Data.org uses names for history fetch in this project's implementation
                 h_hist = await self.data_sources.football_data_org.get_team_history(match.home_team.name, limit=10)
                 a_hist = await self.data_sources.football_data_org.get_team_history(match.away_team.name, limit=10)
                 team_matches.extend(h_hist + a_hist)
             except Exception as e:
                 logger.warning(f"Football-Data.org history fetch failed: {e}")
-
-        # Strategy B: API-Football
-        if self.data_sources.api_football.is_configured:
-            try:
-                h_hist = await self.data_sources.api_football.get_team_history(match.home_team.id, limit=10)
-                a_hist = await self.data_sources.api_football.get_team_history(match.away_team.id, limit=10)
-                team_matches.extend(h_hist + a_hist)
-            except Exception as e:
-                logger.warning(f"API-Football history fetch failed: {e}")
                 
         # Strategy C: FotMob (Best for Corners/Cards in minor leagues)
         if self.fotmob and self.fotmob.is_configured:

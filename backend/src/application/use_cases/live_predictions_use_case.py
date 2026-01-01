@@ -20,10 +20,9 @@ from src.infrastructure.data_sources.football_data_uk import (
     FootballDataUKSource,
     LEAGUES_METADATA,
 )
-from src.infrastructure.data_sources.api_football import (
-    APIFootballSource,
-    LEAGUE_ID_MAPPING,
-    TARGET_LEAGUE_IDS,
+from src.infrastructure.data_sources.football_data_org import (
+    FootballDataOrgSource,
+    COMPETITION_CODE_MAPPING,
 )
 from src.infrastructure.data_sources.fotmob_source import FotMobSource
 from src.application.dtos.dtos import (
@@ -97,10 +96,10 @@ class GetLivePredictionsUseCase:
             return cached
         
         # Get live matches
-        if filter_target_leagues:
-            matches = await self.data_sources.api_football.get_live_matches_filtered()
+        if self.data_sources.football_data_org.is_configured:
+            matches = await self.data_sources.football_data_org.get_live_matches()
         else:
-            matches = await self.data_sources.api_football.get_live_matches()
+            matches = []
         
         if not matches:
             # Cache empty result for short period to avoid hammering API
@@ -156,7 +155,7 @@ class GetLivePredictionsUseCase:
         
         home_stats = None
         away_stats = None
-        data_sources_used = [APIFootballSource.SOURCE_NAME]
+        data_sources_used = [FootballDataOrgSource.SOURCE_NAME]
 
         # Fetch Global Averages (Universal Baseline)
         global_avg_data = self.cache_service.get("global_statistical_averages")
@@ -264,7 +263,7 @@ class GetLivePredictionsUseCase:
         Identical strategy to SuggestedPicksUseCase for consistency.
         """
         import asyncio
-        from src.infrastructure.data_sources.api_football import LEAGUE_ID_MAPPING
+        from src.infrastructure.data_sources.football_data_org import COMPETITION_CODE_MAPPING
         
         internal_league_code = self._get_internal_league_code(match)
         
@@ -326,15 +325,6 @@ class GetLivePredictionsUseCase:
         # Aumentamos el límite para mejorar la significancia estadística (Ley de los Grandes Números)
         HISTORY_LIMIT = 25
         
-        # Strategy A: Football-Data.org
-        if self.data_sources.football_data_org.is_configured:
-            try:
-                h_hist = await self.data_sources.football_data_org.get_team_history(match.home_team.name, limit=HISTORY_LIMIT)
-                a_hist = await self.data_sources.football_data_org.get_team_history(match.away_team.name, limit=HISTORY_LIMIT)
-                team_matches.extend(h_hist + a_hist)
-            except Exception:
-                pass
-
         # Strategy C: FotMob
         if self.fotmob and self.fotmob.is_configured:
             try:
@@ -344,11 +334,11 @@ class GetLivePredictionsUseCase:
             except Exception:
                 pass
 
-        # Strategy B: API-Football
-        if self.data_sources.api_football.is_configured:
+        # Strategy B: Football-Data.org
+        if self.data_sources.football_data_org.is_configured:
             try:
-                h_hist = await self.data_sources.api_football.get_team_history(match.home_team.id, limit=HISTORY_LIMIT)
-                a_hist = await self.data_sources.api_football.get_team_history(match.away_team.id, limit=HISTORY_LIMIT)
+                h_hist = await self.data_sources.football_data_org.get_team_history(match.home_team.name, limit=HISTORY_LIMIT)
+                a_hist = await self.data_sources.football_data_org.get_team_history(match.away_team.name, limit=HISTORY_LIMIT)
                 team_matches.extend(h_hist + a_hist)
             except Exception:
                 pass
@@ -387,13 +377,14 @@ class GetLivePredictionsUseCase:
         return result
     
     def _get_internal_league_code(self, match: Match) -> Optional[str]:
-        """Map API-Football league ID to internal code."""
+        """Map Football-Data.org competition code to internal code."""
         try:
-            api_id = int(match.league.id)
-            for code, mapped_id in LEAGUE_ID_MAPPING.items():
-                if mapped_id == api_id:
-                    return code
-        except (ValueError, TypeError):
+            # Match objects from Football-Data.org already have internal league id if parsed via _parse_match
+            # but for safety we can check mapping
+            for internal_code, org_code in COMPETITION_CODE_MAPPING.items():
+                if internal_code == match.league.id:
+                    return internal_code
+        except Exception:
             pass
         return None
     

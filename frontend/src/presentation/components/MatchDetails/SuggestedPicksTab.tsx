@@ -104,9 +104,11 @@ const getPickCategory = (marketType: string): string => {
   const type = marketType.toUpperCase();
   if (type.includes("CORNER")) return "CORNERS";
   if (type.includes("CARD")) return "CARDS";
+  if (type.includes("HANDICAP") || type.includes("VA_HANDICAP"))
+    return "HANDICAPS";
+  if (type.includes("BTTS")) return "BTTS";
   if (
     type.includes("GOAL") ||
-    type.includes("BTTS") ||
     type.includes("OVER") ||
     type.includes("UNDER")
   ) {
@@ -115,8 +117,7 @@ const getPickCategory = (marketType: string): string => {
   if (
     type.includes("WIN") ||
     type.includes("DRAW") ||
-    type.includes("CHANCE") ||
-    type.includes("HANDICAP")
+    type.includes("CHANCE")
   ) {
     return "WINNER";
   }
@@ -183,6 +184,8 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
       TOP_ML: 0,
       WINNER: 0,
       GOALS: 0,
+      BTTS: 0,
+      HANDICAPS: 0,
       CORNERS: 0,
       CARDS: 0,
       OTHER: 0,
@@ -301,6 +304,10 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
         <Tab value="ALL" label="Todos" />
         {categoryCounts.WINNER > 0 && <Tab value="WINNER" label="Ganador" />}
         {categoryCounts.GOALS > 0 && <Tab value="GOALS" label="Goles" />}
+        {categoryCounts.BTTS > 0 && <Tab value="BTTS" label="Ambos Marcan" />}
+        {categoryCounts.HANDICAPS > 0 && (
+          <Tab value="HANDICAPS" label="Hándicaps" />
+        )}
         {categoryCounts.CORNERS > 0 && <Tab value="CORNERS" label="Córners" />}
         {categoryCounts.CARDS > 0 && <Tab value="CARDS" label="Tarjetas" />}
       </Tabs>

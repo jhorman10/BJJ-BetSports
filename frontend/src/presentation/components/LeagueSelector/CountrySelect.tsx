@@ -42,14 +42,18 @@ const CountrySelect: React.FC<CountrySelectProps> = ({
       </InputLabel>
       <Select
         labelId="country-select-label"
-        value={selectedCountryName}
+        value={
+          countries.some((c) => c.name === selectedCountryName)
+            ? selectedCountryName
+            : ""
+        }
         label="País"
         onChange={onCountryChange}
         IconComponent={KeyboardArrowDown}
         MenuProps={menuProps}
         sx={selectStyles}
       >
-        <MenuItem value="" sx={{ opacity: 0.7 }}>
+        <MenuItem value="">
           <Typography variant="body2" color="text.secondary">
             Seleccionar país...
           </Typography>

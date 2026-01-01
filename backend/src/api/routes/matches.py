@@ -22,7 +22,7 @@ from src.api.dependencies import (
 )
 from src.utils.time_utils import to_colombia_time
 
-router = APIRouter()
+router = APIRouter(prefix="/matches", tags=["Matches"])
 logger = logging.getLogger(__name__)
 
 def _map_match_to_dto(match: Any) -> MatchDTO:

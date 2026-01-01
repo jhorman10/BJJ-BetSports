@@ -8,7 +8,6 @@ Contains factory functions for creating use case dependencies.
 from functools import lru_cache
 
 from src.infrastructure.data_sources.football_data_uk import FootballDataUKSource
-from src.infrastructure.data_sources.api_football import APIFootballSource
 from src.infrastructure.data_sources.football_data_org import FootballDataOrgSource
 from src.infrastructure.data_sources.openfootball import OpenFootballSource
 from src.infrastructure.data_sources.thesportsdb import TheSportsDBClient
@@ -28,15 +27,11 @@ def get_football_data_uk() -> FootballDataUKSource:
 
 
 @lru_cache()
-def get_api_football() -> APIFootballSource:
-    """Get API-Football data source (cached)."""
-    return APIFootballSource()
-
-
-@lru_cache()
 def get_football_data_org() -> FootballDataOrgSource:
     """Get Football-Data.org data source (cached)."""
     return FootballDataOrgSource()
+
+
 
 
 @lru_cache()
@@ -55,7 +50,6 @@ def get_data_sources() -> DataSources:
     """Get all data sources container."""
     return DataSources(
         football_data_uk=get_football_data_uk(),
-        api_football=get_api_football(),
         football_data_org=get_football_data_org(),
         openfootball=get_openfootball(),
         thesportsdb=get_thesportsdb(),
