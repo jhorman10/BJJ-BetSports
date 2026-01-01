@@ -27,16 +27,29 @@ jobs:
 
       - name: Run Training Script
         env:
-          PYTHONPATH: backend
-          # Add any necessary API keys as secrets here if needed for fetching fresh data
-          # FOOTBALL_DATA_ORG_KEY: ${{ secrets.FOOTBALL_DATA_ORG_KEY }}
+          PYTHONPATH: .
+          DISABLE_ML_TRAINING: "false" # Explicitly enable for this workflow
+        working-directory: backend
         run: |
-          python backend/scripts/train_model_standalone.py
+          # Debug: Show initial state
+          ls -la
+
+          # Run standalone script (now from backend dir)
+          python scripts/train_model_standalone.py
+
+          # Debug: Show result
+          ls -la
 
       - name: Commit and Push Model
+        if: success()
         run: |
           git config --global user.name 'GitHub Actions Bot'
           git config --global user.email 'actions@github.com'
+
+          # Stage the backend file explicitly
           git add backend/ml_picks_classifier.joblib
-          # Check if there are changes before committing to avoid error
+
+          # If root file exists and was modified/untracked, ignore it or delete it?
+          # We prefer the one in backend.
+
           git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update ML Model [skip ci]" && git push)
