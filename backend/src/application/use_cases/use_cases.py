@@ -154,6 +154,30 @@ class GetPredictionsUseCase:
                 cache_service.set(cache_key, db_data, ttl_seconds=86400)
                 return PredictionsResponseDTO(**db_data)
         
+        # 0.3 Check if running in API-only mode
+        import os
+        api_only_mode = os.getenv("API_ONLY_MODE", "false").lower() == "true"
+        
+        if api_only_mode:
+            # In API-only mode, we don't compute predictions - only serve from cache/DB
+            logger.warning(f"API-ONLY MODE: No cached predictions found for {league_id}")
+            logger.info("💡 Predictions will be available after GitHub Actions worker runs")
+            
+            # Return empty response instead of error to avoid breaking frontend
+            meta = LEAGUES_METADATA[league_id]
+            return PredictionsResponseDTO(
+                league=LeagueDTO(
+                    id=league_id,
+                    name=meta["name"],
+                    country=meta["country"],
+                ),
+                predictions=[],
+                generated_at=datetime.now(timezone('America/Bogota'))
+            )
+        
+        # If not in API-only mode, proceed with real-time computation
+        logger.info(f"Cache miss for {league_id}. Computing predictions in real-time...")
+        
         meta = LEAGUES_METADATA[league_id]
         league = League(
             id=league_id,

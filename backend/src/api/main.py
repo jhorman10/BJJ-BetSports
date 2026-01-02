@@ -89,14 +89,27 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler."""
     logger.info(f"Starting {APP_TITLE} v{APP_VERSION}")
     
+    # Check if running in API-only mode (production)
+    api_only_mode = os.getenv("API_ONLY_MODE", "false").lower() == "true"
+    
+    if api_only_mode:
+        logger.info("🚀 Starting in API-ONLY MODE (Lightweight)")
+        logger.info("   - ML computations: DISABLED")
+        logger.info("   - Background tasks: DISABLED")
+        logger.info("   - Data source: PostgreSQL only")
+        logger.info("   - Memory footprint: ~100-150MB")
+    else:
+        logger.info("🔬 Starting in FULL MODE (Development)")
+        logger.info("   - ML computations: ENABLED")
+        logger.info("   - Background tasks: ENABLED")
+        logger.info("   - Memory footprint: ~512MB+")
+    
     # 1. Startup Logic wrapped in try-except for resilience
     try:
-        from src.scheduler import get_scheduler
         from src.infrastructure.cache.cache_service import get_cache_service
         from src.utils.time_utils import get_today_str, get_current_time
         import asyncio
         
-        scheduler = get_scheduler()
         cache = get_cache_service()
         
         # 1.1 Local Cache Refresh (Requested by User)
@@ -106,11 +119,11 @@ async def lifespan(app: FastAPI):
             cache.clear()
             logger.info("✓ Cache purged successfully.")
         
-        # 1.2 Delay heavy initialization to avoid Render startup timeout
-        # We only do the bare minimum here.
-        
         # Log basic config status
-        logger.info("📡 Application starting in Persistent-SQL mode (PostgreSQL + DiskCache).")
+        if api_only_mode:
+            logger.info("📡 Application starting in API-ONLY mode (reads from PostgreSQL).")
+        else:
+            logger.info("📡 Application starting in Persistent-SQL mode (PostgreSQL + DiskCache).")
 
         if os.getenv("FOOTBALL_DATA_ORG_KEY"):
             logger.info("✓ Football-Data.org configured")
@@ -122,26 +135,28 @@ async def lifespan(app: FastAPI):
         else:
             logger.warning("⚠ THE_ODDS_API_KEY not configured (opcional para cuotas)")
 
-        # Initialize CacheWarmupService
-        from src.domain.services.cache_warmup_service import CacheWarmupService
-        from src.api.dependencies import (
-            get_data_sources, get_prediction_service,
-            get_statistics_service, get_persistence_repository,
-            get_background_processor
-        )
-        
-        warmup_service = CacheWarmupService(
-            data_sources=get_data_sources(),
-            prediction_service=get_prediction_service(),
-            statistics_service=get_statistics_service(),
-            persistence_repository=get_persistence_repository(),
-            background_processor=get_background_processor()
-        )
-        
-        # Run warmup in background
-        # Consolidate background tasks to run SEQUENTIALLY to save RAM
-        async def background_tasks_orchestrator():
-            try:
+        # Skip heavy initialization in API-only mode
+        if not api_only_mode:
+            # Initialize CacheWarmupService
+            from src.domain.services.cache_warmup_service import CacheWarmupService
+            from src.api.dependencies import (
+                get_data_sources, get_prediction_service,
+                get_statistics_service, get_persistence_repository,
+                get_background_processor
+            )
+            
+            warmup_service = CacheWarmupService(
+                data_sources=get_data_sources(),
+                prediction_service=get_prediction_service(),
+                statistics_service=get_statistics_service(),
+                persistence_repository=get_persistence_repository(),
+                background_processor=get_background_processor()
+            )
+            
+            # Run warmup in background
+            # Consolidate background tasks to run SEQUENTIALLY to save RAM
+            async def background_tasks_orchestrator():
+                try:
                 import gc
                 logger.info("⏳ Waiting 15s before heavy background task cycle...")
                 await asyncio.sleep(15)
@@ -202,12 +217,17 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 logger.error(f"Background orchestrator failure: {e}")
 
-        # Trigger the sequential orchestration
-        asyncio.create_task(background_tasks_orchestrator())
-        
-        # Scheduler just for the CRON, no immediate run here (orchestrator handles first run)
-        scheduler.start(run_immediate=False)
-        logger.info("✓ Daily training scheduler configured (06:00 AM Colombia time)")
+            # Trigger the sequential orchestration
+            asyncio.create_task(background_tasks_orchestrator())
+            
+            # Scheduler just for the CRON, no immediate run here (orchestrator handles first run)
+            from src.scheduler import get_scheduler
+            scheduler = get_scheduler()
+            scheduler.start(run_immediate=False)
+            logger.info("✓ Daily training scheduler configured (06:00 AM Colombia time)")
+        else:
+            logger.info("⏭️  Skipping background tasks (API-ONLY mode)")
+            logger.info("💡 Predictions will be read from database (populated by GitHub Actions)")
 
     except Exception as e:
         logger.error(f"FAILURE: Lifespan startup error: {e}", exc_info=True)
@@ -217,10 +237,13 @@ async def lifespan(app: FastAPI):
     # 2. Shutdown Logic wrapped in try-except
     try:
         logger.info("Shutting down...")
-        from src.scheduler import get_scheduler
-        scheduler_to_stop = get_scheduler()
-        scheduler_to_stop.shutdown()
-        logger.info("✓ Scheduler shutdown complete")
+        if not api_only_mode:
+            from src.scheduler import get_scheduler
+            scheduler_to_stop = get_scheduler()
+            scheduler_to_stop.shutdown()
+            logger.info("✓ Scheduler shutdown complete")
+        else:
+            logger.info("✓ API-only mode shutdown (no scheduler to stop)")
     except Exception as e:
         logger.error(f"Error during shutdown: {e}")
 
