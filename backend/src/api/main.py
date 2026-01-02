@@ -168,27 +168,32 @@ async def lifespan(app: FastAPI):
                 
                 # 1. Daily Orchestrated Job (Training + Inference)
                 # WARNING: Extremely heavy on RAM. Skip by default on Render Free unless forced.
-                is_render = "render" in os.getenv("RENDER_EXTERNAL_HOSTNAME", "").lower()
+                is_render = os.getenv("RENDER") == "true" or "render" in os.getenv("RENDER_EXTERNAL_HOSTNAME", "").lower()
                 disable_training_env = os.getenv("DISABLE_ML_TRAINING", "false").lower() == "true"
+                low_memory = os.getenv("LOW_MEMORY_MODE", "false").lower() == "true"
                 
-                if not has_cached_forecasts and (not disable_training_env and not is_render):
+                if not has_cached_forecasts and (not disable_training_env and not is_render and not low_memory):
                     logger.info("🚀 Starting Daily Orchestrated Job (Sequenced)...")
                     await scheduler.run_daily_orchestrated_job()
                     logger.info("✓ Daily Orchestrated Job complete. Cleaning memory...")
                     gc.collect()
                     await asyncio.sleep(5)
-                elif not has_cached_forecasts and is_render:
-                    logger.warning("️⚠️ Cold startup on Render detected. Skipping heavy training to avoid OOM.")
+                elif not has_cached_forecasts and (is_render or low_memory):
+                    logger.warning("️⚠️ Cold startup on Render/Low-Memory detected. Skipping heavy training to avoid OOM.")
                     logger.info("💡 Tip: Use GitHub Actions to populate the database periodically.")
                 
                 # 2. Cache Warmup (Lookahead) - Sequentially
                 logger.info("🚀 Starting Cache Warmup (Sequenced)...")
-                # We prioritize the top 3 leagues first to give faster UI feedback
+                # We prioritize the top 3 leagues first to give faster UI feedback without spiking RAM
                 priority_leagues = ['E0', 'SP1', 'D1']
                 await warmup_service.warm_up_predictions(league_ids=priority_leagues)
                 
-                # Then do the rest in background
-                asyncio.create_task(warmup_service.warm_up_predictions())
+                # If we are NOT in render or low memory, we can do the full warmup
+                if not is_render and not low_memory:
+                    asyncio.create_task(warmup_service.warm_up_predictions())
+                else:
+                    logger.info("ℹ️ Full background warmup skipped to conserve RAM on Render.")
+                
                 logger.info("✓ Initial Cache Warmup complete. System ready.")
                 gc.collect()
                 
@@ -250,7 +255,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    allow_origin_regex="https://.*\\.onrender\\.com",
+    allow_origin_regex=r"https://.*\.onrender\.com", # Use raw string for regex
 )
 
 
