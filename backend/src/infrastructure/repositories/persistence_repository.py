@@ -43,20 +43,37 @@ class PersistenceRepository:
         """Create all tables defined in Base."""
         self.db_service.create_tables()
 
+    def _sanitize_json_data(self, data: Any) -> Any:
+        """
+        Sanitize data for JSON storage, handling datetime objects.
+        This forces datetime objects to strings before SQLAlchemy passes them to PostgreSQL.
+        """
+        class DateTimeEncoder(json.JSONEncoder):
+            def default(self, o):
+                if isinstance(o, datetime):
+                    return o.isoformat()
+                return super().default(o)
+                
+        # Dump to string and reload to ensure pure JSON types (dict, list, str, int, float, bool, None)
+        return json.loads(json.dumps(data, cls=DateTimeEncoder))
+
     def save_training_result(self, key: str, data: dict) -> bool:
         """
         Save or update a training result by key.
         """
         session = self.db_service.get_session()
         try:
+            # Sanitize data to remove non-JSON serializable objects (like datetime)
+            sanitized_data = self._sanitize_json_data(data)
+            
             # Check if exists
             record = session.query(TrainingResultModel).filter(TrainingResultModel.key == key).first()
             
             if record:
-                record.data = data
+                record.data = sanitized_data
                 record.last_updated = datetime.utcnow()
             else:
-                record = TrainingResultModel(key=key, data=data)
+                record = TrainingResultModel(key=key, data=sanitized_data)
                 session.add(record)
             
             session.commit()
@@ -110,17 +127,20 @@ class PersistenceRepository:
         try:
             expires_at = datetime.utcnow() + timedelta(seconds=ttl_seconds)
             
+            # Sanitize data
+            sanitized_data = self._sanitize_json_data(data)
+            
             record = session.query(MatchPredictionModel).filter(MatchPredictionModel.match_id == match_id).first()
             if record:
                 record.league_id = league_id
-                record.data = data
+                record.data = sanitized_data
                 record.expires_at = expires_at
                 record.last_updated = datetime.utcnow()
             else:
                 record = MatchPredictionModel(
                     match_id=match_id,
                     league_id=league_id,
-                    data=data,
+                    data=sanitized_data,
                     expires_at=expires_at
                 )
                 session.add(record)
@@ -189,17 +209,20 @@ class PersistenceRepository:
                 
                 expires_at = now + timedelta(seconds=ttl)
                 
+                # Sanitize data
+                sanitized_data = self._sanitize_json_data(data)
+                
                 record = session.query(MatchPredictionModel).filter(MatchPredictionModel.match_id == match_id).first()
                 if record:
                     record.league_id = league_id
-                    record.data = data
+                    record.data = sanitized_data
                     record.expires_at = expires_at
                     record.last_updated = now
                 else:
                     record = MatchPredictionModel(
                         match_id=match_id,
                         league_id=league_id,
-                        data=data,
+                        data=sanitized_data,
                         expires_at=expires_at,
                         last_updated=now
                     )
