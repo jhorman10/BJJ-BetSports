@@ -301,6 +301,8 @@ class GetPredictionsUseCase:
                     away_win_probability=0.34,
                     predicted_home_goals=avg_home,
                     predicted_away_goals=avg_away,
+                    over_25_probability=0.5, # Neutral default
+                    under_25_probability=0.5, # Neutral default
                     confidence=0.1, # Low confidence
                     data_sources=["League Averages Fallback"],
                     created_at=datetime.now()
