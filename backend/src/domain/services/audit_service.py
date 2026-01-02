@@ -4,7 +4,7 @@ import asyncio
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 from src.core.constants import DEFAULT_LEAGUES
-from src.infrastructure.cache.training_cache import get_training_cache
+from src.infrastructure.cache import get_cache_service
 from src.application.services.ml_training_orchestrator import MLTrainingOrchestrator
 
 logger = logging.getLogger(__name__)
@@ -35,13 +35,15 @@ class AuditService:
         }
 
         # 1. Load Cache
-        cache = get_training_cache()
-        if not cache.is_valid():
-            logger.warning("AUDIT: Cache is invalid or empty.")
+        cache = get_cache_service()
+        results = cache.get(self.orchestrator.CACHE_KEY_RESULT) or {}
+
+        if not results:
+            logger.warning("AUDIT: Cache is empty (ml_training_result_data).")
             report["status"] = "critical"
-            results = {}
         else:
-            results = cache.get_training_results() or {}
+            # We have data
+            pass
 
         match_history = results.get('match_history', [])
         

@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pytz import timezone
 import logging
 
-from src.domain.entities.entities import Match, Prediction
+from src.domain.entities.entities import Match, Prediction, TeamStatistics
 from src.domain.services.prediction_service import PredictionService
 from src.domain.services.statistics_service import StatisticsService
 from src.domain.services.picks_service import PicksService
@@ -146,12 +146,8 @@ class GetLivePredictionsUseCase:
         # Get internal league code
         internal_code = self._get_internal_league_code(match)
         
-        from src.infrastructure.cache import get_training_cache
-        from src.domain.entities.entities import TeamStatistics
-        
-        # 1. Try to get deep stats from Training Cache (10 years)
-        training_cache = get_training_cache()
-        training_results = training_cache.get_training_results()
+        # 1. Try to get deep stats from Unified Cache (10 years)
+        training_results = self.cache_service.get("ml_training_result_data")
         
         home_stats = None
         away_stats = None

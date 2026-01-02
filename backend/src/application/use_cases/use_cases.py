@@ -577,13 +577,13 @@ class GetMatchDetailsUseCase:
         if not match:
             return None
 
-        # 2. Check Training Cache for Historical Prediction (Consistency)
+        # 2. Check Unified Cache for Historical Prediction (Consistency)
         try:
-            from src.infrastructure.cache import get_training_cache
+            from src.infrastructure.cache import get_cache_service
             from src.application.dtos.dtos import SuggestedPickDTO
             
-            training_cache = get_training_cache()
-            training_results = training_cache.get_training_results()
+            cache = get_cache_service()
+            training_results = cache.get("ml_training_result_data")
             
             if training_results and 'match_history' in training_results:
                 # O(N) lookup but N=18k is fast enough for single request. 

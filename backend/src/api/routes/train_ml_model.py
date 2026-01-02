@@ -77,8 +77,8 @@ async def main():
         logger.info(f"Profit Units: {result.profit_units:.2f}")
         
         # PERSIST TO CACHE
-        from src.infrastructure.cache import get_training_cache
-        cache = get_training_cache()
+        from src.infrastructure.cache import get_cache_service
+        cache = get_cache_service()
         
         # Convert Result to the same structure expected by the BotStore/Dashboard
         # (This matches the transformation in learning.py)
@@ -99,8 +99,8 @@ async def main():
             "team_stats": result.team_stats
         }
         
-        cache.set_training_results(cache_data)
-        logger.info("Training results persisted to application cache.")
+        cache.set(orchestrator.CACHE_KEY_RESULT, cache_data, ttl_seconds=cache.TTL_TRAINING)
+        logger.info("Training results persisted to unified cache (SSOT).")
         
         # Keep the process alive if running on Render to prevent restart loops
         if os.environ.get("RENDER"):
