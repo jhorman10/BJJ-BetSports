@@ -1,6 +1,7 @@
 import logging
 import json
 from datetime import datetime
+from typing import List, Optional, Any
 from sqlalchemy import Column, String, JSON, DateTime, Integer
 from src.infrastructure.database.database_service import Base, DatabaseService, get_database_service
 
@@ -137,7 +138,6 @@ class PersistenceRepository:
         """
         Retrieve a valid (non-expired) match prediction.
         """
-        from typing import Optional
         session = self.db_service.get_session()
         try:
             now = datetime.utcnow()
