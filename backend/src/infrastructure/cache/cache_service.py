@@ -43,19 +43,32 @@ class RedisCacheProvider(CacheProvider):
             # Flexible connection: Priorities REDIS_URL (Render/Upstash style)
             redis_url = os.getenv("REDIS_URL")
             if redis_url and redis_url.startswith(("redis://", "rediss://", "unix://")):
-                self.client = redis.Redis.from_url(redis_url, decode_responses=False)
+                self.client = redis.Redis.from_url(
+                    redis_url, 
+                    decode_responses=False,
+                    socket_connect_timeout=2,
+                    socket_timeout=2
+                )
                 host = "URL" # For logging
             elif redis_url:
                 logger.warning(f"Invalid REDIS_URL format: {redis_url[:10]}... skipping Redis.")
                 self._is_connected = False
                 return
             else:
+                # If no REDIS_URL and on Render, don't even try localhost (Save time)
+                if os.getenv("RENDER") == "true":
+                    logger.info("ℹ Skipping Redis localhost on Render (No REDIS_URL found)")
+                    self._is_connected = False
+                    return
+                    
                 self.client = redis.Redis(
                     host=host, 
                     port=port, 
                     db=db, 
                     password=password,
-                    decode_responses=False # Keep bytes for pickling
+                    decode_responses=False, # Keep bytes for pickling
+                    socket_connect_timeout=2,
+                    socket_timeout=2
                 )
             self.client.ping()
             logger.info(f"Redis connected at {host}:{port}/{db}")

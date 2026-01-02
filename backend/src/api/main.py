@@ -106,14 +106,10 @@ async def lifespan(app: FastAPI):
             cache.clear()
             logger.info("✓ Cache purged successfully.")
         
-        # 1.2 Initialize Persistence (CRITICAL for Render)
-        persistence_repo = get_persistence_repository()
-        if persistence_repo:
-            logger.info("📡 Initializing database persistence...")
-            persistence_repo.create_tables()
-            logger.info("✓ Database tables verified/created.")
+        # 1.2 Delay heavy initialization to avoid Render startup timeout
+        # We only do the bare minimum here.
         
-        # Log Redis Connection Status (Securely)
+        # Log basic config status
         if os.getenv("REDIS_URL"):
             logger.info("✓ External Redis configuration detected.")
         else:
@@ -150,9 +146,18 @@ async def lifespan(app: FastAPI):
         async def background_tasks_orchestrator():
             try:
                 import gc
-                logger.info("⏳ Waiting 10s before background task cycle...")
-                await asyncio.sleep(10)
+                logger.info("⏳ Waiting 15s before heavy background task cycle...")
+                await asyncio.sleep(15)
                 
+                # 0. Initialize Persistence AFTER server is up
+                persistence_repo = get_persistence_repository()
+                try:
+                    logger.info("📡 Initializing database persistence in background...")
+                    persistence_repo.create_tables()
+                    logger.info("✓ Database tables verified/created.")
+                except Exception as db_e:
+                    logger.error(f"Failed to initialize DB: {db_e}")
+
                 # Check forecasts (Unified key)
                 sample_key = "forecasts:league_E0"
                 
@@ -244,18 +249,18 @@ base_origins = [
     "http://127.0.0.1:5174",
     "https://football-prediction-frontend-nz9r.onrender.com"
 ]
-env_origins = os.getenv("CORS_ORIGINS", "").split(",")
-# Combine and remove empty/duplicates
-all_origins = list(set([o.strip() for o in base_origins + env_origins if o.strip()]))
+env_origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()]
+# Combine, remove duplicates, and ensure NO trailing slashes
+all_origins = list(set([o.rstrip("/") for o in base_origins + env_origins if o]))
 
 # Added allow_origin_regex for flexibility in Render subdomains
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=all_origins,
+    allow_origins=all_origins + ["*"] if os.getenv("DEBUG") == "true" else all_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    allow_origin_regex=r"https://.*\.onrender\.com", # Use raw string for regex
+    allow_origin_regex=r"https://.*\.onrender\.com", 
 )
 
 
