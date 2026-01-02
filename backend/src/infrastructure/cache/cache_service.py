@@ -7,6 +7,7 @@ import diskcache
 import redis
 import json
 import pickle
+from collections import OrderedDict
 
 logger = logging.getLogger(__name__)
 
@@ -136,10 +137,11 @@ class CacheService:
     TTL_HISTORICAL = 3600
     TTL_LEAGUES = 86400
     TTL_FORECASTS = 86400
+    MAX_MEMORY_ITEMS = 200 # Cap to prevent OOM on 512MB RAM
     
     def __init__(self):
         """Initialize the cache service with providers."""
-        self._memory_cache: Dict[str, Any] = {}
+        self._memory_cache: OrderedDict[str, Any] = OrderedDict()
         self._lock = threading.RLock()
         
         # Initialize Providers
@@ -159,18 +161,23 @@ class CacheService:
         
     def get(self, key: str) -> Optional[Any]:
         """Get a value from cache (Memory -> Redis -> Disk)."""
-        # 1. Memory
+        # 1. Memory (LRU style move-to-end)
         with self._lock:
             if key in self._memory_cache:
+                self._memory_cache.move_to_end(key)
                 return self._memory_cache[key]
         
         # 2. Providers
         for provider in self.providers:
             value = provider.get(key)
             if value is not None:
-                # Populate memory cache for faster subsequent access (short TTL logic could be added here)
+                # Populate memory cache for faster subsequent access
                 with self._lock:
                     self._memory_cache[key] = value
+                    self._memory_cache.move_to_end(key)
+                    # Enforce size limit
+                    if len(self._memory_cache) > self.MAX_MEMORY_ITEMS:
+                        self._memory_cache.popitem(last=False)
                 return value
         
         return None
@@ -180,6 +187,10 @@ class CacheService:
         # 1. Memory
         with self._lock:
             self._memory_cache[key] = value
+            self._memory_cache.move_to_end(key)
+            # Enforce size limit
+            if len(self._memory_cache) > self.MAX_MEMORY_ITEMS:
+                self._memory_cache.popitem(last=False)
             
         # 2. Providers
         # We write to ALL active providers to keep them in sync/warm

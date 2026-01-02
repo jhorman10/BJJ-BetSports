@@ -491,8 +491,8 @@ class PicksService:
             )
         
         # --- MODIFIED: Corners & Cards (Totals) ---
-        # Allow generation if we have stats OR league averages (fallback)
-        if (home_stats is not None and away_stats is not None) or league_averages:
+        # 100% REAL DATA: Combined totals (Match Corners, Match Cards) require BOTH teams.
+        if (home_stats is not None and home_stats.matches_played > 0) and (away_stats is not None and away_stats.matches_played > 0):
             corners_picks = self._generate_corners_picks(home_stats, away_stats, match, league_averages, market_odds)
             for pick in corners_picks:
                 picks.add_pick(pick)
@@ -503,10 +503,9 @@ class PicksService:
                 picks.add_pick(pick)
             
             # Red cards require specific team stats, so keep strict check
-            if home_stats is not None and away_stats is not None:
-                red_card_pick = self._generate_red_cards_pick(home_stats, away_stats, match)
-                if red_card_pick:
-                    picks.add_pick(red_card_pick)
+            red_card_pick = self._generate_red_cards_pick(home_stats, away_stats, match)
+            if red_card_pick:
+                picks.add_pick(red_card_pick)
         
         # 4. Prediction-based picks (Winner/Goals)
         # We can generate winner picks if we have probability (even from odds), 
@@ -531,13 +530,8 @@ class PicksService:
                 picks.add_pick(pick)
         
         # 5. Goal/BTTS/Team Goals picks (Consistently generated if we have any stats or prediction)
-        # RELAXED: Even if predicted goals is 0.0, it's a prediction!
-        # Ensure we have prediction data if league averages exist (Fallback for BTTS/Goals)
-        if not has_prediction_data and league_averages:
-             predicted_home_goals = league_averages.avg_home_goals
-             predicted_away_goals = league_averages.avg_away_goals
-             has_prediction_data = True
-
+        # 100% REAL DATA: NO fallback to league averages for goals if no prediction data.
+        # This prevents "invented" Over 2.5/BTTS picks.
         if has_prediction_data or (has_home_stats and has_away_stats):
             # Generate handicap picks (needs win prob AND prediction)
             if home_win_prob > 0:
@@ -796,10 +790,8 @@ class PicksService:
         
         if h_avg is not None and a_avg is not None:
             total_avg = h_avg + a_avg
-        elif league_averages:
-            total_avg = league_averages.avg_corners
         else:
-            # Fallback to zero (will result in no picks) instead of hardcoding
+            # 100% REAL DATA: No fallback to league averages for combined markets
             total_avg = 0.0
             
         return self._generate_total_stat_picks(
@@ -829,9 +821,8 @@ class PicksService:
         
         if h_avg is not None and a_avg is not None:
             total_avg = h_avg + a_avg
-        elif league_averages:
-            total_avg = league_averages.avg_cards
         else:
+            # 100% REAL DATA: No fallback to league averages for combined markets
             total_avg = 0.0
             
         return self._generate_total_stat_picks(

@@ -188,7 +188,13 @@ class MLTrainingOrchestrator:
         
         from itertools import groupby
         matches_by_day = [list(group) for key, group in groupby(all_matches, key=lambda m: m.match_date.date())]
-        self.cache_service.set(self.CACHE_KEY_MESSAGE, f"Analizando {len(all_matches)} partidos día por día...", ttl_seconds=3600)
+        
+        # CRITICAL Optimization for 512MB RAM: Clear the flat list now that we have it grouped
+        del all_matches
+        import gc
+        gc.collect()
+        
+        self.cache_service.set(self.CACHE_KEY_MESSAGE, f"Analizando partidos día por día...", ttl_seconds=3600)
         
         # Minimum samples to start using ML model
         MIN_TRAIN_SAMPLES = 50 
@@ -372,6 +378,10 @@ class MLTrainingOrchestrator:
                          # Re-find prediction (optimization: store in map)
                          pred_obj = next((x['prediction'] for x in daily_candidates if x['match'].id == match.id), None)
                          if pred_obj:
+                            # Limit match_history to prevent huge cache objects (OOM risk)
+                            if len(match_history) > 500:
+                                match_history.pop(0)
+                                
                             match_history.append({
                                 "match_id": match.id,
                                 "home_team": match.home_team.name,
@@ -456,6 +466,11 @@ class MLTrainingOrchestrator:
                 team_stats=team_stats_cache,
                 global_averages=global_averages
             )
+            
+            # Optimization: Clear match_history from memory-intensive objects
+            del match_history
+            del team_stats_cache
+            gc.collect()
             
             # Save result to cache and update status
             # This enables the "Bot Dashboard" button on the frontend

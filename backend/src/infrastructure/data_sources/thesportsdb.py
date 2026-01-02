@@ -90,17 +90,17 @@ class TheSportsDBClient:
         # Map internal ID to TheSportsDB ID
         # Values from: https://www.thesportsdb.com/api/v1/json/3/all_leagues.php
         INTERNAL_TO_TSDB = {
-            "E0": "4328", # Premier League
-            "E1": "4329", # Championship
-            "SP1": "4335", # La Liga
-            "D1": "4331", # Bundesliga
+            # "E0": "4328", # Premier League - Disabled to avoid confusion if it misbehaves
+            # "E1": "4329", # Championship
+            # "SP1": "4335", # La Liga
+            # "D1": "4331", # Bundesliga
             # "I1": "4332", # Serie A - DISABLED: Returns English League One data (Doncaster vs Bolton)
             # "I2": "4333", # Serie B
             # "F1": "4334", # Ligue 1 - DISABLED: Returns English League One data
-            "F2": "4335", # Ligue 2 (Actually duplication here in code, checking)
+            # "F2": "4335", # Ligue 2 
             # "P1": "4344", # Primeira Liga - DISABLED: Returns English League One data
-            "N1": "4337", # Eredivisie
-            "B1": "4338", # Belgium Jupiler Pro League
+            # "N1": "4337", # Eredivisie - DISABLED: Returns English League One data
+            # "B1": "4338", # Belgium Jupiler Pro League - DISABLED: Returns English League One data
         }
         
         tsdb_id = INTERNAL_TO_TSDB.get(league_id)
@@ -253,13 +253,12 @@ class TheSportsDBClient:
         """
         # Map internal ID to TheSportsDB ID
         INTERNAL_TO_TSDB = {
-            "E0": "4328",   # Premier League
-            "SP1": "4335",  # La Liga
-            "D1": "4331",   # Bundesliga
-            "F1": "4334",   # Ligue 1
-            "F1": "4334",   # Ligue 1
-            "P1": "4344",   # Primeira Liga
-            "N1": "4337",   # Eredivisie
+            # "E0": "4328",   # Premier League
+            # "SP1": "4335",  # La Liga
+            # "D1": "4331",   # Bundesliga
+            # "F1": "4334",   # Ligue 1
+            # "P1": "4344",   # Primeira Liga
+            # "N1": "4337",   # Eredivisie
         }
         
         tsdb_id = INTERNAL_TO_TSDB.get(league_id)

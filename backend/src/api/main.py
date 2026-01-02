@@ -138,40 +138,41 @@ async def lifespan(app: FastAPI):
         )
         
         # Run warmup in background
-        async def delayed_warmup():
+        # Consolidate background tasks to run SEQUENTIALLY to save RAM
+        async def background_tasks_orchestrator():
             try:
-                logger.info("⏳ Waiting 5s before starting heavy background tasks...")
-                await asyncio.sleep(5)
-                # Background tasks shouldn't block startup
-                asyncio.create_task(warmup_service.warm_up_predictions(lookahead_days=7))
-                logger.info("🚀 Background Cache Warmup Task Started")
+                import gc
+                logger.info("⏳ Waiting 10s before background task cycle...")
+                await asyncio.sleep(10)
+                
+                # Check forecasts
+                today_str = get_today_str()
+                sample_key = f"forecasts:league_E0:date_{today_str}"
+                has_cached_forecasts = cache.get(sample_key) is not None
+                
+                # 1. Daily Orchestrated Job (Training + Inference)
+                disable_training = os.getenv("DISABLE_ML_TRAINING", "false").lower() == "true"
+                if not has_cached_forecasts and not disable_training:
+                    logger.info("🚀 Starting Daily Orchestrated Job (Sequenced)...")
+                    await scheduler.run_daily_orchestrated_job()
+                    logger.info("✓ Daily Orchestrated Job complete. Cleaning memory...")
+                    gc.collect()
+                    await asyncio.sleep(5)
+                
+                # 2. Cache Warmup (Lookahead)
+                logger.info("🚀 Starting Cache Warmup (Sequenced)...")
+                await warmup_service.warm_up_predictions(lookahead_days=7)
+                logger.info("✓ Cache Warmup complete. System ready.")
+                gc.collect()
+                
             except Exception as e:
-                logger.error(f"Background warmup scheduling failed: {e}")
-            
-        asyncio.create_task(delayed_warmup())
+                logger.error(f"Background orchestrator failure: {e}")
 
-        # Scheduler and Cache Population
-        today_str = get_today_str()
-        sample_key = f"forecasts:league_E0:date_{today_str}"
-        has_cached_forecasts = cache.get(sample_key) is not None
+        # Trigger the sequential orchestration
+        asyncio.create_task(background_tasks_orchestrator())
         
-        if has_cached_forecasts:
-            logger.info("✓ Cached forecasts found. Starting scheduler normally...")
-            scheduler.start(run_immediate=False)
-        else:
-            logger.info("⚠ No cached forecasts. Checking if background training is allowed...")
-            # Optimization: Disable heavy background training on Render Free Tier (512MB RAM)
-            # if GitHub Actions is handling the daily training.
-            disable_training = os.getenv("DISABLE_ML_TRAINING", "false").lower() == "true"
-            
-            scheduler.start(run_immediate=False)
-            if not disable_training:
-                logger.info("✓ Triggering initial cache population in background...")
-                asyncio.create_task(scheduler.run_daily_orchestrated_job())
-            else:
-                logger.warning("🚫 Background training DISABLED via DISABLE_ML_TRAINING variable.")
-                logger.info("💡 Ensure GitHub Actions or a local run populates the cache.")
-            
+        # Scheduler just for the CRON, no immediate run here (orchestrator handles first run)
+        scheduler.start(run_immediate=False)
         logger.info("✓ Daily training scheduler configured (06:00 AM Colombia time)")
 
     except Exception as e:

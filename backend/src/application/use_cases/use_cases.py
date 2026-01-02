@@ -289,32 +289,27 @@ class GetPredictionsUseCase:
                     data_sources=data_sources_used,
                 )
             except InsufficientDataException:
-                logger.warning(f"Insufficient data for match {match.id}. Using League Averages fallback.")
-                # Create a fallback prediction using League Averages (neutral/conservative)
-                avg_home = league_averages.avg_home_goals if league_averages else 1.35
-                avg_away = league_averages.avg_away_goals if league_averages else 1.15
-                
+                logger.warning(f"Insufficient data for match {match.id}. Skipping match-level prediction.")
+                # Create a "Null" prediction to hold team-specific picks if any
                 prediction = Prediction(
                     match_id=match.id,
-                    home_win_probability=0.38, # Slight home advantage default
-                    draw_probability=0.28,
-                    away_win_probability=0.34,
-                    predicted_home_goals=avg_home,
-                    predicted_away_goals=avg_away,
-                    over_25_probability=0.5, # Neutral default
-                    under_25_probability=0.5, # Neutral default
-                    confidence=0.1, # Low confidence
-                    data_sources=["League Averages Fallback"],
+                    home_win_probability=0.0,
+                    draw_probability=0.0,
+                    away_win_probability=0.0,
+                    predicted_home_goals=0.0,
+                    predicted_away_goals=0.0,
+                    over_25_probability=0.0,
+                    under_25_probability=0.0,
+                    confidence=0.0,
+                    data_sources=["Insufficient Match Data"],
                     created_at=datetime.now()
                 )
             except Exception as e:
                 logger.error(f"Error generating prediction for {match.id}: {e}")
                 continue
             
-            # Check validity
-            is_valid_prediction = (prediction.home_win_probability + prediction.draw_probability + prediction.away_win_probability) > 0
-            if not is_valid_prediction:
-                continue
+            # Match level validity check is handled during assembly to allow team-only picks
+            pass
 
             # Calculate H2H
             h2h_stats = self.statistics_service.calculate_h2h_statistics(
@@ -331,11 +326,11 @@ class GetPredictionsUseCase:
                 'league_averages': league_averages,
                 'h2h_stats': h2h_stats,
                 'prediction_data': {
-                    'predicted_home_goals': prediction.predicted_home_goals,
-                    'predicted_away_goals': prediction.predicted_away_goals,
-                    'home_win_probability': prediction.home_win_probability,
-                    'draw_probability': prediction.draw_probability,
-                    'away_win_probability': prediction.away_win_probability
+                    'predicted_home_goals': prediction.predicted_home_goals if prediction else 0.0,
+                    'predicted_away_goals': prediction.predicted_away_goals if prediction else 0.0,
+                    'home_win_probability': prediction.home_win_probability if prediction else 0.0,
+                    'draw_probability': prediction.draw_probability if prediction else 0.0,
+                    'away_win_probability': prediction.away_win_probability if prediction else 0.0
                 }
             }
             match_tasks.append(task_data)
