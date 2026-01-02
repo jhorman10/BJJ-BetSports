@@ -16,6 +16,7 @@ aiohttp==3.13.2
 
 # Database (lightweight ORM for reading data)
 sqlalchemy==2.0.45
+psycopg2-binary==2.9.9  # PostgreSQL driver (required for DATABASE_URL connection)
 
 # Environment management
 python-dotenv==1.0.0
