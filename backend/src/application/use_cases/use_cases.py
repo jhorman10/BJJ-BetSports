@@ -431,6 +431,19 @@ class GetPredictionsUseCase:
             # 2. Persistent DB (Fallback for restarts/deployments)
             if self.persistence_repository:
                 self.persistence_repository.save_training_result(cache_key, response.model_dump())
+                
+                # NEW: Massive inference storage (Individual match predictions for instant access)
+                prediction_batch = [
+                    {
+                        "match_id": p_dto.match.id,
+                        "league_id": league_id,
+                        "data": p_dto.model_dump(),
+                        "ttl_seconds": 86400 * 7
+                    }
+                    for p_dto in predictions
+                ]
+                self.persistence_repository.bulk_save_predictions(prediction_batch)
+                logger.info(f"✓ Massively saved {len(predictions)} pre-calculated predictions for league {league_id} in PostgreSQL")
         except Exception as e:
             logger.warning(f"Failed to cache league predictions: {e}")
             

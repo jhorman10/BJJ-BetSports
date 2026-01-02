@@ -19,6 +19,7 @@ from src.api.dependencies import (
     get_statistics_service,
     get_cache_service,
     get_picks_service,
+    get_persistence_repository,
 )
 from src.utils.time_utils import to_colombia_time
 
@@ -207,6 +208,7 @@ async def get_live_matches_with_predictions(
             statistics_service=statistics_service,
             cache_service=cache_service,
             picks_service=picks_service,
+            persistence_repository=get_persistence_repository(),
         )
         
         results = await use_case.execute(filter_target_leagues=filter_target_leagues)

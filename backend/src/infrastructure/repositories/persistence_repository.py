@@ -17,6 +17,18 @@ class TrainingResultModel(Base):
     data = Column(JSON, nullable=False)
     last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+class MatchPredictionModel(Base):
+    """
+    SQLAlchemy model for storing pre-calculated match predictions.
+    """
+    __tablename__ = "match_predictions"
+    
+    match_id = Column(String, primary_key=True, index=True)
+    league_id = Column(String, index=True)
+    data = Column(JSON, nullable=False) # Prediction details and picks
+    expires_at = Column(DateTime, nullable=False)
+    last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
 class PersistenceRepository:
     """
     Repository for persisting complex data structures to the database.
@@ -85,6 +97,120 @@ class PersistenceRepository:
         except Exception as e:
             logger.error(f"Failed to get last updated timestamp: {e}")
             return None
+        finally:
+            session.close()
+
+    def save_match_prediction(self, match_id: str, league_id: str, data: dict, ttl_seconds: int = 86400) -> bool:
+        """
+        Save or update a match prediction with an expiration time.
+        """
+        from datetime import timedelta
+        session = self.db_service.get_session()
+        try:
+            expires_at = datetime.utcnow() + timedelta(seconds=ttl_seconds)
+            
+            record = session.query(MatchPredictionModel).filter(MatchPredictionModel.match_id == match_id).first()
+            if record:
+                record.league_id = league_id
+                record.data = data
+                record.expires_at = expires_at
+                record.last_updated = datetime.utcnow()
+            else:
+                record = MatchPredictionModel(
+                    match_id=match_id,
+                    league_id=league_id,
+                    data=data,
+                    expires_at=expires_at
+                )
+                session.add(record)
+            
+            session.commit()
+            return True
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Failed to save match prediction {match_id}: {e}")
+            return False
+        finally:
+            session.close()
+
+    def get_match_prediction(self, match_id: str) -> Optional[dict]:
+        """
+        Retrieve a valid (non-expired) match prediction.
+        """
+        from typing import Optional
+        session = self.db_service.get_session()
+        try:
+            now = datetime.utcnow()
+            record = session.query(MatchPredictionModel).filter(
+                MatchPredictionModel.match_id == match_id,
+                MatchPredictionModel.expires_at > now
+            ).first()
+            
+            return record.data if record else None
+        except Exception as e:
+            logger.error(f"Failed to retrieve match prediction {match_id}: {e}")
+            return None
+        finally:
+            session.close()
+
+    def get_league_predictions(self, league_id: str) -> list[dict]:
+        """
+        Retrieve all valid predictions for a specific league.
+        """
+        session = self.db_service.get_session()
+        try:
+            now = datetime.utcnow()
+            records = session.query(MatchPredictionModel).filter(
+                MatchPredictionModel.league_id == league_id,
+                MatchPredictionModel.expires_at > now
+            ).all()
+            
+            return [r.data for r in records]
+        except Exception as e:
+            logger.error(f"Failed to retrieve league predictions {league_id}: {e}")
+            return []
+        finally:
+            session.close()
+
+    def bulk_save_predictions(self, predictions_batch: list[dict]) -> bool:
+        """
+        Save multiple predictions in a single transaction for better performance.
+        Each dict in 'predictions_batch' should have: match_id, league_id, data, and optionally ttl_seconds.
+        """
+        from datetime import timedelta
+        session = self.db_service.get_session()
+        try:
+            now = datetime.utcnow()
+            for p in predictions_batch:
+                match_id = p['match_id']
+                league_id = p['league_id']
+                data = p['data']
+                ttl = p.get('ttl_seconds', 86400 * 7)
+                
+                expires_at = now + timedelta(seconds=ttl)
+                
+                record = session.query(MatchPredictionModel).filter(MatchPredictionModel.match_id == match_id).first()
+                if record:
+                    record.league_id = league_id
+                    record.data = data
+                    record.expires_at = expires_at
+                    record.last_updated = now
+                else:
+                    record = MatchPredictionModel(
+                        match_id=match_id,
+                        league_id=league_id,
+                        data=data,
+                        expires_at=expires_at,
+                        last_updated=now
+                    )
+                    session.add(record)
+            
+            session.commit()
+            return True
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Failed to bulk save predictions: {e}")
+            return False
         finally:
             session.close()
 

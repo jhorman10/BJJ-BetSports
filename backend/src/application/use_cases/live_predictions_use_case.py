@@ -25,6 +25,7 @@ from src.infrastructure.data_sources.football_data_org import (
     COMPETITION_CODE_MAPPING,
 )
 from src.infrastructure.data_sources.fotmob_source import FotMobSource
+from src.infrastructure.repositories.persistence_repository import PersistenceRepository
 from src.application.dtos.dtos import (
     TeamDTO,
     LeagueDTO,
@@ -66,12 +67,14 @@ class GetLivePredictionsUseCase:
         statistics_service: StatisticsService,
         cache_service: CacheService,
         picks_service: PicksService,
+        persistence_repository: Optional[PersistenceRepository] = None,
     ):
         self.data_sources = data_sources
         self.prediction_service = prediction_service
         self.statistics_service = statistics_service
         self.cache_service = cache_service
         self.picks_service = picks_service
+        self.persistence_repository = persistence_repository
         self.fotmob = data_sources.fotmob or FotMobSource()
     
     async def execute(
@@ -111,6 +114,28 @@ class GetLivePredictionsUseCase:
         
         for match in matches:
             try:
+                # 1. ATTEMPT DB LOOKUP (Pre-calculated in Training Action)
+                pre_calculated_dto = None
+                if self.persistence_repository:
+                    pre_calculated_data = self.persistence_repository.get_match_prediction(match.id)
+                    if pre_calculated_data:
+                         try:
+                             pre_calculated_dto = MatchPredictionDTO(**pre_calculated_data)
+                             logger.info(f"✓ Using pre-calculated data from DB for match {match.id}")
+                         except Exception as parse_e:
+                             logger.warning(f"Failed to parse pre-calculated data for {match.id}: {parse_e}")
+
+                if pre_calculated_dto:
+                    # Update potentially stale live data (score, minute) while keeping AI prediction
+                    pre_calculated_dto.match.home_goals = match.home_goals
+                    pre_calculated_dto.match.away_goals = match.away_goals
+                    pre_calculated_dto.match.status = match.status
+                    pre_calculated_dto.match.minute = match.minute
+                    results.append(pre_calculated_dto)
+                    continue
+
+                # 2. EMERGENCY FALLBACK: Real-time calculation
+                logger.warning(f"⚠ Cache/DB miss for {match.id}. Running emergency real-time inference...")
                 prediction_dto = await self._generate_prediction(match)
                 match_dto = self._match_to_dto(match)
                 
@@ -119,8 +144,8 @@ class GetLivePredictionsUseCase:
                     prediction=prediction_dto,
                 ))
             except Exception as e:
-                logger.warning(f"Failed to generate prediction for match {match.id}: {e}")
-                # Still include match without prediction
+                logger.error(f"Failed to generate/retrieve prediction for match {match.id}: {e}")
+                # Still include match without prediction to avoid breaks
                 results.append(MatchPredictionDTO(
                     match=self._match_to_dto(match),
                     prediction=self._empty_prediction(match.id),
