@@ -26,6 +26,10 @@ class PersistenceRepository:
         self.db_service = db_service or get_database_service()
         # Note: Tables are created in main.py lifespan to avoid redundant checks
 
+    def create_tables(self):
+        """Create all tables defined in Base."""
+        self.db_service.create_tables()
+
     def save_training_result(self, key: str, data: dict) -> bool:
         """
         Save or update a training result by key.
