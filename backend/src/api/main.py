@@ -157,7 +157,7 @@ async def lifespan(app: FastAPI):
             # Consolidate background tasks to run SEQUENTIALLY to save RAM
             async def background_tasks_orchestrator():
                 try:
-                import gc
+                    import gc
                 logger.info("⏳ Waiting 15s before heavy background task cycle...")
                 await asyncio.sleep(15)
                 
