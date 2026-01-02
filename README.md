@@ -1,180 +1,101 @@
 # 🎯 BJJ - BetSports: Intelligent Betting Assistant
 
-> **Sistema Avanzado de Predicción Deportiva Optimizado para Cloud Free-Tier**
+> **Sistema Avanzado de Predicción Deportiva con Persistencia SQL y Caché de Alto Rendimiento**
 
 ![BJJ BetSports](https://img.shields.io/badge/BJJ-BetSports-6366f1?style=for-the-badge&logo=dependabot&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3.11+-3776ab?style=flat-square&logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.109+-009688?style=flat-square&logo=fastapi&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-4169E1?style=flat-square&logo=postgresql&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61dafb?style=flat-square&logo=react&logoColor=white)
-![MUI](https://img.shields.io/badge/MUI-v5-007FFF?style=flat-square&logo=mui&logoColor=white)
 ![Render](https://img.shields.io/badge/Render-Hosted-46E3B7?style=flat-square&logo=render&logoColor=white)
-![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-CI%2FCD-2088FF?style=flat-square&logo=github-actions&logoColor=white)
 
 ## 📋 Descripción General
 
-**BJJ-BetSports** es una plataforma de análisis y predicción de fútbol "Cloud-Native" diseñada para operar eficientemente en entornos de recursos limitados (como Render Free Tier).
+**BJJ-BetSports** es una plataforma de análisis y predicción de fútbol diseñada para operar eficientemente en la nube, optimizando el consumo de recursos sin sacrificar la persistencia de datos históricos.
 
-Utiliza un enfoque de **Arquitectura Desacoplada**:
+### Nueva Arquitectura Unificada (SSOT)
 
-1.  **Entrenamiento Pesado**: Se delega a **GitHub Actions**, que procesa 10 años de datos históricos y entrena un modelo **Random Forest** diariamente.
-2.  **Inferencia Ligera**: La API en **Render** carga solo el modelo pre-entrenado y sirve predicciones en milisegundos, consumiendo mínima RAM (<512MB).
-3.  **Persistencia Híbrida**: Combina **Redis (Upstash/External)** para datos en tiempo real y **DiskCache** para resiliencia local.
+A diferencia de versiones anteriores, el sistema ahora utiliza una arquitectura de **Fuente Única de Verdad (Single Source of Truth)** centrada en base de datos relacional:
+
+1.  **Persistencia Robusta**: Sustitución de Redis por **PostgreSQL**. Todos los resultados de entrenamiento, estadísticas globales y picks pre-calculados se almacenan de forma permanente en SQL.
+2.  **Caché Multi-Capa (Ephemerality-Aware)**:
+    - **L1 (Memoria)**: Acceso instantáneo en RAM para peticiones calientes.
+    - **L2 (DiskCache)**: Almacenamiento local persistente vía SQLite para mitigar reinicios del servidor sin saturar la DB.
+3.  **Entrenamiento Híbrido**:
+    - **GitHub Actions**: Realiza el entrenamiento pesado diariamente, garantizando que el modelo `.joblib` esté actualizado.
+    - **API Runtime**: Recupera estadísticas y predicciones directamente de PostgreSQL, eliminando la necesidad de cálculos CPU-intensivos en cada request.
 
 ---
 
 ## ✨ Características Principales
 
-### 🧠 Inteligencia Artificial & ML
+### 🧠 Inteligencia Artificial
 
-- **Modelo**: Random Forest Classifier optimizado (60 estimadores, profundidad limitada).
-- **Backtesting**: Simulación de rentabilidad (ROI) con ventana deslizante de 365 días.
-- **Lazy Loading**: Carga de librerías de ML (`sklearn`, `pandas`) bajo demanda para inicio ultrarrápido.
-- **Métricas**: Accuracy, ROI, Unidades de Beneficio y Eficiencia por tipo de apuesta.
+- **Modelo**: Random Forest Classifier (Optimizado para baja latencia).
+- **Inferencia Instantánea**: Los picks se pre-calculan y persisten, permitiendo tiempos de respuesta de milisegundos.
+- **Continuous Learning**: Ajuste dinámico de pesos basado en el feedback de aciertos/errores de apuestas anteriores.
 
-### 🏗️ Arquitectura & DevOps
+### 🏗️ Ingeniería de Datos
 
-- **Entrenamiento Automatizado**: Workflow de GitHub Actions (`daily_training.yml`) re-entrena el modelo cada día a las 06:00 AM UTC.
-- **Gestión de Memoria OOM**: Flag `DISABLE_ML_TRAINING=true` para prevenir crashes en instancias pequeñas.
-- **Caching Multi-Nivel**:
-  - **L1**: Memoria (RAM)
-  - **L2**: Redis (Distribuido/Persistente)
-  - **L3**: DiskCache (Sistema de archivos)
-
-### 💻 Frontend (PWA)
-
-- **Tecnología**: React 19 + TypeScript + Vite.
-- **UI/UX**: Material UI v5 con modo oscuro y diseño responsivo.
-- **Estado Global**: Zustand para gestión eficiente del estado.
-- **Visualización**: Gráficos interactivos con Recharts (Evolución de ROI, Eficiencia).
-- **PWA**: Instalable como aplicación nativa en móviles.
+- **Pipelines de Sincronización**: Sincronización automática entre el entrenamiento en CI/CD y la base de datos de producción.
+- **Eficiencia de Memoria**: Arquitectura diseñada para correr en entornos de **512MB RAM**, moviendo cargas pesadas a procesos en segundo plano.
 
 ---
 
-## 🛠️ Stack Tecnológico Completo
+## 🛠️ Stack Tecnológico Actualizado
 
-| Área         | Tecnología         | Uso                                         |
-| ------------ | ------------------ | ------------------------------------------- |
-| **Backend**  | Python 3.11        | Lenguaje base                               |
-|              | **FastAPI**        | Framework API asíncrono de alto rendimiento |
-|              | **Scikit-learn**   | Entrenamiento de modelos (Random Forest)    |
-|              | **Joblib**         | Serialización eficiente de modelos          |
-|              | **APScheduler**    | Orquestación de tareas en segundo plano     |
-|              | **Pydantic**       | Validación de datos y settings              |
-| **Frontend** | **React 19**       | Biblioteca UI                               |
-|              | **TypeScript**     | Tipado estático y seguridad                 |
-|              | **Vite**           | Build tool de próxima generación            |
-|              | **Material UI**    | Sistema de diseño de componentes            |
-|              | **Zustand**        | State Management ligero                     |
-|              | **Recharts**       | Gráficos estadísticos                       |
-| **Data**     | **Redis**          | Caché distribuida y persistencia de sesión  |
-|              | **DiskCache**      | Persistencia local de respaldo              |
-|              | **Pandas/NumPy**   | Manipulación de datasets                    |
-| **Infra**    | **GitHub Actions** | CI/CD y Pipeline de ML Training             |
-|              | **Render**         | Hosting de API y Web Service                |
+| Área              | Tecnología                  | Rol                                               |
+| :---------------- | :-------------------------- | :------------------------------------------------ |
+| **Backend**       | **Python 3.11 + FastAPI**   | Motor de API asíncrono.                           |
+| **Base de Datos** | **PostgreSQL**              | Persistencia de largo plazo (SSOT).               |
+| **Caché**         | **DiskCache (SQLite)**      | Capa de aceleración local y persistencia efímera. |
+| **ML Engine**     | **Scikit-learn**            | Inferencia y entrenamiento de modelos.            |
+| **Frontend**      | **React 19 + Vite**         | Interfaz de usuario PWA de alto rendimiento.      |
+| **Diseño**        | **Material UI v5**          | Sistema de componentes limpio y moderno.          |
+| **Infra**         | **GitHub Actions + Render** | CI/CD, Entrenamiento y Hosting.                   |
 
 ---
 
-## 📂 Estructura del Proyecto
+## 📂 Estructura Crítica del Proyecto
 
 ```bash
-BJJ-BetSports/
-├── .github/workflows/      # 🤖 CI/CD Pipelines
-│   └── daily_training.yml  # Workflow de entrenamiento diario
-├── backend/                # 🧠 API FastAPI
-│   ├── scripts/            # Scripts standalone (Training)
-│   ├── src/
-│   │   ├── api/            # Rutas y Endpoints
-│   │   ├── application/    # Casos de uso y Orquestadores
-│   │   ├── domain/         # Lógica de negocio pura (Entidades)
-│   │   └── infrastructure/ # Implementaciones (Cache, Datasources)
-│   └── main.py             # Entrypoint
-├── frontend/               # 🎨 React PWA
-│   ├── src/
-│   │   ├── components/     # Átomos y Moléculas UI
-│   │   ├── pages/          # Vistas principales
-│   │   └── store/          # Stores de Zustand
-└── render.yaml             # ☁️ Configuración IaC para Render
+backend/src/
+├── api/                    # Endpoints y rutas (FastAPI)
+├── application/            # Casos de uso y Orquestación (SSOT logic)
+├── domain/                 # Entidades y Lógica de Negocio
+└── infrastructure/         # Capas de persistencia
+    ├── cache/              # CacheService (Memoria + DiskCache)
+    ├── data_sources/       # Integración con APIs de Fútbol
+    └── repositories/       # PersistenceRepository (PostgreSQL)
 ```
 
 ---
 
-## 🚀 Guía de Instalación (Local)
+## 🚀 Despliegue en Render (Nueva Configuración)
 
-### Prerrequisitos
-
-- Python 3.11+
-- Node.js 18+
-- Git
-
-### 1. Backend
-
-```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
-
-# Instalar dependencias
-pip install -r requirements.txt
-
-# Configurar variables de entorno
-cp .env.example .env
-# Edita .env con tus API Keys (Football-Data.org, etc.)
-
-# Iniciar servidor
-uvicorn src.api.main:app --reload
-```
-
-### 2. Frontend
-
-```bash
-cd frontend
-npm install
-
-# Iniciar desarrollo
-npm run dev
-```
-
-La app estará disponible en: `http://localhost:5173`
+1.  Crea un **Web Service** para el Backend y una base de datos **PostgreSQL**.
+2.  Enlaza la base de datos y configura las variables de entorno:
+    - `DATABASE_URL`: URL de conexión a tu instancia de Postgres.
+    - `DISABLE_ML_TRAINING`: `true` (Para el servicio de la API).
+    - `RENDER`: `true` (Activa salvaguardas de memoria).
+3.  El sistema inicializará automáticamente las tablas en el primer arranque.
 
 ---
 
-## ☁️ Despliegue en Render (Free Tier)
+## 🤖 Ciclo de Vida del Modelo
 
-Este proyecto está pre-configurado para desplegarse en Render sin coste.
+El workflow `daily_training.yml` asegura que el sistema esté siempre al día:
 
-1.  Crea un nuevo **Web Service** en Render conectado a tu repo.
-2.  Establece el **Build Command**: `pip install -r backend/requirements.txt`
-3.  Establece el **Start Command**: `cd backend && uvicorn src.api.main:app --host 0.0.0.0 --port $PORT`
-4.  **IMPORTANTE**: Configura las variables de entorno:
-    - `DISABLE_ML_TRAINING` = `true` (Obligatorio para evitar OOM)
-    - `PYTHON_VERSION` = `3.11.0`
-    - `REDIS_URL` = `redis://...` (Opcional, recomendado para Dashboard)
+1. Se activa diariamente a las **06:00 UTC**.
+2. Entrena el modelo con los datos más recientes.
+3. Sincroniza las estadísticas y resultados en **PostgreSQL**.
+4. Actualiza el binario `.joblib` en el repositorio.
+5. Render despliega el cambio de forma automática.
 
----
+## 📄 Disclaimer
 
-## 🤖 Automatización (GitHub Actions)
-
-El archivo `daily_training.yml`:
-
-1.  Se activa todos los días a las **06:00 UTC**.
-2.  Descarga el código y las dependencias.
-3.  Ejecuta `scripts/train_model_standalone.py`.
-4.  Genera un nuevo `ml_picks_classifier.joblib`.
-5.  Hace **Commit & Push** automático al repositorio.
-6.  Render detecta el cambio y re-despliega la API con el nuevo modelo.
+Este software es para fines **educativos e investigativos**. Las predicciones estadísticas no garantizan resultados financieros. Juega con responsabilidad.
 
 ---
 
-## 📄 Licencia y Disclaimer
-
-**MIT License** - Este software es **exclusivamente para fines educativos y de investigación**.
-
-⚠️ **Aviso de Juego Responsable**:
-
-- El juego puede ser adictivo. Juega con responsabilidad.
-- Esta herramienta ofrece predicciones estadísticas, **no garantiza resultados**.
-- No uses dinero que no puedas permitirte perder.
-
----
-
-Desarrollado con ❤️ y mucho ☕ por [Jhorman Orozco](https://github.com/jhorman10).
+Desarrollado con ❤️ por [Jhorman Orozco](https://github.com/jhorman10)
