@@ -158,64 +158,66 @@ async def lifespan(app: FastAPI):
             async def background_tasks_orchestrator():
                 try:
                     import gc
-                logger.info("⏳ Waiting 15s before heavy background task cycle...")
-                await asyncio.sleep(15)
-                
-                # 0. Initialize Persistence AFTER server is up
-                persistence_repo = get_persistence_repository()
-                try:
-                    logger.info("📡 Initializing database persistence in background...")
-                    persistence_repo.create_tables()
-                    logger.info("✓ Database tables verified/created.")
-                except Exception as db_e:
-                    logger.error(f"Failed to initialize DB: {db_e}")
+                    logger.info("⏳ Waiting 15s before heavy background task cycle...")
+                    await asyncio.sleep(15)
+                    
+                    # 0. Initialize Persistence AFTER server is up
+                    persistence_repo = get_persistence_repository()
+                    try:
+                        logger.info("📡 Initializing database persistence in background...")
+                        persistence_repo.create_tables()
+                        logger.info("✓ Database tables verified/created.")
+                    except Exception as db_e:
+                        logger.error(f"Failed to initialize DB: {db_e}")
 
-                # Check forecasts (Unified key)
-                sample_key = "forecasts:league_E0"
-                
-                # Check ephemeral cache first
-                has_cached_forecasts = cache.get(sample_key) is not None
-                
-                # If not in ephemeral, check persistent DB (Standard for Render)
-                if not has_cached_forecasts:
-                    persistence = get_persistence_repository()
-                    if persistence.get_training_result(sample_key):
-                        has_cached_forecasts = True
-                        logger.info("✓ Persistent forecasts found in DB. Skipping heavy startup tasks.")
-                
-                # 1. Daily Orchestrated Job (Training + Inference)
-                # WARNING: Extremely heavy on RAM. Skip by default on Render Free unless forced.
-                is_render = os.getenv("RENDER") == "true" or "render" in os.getenv("RENDER_EXTERNAL_HOSTNAME", "").lower()
-                disable_training_env = os.getenv("DISABLE_ML_TRAINING", "false").lower() == "true"
-                low_memory = os.getenv("LOW_MEMORY_MODE", "false").lower() == "true"
-                
-                if not has_cached_forecasts and (not disable_training_env and not is_render and not low_memory):
-                    logger.info("🚀 Starting Daily Orchestrated Job (Sequenced)...")
-                    await scheduler.run_daily_orchestrated_job()
-                    logger.info("✓ Daily Orchestrated Job complete. Cleaning memory...")
+                    # Check forecasts (Unified key)
+                    sample_key = "forecasts:league_E0"
+                    
+                    # Check ephemeral cache first
+                    has_cached_forecasts = cache.get(sample_key) is not None
+                    
+                    # If not in ephemeral, check persistent DB (Standard for Render)
+                    if not has_cached_forecasts:
+                        persistence = get_persistence_repository()
+                        if persistence.get_training_result(sample_key):
+                            has_cached_forecasts = True
+                            logger.info("✓ Persistent forecasts found in DB. Skipping heavy startup tasks.")
+                    
+                    # 1. Daily Orchestrated Job (Training + Inference)
+                    # WARNING: Extremely heavy on RAM. Skip by default on Render Free unless forced.
+                    is_render = os.getenv("RENDER") == "true" or "render" in os.getenv("RENDER_EXTERNAL_HOSTNAME", "").lower()
+                    disable_training_env = os.getenv("DISABLE_ML_TRAINING", "false").lower() == "true"
+                    low_memory = os.getenv("LOW_MEMORY_MODE", "false").lower() == "true"
+                    
+                    if not has_cached_forecasts and (not disable_training_env and not is_render and not low_memory):
+                        logger.info("🚀 Starting Daily Orchestrated Job (Sequenced)...")
+                        from src.scheduler import get_scheduler
+                        scheduler = get_scheduler()
+                        await scheduler.run_daily_orchestrated_job()
+                        logger.info("✓ Daily Orchestrated Job complete. Cleaning memory...")
+                        gc.collect()
+                        await asyncio.sleep(5)
+                    elif not has_cached_forecasts and (is_render or low_memory):
+                        logger.warning("️⚠️ Cold startup on Render/Low-Memory detected. Skipping heavy training to avoid OOM.")
+                        logger.info("💡 Tip: Use GitHub Actions to populate the database periodically.")
+                    
+                    # 2. Cache Warmup (Lookahead) - Sequentially
+                    logger.info("🚀 Starting Cache Warmup (Sequenced)...")
+                    # We prioritize the top 3 leagues first to give faster UI feedback without spiking RAM
+                    priority_leagues = ['E0', 'SP1', 'D1']
+                    await warmup_service.warm_up_predictions(league_ids=priority_leagues)
+                    
+                    # If we are NOT in render or low memory, we can do the full warmup
+                    if not is_render and not low_memory:
+                        asyncio.create_task(warmup_service.warm_up_predictions())
+                    else:
+                        logger.info("ℹ️ Full background warmup skipped to conserve RAM on Render.")
+                    
+                    logger.info("✓ Initial Cache Warmup complete. System ready.")
                     gc.collect()
-                    await asyncio.sleep(5)
-                elif not has_cached_forecasts and (is_render or low_memory):
-                    logger.warning("️⚠️ Cold startup on Render/Low-Memory detected. Skipping heavy training to avoid OOM.")
-                    logger.info("💡 Tip: Use GitHub Actions to populate the database periodically.")
-                
-                # 2. Cache Warmup (Lookahead) - Sequentially
-                logger.info("🚀 Starting Cache Warmup (Sequenced)...")
-                # We prioritize the top 3 leagues first to give faster UI feedback without spiking RAM
-                priority_leagues = ['E0', 'SP1', 'D1']
-                await warmup_service.warm_up_predictions(league_ids=priority_leagues)
-                
-                # If we are NOT in render or low memory, we can do the full warmup
-                if not is_render and not low_memory:
-                    asyncio.create_task(warmup_service.warm_up_predictions())
-                else:
-                    logger.info("ℹ️ Full background warmup skipped to conserve RAM on Render.")
-                
-                logger.info("✓ Initial Cache Warmup complete. System ready.")
-                gc.collect()
-                
-            except Exception as e:
-                logger.error(f"Background orchestrator failure: {e}")
+                    
+                except Exception as e:
+                    logger.error(f"Background orchestrator failure: {e}")
 
             # Trigger the sequential orchestration
             asyncio.create_task(background_tasks_orchestrator())
