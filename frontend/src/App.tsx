@@ -54,8 +54,13 @@ const App: React.FC = () => {
   const { showLive, goalToast, closeGoalToast, showGoalToast } = useUIStore();
 
   // Prediction Store - Fetch leagues on mount
-  const { fetchLeagues, leaguesError, selectedLeague } =
-    usePredictionStore() as any;
+  const {
+    fetchLeagues,
+    leaguesError,
+    selectedLeague,
+    checkTrainingStatus,
+    newPredictionsAvailable,
+  } = usePredictionStore() as any;
 
   // Live Store
   const {
@@ -84,6 +89,7 @@ const App: React.FC = () => {
       if (!document.hidden && isOnline && isBackendAvailable) {
         // Reconcile all stores when user returns to tab
         dataReconciliationService.reconcileAll();
+        checkTrainingStatus();
       }
     };
 
@@ -91,7 +97,7 @@ const App: React.FC = () => {
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [isOnline, isBackendAvailable]);
+  }, [isOnline, isBackendAvailable, checkTrainingStatus]);
 
   // PWA Install state
   const [installPrompt, setInstallPrompt] =
@@ -109,12 +115,23 @@ const App: React.FC = () => {
   useEffect(() => {
     fetchLeagues();
     fetchTrainingData(); // Check bot/training status on startup
+    checkTrainingStatus(); // Check for training updates
     startPolling(30000); // Poll every 30 seconds to match backend cache TTL
+
+    // Poll for training updates
+    const trainingInterval = setInterval(checkTrainingStatus, 60000);
 
     return () => {
       stopPolling();
+      clearInterval(trainingInterval);
     };
-  }, [fetchLeagues, fetchTrainingData, startPolling, stopPolling]);
+  }, [
+    fetchLeagues,
+    fetchTrainingData,
+    startPolling,
+    stopPolling,
+    checkTrainingStatus,
+  ]);
 
   // Detect goals in live matches
   useEffect(() => {
@@ -369,6 +386,21 @@ const App: React.FC = () => {
             icon={<SportsSoccer fontSize="inherit" />}
           >
             {goalToast.message}
+          </Alert>
+        </Snackbar>
+
+        {/* Training Update Notification */}
+        <Snackbar
+          open={newPredictionsAvailable}
+          anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        >
+          <Alert
+            severity="info"
+            variant="filled"
+            sx={{ width: "100%", bgcolor: "#3b82f6", color: "white" }}
+            icon={<SmartToy fontSize="inherit" />}
+          >
+            ¡Nuevas predicciones disponibles! Los datos se han actualizado.
           </Alert>
         </Snackbar>
 

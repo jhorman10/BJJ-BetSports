@@ -36,6 +36,10 @@ interface PredictionState {
   predictionsError: string | null;
   searchLoading: boolean;
 
+  // Training Status
+  lastTrainingUpdate: string | null;
+  newPredictionsAvailable: boolean;
+
   // Actions
   fetchLeagues: () => Promise<void>;
   selectCountry: (country: Country | null) => void;
@@ -45,6 +49,7 @@ interface PredictionState {
   setSortBy: (sort: SortOption) => void;
   resetFilters: () => void;
   performSearch: (query: string) => Promise<void>;
+  checkTrainingStatus: () => Promise<void>;
 }
 
 export const usePredictionStore = create<PredictionState>()(
@@ -65,6 +70,9 @@ export const usePredictionStore = create<PredictionState>()(
       predictionsLoading: false,
       predictionsError: null,
       searchLoading: false,
+
+      lastTrainingUpdate: null,
+      newPredictionsAvailable: false,
 
       fetchLeagues: async () => {
         set({ leaguesLoading: true, leaguesError: null });
@@ -200,6 +208,29 @@ export const usePredictionStore = create<PredictionState>()(
         }
       },
 
+      checkTrainingStatus: async () => {
+        try {
+          const status = await predictionsApi.getTrainingStatus();
+          const { lastTrainingUpdate } = get();
+
+          if (status.last_update && status.last_update !== lastTrainingUpdate) {
+            // New update detected
+            set({ lastTrainingUpdate: status.last_update });
+
+            // If we had a previous update (not first load), warn user and refresh
+            if (lastTrainingUpdate !== null) {
+              set({ newPredictionsAvailable: true });
+              // Refresh data silently
+              get().fetchPredictions(true);
+              // Reset notification flag after 5s or let UI handle it
+              setTimeout(() => set({ newPredictionsAvailable: false }), 5000);
+            }
+          }
+        } catch (error) {
+          // Silent fail on background check
+        }
+      },
+
       setSortBy: (sortBy) => {
         set({ sortBy });
         if (get().selectedLeague) {
@@ -220,6 +251,7 @@ export const usePredictionStore = create<PredictionState>()(
         selectedLeague: state.selectedLeague,
         sortBy: state.sortBy,
         sortDesc: state.sortDesc,
+        lastTrainingUpdate: state.lastTrainingUpdate,
         // Don't persist predictions, leaguesData, or search results - they're too large
         // and will be fetched fresh when needed
       }),

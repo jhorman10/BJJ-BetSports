@@ -31,6 +31,7 @@ export const API_ENDPOINTS = {
 
   // Training
   TRAIN: "/api/v1/train",
+  TRAINING_STATUS: "/api/v1/train/status",
 
   // Health
   HEALTH: "/health",

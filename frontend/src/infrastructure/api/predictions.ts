@@ -92,4 +92,17 @@ export const predictionsApi = {
     );
     return response.data;
   },
+
+  /**
+   * Get current training status
+   */
+  async getTrainingStatus(): Promise<{
+    status: string;
+    message: string;
+    last_update?: string;
+    has_result: boolean;
+  }> {
+    const response = await apiClient.get(API_ENDPOINTS.TRAINING_STATUS);
+    return response.data;
+  },
 };

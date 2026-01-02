@@ -272,7 +272,8 @@ async def trigger_training_now(
 
 @router.get("/train/status", response_model=TrainingProgressStatus)
 async def get_training_status(
-    cache_service: CacheService = Depends(get_cache_service)
+    cache_service: CacheService = Depends(get_cache_service),
+    persistence_repo: PersistenceRepository = Depends(get_persistence_repository)
 ):
     """
     Get the current status of the ML training process.
@@ -283,10 +284,27 @@ async def get_training_status(
     CACHE_KEY_STATUS = "ml_training_status"
     CACHE_KEY_MESSAGE = "ml_training_message"
     CACHE_KEY_RESULT = "ml_training_result_data"
+    DB_KEY_RESULT = "latest_daily"
     
     status = cache_service.get(CACHE_KEY_STATUS) or "IDLE"
     message = cache_service.get(CACHE_KEY_MESSAGE)
     result_data = None
+    last_update_ts = None
+    
+    # Check DB for latest update time (Truth for worker runs)
+    try:
+        db_last_update = persistence_repo.get_last_updated(DB_KEY_RESULT)
+        if db_last_update:
+            last_update_ts = db_last_update.isoformat()
+            
+            # If DB is fresher than cache or cache is empty, consider DB as source of truth for result
+            # But status might still be "IN_PROGRESS" in cache if currently running.
+            if status == "IDLE":
+                 # If idle, assume the last DB update is the completed state
+                 status = "COMPLETED"
+                 message = "Entrenamiento completado (DB)"
+    except Exception:
+        pass
     
     if not message:
         if status == "IDLE": message = "El bot está listo"
@@ -295,13 +313,19 @@ async def get_training_status(
         elif status == "ERROR": message = "Error en el entrenamiento"
         else: message = f"Estado: {status}"
 
-    # Always try to get result data if available, regardless of status
-    # This ensures that if a training crashes or is in progress, we still show the PREVIOUS result.
+    # Always try to get result data if available
     result_data = cache_service.get(CACHE_KEY_RESULT)
+    
+    # If cache miss, try DB result
+    if not result_data:
+         db_result = persistence_repo.get_training_result(DB_KEY_RESULT)
+         if db_result:
+             result_data = db_result
 
     return TrainingProgressStatus(
         status=status,
         message=message, 
+        last_update=last_update_ts,
         has_result=(result_data is not None),
         result=result_data if result_data else None
     )
