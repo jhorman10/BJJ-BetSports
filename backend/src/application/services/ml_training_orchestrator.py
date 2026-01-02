@@ -491,9 +491,12 @@ class MLTrainingOrchestrator:
             if self.persistence_repository:
                 logger.info("Persisting training result to PostgreSQL...")
                 self.persistence_repository.save_training_result("latest_daily", result_data)
+
+            # 6. MASSIVE INFERENCE: Pre-populate all league forecasts for instant UI access
+            await self.execute_massive_inference_step(leagues)
                 
             return final_result
-    
+
         except Exception as e:
             logger.error(f"Critical error in training pipeline: {e}")
             self.cache_service.set(self.CACHE_KEY_STATUS, "ERROR", ttl_seconds=3600)
@@ -552,3 +555,39 @@ class MLTrainingOrchestrator:
             })
         results.sort(key=lambda x: x["efficiency"], reverse=True)
         return results
+
+    async def execute_massive_inference_step(self, leagues: List[str]):
+        """
+        Pre-calculates all match predictions and suggested picks for all leagues.
+        This data is persisted in PostgreSQL to ensure instant access for users.
+        """
+        logger.info(f"Starting MASSIVE INFERENCE for {len(leagues)} leagues...")
+        self.cache_service.set(self.CACHE_KEY_MESSAGE, f"Pre-calculando pronósticos para {len(leagues)} ligas...", ttl_seconds=3600)
+        
+        from src.application.use_cases.use_cases import GetPredictionsUseCase, DataSources
+        
+        # We re-use orchestrator's knowledge to build the Use Case
+        # This keeps logic in sync between the API and the Training Cycle
+        use_case = GetPredictionsUseCase(
+            data_sources=DataSources(
+                football_data_uk=self.training_data_service.data_sources.football_data_uk,
+                football_data_org=self.training_data_service.data_sources.football_data_org,
+                openfootball=self.training_data_service.data_sources.openfootball,
+                thesportsdb=self.training_data_service.data_sources.thesportsdb,
+                fotmob=self.training_data_service.data_sources.fotmob
+            ),
+            prediction_service=self.prediction_service,
+            statistics_service=self.statistics_service,
+            persistence_repository=self.persistence_repository
+        )
+
+        for league_id in leagues:
+            try:
+                # Execute generating and persisting the forecast
+                logger.info(f"Inference: Processing {league_id}...")
+                await use_case.execute(league_id)
+            except Exception as e:
+                logger.error(f"Inference failed for league {league_id}: {e}")
+                continue
+        
+        logger.info("MASSIVE INFERENCE step completed.")

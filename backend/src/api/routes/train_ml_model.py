@@ -76,31 +76,8 @@ async def main():
         logger.info(f"ROI: {result.roi:.2f}%")
         logger.info(f"Profit Units: {result.profit_units:.2f}")
         
-        # PERSIST TO CACHE
-        from src.infrastructure.cache import get_cache_service
-        cache = get_cache_service()
-        
-        # Convert Result to the same structure expected by the BotStore/Dashboard
-        # (This matches the transformation in learning.py)
-        history_limit = 500
-        display_history = result.match_history[-history_limit:] if len(result.match_history) > history_limit else result.match_history
-        
-        cache_data = {
-            "matches_processed": result.matches_processed,
-            "correct_predictions": result.correct_predictions,
-            "accuracy": result.accuracy,
-            "total_bets": result.total_bets,
-            "roi": result.roi,
-            "profit_units": result.profit_units,
-            "market_stats": result.market_stats,
-            "match_history": display_history,
-            "roi_evolution": result.roi_evolution,
-            "pick_efficiency": result.pick_efficiency,
-            "team_stats": result.team_stats
-        }
-        
-        cache.set(orchestrator.CACHE_KEY_RESULT, cache_data, ttl_seconds=cache.TTL_TRAINING)
-        logger.info("Training results persisted to unified cache (SSOT).")
+        # Persistence and Massive Inference are now handled inside run_training_pipeline
+        logger.info("Training results and league forecasts and persisted to unified cache (SSOT).")
         
         # Keep the process alive if running on Render to prevent restart loops
         if os.environ.get("RENDER"):
