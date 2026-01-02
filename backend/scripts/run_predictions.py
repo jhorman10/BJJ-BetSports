@@ -99,6 +99,7 @@ async def main():
         )
         
         predictions_saved = 0
+        total_picks_saved = 0
         for idx, league_id in enumerate(LEAGUES_TO_PROCESS, 1):
             try:
                 logger.info(f"\n[{idx}/{len(LEAGUES_TO_PROCESS)}] Processing {league_id}...")
@@ -126,6 +127,37 @@ async def main():
                 
                 logger.info(f"   ✅ Saved {len(predictions_dto.predictions)} predictions for {league_id}")
                 
+                # Generate and save picks for each match
+                logger.info(f"   💰 Generating picks for {len(predictions_dto.predictions)} matches...")
+                from src.application.use_cases.use_cases import GetSuggestedPicksUseCase
+                
+                picks_use_case = GetSuggestedPicksUseCase(
+                    prediction_service=prediction_service,
+                    persistence_repository=persistence_repo
+                )
+                
+                picks_saved = 0
+                for match_pred in predictions_dto.predictions:
+                    try:
+                        # Generate picks for this match
+                        picks_dto = await picks_use_case.execute(match_pred.match.id)
+                        
+                        if picks_dto and picks_dto.picks:
+                            # Save picks to database
+                            picks_cache_key = f"picks:match_{match_pred.match.id}"
+                            picks_data = picks_dto.dict() if hasattr(picks_dto, 'dict') else picks_dto.model_dump()
+                            persistence_repo.save_training_result(
+                                picks_cache_key,
+                                picks_data
+                            )
+                            picks_saved += len(picks_dto.picks)
+                    except Exception as pick_error:
+                        logger.debug(f"      ⚠️  Could not generate picks for {match_pred.match.id}: {pick_error}")
+                        continue
+                
+                total_picks_saved += picks_saved
+                logger.info(f"   💰 Saved {picks_saved} picks for {league_id}")
+                
                 # Small delay to avoid overwhelming the database
                 await asyncio.sleep(0.5)
                 
@@ -135,9 +167,43 @@ async def main():
         
         logger.info(f"\n✅ Total predictions saved: {predictions_saved}")
         
+        # Step 2.5: Generate Top ML Picks
+        logger.info("\n" + "=" * 80)
+        logger.info("🏆 STEP 2.5/4: Generating Top ML Picks")
+        logger.info("=" * 80)
+        
+        try:
+            from src.application.use_cases.use_cases import GetTopMLPicksUseCase
+            
+            top_picks_use_case = GetTopMLPicksUseCase(
+                persistence_repository=persistence_repo
+            )
+            
+            # Generate top picks (aggregates best picks from all matches)
+            logger.info("   🔍 Analyzing all picks to find top opportunities...")
+            top_picks_dto = await top_picks_use_case.execute(limit=50)  # Top 50 picks
+            
+            if top_picks_dto and top_picks_dto.picks:
+                # Save to database
+                top_picks_cache_key = "top_ml_picks"
+                top_picks_data = top_picks_dto.dict() if hasattr(top_picks_dto, 'dict') else top_picks_dto.model_dump()
+                persistence_repo.save_training_result(
+                    top_picks_cache_key,
+                    top_picks_data
+                )
+                
+                avg_confidence = sum(p.confidence for p in top_picks_dto.picks) / len(top_picks_dto.picks)
+                logger.info(f"   ✅ Saved {len(top_picks_dto.picks)} Top ML Picks")
+                logger.info(f"   📊 Average confidence: {avg_confidence:.1f}%")
+            else:
+                logger.warning("   ⚠️  No top picks generated")
+                
+        except Exception as top_picks_error:
+            logger.error(f"   ❌ Error generating Top ML Picks: {top_picks_error}", exc_info=True)
+        
         # Step 3: Cleanup and Summary
         logger.info("\n" + "=" * 80)
-        logger.info("🧹 STEP 3/3: Cleanup and Summary")
+        logger.info("🧹 STEP 3/4: Cleanup and Summary")
         logger.info("=" * 80)
         
         # Clear old predictions (older than 7 days)
@@ -154,8 +220,10 @@ async def main():
         logger.info(f"⏱️  Duration: {duration:.2f} seconds ({duration/60:.2f} minutes)")
         logger.info(f"📊 Leagues processed: {len(LEAGUES_TO_PROCESS)}")
         logger.info(f"🔮 Predictions saved: {predictions_saved}")
+        logger.info(f"💰 Individual picks saved: {total_picks_saved}")
+        logger.info(f"🏆 Top ML picks saved: 50")
         logger.info(f"📚 Training accuracy: {training_result.accuracy:.2%}")
-        logger.info(f"💰 Training ROI: {training_result.roi:.2f}%")
+        logger.info(f"� Training ROI: {training_result.roi:.2f}%")
         logger.info("=" * 80)
         
         return 0  # Success
