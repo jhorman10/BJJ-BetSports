@@ -168,10 +168,9 @@ async def run_training_session(
     )
     
     # Cache the result for the dashboard
-    from src.infrastructure.cache import get_training_cache
     import joblib # Ensure joblib is available for any underlying serialization if needed
-    cache = get_training_cache()
-    cache.set_training_results(response.model_dump())
+    cache = get_cache_service()
+    cache.set(orchestrator.CACHE_KEY_RESULT, response.model_dump(), ttl_seconds=cache.TTL_TRAINING)
     
     return response
 
@@ -196,19 +195,19 @@ async def get_cached_training_data(
     
     This endpoint is fast and doesn't trigger any computation.
     """
-    from src.infrastructure.cache import get_training_cache
+    from src.infrastructure.cache import get_cache_service
     
-    cache = get_training_cache()
+    cache = get_cache_service()
+    CACHE_KEY_RESULT = "ml_training_result_data"
     
-    if cache.is_valid():
-        results = cache.get_training_results()
-        last_update = cache.get_last_update()
-        
+    # 1. Check ephemeral cache first
+    results = cache.get(CACHE_KEY_RESULT)
+    if results:
         return CachedTrainingResponse(
             cached=True,
-            last_update=last_update.isoformat() if last_update else None,
+            last_update=None, # CacheService doesn't track mtime per key yet
             data=TrainingStatus(**results),
-            message="Datos de entrenamiento recuperados exitosamente"
+            message="Datos de entrenamiento recuperados de caché rápido"
         )
     else:
         # DB FALLBACK: If local cache is missing (e.g. after deployment), check PostgreSQL

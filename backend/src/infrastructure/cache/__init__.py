@@ -1,5 +1,5 @@
 """Infrastructure cache module."""
 
-from .training_cache import TrainingCache, get_training_cache
+from .cache_service import CacheService, get_cache_service
 
-__all__ = ["TrainingCache", "get_training_cache"]
+__all__ = ["CacheService", "get_cache_service"]

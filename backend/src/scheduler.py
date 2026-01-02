@@ -81,10 +81,9 @@ class BotScheduler:
                 accuracy = getattr(training_result, 'accuracy', 0)
                 logger.info(f"Retraining completed. Accuracy: {accuracy:.2%}")
                 
-                # Update TrainingCache if we actually trained
+                # Update Unified Cache if we actually trained
                 try:
-                    from src.infrastructure.cache import get_training_cache
-                    training_cache = get_training_cache()
+                    orchestrator = get_ml_training_orchestrator()
                     history_limit = 500
                     display_history = training_result.match_history[-history_limit:] if len(training_result.match_history) > history_limit else training_result.match_history
                     
@@ -99,12 +98,13 @@ class BotScheduler:
                         "match_history": [h.model_dump() if hasattr(h, 'model_dump') else h for h in display_history],
                         "roi_evolution": training_result.roi_evolution,
                         "pick_efficiency": training_result.pick_efficiency,
-                        "team_stats": training_result.team_stats
+                        "team_stats": training_result.team_stats,
+                        "global_averages": getattr(training_result, 'global_averages', {})
                     }
-                    training_cache.set_training_results(training_data)
-                    logger.info(f"TrainingCache updated.")
+                    cache.set(orchestrator.CACHE_KEY_RESULT, training_data, ttl_seconds=cache.TTL_TRAINING)
+                    logger.info(f"Unified Cache updated with training results.")
                 except Exception as e:
-                    logger.error(f"Failed to update TrainingCache: {e}")
+                    logger.error(f"Failed to update unified cache: {e}")
                 
                 del training_result
                 gc.collect()

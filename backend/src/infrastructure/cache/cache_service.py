@@ -76,6 +76,7 @@ class CacheService:
     # TTL Presets (in seconds)
     TTL_LIVE_MATCHES = 30
     TTL_PREDICTIONS = 86400  # 24 hours
+    TTL_TRAINING = 86400     # 24 hours
     TTL_HISTORICAL = 3600
     TTL_LEAGUES = 86400
     TTL_FORECASTS = 86400
@@ -85,6 +86,8 @@ class CacheService:
         """Initialize the cache service with providers."""
         self._memory_cache: OrderedDict[str, Any] = OrderedDict()
         self._lock = threading.RLock()
+        self._hits = 0
+        self._misses = 0
         
         # Initialize Providers
         self.providers: list[CacheProvider] = []
@@ -99,6 +102,7 @@ class CacheService:
         # 1. Memory (LRU style move-to-end)
         with self._lock:
             if key in self._memory_cache:
+                self._hits += 1
                 self._memory_cache.move_to_end(key)
                 return self._memory_cache[key]
         
@@ -106,6 +110,7 @@ class CacheService:
         for provider in self.providers:
             value = provider.get(key)
             if value is not None:
+                self._hits += 1
                 # Populate memory cache for faster subsequent access
                 with self._lock:
                     self._memory_cache[key] = value
@@ -115,6 +120,7 @@ class CacheService:
                         self._memory_cache.popitem(last=False)
                 return value
         
+        self._misses += 1
         return None
     
     def set(self, key: str, value: Any, ttl_seconds: int) -> None:

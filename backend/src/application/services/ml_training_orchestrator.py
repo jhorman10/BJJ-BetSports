@@ -483,9 +483,9 @@ class MLTrainingOrchestrator:
             # Note: TrainingResult is a Pydantic model, so .dict() or .model_dump() works
             result_data = final_result.model_dump() if hasattr(final_result, 'model_dump') else final_result.dict()
             
-            self.cache_service.set(self.CACHE_KEY_RESULT, result_data, ttl_seconds=86400)
-            self.cache_service.set(self.CACHE_KEY_STATUS, "COMPLETED", ttl_seconds=86400)
-            self.cache_service.set(self.CACHE_KEY_MESSAGE, "Entrenamiento completado exitosamente", ttl_seconds=86400)
+            self.cache_service.set(self.CACHE_KEY_RESULT, result_data, ttl_seconds=self.cache_service.TTL_TRAINING)
+            self.cache_service.set(self.CACHE_KEY_STATUS, "COMPLETED", ttl_seconds=self.cache_service.TTL_TRAINING)
+            self.cache_service.set(self.CACHE_KEY_MESSAGE, "Entrenamiento completado exitosamente", ttl_seconds=self.cache_service.TTL_TRAINING)
             
             # Persistent DB storage (Fallback for ephemeral local storage like Render)
             if self.persistence_repository:

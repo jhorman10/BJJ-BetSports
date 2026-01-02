@@ -110,7 +110,7 @@ async def lifespan(app: FastAPI):
         # We only do the bare minimum here.
         
         # Log basic config status
-        logger.info("📡 Application starting in Persistent-SQL mode.")
+        logger.info("📡 Application starting in Persistent-SQL mode (PostgreSQL + DiskCache).")
 
         if os.getenv("FOOTBALL_DATA_ORG_KEY"):
             logger.info("✓ Football-Data.org configured")
