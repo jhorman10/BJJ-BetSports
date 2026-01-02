@@ -7,7 +7,6 @@ Provides a global, objective measure of team strength.
 
 import logging
 import aiohttp
-import pandas as pd
 import io
 from datetime import datetime, timedelta
 from typing import Optional, Dict
@@ -38,6 +37,9 @@ class ClubEloSource:
             return
 
         try:
+            # Lazy import pandas (only when fetching data)
+            import pandas as pd
+            
             # Fetch current ratings for all teams
             async with aiohttp.ClientSession() as session:
                 async with session.get(f"{self.BASE_URL}/{now.strftime('%Y-%m-%d')}") as response:

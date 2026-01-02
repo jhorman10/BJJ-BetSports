@@ -15,7 +15,6 @@ import logging
 import functools
 
 import httpx
-import pandas as pd
 from io import StringIO
 
 from src.domain.entities.entities import Match, Team, League, TeamStatistics
@@ -140,7 +139,7 @@ class FootballDataUKSource:
     def __init__(self, config: Optional[FootballDataConfig] = None):
         """Initialize the data source."""
         self.config = config or FootballDataConfig()
-        self._cache: dict[str, tuple[pd.DataFrame, datetime]] = {}
+        self._cache: dict[str, tuple[Any, datetime]] = {}  # Any instead of pd.DataFrame for lazy import
     
     def _get_csv_url(self, league_code: str, season: str) -> str:
         """
@@ -177,7 +176,7 @@ class FootballDataUKSource:
         season: str,
         force_refresh: bool = False,
         client: Optional[httpx.AsyncClient] = None,
-    ) -> Optional[tuple[pd.DataFrame, datetime]]:
+    ) -> Optional[tuple[Any, datetime]]:
         """
         Download and parse CSV data for a league.
         
@@ -190,6 +189,9 @@ class FootballDataUKSource:
         Returns:
             Tuple of (DataFrame, timestamp) or None if failed
         """
+        # Lazy import pandas (only when actually downloading data)
+        import pandas as pd
+        
         cache_key = f"{league_code}_{season}"
         
         if not force_refresh and cache_key in self._cache:
@@ -261,7 +263,7 @@ class FootballDataUKSource:
     
     def parse_matches(
         self,
-        df: pd.DataFrame,
+        df: Any,  # DataFrame, but using Any for lazy import
         league: League,
         fetch_time: Optional[datetime] = None,
     ) -> list[Match]:
@@ -276,6 +278,9 @@ class FootballDataUKSource:
         Returns:
             List of Match entities
         """
+        # Lazy import pandas
+        import pandas as pd
+        
         matches = []
         
         # Expected columns
