@@ -21,5 +21,11 @@ pydantic-settings==2.12.0
 # Timezone handling
 pytz==2024.1
 
+# Caching (for ephemeral cache layer)
+diskcache==5.6.3
+
+# JSON serialization (faster than standard json)
+orjson
+
 # Task scheduling (for worker script)
 apscheduler==3.11.2
