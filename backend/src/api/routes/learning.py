@@ -240,17 +240,34 @@ async def trigger_training_now(
     This is useful for manual refresh outside the daily schedule.
     Training runs in background but caches results when complete.
     """
-    from src.scheduler import get_scheduler
+    import os
     
-    scheduler = get_scheduler()
-    
-    # Run training in background
-    background_tasks.add_task(scheduler.run_daily_orchestrated_job)
-    
-    return {
-        "status": "started",
-        "message": "Entrenamiento iniciado en segundo plano. Los resultados se guardarán al completar."
-    }
+    # Check if we are in API_ONLY_MODE
+    if os.getenv("API_ONLY_MODE", "false").lower() == "true":
+        raise HTTPException(
+            status_code=400,
+            detail="Serverless Mode Active: Training must be triggered via GitHub Actions (update_predictions workflow)."
+        )
+
+    try:
+        from src.scheduler import get_scheduler
+        scheduler = get_scheduler()
+        
+        if not scheduler:
+             raise HTTPException(status_code=500, detail="Scheduler not initialized")
+
+        # Run training in background
+        background_tasks.add_task(scheduler.run_daily_orchestrated_job)
+        
+        return {
+            "status": "started",
+            "message": "Entrenamiento iniciado en segundo plano. Los resultados se guardarán al completar."
+        }
+    except ImportError:
+         raise HTTPException(
+            status_code=500,
+            detail="APScheduler not installed. This functionality requires the worker dependencies."
+        )
 
 
 @router.get("/train/status", response_model=TrainingProgressStatus)
