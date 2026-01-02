@@ -99,6 +99,13 @@ async def lifespan(app: FastAPI):
         scheduler = get_scheduler()
         cache = get_cache_service()
         
+        # 1.1 Local Cache Refresh (Requested by User)
+        # Allows refreshing the local cache automatically on every server restart (e.g. during development)
+        if os.getenv("CLEAR_CACHE_ON_START", "false").lower() == "true":
+            logger.info("🧹 CLEAR_CACHE_ON_START is true. Purging all cache layers...")
+            cache.clear()
+            logger.info("✓ Cache purged successfully.")
+        
         # Log Redis Connection Status (Securely)
         if os.getenv("REDIS_URL"):
             logger.info("✓ External Redis configuration detected.")
