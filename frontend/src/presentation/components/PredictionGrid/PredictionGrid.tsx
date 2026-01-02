@@ -18,6 +18,7 @@ import { ParleyPickItem } from "../../../application/stores/useParleyStore";
 import { usePredictionStore } from "../../../application/stores/usePredictionStore";
 import { useParleyStore } from "../../../application/stores/useParleyStore";
 import { useOfflineStore } from "../../../application/stores/useOfflineStore";
+import { useCacheStore } from "../../../application/stores/useCacheStore";
 
 const emptyStateStyles = {
   border: "2px dashed rgba(148, 163, 184, 0.2)",
@@ -42,6 +43,7 @@ const PredictionGrid: React.FC = memo(() => {
 
   const { selectedPicks, addPick, removePick } = useParleyStore();
   const { isBackendAvailable } = useOfflineStore();
+  const { prefetchMatch } = useCacheStore();
 
   // Local state for modal
   const [selectedMatch, setSelectedMatch] =
@@ -206,6 +208,26 @@ const PredictionGrid: React.FC = memo(() => {
       }
     });
   }, [predictions, searchMatches, searchQuery, isGlobalSearch, sortBy]);
+
+  // Batch prefetch picks when predictions are loaded or sorted
+  React.useEffect(() => {
+    if (!predictionsLoading && sortedPredictions.length > 0) {
+      // Prefetch the first 15 matches from the sorted list (most relevant to user)
+      const matchesToPrefetch = sortedPredictions.slice(0, 15);
+
+      const prefetchBatch = async () => {
+        // Fire them in small groups to be polite to the backend but fast
+        for (let i = 0; i < matchesToPrefetch.length; i += 3) {
+          const batch = matchesToPrefetch.slice(i, i + 3);
+          await Promise.all(batch.map((m) => prefetchMatch(m.match.id)));
+          // Small delay between batches
+          await new Promise((resolve) => setTimeout(resolve, 200));
+        }
+      };
+
+      prefetchBatch();
+    }
+  }, [sortedPredictions, predictionsLoading, prefetchMatch]);
 
   // Persistent Header with Conditional Content Below
   return (

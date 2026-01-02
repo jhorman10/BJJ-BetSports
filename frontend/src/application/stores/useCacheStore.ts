@@ -48,7 +48,8 @@ export const useCacheStore = create<CacheState>()(
         // If already cached and fresh (< 12 hours), skip
         // Or if already fetching, skip
         const cached = state.picksCache[matchId];
-        const isFresh = cached && Date.now() - cached.timestamp < 1000 * 60 * 5; // 5 min TTL for testing
+        const isFresh =
+          cached && Date.now() - cached.timestamp < 1000 * 60 * 30; // 30 min TTL
 
         if (isFresh || state.fetching[matchId]) return;
 

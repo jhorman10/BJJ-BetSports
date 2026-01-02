@@ -37,7 +37,6 @@ import { useBotStore } from "./application/stores/useBotStore";
 import OfflineIndicator from "./presentation/components/common/OfflineIndicator";
 import { useOfflineStore } from "./application/stores/useOfflineStore";
 import { dataReconciliationService } from "./application/services/DataReconciliationService";
-import { useCacheStore } from "./application/stores/useCacheStore";
 
 // Extend window type for PWA install event
 declare global {
@@ -99,64 +98,7 @@ const App: React.FC = () => {
     useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
 
-  // --- Background Prefetching ---
-  const { predictions, predictionsLoading } = usePredictionStore() as any;
-  const { prefetchMatch } = useCacheStore();
-
-  useEffect(() => {
-    // Only start prefetching when:
-    // 1. Predictions are loaded and NOT loading
-    // 2. We have connectivity
-    if (!predictionsLoading && predictions.length > 0 && isOnline) {
-      const runPrefetch = async () => {
-        // Wait for initial heavy requests (like training data) to settle
-        await new Promise((resolve) => setTimeout(resolve, 5000));
-
-        // Use requestIdleCallback if available to not block main thread
-        // or just simple async loop with small delay
-        if ("requestIdleCallback" in window) {
-          (window as any).requestIdleCallback(
-            () => {
-              processPrefetchQueue(predictions);
-            },
-            { timeout: 2000 }
-          );
-        } else {
-          setTimeout(() => processPrefetchQueue(predictions), 1000);
-        }
-      };
-
-      const processPrefetchQueue = async (matches: any[]) => {
-        // Strategy:
-        // 1. Prioritize matches with 'High' or 'Medium' confidence or value bets
-        // 2. Then remainder
-
-        // Sort specifically for prefetching priority (copy array to not mutate)
-        const sorted = [...matches].sort((a, b) => {
-          // If has value bet or highlight, prioritize
-          const aPrio =
-            a.prediction?.recommended_bet !== "Ver detalles" ? 1 : 0;
-          const bPrio =
-            b.prediction?.recommended_bet !== "Ver detalles" ? 1 : 0;
-          return bPrio - aPrio;
-        });
-
-        // Limit to first 10 items to prevent network congestion
-        const queue = sorted.slice(0, 10);
-
-        for (const match of queue) {
-          // Fire and forget, but maybe stagger slightly?
-          // Since browser handles network queue, we can just call it unless we want to be super polite
-          await prefetchMatch(match.match.id);
-          // Throttle: Wait 1.5s between requests to avoid backend timeouts
-          await new Promise((resolve) => setTimeout(resolve, 1500));
-        }
-      };
-
-      runPrefetch();
-    }
-  }, [predictions, predictionsLoading, isOnline, prefetchMatch]);
-  // -----------------------------
+  // --- Background Prefetching REMOVED from App.tsx - Now handled locally in PredictionGrid ---
 
   // Goal detection ref
   const prevScoresRef = useRef<Map<string, { home: number; away: number }>>(
@@ -370,9 +312,7 @@ const App: React.FC = () => {
                         </Button>
                       )}
                     </Box>
-                  ) : leaguesError &&
-                    !isBackendAvailable ? // If backend is down, we hide the big error alert because OfflineIndicator shows the bar
-                  null : (
+                  ) : leaguesError && !isBackendAvailable ? null : ( // If backend is down, we hide the big error alert because OfflineIndicator shows the bar
                     <LeagueSelector />
                   )}
                   {showLive ? (
