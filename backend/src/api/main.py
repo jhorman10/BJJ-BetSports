@@ -299,7 +299,7 @@ async def health_check() -> HealthResponseDTO:
     "/cache/status",
     tags=["Health"],
     summary="Cache status",
-    description="Check Redis cache connection and cached forecasts.",
+    description="Check ephemeral cache status and sampled keys.",
 )
 async def cache_status():
     """Get cache status for debugging."""

@@ -85,7 +85,7 @@ async def get_league_predictions(
     description="Returns pre-calculated prediction for a specific match by ID.",
 )
 async def get_match_prediction(match_id: str) -> MatchPredictionDTO:
-    """Get pre-calculated prediction for a specific match from Redis."""
+    """Get pre-calculated prediction for a specific match from local cache."""
     from src.infrastructure.cache.cache_service import get_cache_service
     
     cache = get_cache_service()
