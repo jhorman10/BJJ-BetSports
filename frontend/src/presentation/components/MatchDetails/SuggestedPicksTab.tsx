@@ -286,7 +286,7 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
   return (
     <Box>
       <Tabs
-        value={currentTab}
+        value={currentTab || false}
         onChange={handleTabChange}
         variant="scrollable"
         scrollButtons="auto"
