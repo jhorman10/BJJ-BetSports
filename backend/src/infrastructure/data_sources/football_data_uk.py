@@ -189,8 +189,17 @@ class FootballDataUKSource:
         Returns:
             Tuple of (DataFrame, timestamp) or None if failed
         """
-        # Lazy import pandas (only when actually downloading data)
-        import pandas as pd
+        try:
+            # Lazy import pandas (only when actually downloading data)
+            import pandas as pd
+        except ImportError:
+            # Handle API-ONLY mode (no pandas installed)
+            import os
+            if os.getenv("API_ONLY_MODE", "false").lower() == "true":
+                logger.warning(f"Skipping CSV download for {league_code} (Pandas not available in API-ONLY mode).")
+                return None
+            else:
+                raise ImportError("Pandas is required for CSV processing but is not installed.")
         
         cache_key = f"{league_code}_{season}"
         

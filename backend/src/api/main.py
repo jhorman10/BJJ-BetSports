@@ -191,12 +191,18 @@ async def lifespan(app: FastAPI):
                     
                     if not has_cached_forecasts and (not disable_training_env and not is_render and not low_memory):
                         logger.info("🚀 Starting Daily Orchestrated Job (Sequenced)...")
-                        from src.scheduler import get_scheduler
-                        scheduler = get_scheduler()
-                        await scheduler.run_daily_orchestrated_job()
-                        logger.info("✓ Daily Orchestrated Job complete. Cleaning memory...")
-                        gc.collect()
-                        await asyncio.sleep(5)
+                        try:
+                            from src.scheduler import get_scheduler
+                            scheduler = get_scheduler()
+                            await scheduler.run_daily_orchestrated_job()
+                            logger.info("✓ Daily Orchestrated Job complete. Cleaning memory...")
+                            gc.collect()
+                            await asyncio.sleep(5)
+                        except ImportError:
+                            logger.error("⚠ Scheduler not available (APScheduler missing). Skipping orchestrated job.")
+                        except Exception as e:
+                            logger.error(f"⚠ Failed to run orchestrated job: {e}")
+                            
                     elif not has_cached_forecasts and (is_render or low_memory):
                         logger.warning("️⚠️ Cold startup on Render/Low-Memory detected. Skipping heavy training to avoid OOM.")
                         logger.info("💡 Tip: Use GitHub Actions to populate the database periodically.")
@@ -223,10 +229,13 @@ async def lifespan(app: FastAPI):
             asyncio.create_task(background_tasks_orchestrator())
             
             # Scheduler just for the CRON, no immediate run here (orchestrator handles first run)
-            from src.scheduler import get_scheduler
-            scheduler = get_scheduler()
-            scheduler.start(run_immediate=False)
-            logger.info("✓ Daily training scheduler configured (06:00 AM Colombia time)")
+            try:
+                from src.scheduler import get_scheduler
+                scheduler = get_scheduler()
+                scheduler.start(run_immediate=False)
+                logger.info("✓ Daily training scheduler configured (06:00 AM Colombia time)")
+            except ImportError:
+                logger.warning("⚠ Scheduler not available (APScheduler missing). CRON tasks disabled.")
         else:
             logger.info("⏭️  Skipping background tasks (API-ONLY mode)")
             logger.info("💡 Predictions will be read from database (populated by GitHub Actions)")
