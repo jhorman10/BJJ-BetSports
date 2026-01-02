@@ -12,6 +12,7 @@ import {
 import { SportsSoccer, Refresh } from "@mui/icons-material";
 import { LiveMatchRaw } from "../../../utils/matchMatching";
 import LiveMatchCard from "./LiveMatchCard";
+import { useOfflineStore } from "../../../application/stores/useOfflineStore";
 
 const PulseDot = styled(Box)({
   width: 8,
@@ -46,6 +47,7 @@ const LiveMatchesView: React.FC<LiveMatchesViewProps> = ({
   selectedLeagueNames = [],
   onMatchClick,
 }) => {
+  const { isBackendAvailable } = useOfflineStore();
   // Filtrar Partidos (Sin Agrupar)
   const filteredMatches = useMemo(() => {
     // 1. Filtrar por ligas seleccionadas (si hay selección)
@@ -119,9 +121,9 @@ const LiveMatchesView: React.FC<LiveMatchesViewProps> = ({
         <Box display="flex" justifyContent="center" p={4}>
           <CircularProgress size={30} sx={{ color: "#22c55e" }} />
         </Box>
-      ) : error ? (
+      ) : error && isBackendAvailable ? (
         <Alert severity="error">{error}</Alert>
-      ) : filteredMatches.length === 0 ? (
+      ) : error && !isBackendAvailable ? null : filteredMatches.length === 0 ? (
         <Box textAlign="center" p={4} color="rgba(255, 255, 255, 0.5)">
           <SportsSoccer sx={{ fontSize: 40, opacity: 0.3, mb: 1 }} />
           <Typography variant="body2">

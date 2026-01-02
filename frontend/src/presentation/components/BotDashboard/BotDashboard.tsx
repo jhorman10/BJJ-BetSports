@@ -32,6 +32,7 @@ import PicksStatsTable from "./PicksStatsTable";
 import { TrainingStatus, MatchPredictionHistory } from "../../../types";
 import { useBotStore } from "../../../application/stores/useBotStore";
 import { useSmartPolling } from "../../../hooks/useSmartPolling";
+import { useOfflineStore } from "../../../application/stores/useOfflineStore";
 
 const BotDashboard: React.FC = () => {
   // Use Bot Store for persistent state
@@ -46,6 +47,7 @@ const BotDashboard: React.FC = () => {
     fetchTrainingData,
     reconcile,
   } = useBotStore();
+  const { isBackendAvailable } = useOfflineStore();
 
   // Smart polling: check backend every 30 seconds while tab is visible
   useSmartPolling({
@@ -481,7 +483,7 @@ const BotDashboard: React.FC = () => {
           </Alert>
         )}
 
-        {trainingStatus === "ERROR" && (
+        {trainingStatus === "ERROR" && isBackendAvailable && (
           <Alert severity="error" sx={{ mb: 4, mt: 3 }}>
             <Typography variant="body2">
               ❌ Error:{" "}
@@ -492,13 +494,15 @@ const BotDashboard: React.FC = () => {
           </Alert>
         )}
 
-        {isReconciling && trainingStatus !== "IN_PROGRESS" && (
-          <Alert severity="info" sx={{ mb: 4, mt: 3 }}>
-            <Typography variant="body2">
-              🔄 Sincronizando datos con el servidor...
-            </Typography>
-          </Alert>
-        )}
+        {isReconciling &&
+          trainingStatus !== "IN_PROGRESS" &&
+          isBackendAvailable && (
+            <Alert severity="info" sx={{ mb: 4, mt: 3 }}>
+              <Typography variant="body2">
+                🔄 Sincronizando datos con el servidor...
+              </Typography>
+            </Alert>
+          )}
 
         {isStale && stats && trainingStatus !== "IN_PROGRESS" && (
           <Alert

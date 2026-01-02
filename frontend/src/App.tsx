@@ -340,7 +340,7 @@ const App: React.FC = () => {
                       machine learning.
                     </Typography>
                   </Box>
-                  {leaguesError ? (
+                  {leaguesError && isBackendAvailable ? (
                     <Box>
                       <Alert
                         severity="error"
@@ -355,8 +355,7 @@ const App: React.FC = () => {
                           </Button>
                         }
                       >
-                        Error al cargar las ligas: {leaguesError}. El servidor
-                        puede estar iniciándose.
+                        Error al cargar las ligas: {leaguesError}.
                       </Alert>
                       {/* Show Live button even when leagues fail to load */}
                       {liveMatches.length > 0 && (
@@ -371,7 +370,9 @@ const App: React.FC = () => {
                         </Button>
                       )}
                     </Box>
-                  ) : (
+                  ) : leaguesError &&
+                    !isBackendAvailable ? // If backend is down, we hide the big error alert because OfflineIndicator shows the bar
+                  null : (
                     <LeagueSelector />
                   )}
                   {showLive ? (

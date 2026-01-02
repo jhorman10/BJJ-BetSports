@@ -18,6 +18,7 @@ import { ParleyPickItem } from "../../../application/stores/useParleyStore";
 
 import { usePredictionStore } from "../../../application/stores/usePredictionStore";
 import { useParleyStore } from "../../../application/stores/useParleyStore";
+import { useOfflineStore } from "../../../application/stores/useOfflineStore";
 
 const emptyStateStyles = {
   border: "2px dashed rgba(148, 163, 184, 0.2)",
@@ -41,6 +42,7 @@ const PredictionGrid: React.FC = memo(() => {
   } = usePredictionStore();
 
   const { selectedPicks, addPick, removePick } = useParleyStore();
+  const { isBackendAvailable } = useOfflineStore();
 
   // Local state for modal
   const [selectedMatch, setSelectedMatch] =
@@ -253,11 +255,13 @@ const PredictionGrid: React.FC = memo(() => {
             ))}
           </Box>
         </Box>
-      ) : error ? (
+      ) : error && isBackendAvailable ? (
         <Alert severity="error" sx={{ mb: 3 }}>
           Error al cargar predicciones: {error.message}
         </Alert>
-      ) : sortedPredictions.length === 0 ? (
+      ) : error &&
+        !isBackendAvailable ? // Hide local error if backend is globally marked as down
+      null : sortedPredictions.length === 0 ? (
         <Box
           display="flex"
           flexDirection="column"
