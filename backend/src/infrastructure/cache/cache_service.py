@@ -4,7 +4,6 @@ from typing import Any, Optional, Dict, TypeVar, Generic
 import threading
 import logging
 import diskcache
-import redis
 import json
 import pickle
 from collections import OrderedDict
@@ -35,80 +34,6 @@ class CacheProvider(ABC):
     def clear(self) -> bool:
         pass
 
-class RedisCacheProvider(CacheProvider):
-    """Redis cache implementation."""
-    
-    def __init__(self, host='localhost', port=6379, db=0, password=None):
-        try:
-            # Flexible connection: Priorities REDIS_URL (Render/Upstash style)
-            redis_url = os.getenv("REDIS_URL")
-            if redis_url and redis_url.startswith(("redis://", "rediss://", "unix://")):
-                self.client = redis.Redis.from_url(
-                    redis_url, 
-                    decode_responses=False,
-                    socket_connect_timeout=2,
-                    socket_timeout=2
-                )
-                host = "URL" # For logging
-            elif redis_url:
-                logger.warning(f"Invalid REDIS_URL format: {redis_url[:10]}... skipping Redis.")
-                self._is_connected = False
-                return
-            else:
-                # If no REDIS_URL and on Render, don't even try localhost (Save time)
-                if os.getenv("RENDER") == "true":
-                    logger.info("ℹ Skipping Redis localhost on Render (No REDIS_URL found)")
-                    self._is_connected = False
-                    return
-                    
-                self.client = redis.Redis(
-                    host=host, 
-                    port=port, 
-                    db=db, 
-                    password=password,
-                    decode_responses=False, # Keep bytes for pickling
-                    socket_connect_timeout=2,
-                    socket_timeout=2
-                )
-            self.client.ping()
-            logger.info(f"Redis connected at {host}:{port}/{db}")
-            self._is_connected = True
-        except Exception as e:
-            logger.error(f"Redis connection failed: {e}")
-            self._is_connected = False
-            
-    def get(self, key: str) -> Optional[Any]:
-        if not self._is_connected: return None
-        try:
-            data = self.client.get(key)
-            if data:
-                return pickle.loads(data)
-        except Exception as e:
-            logger.warning(f"Redis get error for {key}: {e}")
-        return None
-        
-    def set(self, key: str, value: Any, ttl: int) -> bool:
-        if not self._is_connected: return False
-        try:
-            data = pickle.dumps(value)
-            return self.client.setex(key, ttl, data)
-        except Exception as e:
-            logger.warning(f"Redis set error for {key}: {e}")
-            return False
-            
-    def delete(self, key: str) -> bool:
-        if not self._is_connected: return False
-        try:
-            return self.client.delete(key) > 0
-        except Exception:
-            return False
-
-    def clear(self) -> bool:
-        if not self._is_connected: return False
-        try:
-            return self.client.flushdb()
-        except Exception:
-            return False
 
 class DiskCacheProvider(CacheProvider):
     """DiskCache implementation."""
@@ -145,7 +70,7 @@ class DiskCacheProvider(CacheProvider):
 class CacheService:
     """
     Multi-level Cache Service.
-    Priority: Memory -> Redis -> DiskCache
+    Priority: Memory -> DiskCache
     """
     
     # TTL Presets (in seconds)
@@ -164,20 +89,13 @@ class CacheService:
         # Initialize Providers
         self.providers: list[CacheProvider] = []
         
-        # 1. Redis (Primary Distributed)
-        redis_host = os.getenv("REDIS_HOST", "localhost")
-        redis_port = int(os.getenv("REDIS_PORT", 6379))
-        self.redis_provider = RedisCacheProvider(host=redis_host, port=redis_port)
-        if self.redis_provider._is_connected:
-            self.providers.append(self.redis_provider)
-        
-        # 2. DiskCache (Local Persistent Fallback)
+        # 1. DiskCache (Local Persistent Fallback)
         cache_dir = os.path.join(os.getcwd(), ".cache_data")
         self.disk_provider = DiskCacheProvider(cache_dir)
         self.providers.append(self.disk_provider)
         
     def get(self, key: str) -> Optional[Any]:
-        """Get a value from cache (Memory -> Redis -> Disk)."""
+        """Get a value from cache (Memory -> Disk)."""
         # 1. Memory (LRU style move-to-end)
         with self._lock:
             if key in self._memory_cache:

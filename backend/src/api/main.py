@@ -110,10 +110,7 @@ async def lifespan(app: FastAPI):
         # We only do the bare minimum here.
         
         # Log basic config status
-        if os.getenv("REDIS_URL"):
-            logger.info("✓ External Redis configuration detected.")
-        else:
-            logger.info("ℹ Using Local DiskCache (Persistence is ephemeral on Render Free).")
+        logger.info("📡 Application starting in Persistent-SQL mode.")
 
         if os.getenv("FOOTBALL_DATA_ORG_KEY"):
             logger.info("✓ Football-Data.org configured")
@@ -310,24 +307,16 @@ async def cache_status():
     
     cache = get_cache_service()
     
-    # Safely check Redis connectivity via the provider
-    redis_connected = False
-    if hasattr(cache, 'redis_provider') and cache.redis_provider:
-        redis_connected = cache.redis_provider._is_connected
-    
     # Get forecast keys (Best effort)
     forecast_keys = []
-    if redis_connected and hasattr(cache.redis_provider, 'client'):
-        try:
-            # Note: client.keys can be slow but fine for small debug sets
-            forecast_keys = [k.decode('utf-8') if isinstance(k, bytes) else k for k in cache.redis_provider.client.keys("forecasts:*")]
-        except:
-            pass
+    # Note: DiskCache doesn't have a direct 'keys' method like Redis, 
+    # but we can check the length of memory cache for a sample.
+    memory_sample = list(cache._memory_cache.keys())[:10]
     
     return {
-        "redis_connected": redis_connected,
-        "cached_forecasts_count": len(forecast_keys),
-        "sample_keys": forecast_keys[:10] if forecast_keys else [],
+        "persistence_layer": "PostgreSQL",
+        "ephemeral_layer": "Memory + DiskCache",
+        "cached_items_sample": memory_sample,
         "cache_hits": getattr(cache, '_hits', 0),
         "cache_misses": getattr(cache, '_misses', 0),
     }
