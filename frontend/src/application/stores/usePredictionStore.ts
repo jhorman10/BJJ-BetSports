@@ -41,7 +41,7 @@ interface PredictionState {
   newPredictionsAvailable: boolean;
 
   // Actions
-  fetchLeagues: () => Promise<void>;
+  fetchLeagues: (background?: boolean) => Promise<void>;
   selectCountry: (country: Country | null) => void;
   selectLeague: (league: League | null) => void;
   fetchPredictions: (background?: boolean) => Promise<void>;
@@ -74,8 +74,10 @@ export const usePredictionStore = create<PredictionState>()(
       lastTrainingUpdate: null,
       newPredictionsAvailable: false,
 
-      fetchLeagues: async () => {
-        set({ leaguesLoading: true, leaguesError: null });
+      fetchLeagues: async (background = false) => {
+        if (!background) {
+          set({ leaguesLoading: true, leaguesError: null });
+        }
         try {
           const data = await leaguesApi.getLeagues();
           // Filter out excluded countries
@@ -114,7 +116,9 @@ export const usePredictionStore = create<PredictionState>()(
           // We set error string, UI can decide whether to block or show toast.
           set({ leaguesError: err.message || "Error loading leagues" });
         } finally {
-          set({ leaguesLoading: false });
+          if (!background) {
+            set({ leaguesLoading: false });
+          }
         }
       },
 

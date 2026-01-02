@@ -150,7 +150,7 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
     }
   }, [match.id, hasPicks, isLoading, prefetchMatch]);
 
-  const [currentTab, setCurrentTab] = useState("ALL");
+  const [currentTab, setCurrentTab] = useState("");
   const [initialized, setInitialized] = useState(false);
 
   const loading = isLoading && !hasPicks;
@@ -210,20 +210,33 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
     return counts;
   }, [sortedPicks]);
 
-  // Auto-select TOP_ML if available and not yet initialized
+  // Auto-select first available tab in priority order
   useEffect(() => {
     if (!loading && !initialized && sortedPicks.length > 0) {
-      if (categoryCounts.TOP_ML > 0) {
-        setCurrentTab("TOP_ML");
+      const priorityOrder = [
+        "TOP_ML",
+        "GOALS",
+        "CORNERS",
+        "CARDS",
+        "BTTS",
+        "WINNER",
+        "HANDICAPS",
+      ];
+
+      for (const cat of priorityOrder) {
+        if (categoryCounts[cat as keyof typeof categoryCounts] > 0) {
+          setCurrentTab(cat);
+          setInitialized(true);
+          return;
+        }
       }
+      // Fallback
       setInitialized(true);
     }
   }, [loading, initialized, categoryCounts, sortedPicks.length]);
 
   // Filtered picks based on tab
   const filteredPicks = useMemo(() => {
-    if (currentTab === "ALL") return sortedPicks;
-
     if (currentTab === "TOP_ML") {
       // Filter strictly for ML High Confidence picks
       return sortedPicks.filter(
@@ -297,7 +310,7 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
           },
         }}
       >
-        {/* Reordered: TOP_ML first if available, then ALL */}
+        {/* Ordered Tabs: Top ML | Goles | Corners | Tarjetas | Ambos marcan | Ganador | Handicap */}
         {categoryCounts.TOP_ML > 0 && (
           <Tab
             value="TOP_ML"
@@ -305,15 +318,14 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
             sx={{ color: "#fbbf24 !important" }}
           />
         )}
-        <Tab value="ALL" label="Todos" />
-        {categoryCounts.WINNER > 0 && <Tab value="WINNER" label="Ganador" />}
         {categoryCounts.GOALS > 0 && <Tab value="GOALS" label="Goles" />}
+        {categoryCounts.CORNERS > 0 && <Tab value="CORNERS" label="Córners" />}
+        {categoryCounts.CARDS > 0 && <Tab value="CARDS" label="Tarjetas" />}
         {categoryCounts.BTTS > 0 && <Tab value="BTTS" label="Ambos Marcan" />}
+        {categoryCounts.WINNER > 0 && <Tab value="WINNER" label="Ganador" />}
         {categoryCounts.HANDICAPS > 0 && (
           <Tab value="HANDICAPS" label="Hándicaps" />
         )}
-        {categoryCounts.CORNERS > 0 && <Tab value="CORNERS" label="Córners" />}
-        {categoryCounts.CARDS > 0 && <Tab value="CARDS" label="Tarjetas" />}
       </Tabs>
 
       <Box

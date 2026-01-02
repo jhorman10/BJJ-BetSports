@@ -47,8 +47,8 @@ class DataReconciliationService {
     const predictionStore = usePredictionStore.getState();
 
     try {
-      // Refetch leagues (lightweight)
-      await predictionStore.fetchLeagues();
+      // Refetch leagues (lightweight, background)
+      await predictionStore.fetchLeagues(true);
 
       // If a league is selected, refetch its predictions (silently)
       if (predictionStore.selectedLeague) {
