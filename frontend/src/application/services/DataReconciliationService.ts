@@ -50,9 +50,9 @@ class DataReconciliationService {
       // Refetch leagues (lightweight)
       await predictionStore.fetchLeagues();
 
-      // If a league is selected, refetch its predictions
+      // If a league is selected, refetch its predictions (silently)
       if (predictionStore.selectedLeague) {
-        await predictionStore.fetchPredictions();
+        await predictionStore.fetchPredictions(true);
       }
     } catch (error) {
       // Don't throw - allow other reconciliations to continue

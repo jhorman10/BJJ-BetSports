@@ -40,7 +40,7 @@ interface PredictionState {
   fetchLeagues: () => Promise<void>;
   selectCountry: (country: Country | null) => void;
   selectLeague: (league: League | null) => void;
-  fetchPredictions: () => Promise<void>;
+  fetchPredictions: (background?: boolean) => Promise<void>;
   setSearchQuery: (query: string) => void;
   setSortBy: (sort: SortOption) => void;
   resetFilters: () => void;
@@ -133,14 +133,17 @@ export const usePredictionStore = create<PredictionState>()(
         }
       },
 
-      fetchPredictions: async () => {
+      fetchPredictions: async (background = false) => {
         const { selectedLeague, sortBy, sortDesc } = get();
         if (!selectedLeague) {
           set({ predictions: [] });
           return;
         }
 
-        set({ predictionsLoading: true, predictionsError: null });
+        if (!background) {
+          set({ predictionsLoading: true, predictionsError: null });
+        }
+
         try {
           const response = await predictionsApi.getPredictions(
             selectedLeague.id,
@@ -164,7 +167,9 @@ export const usePredictionStore = create<PredictionState>()(
           // We set error so UI can show "Offline Mode" badge.
           set({ predictionsError: err.message || "Error loading predictions" });
         } finally {
-          set({ predictionsLoading: false });
+          if (!background) {
+            set({ predictionsLoading: false });
+          }
         }
       },
 
