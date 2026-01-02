@@ -215,6 +215,7 @@ class SuggestedPickDTO(BaseModel):
     risk_level: int = Field(..., ge=1, le=5)
     is_recommended: bool = True
     priority_score: float = 0.0
+    is_ml_confirmed: bool = False
     
     model_config = ConfigDict(from_attributes=True)
 

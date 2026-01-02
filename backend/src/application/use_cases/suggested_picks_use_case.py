@@ -531,6 +531,7 @@ class GetSuggestedPicksUseCase:
                 risk_level=p.risk_level,
                 is_recommended=p.is_recommended,
                 priority_score=p.priority_score,
+                is_ml_confirmed=getattr(p, 'is_ml_confirmed', False),
             )
             for p in picks.suggested_picks
         ]
