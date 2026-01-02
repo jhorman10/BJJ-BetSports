@@ -42,9 +42,13 @@ class RedisCacheProvider(CacheProvider):
         try:
             # Flexible connection: Priorities REDIS_URL (Render/Upstash style)
             redis_url = os.getenv("REDIS_URL")
-            if redis_url:
+            if redis_url and redis_url.startswith(("redis://", "rediss://", "unix://")):
                 self.client = redis.Redis.from_url(redis_url, decode_responses=False)
                 host = "URL" # For logging
+            elif redis_url:
+                logger.warning(f"Invalid REDIS_URL format: {redis_url[:10]}... skipping Redis.")
+                self._is_connected = False
+                return
             else:
                 self.client = redis.Redis(
                     host=host, 

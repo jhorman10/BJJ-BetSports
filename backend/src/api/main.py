@@ -45,7 +45,7 @@ formatter = ColombiaTimeFormatter("%(asctime)s - %(name)s - %(levelname)s - %(me
 handler = logging.StreamHandler()
 handler.setFormatter(formatter)
 root_logger = logging.getLogger()
-root_logger.setLevel(logging.WARNING)
+root_logger.setLevel(logging.INFO)
 root_logger.handlers = [handler]
 logger = logging.getLogger(__name__)
 
