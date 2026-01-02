@@ -24,8 +24,7 @@ class PersistenceRepository:
     
     def __init__(self, db_service: DatabaseService = None):
         self.db_service = db_service or get_database_service()
-        # Ensure tables exist
-        self.db_service.create_tables()
+        # Note: Tables are created in main.py lifespan to avoid redundant checks
 
     def save_training_result(self, key: str, data: dict) -> bool:
         """

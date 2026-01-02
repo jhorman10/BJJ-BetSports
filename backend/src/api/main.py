@@ -106,6 +106,13 @@ async def lifespan(app: FastAPI):
             cache.clear()
             logger.info("✓ Cache purged successfully.")
         
+        # 1.2 Initialize Persistence (CRITICAL for Render)
+        persistence_repo = get_persistence_repository()
+        if persistence_repo:
+            logger.info("📡 Initializing database persistence...")
+            persistence_repo.create_tables()
+            logger.info("✓ Database tables verified/created.")
+        
         # Log Redis Connection Status (Securely)
         if os.getenv("REDIS_URL"):
             logger.info("✓ External Redis configuration detected.")
@@ -152,26 +159,37 @@ async def lifespan(app: FastAPI):
                 # Check ephemeral cache first
                 has_cached_forecasts = cache.get(sample_key) is not None
                 
-                # If not in ephemeral, check persistent DB
+                # If not in ephemeral, check persistent DB (Standard for Render)
                 if not has_cached_forecasts:
                     persistence = get_persistence_repository()
                     if persistence.get_training_result(sample_key):
                         has_cached_forecasts = True
-                        logger.info("✓ Persistent forecasts found in DB. Skipping urgent retraining.")
+                        logger.info("✓ Persistent forecasts found in DB. Skipping heavy startup tasks.")
                 
-                # 1. Daily Orchestrated Job (Training + Inference) - Only if really cold
-                disable_training = os.getenv("DISABLE_ML_TRAINING", "false").lower() == "true"
-                if not has_cached_forecasts and not disable_training:
+                # 1. Daily Orchestrated Job (Training + Inference)
+                # WARNING: Extremely heavy on RAM. Skip by default on Render Free unless forced.
+                is_render = "render" in os.getenv("RENDER_EXTERNAL_HOSTNAME", "").lower()
+                disable_training_env = os.getenv("DISABLE_ML_TRAINING", "false").lower() == "true"
+                
+                if not has_cached_forecasts and (not disable_training_env and not is_render):
                     logger.info("🚀 Starting Daily Orchestrated Job (Sequenced)...")
                     await scheduler.run_daily_orchestrated_job()
                     logger.info("✓ Daily Orchestrated Job complete. Cleaning memory...")
                     gc.collect()
                     await asyncio.sleep(5)
+                elif not has_cached_forecasts and is_render:
+                    logger.warning("️⚠️ Cold startup on Render detected. Skipping heavy training to avoid OOM.")
+                    logger.info("💡 Tip: Use GitHub Actions to populate the database periodically.")
                 
-                # 2. Cache Warmup (Lookahead)
+                # 2. Cache Warmup (Lookahead) - Sequentially
                 logger.info("🚀 Starting Cache Warmup (Sequenced)...")
-                await warmup_service.warm_up_predictions()
-                logger.info("✓ Cache Warmup complete. System ready.")
+                # We prioritize the top 3 leagues first to give faster UI feedback
+                priority_leagues = ['E0', 'SP1', 'D1']
+                await warmup_service.warm_up_predictions(league_ids=priority_leagues)
+                
+                # Then do the rest in background
+                asyncio.create_task(warmup_service.warm_up_predictions())
+                logger.info("✓ Initial Cache Warmup complete. System ready.")
                 gc.collect()
                 
             except Exception as e:
@@ -212,7 +230,6 @@ app = FastAPI(
 
 
 # Configure CORS
-# Explicitly include loopback IPs which browsers sometimes use instead of 'localhost'
 base_origins = [
     "http://localhost:3000", 
     "http://localhost:5173", 
@@ -222,16 +239,18 @@ base_origins = [
     "http://127.0.0.1:5174",
     "https://football-prediction-frontend-nz9r.onrender.com"
 ]
-cors_origins = os.getenv("CORS_ORIGINS", "").split(",")
+env_origins = os.getenv("CORS_ORIGINS", "").split(",")
 # Combine and remove empty/duplicates
-all_origins = list(set([o for o in base_origins + cors_origins if o]))
+all_origins = list(set([o.strip() for o in base_origins + env_origins if o.strip()]))
 
+# Added allow_origin_regex for flexibility in Render subdomains
 app.add_middleware(
     CORSMiddleware,
     allow_origins=all_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    allow_origin_regex="https://.*\\.onrender\\.com",
 )
 
 
@@ -280,19 +299,27 @@ async def cache_status():
     from src.infrastructure.cache.cache_service import get_cache_service
     
     cache = get_cache_service()
-    redis_connected = cache.redis.is_connected if cache.redis else False
     
-    # Get forecast keys
+    # Safely check Redis connectivity via the provider
+    redis_connected = False
+    if hasattr(cache, 'redis_provider') and cache.redis_provider:
+        redis_connected = cache.redis_provider._is_connected
+    
+    # Get forecast keys (Best effort)
     forecast_keys = []
-    if redis_connected:
-        forecast_keys = cache.redis.keys("forecasts:*")
+    if redis_connected and hasattr(cache.redis_provider, 'client'):
+        try:
+            # Note: client.keys can be slow but fine for small debug sets
+            forecast_keys = [k.decode('utf-8') if isinstance(k, bytes) else k for k in cache.redis_provider.client.keys("forecasts:*")]
+        except:
+            pass
     
     return {
         "redis_connected": redis_connected,
         "cached_forecasts_count": len(forecast_keys),
         "sample_keys": forecast_keys[:10] if forecast_keys else [],
-        "cache_hits": cache._hits,
-        "cache_misses": cache._misses,
+        "cache_hits": getattr(cache, '_hits', 0),
+        "cache_misses": getattr(cache, '_misses', 0),
     }
 
 

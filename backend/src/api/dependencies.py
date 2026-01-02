@@ -111,8 +111,13 @@ def get_training_data_service() -> TrainingDataService:
         data_sources=get_data_sources(),
         enrichment_service=get_match_enrichment_service()
     )
-from src.infrastructure.repositories.persistence_repository import get_persistence_repository
+from src.infrastructure.repositories.persistence_repository import PersistenceRepository
 from src.application.services.ml_training_orchestrator import MLTrainingOrchestrator
+
+@lru_cache()
+def get_persistence_repository() -> PersistenceRepository:
+    """Get the persistence repository instance (cached singleton)."""
+    return PersistenceRepository()
 
 @lru_cache()
 def get_ml_training_orchestrator() -> MLTrainingOrchestrator:
