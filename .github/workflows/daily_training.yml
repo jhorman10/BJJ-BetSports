@@ -55,4 +55,4 @@ jobs:
           # If root file exists and was modified/untracked, ignore it or delete it?
           # We prefer the one in backend.
 
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update ML Model [skip ci]" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update ML Model [skip ci]" && git pull --rebase && git push)

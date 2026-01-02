@@ -51,12 +51,17 @@ class BotScheduler:
             logger.info(f"ARCHITECT: Starting memory-optimized job at {datetime.now(COLOMBIA_TZ)}")
             
             # Dynamic imports to keep initial memory low
-            from src.api.dependencies import get_ml_training_orchestrator, get_cache_service, get_data_sources, get_prediction_service, get_statistics_service, get_audit_service
+            from src.api.dependencies import (
+                get_ml_training_orchestrator, get_cache_service, get_data_sources, 
+                get_prediction_service, get_statistics_service, get_audit_service, 
+                get_persistence_repository
+            )
             from src.application.use_cases.use_cases import GetPredictionsUseCase
             from src.infrastructure.data_sources.football_data_uk import LEAGUES_METADATA
             
             orchestrator = get_ml_training_orchestrator()
             cache = get_cache_service()
+            persistence_repo = get_persistence_repository()
             data_sources = get_data_sources()
             prediction_service = get_prediction_service()
             statistics_service = get_statistics_service()
@@ -123,12 +128,24 @@ class BotScheduler:
             leagues_processed = 0
             for league_id in self._get_league_iterator(LEAGUES_METADATA):
                 try:
+                    # Execute inference for league
                     predictions_dto = await use_case.execute(league_id, limit=50)
-                    league_cache_key = f"forecasts:league_{league_id}:date_{today_str}"
+                    
+                    # Unified Cache Key
+                    league_cache_key = f"forecasts:league_{league_id}"
+                    
+                    # 1. Ephemeral Cache
                     cache.set(league_cache_key, predictions_dto.dict(), cache.TTL_FORECASTS)
                     
+                    # 2. Persistent Storage (PostgreSQL)
+                    if persistence_repo:
+                        persistence_repo.save_training_result(league_cache_key, predictions_dto.dict())
+                    
+                    # Store individual match forecast if needed
                     for match_pred in predictions_dto.predictions:
-                        cache.set(f"forecasts:match_{match_pred.match.id}", match_pred.dict(), cache.TTL_FORECASTS)
+                        match_key = f"forecasts:match_{match_pred.match.id}"
+                        cache.set(match_key, match_pred.dict(), cache.TTL_FORECASTS)
+                        # Optional: persist individual matches? (Maybe overkill if league is persisted)
                     
                     del predictions_dto
                     gc.collect()

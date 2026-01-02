@@ -126,15 +126,16 @@ async def lifespan(app: FastAPI):
         from src.domain.services.cache_warmup_service import CacheWarmupService
         from src.api.dependencies import (
             get_data_sources, get_prediction_service,
-            get_statistics_service, get_learning_service
+            get_statistics_service, get_persistence_repository,
+            get_background_processor
         )
         
         warmup_service = CacheWarmupService(
             data_sources=get_data_sources(),
-            cache_service=cache,
             prediction_service=get_prediction_service(),
             statistics_service=get_statistics_service(),
-            learning_service=get_learning_service()
+            persistence_repository=get_persistence_repository(),
+            background_processor=get_background_processor()
         )
         
         # Run warmup in background
@@ -145,12 +146,20 @@ async def lifespan(app: FastAPI):
                 logger.info("⏳ Waiting 10s before background task cycle...")
                 await asyncio.sleep(10)
                 
-                # Check forecasts
-                today_str = get_today_str()
-                sample_key = f"forecasts:league_E0:date_{today_str}"
+                # Check forecasts (Unified key)
+                sample_key = "forecasts:league_E0"
+                
+                # Check ephemeral cache first
                 has_cached_forecasts = cache.get(sample_key) is not None
                 
-                # 1. Daily Orchestrated Job (Training + Inference)
+                # If not in ephemeral, check persistent DB
+                if not has_cached_forecasts:
+                    persistence = get_persistence_repository()
+                    if persistence.get_training_result(sample_key):
+                        has_cached_forecasts = True
+                        logger.info("✓ Persistent forecasts found in DB. Skipping urgent retraining.")
+                
+                # 1. Daily Orchestrated Job (Training + Inference) - Only if really cold
                 disable_training = os.getenv("DISABLE_ML_TRAINING", "false").lower() == "true"
                 if not has_cached_forecasts and not disable_training:
                     logger.info("🚀 Starting Daily Orchestrated Job (Sequenced)...")
@@ -161,7 +170,7 @@ async def lifespan(app: FastAPI):
                 
                 # 2. Cache Warmup (Lookahead)
                 logger.info("🚀 Starting Cache Warmup (Sequenced)...")
-                await warmup_service.warm_up_predictions(lookahead_days=7)
+                await warmup_service.warm_up_predictions()
                 logger.info("✓ Cache Warmup complete. System ready.")
                 gc.collect()
                 

@@ -107,11 +107,13 @@ class GetPredictionsUseCase:
         data_sources: DataSources,
         prediction_service: PredictionService,
         statistics_service: StatisticsService,
+        persistence_repository: Optional["PersistenceRepository"] = None,
         background_processor: Optional[BackgroundProcessor] = None,
     ):
         self.data_sources = data_sources
         self.prediction_service = prediction_service
         self.statistics_service = statistics_service
+        self.persistence_repository = persistence_repository
         self.picks_service = PicksService()
         self.background_processor = background_processor
     
@@ -130,17 +132,27 @@ class GetPredictionsUseCase:
         if league_id not in LEAGUES_METADATA:
             raise ValueError(f"Unknown league: {league_id}")
             
-        # 0. Check Cache
+        # 0. Check Cache (Ephemeral & Persistent)
         from src.infrastructure.cache.cache_service import get_cache_service
         cache_service = get_cache_service()
-        # Cache per league, per day (roughly) or 1 hour TTL
-        # Since matches are "upcoming", caching for 1-4 hours is safe unless configured otherwise.
-        cache_key = f"league_view_predictions:{league_id}"
-        cached_response = cache_service.get(cache_key)
         
+        # Unified Cache Key for League Forecasts
+        cache_key = f"forecasts:league_{league_id}"
+        
+        # 0.1 Try Ephemeral Cache (Memory/Disk)
+        cached_response = cache_service.get(cache_key)
         if cached_response:
-            logger.info(f"Serving cached predictions for {league_id}")
+            logger.info(f"Serving cached (ephemeral) predictions for {league_id}")
             return PredictionsResponseDTO(**cached_response)
+            
+        # 0.2 Try Persistent DB (PostgreSQL fallback)
+        if self.persistence_repository:
+            db_data = self.persistence_repository.get_training_result(cache_key)
+            if db_data:
+                logger.info(f"Serving persistent (PostgreSQL) predictions for {league_id}")
+                # Optional: warm up ephemeral cache for next time
+                cache_service.set(cache_key, db_data, ttl_seconds=86400)
+                return PredictionsResponseDTO(**db_data)
         
         meta = LEAGUES_METADATA[league_id]
         league = League(
@@ -413,8 +425,12 @@ class GetPredictionsUseCase:
         
         # Cache the result (24 hours TTL to align with daily training schedule)
         try:
-            # 86400 seconds = 24 hours
+            # 1. Ephemeral Cache
             cache_service.set(cache_key, response.model_dump(), ttl_seconds=86400)
+            
+            # 2. Persistent DB (Fallback for restarts/deployments)
+            if self.persistence_repository:
+                self.persistence_repository.save_training_result(cache_key, response.model_dump())
         except Exception as e:
             logger.warning(f"Failed to cache league predictions: {e}")
             

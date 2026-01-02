@@ -31,72 +31,45 @@ router = APIRouter(prefix="/predictions", tags=["Predictions"])
         404: {"model": ErrorResponseDTO, "description": "League not found or no forecast available"},
         500: {"model": ErrorResponseDTO, "description": "Internal server error"},
     },
-    summary="Get predictions for a league (Pre-calculated)",
-    description="Returns match predictions for upcoming matches in a specific league. Data is pre-calculated daily at 06:00 AM.",
+    summary="Get predictions for a league",
+    description="Returns match predictions for upcoming matches. Priorities: Ephemeral Cache -> Persistent DB -> Real-time Calculation.",
 )
 async def get_league_predictions(
     league_id: str,
 ) -> PredictionsResponseDTO:
-    """Get pre-calculated predictions for a league from Redis."""
-    from src.infrastructure.cache.cache_service import get_cache_service
-    from datetime import datetime, timedelta
-    from pytz import timezone
-    
-    COLOMBIA_TZ = timezone('America/Bogota')
-    today_str = datetime.now(COLOMBIA_TZ).strftime("%Y-%m-%d")
-    
-    # Key format: forecasts:league_{id}:date_{today}
-    cache_key = f"forecasts:league_{league_id}:date_{today_str}"
-    cache = get_cache_service()
-    
-    cached_result = cache.get(cache_key)
-    
-    # Fallback to yesterday's cache if today's is not available
-    if not cached_result:
-        yesterday_str = (datetime.now(COLOMBIA_TZ) - timedelta(days=1)).strftime("%Y-%m-%d")
-        yesterday_key = f"forecasts:league_{league_id}:date_{yesterday_str}"
-        cached_result = cache.get(yesterday_key)
-        if cached_result:
-            logger.info(f"Using yesterday's cache for {league_id} (today's not available yet)")
-    
-    if cached_result:
-        # If it's a dict (from Redis), parse it back to DTO
-        if isinstance(cached_result, dict):
-            dto = PredictionsResponseDTO(**cached_result)
-            # Only return if we actually have predictions
-            if dto.predictions:
-                return dto
-            logger.warning(f"Cached data for {league_id} has 0 predictions. Ignoring cache and recalculating...")
-        else:
-            return cached_result
-    
-    # FALLBACK: Calculate predictions in real-time if no pre-calculated data
-    logger.info(f"No pre-calculated data for {league_id}. Calculating in real-time...")
-    
-    from src.api.dependencies import get_data_sources, get_prediction_service, get_background_processor
-    from src.domain.services.statistics_service import StatisticsService
+    """Get predictions for a league with multi-layer fallback."""
+    from src.api.dependencies import (
+        get_data_sources, get_prediction_service, 
+        get_background_processor, get_statistics_service,
+        get_persistence_repository
+    )
     from src.application.use_cases.use_cases import GetPredictionsUseCase
     
     try:
-        data_sources = get_data_sources()
-        prediction_service = get_prediction_service()
-        statistics_service = StatisticsService()
-        background_processor = get_background_processor()
+        # GetPredictionsUseCase now handles Cache -> DB logic internally
+        use_case = GetPredictionsUseCase(
+            data_sources=get_data_sources(),
+            prediction_service=get_prediction_service(),
+            statistics_service=get_statistics_service(),
+            persistence_repository=get_persistence_repository(),
+            background_processor=get_background_processor()
+        )
         
-        use_case = GetPredictionsUseCase(data_sources, prediction_service, statistics_service, background_processor)
         result = await use_case.execute(league_id, limit=30)
         
-        # Cache the result for future requests
-        cache.set(cache_key, result.model_dump(), cache.TTL_PREDICTIONS)
-        
+        if not result.predictions:
+            logger.warning(f"No predictions found for {league_id}")
+            # We still return the empty DTO rather than 404 to avoid frontend errors
+            # but we could raise 404 if preferred.
+            
         return result
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        logger.error(f"Failed to calculate predictions for {league_id}: {e}")
+        logger.error(f"Failed to fetch predictions for {league_id}: {e}")
         raise HTTPException(
-            status_code=404, 
-            detail=f"No predictions available for league {league_id}. Error: {str(e)}"
+            status_code=500, 
+            detail=f"Error serving predictions for {league_id}: {str(e)}"
         )
 
 
