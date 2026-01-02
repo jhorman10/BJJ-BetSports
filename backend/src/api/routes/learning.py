@@ -17,8 +17,9 @@ from src.api.dependencies import (
     get_learning_service, get_football_data_uk, get_prediction_service, 
     get_statistics_service, get_data_sources, get_cache_service,
     get_match_enrichment_service, get_pick_resolution_service, get_training_data_service,
-    get_ml_training_orchestrator
+    get_ml_training_orchestrator, get_persistence_repository
 )
+from src.infrastructure.repositories.persistence_repository import PersistenceRepository
 from src.application.services.ml_training_orchestrator import MLTrainingOrchestrator, TrainingResult
 from src.domain.services.learning_service import LearningService
 from src.domain.services.pick_resolution_service import PickResolutionService
@@ -184,7 +185,9 @@ class CachedTrainingResponse(BaseModel):
 
 
 @router.get("/train/cached", response_model=CachedTrainingResponse)
-async def get_cached_training_data():
+async def get_cached_training_data(
+    persistence_repo: PersistenceRepository = Depends(get_persistence_repository)
+):
     """
     Get cached training data without recomputation.
     
@@ -208,11 +211,23 @@ async def get_cached_training_data():
             message="Datos de entrenamiento recuperados exitosamente"
         )
     else:
+        # DB FALLBACK: If local cache is missing (e.g. after deployment), check PostgreSQL
+        db_results = persistence_repo.get_training_result("latest_daily")
+        if db_results:
+            last_update = persistence_repo.get_last_updated("latest_daily")
+            logger.info("Retrieved training results from PostgreSQL persistence layer")
+            return CachedTrainingResponse(
+                cached=True,
+                last_update=last_update.isoformat() if last_update else None,
+                data=TrainingStatus(**db_results),
+                message="Datos de entrenamiento recuperados de persistencia SQL"
+            )
+            
         return CachedTrainingResponse(
             cached=False,
             last_update=None,
             data=None,
-            message="No hay datos en caché disponibles. El entrenamiento se ejecuta diariamente a las 7:00 AM COT o use POST /train para generar."
+            message="No hay datos disponibles. El entrenamiento se ejecuta diariamente a las 6:00 AM UTC o use POST /train para generar."
         )
 
 

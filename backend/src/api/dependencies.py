@@ -111,6 +111,7 @@ def get_training_data_service() -> TrainingDataService:
         data_sources=get_data_sources(),
         enrichment_service=get_match_enrichment_service()
     )
+from src.infrastructure.repositories.persistence_repository import get_persistence_repository
 from src.application.services.ml_training_orchestrator import MLTrainingOrchestrator
 
 @lru_cache()
@@ -122,7 +123,8 @@ def get_ml_training_orchestrator() -> MLTrainingOrchestrator:
         prediction_service=get_prediction_service(),
         learning_service=get_learning_service(),
         resolution_service=get_pick_resolution_service(),
-        cache_service=get_cache_service()
+        cache_service=get_cache_service(),
+        persistence_repository=get_persistence_repository()
     )
 
 from src.domain.services.audit_service import AuditService

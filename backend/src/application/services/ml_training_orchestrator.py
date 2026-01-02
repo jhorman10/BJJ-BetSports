@@ -25,6 +25,7 @@ from src.domain.entities.entities import Match
 from src.infrastructure.cache.cache_service import CacheService
 from src.utils.time_utils import get_current_time
 from src.core.constants import DEFAULT_LEAGUES
+from src.infrastructure.repositories.persistence_repository import PersistenceRepository
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +62,8 @@ class MLTrainingOrchestrator:
         prediction_service: PredictionService,
         learning_service: LearningService,
         resolution_service: PickResolutionService,
-        cache_service: CacheService
+        cache_service: CacheService,
+        persistence_repository: Optional[PersistenceRepository] = None
     ):
         self.training_data_service = training_data_service
         self.statistics_service = statistics_service
@@ -69,6 +71,7 @@ class MLTrainingOrchestrator:
         self.learning_service = learning_service
         self.resolution_service = resolution_service
         self.cache_service = cache_service
+        self.persistence_repository = persistence_repository
         self.feature_extractor = MLFeatureExtractor()
         self.risk_manager = RiskManager()
         
@@ -484,6 +487,11 @@ class MLTrainingOrchestrator:
             self.cache_service.set(self.CACHE_KEY_STATUS, "COMPLETED", ttl_seconds=86400)
             self.cache_service.set(self.CACHE_KEY_MESSAGE, "Entrenamiento completado exitosamente", ttl_seconds=86400)
             
+            # Persistent DB storage (Fallback for ephemeral local storage like Render)
+            if self.persistence_repository:
+                logger.info("Persisting training result to PostgreSQL...")
+                self.persistence_repository.save_training_result("latest_daily", result_data)
+                
             return final_result
     
         except Exception as e:
