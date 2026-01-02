@@ -560,51 +560,7 @@ const MatchCard: React.FC<MatchCardProps> = memo(
               />
             </Box>
 
-            {/* Real-time Odds comparison if available */}
-            {prediction.real_time_odds && (
-              <Box
-                mt={2}
-                p={1}
-                borderRadius={1}
-                bgcolor="rgba(255, 255, 255, 0.05)"
-                border="1px dashed rgba(255, 255, 255, 0.1)"
-              >
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  display="block"
-                  mb={0.5}
-                >
-                  Cuotas en Tiempo Real (The Odds API):
-                </Typography>
-                <Stack
-                  direction="row"
-                  spacing={1}
-                  justifyContent="space-between"
-                >
-                  {Object.entries(
-                    prediction.real_time_odds as Record<string, number>
-                  ).map(([name, price]) => (
-                    <Box key={name} textAlign="center">
-                      <Typography
-                        variant="caption"
-                        display="block"
-                        sx={{ fontSize: "0.6rem", color: "text.secondary" }}
-                      >
-                        {name.substring(0, 3)}
-                      </Typography>
-                      <Typography
-                        variant="body2"
-                        fontWeight={700}
-                        color="primary.light"
-                      >
-                        {price.toFixed(2)}
-                      </Typography>
-                    </Box>
-                  ))}
-                </Stack>
-              </Box>
-            )}
+            {/* Real-time Odds comparison if available - REMOVED per user request */}
           </Box>
 
           <Divider sx={{ mb: 2 }} />
@@ -749,32 +705,6 @@ const MatchCard: React.FC<MatchCardProps> = memo(
               </Box>
             </Tooltip>
             <Box display="flex" gap={1} alignItems="center">
-              {prediction.data_updated_at && (
-                <Tooltip
-                  title={`Datos actualizados: ${new Date(
-                    prediction.data_updated_at
-                  ).toLocaleString()}`}
-                >
-                  <Typography
-                    variant="caption"
-                    color={
-                      new Date().getTime() -
-                        new Date(prediction.data_updated_at).getTime() >
-                      12 * 60 * 60 * 1000
-                        ? "error.main"
-                        : "text.secondary"
-                    }
-                  >
-                    ⏱ Hace{" "}
-                    {Math.round(
-                      (new Date().getTime() -
-                        new Date(prediction.data_updated_at).getTime()) /
-                        (1000 * 60 * 60)
-                    )}
-                    h
-                  </Typography>
-                </Tooltip>
-              )}
               <Tooltip title={sourcesTooltip}>
                 <Chip
                   label={`${prediction.data_sources.length} fuentes`}

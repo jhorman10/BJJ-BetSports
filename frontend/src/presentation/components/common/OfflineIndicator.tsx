@@ -21,7 +21,7 @@ const OfflineIndicator: React.FC = () => {
           bgcolor: "rgba(239, 68, 68, 0.9)",
           backdropFilter: "blur(8px)",
           color: "white",
-          px: 3,
+          px: { xs: 2, sm: 3 },
           py: 1.5,
           borderRadius: 4,
           zIndex: 9999,
@@ -31,6 +31,8 @@ const OfflineIndicator: React.FC = () => {
           gap: 1.5,
           boxShadow: "0 8px 32px rgba(0, 0, 0, 0.4)",
           border: "1px solid rgba(255, 255, 255, 0.2)",
+          width: { xs: "calc(100% - 32px)", sm: "auto" },
+          maxWidth: { xs: "320px", sm: "none" },
           animation: "slideUp 0.4s ease-out forwards",
           "@keyframes slideUp": {
             from: {
@@ -45,9 +47,9 @@ const OfflineIndicator: React.FC = () => {
         <Typography
           variant="body2"
           fontWeight={700}
-          sx={{ letterSpacing: 0.5 }}
+          sx={{ letterSpacing: 0.5, textAlign: "center" }}
         >
-          MODO OFFLINE: Sin conexión a Internet
+          MODO OFFLINE: Sin Internet
         </Typography>
       </Box>
     );
@@ -64,7 +66,7 @@ const OfflineIndicator: React.FC = () => {
           bgcolor: "rgba(245, 158, 11, 0.9)",
           backdropFilter: "blur(8px)",
           color: "white",
-          px: 3,
+          px: { xs: 2, sm: 3 },
           py: 1.5,
           borderRadius: 4,
           zIndex: 9999,
@@ -74,6 +76,7 @@ const OfflineIndicator: React.FC = () => {
           gap: 1.5,
           boxShadow: "0 8px 32px rgba(0, 0, 0, 0.4)",
           border: "1px solid rgba(255, 255, 255, 0.2)",
+          width: { xs: "min(90vw, 320px)", sm: "auto" },
           animation: "slideUp 0.4s ease-out forwards",
           "@keyframes slideUp": {
             from: {
@@ -88,9 +91,9 @@ const OfflineIndicator: React.FC = () => {
         <Typography
           variant="body2"
           fontWeight={700}
-          sx={{ letterSpacing: 0.5 }}
+          sx={{ letterSpacing: 0.5, textAlign: "center" }}
         >
-          CONEXIÓN LIMITADA: Servidor no disponible
+          CONEXIÓN LIMITADA: Servidor
         </Typography>
       </Box>
     );

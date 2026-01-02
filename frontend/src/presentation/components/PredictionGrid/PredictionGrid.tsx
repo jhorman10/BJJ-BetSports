@@ -4,7 +4,6 @@ import {
   Typography,
   CircularProgress,
   Alert,
-  Chip,
   Snackbar,
 } from "@mui/material";
 import { SportsSoccer } from "@mui/icons-material";
@@ -218,15 +217,6 @@ const PredictionGrid: React.FC = memo(() => {
         onSortChange={setSortBy}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        syncStatus={
-          <Chip
-            label="Sincronización Activa"
-            size="small"
-            color="success"
-            variant="outlined"
-            sx={{ height: 24, fontSize: "0.7rem" }}
-          />
-        }
       />
 
       {loading ? (
@@ -259,9 +249,8 @@ const PredictionGrid: React.FC = memo(() => {
         <Alert severity="error" sx={{ mb: 3 }}>
           Error al cargar predicciones: {error.message}
         </Alert>
-      ) : error &&
-        !isBackendAvailable ? // Hide local error if backend is globally marked as down
-      null : sortedPredictions.length === 0 ? (
+      ) : error && !isBackendAvailable ? null : sortedPredictions.length === // Hide local error if backend is globally marked as down
+        0 ? (
         <Box
           display="flex"
           flexDirection="column"

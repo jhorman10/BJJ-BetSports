@@ -440,8 +440,7 @@ const LiveMatches: React.FC = () => {
 
   // Compat for old hook props
   const refreshing = loading;
-  const processingMessage = "Actualizando marcadores...";
-  const lastUpdated = new Date();
+  const processingMessage = "";
 
   // Show processing message during initial load
   if (loading && processingMessage) {
@@ -514,11 +513,7 @@ const LiveMatches: React.FC = () => {
         </Box>
 
         <Box display="flex" alignItems="center" gap={1}>
-          {lastUpdated && (
-            <Typography variant="caption" color="text.disabled">
-              Actualizado: {lastUpdated.toLocaleTimeString()}
-            </Typography>
-          )}
+          {/* lastUpdated time removed per user request */}
           <Tooltip title="Actualizar">
             <IconButton
               size="small"

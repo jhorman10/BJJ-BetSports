@@ -33,7 +33,6 @@ interface PredictionGridHeaderProps {
   onSortChange: (sortBy: SortOption) => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
-  syncStatus?: React.ReactNode;
 }
 
 const PredictionGridHeader: React.FC<PredictionGridHeaderProps> = ({
@@ -43,7 +42,6 @@ const PredictionGridHeader: React.FC<PredictionGridHeaderProps> = ({
   onSortChange,
   searchQuery,
   onSearchChange,
-  syncStatus,
 }) => {
   const handleSortChange = (event: SelectChangeEvent<SortOption>) => {
     onSortChange(event.target.value as SortOption);
@@ -64,7 +62,6 @@ const PredictionGridHeader: React.FC<PredictionGridHeaderProps> = ({
             <Typography variant="h5" fontWeight={600}>
               Predicciones: {getLeagueName(league.name)}
             </Typography>
-            {syncStatus}
           </Box>
           <Typography variant="body2" color="text.secondary">
             {predictionCount} partidos analizados

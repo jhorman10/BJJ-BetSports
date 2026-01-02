@@ -32,22 +32,18 @@ import PicksStatsTable from "./PicksStatsTable";
 import { TrainingStatus, MatchPredictionHistory } from "../../../types";
 import { useBotStore } from "../../../application/stores/useBotStore";
 import { useSmartPolling } from "../../../hooks/useSmartPolling";
-import { useOfflineStore } from "../../../application/stores/useOfflineStore";
 
 const BotDashboard: React.FC = () => {
   // Use Bot Store for persistent state
   const {
     stats,
-    lastUpdate,
     loading,
     error,
     trainingStatus,
     trainingMessage,
-    isReconciling,
     fetchTrainingData,
     reconcile,
   } = useBotStore();
-  const { isBackendAvailable } = useOfflineStore();
 
   // Smart polling: check backend every 30 seconds while tab is visible
   useSmartPolling({
@@ -67,21 +63,6 @@ const BotDashboard: React.FC = () => {
   });
   const [initialLoading, setInitialLoading] = React.useState(true);
   const [activeTab, setActiveTab] = React.useState(0);
-
-  // Check if model is stale (not from today)
-  const isStale = useMemo(() => {
-    if (!lastUpdate) return true;
-    const today = new Date();
-    // Ensure lastUpdate is a Date object (zustand persistence might return string)
-    const updateDate =
-      lastUpdate instanceof Date ? lastUpdate : new Date(lastUpdate);
-
-    return (
-      updateDate.getDate() !== today.getDate() ||
-      updateDate.getMonth() !== today.getMonth() ||
-      updateDate.getFullYear() !== today.getFullYear()
-    );
-  }, [lastUpdate]);
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
@@ -344,17 +325,6 @@ const BotDashboard: React.FC = () => {
     prevLoadingRef.current = loading;
   }, [loading, error, stats]);
 
-  // Calculate time since last update (direct calculation for immediate reactivity)
-  // Calculate time since last update (direct calculation for immediate reactivity)
-  const canTrain = (() => {
-    if (!lastUpdate) return true;
-    const updateDate =
-      lastUpdate instanceof Date ? lastUpdate : new Date(lastUpdate);
-    const hoursSinceUpdate =
-      (Date.now() - updateDate.getTime()) / (1000 * 60 * 60);
-    return hoursSinceUpdate >= 3;
-  })();
-
   return (
     <Box sx={{ pb: 6 }}>
       {/* Show skeleton on initial load */}
@@ -371,7 +341,7 @@ const BotDashboard: React.FC = () => {
           <Box position="relative">
             {loading ? (
               <CircularProgress size={40} sx={{ color: "#fbbf24" }} />
-            ) : canTrain ? (
+            ) : (
               <Box>
                 <Button
                   variant="contained"
@@ -403,7 +373,7 @@ const BotDashboard: React.FC = () => {
                   Recalcular Modelo IA
                 </Button>
               </Box>
-            ) : null}
+            )}
           </Box>
           <Box>
             <Typography variant="h4" fontWeight={700} color="white">
@@ -480,75 +450,6 @@ const BotDashboard: React.FC = () => {
               {trainingMessage || "Se están calculando los datos del modelo..."}
             </Typography>
             <LinearProgress sx={{ mt: 1, borderRadius: 2 }} />
-          </Alert>
-        )}
-
-        {trainingStatus === "ERROR" && isBackendAvailable && (
-          <Alert severity="error" sx={{ mb: 4, mt: 3 }}>
-            <Typography variant="body2">
-              ❌ Error:{" "}
-              {trainingMessage ||
-                error ||
-                "Ocurrió un error durante el entrenamiento"}
-            </Typography>
-          </Alert>
-        )}
-
-        {isReconciling &&
-          trainingStatus !== "IN_PROGRESS" &&
-          isBackendAvailable && (
-            <Alert severity="info" sx={{ mb: 4, mt: 3 }}>
-              <Typography variant="body2">
-                🔄 Sincronizando datos con el servidor...
-              </Typography>
-            </Alert>
-          )}
-
-        {isStale && stats && trainingStatus !== "IN_PROGRESS" && (
-          <Alert
-            severity="warning"
-            sx={{ mb: 4, mt: 3 }}
-            action={
-              <Button
-                color="inherit"
-                size="small"
-                onClick={() => {
-                  isManualTrainingRef.current = true;
-                  runTraining(true);
-                }}
-              >
-                ACTUALIZAR SERVIDOR
-              </Button>
-            }
-          >
-            <Typography variant="subtitle2" fontWeight={700}>
-              ⚠️ Modelo Desactualizado
-            </Typography>
-            <Typography variant="body2">
-              Estás viendo datos de{" "}
-              {lastUpdate
-                ? new Date(lastUpdate).toLocaleDateString()
-                : "fecha desconocida"}
-              . Entrena nuevamente para incluir los partidos de ayer/hoy.
-            </Typography>
-          </Alert>
-        )}
-
-        {lastUpdate && stats && (
-          <Alert severity="success" sx={{ mb: 4, mt: 3 }}>
-            <Typography variant="body2">
-              <strong>✅ Última actualización:</strong>{" "}
-              {lastUpdate
-                ? new Date(lastUpdate).toLocaleDateString("es-ES", {
-                    day: "numeric",
-                    month: "long",
-                    year: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    timeZone: "America/Bogota",
-                  })
-                : ""}
-            </Typography>
           </Alert>
         )}
 
