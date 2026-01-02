@@ -13,6 +13,11 @@ on:
         required: false
         default: "true"
 
+# Required permissions for creating issues on failure
+permissions:
+  contents: read
+  issues: write
+
 jobs:
   update-predictions:
     runs-on: ubuntu-latest
@@ -62,6 +67,7 @@ jobs:
 
       - name: 📧 Notify on failure
         if: failure()
+        continue-on-error: true # Don't fail workflow if notification fails
         uses: actions/github-script@v7
         with:
           script: |
