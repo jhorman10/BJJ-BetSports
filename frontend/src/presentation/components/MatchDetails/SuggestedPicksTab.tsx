@@ -295,12 +295,40 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
         sx={{
           mb: 2,
           minHeight: 36,
+          ml: 0,
+          pl: 0,
+          width: "100%",
+          "& .MuiTabs-root": {
+            ml: 0,
+            pl: 0,
+          },
+          "& .MuiTabs-scroller": {
+            ml: 0,
+            pl: 0,
+          },
+          // Hide disabled scroll buttons to prevent shift
+          "& .MuiTabs-scrollButtons.Mui-disabled": {
+            width: 0,
+            display: "none",
+          },
+          // Ensure tabs start from left
+          "& .MuiTabs-flexContainer": {
+            justifyContent: "flex-start",
+          },
           "& .MuiTab-root": {
             minHeight: 36,
+            minWidth: "auto", // Allow compact tabs
+            px: 1.5,
             fontSize: "0.75rem",
             fontWeight: 600,
             color: "rgba(255,255,255,0.6)",
             textTransform: "none",
+            ml: 0,
+            // Align first tab flush left
+            "&:first-of-type": {
+              pl: 0,
+              ml: 0,
+            },
             "&.Mui-selected": {
               color: "#10b981", // Neon Green
             },
