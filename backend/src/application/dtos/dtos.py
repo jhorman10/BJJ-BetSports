@@ -274,3 +274,9 @@ class LearningStatsResponseDTO(BaseModel):
     market_performances: list[MarketPerformanceDTO]
     total_feedback_count: int
     last_updated: datetime
+
+
+class TopMLPicksDTO(BaseModel):
+    """Container for the top aggregated ML picks across all leagues."""
+    picks: list[SuggestedPickDTO] = Field(default_factory=list)
+    generated_at: datetime = Field(default_factory=datetime.utcnow)

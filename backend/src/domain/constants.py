@@ -10,6 +10,8 @@ LEAGUES_METADATA = {
     "E0": {"name": "Premier League", "country": "England"},
     "E1": {"name": "Championship", "country": "England"},
     "E_FA": {"name": "FA Cup", "country": "England"},
+    "E2": {"name": "League One", "country": "England"},
+    "E3": {"name": "League Two", "country": "England"},
     
     # Spain
     "SP1": {"name": "La Liga", "country": "Spain"},

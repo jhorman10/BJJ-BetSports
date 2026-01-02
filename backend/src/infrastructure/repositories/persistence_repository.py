@@ -192,6 +192,25 @@ class PersistenceRepository:
         finally:
             session.close()
 
+    def get_all_active_predictions(self) -> list[dict]:
+        """
+        Retrieve all valid predictions across all leagues.
+        Useful for generating cross-league top picks.
+        """
+        session = self.db_service.get_session()
+        try:
+            now = datetime.utcnow()
+            records = session.query(MatchPredictionModel).filter(
+                MatchPredictionModel.expires_at > now
+            ).all()
+            
+            return [r.data for r in records]
+        except Exception as e:
+            logger.error(f"Failed to retrieve all active predictions: {e}")
+            return []
+        finally:
+            session.close()
+
     def bulk_save_predictions(self, predictions_batch: list[dict]) -> bool:
         """
         Save multiple predictions in a single transaction for better performance.

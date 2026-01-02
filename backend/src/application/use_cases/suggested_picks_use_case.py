@@ -626,3 +626,65 @@ class GetLearningStatsUseCase:
             total_feedback_count=total_count,
             last_updated=last_updated,
         )
+
+
+class GetTopMLPicksUseCase:
+    """Use case for retrieving the top ML picks across all leagues."""
+    
+    def __init__(self, persistence_repository):
+        self.persistence_repository = persistence_repository
+        
+    async def execute(self, limit: int = 50) -> Optional['TopMLPicksDTO']:
+        """
+        Synthesize top picks from all active predictions.
+        """
+        try:
+            # 1. Get all active predictions from DB
+            active_preds = self.persistence_repository.get_all_active_predictions()
+            
+            all_picks = []
+            
+            from src.application.dtos.dtos import SuggestedPickDTO, TopMLPicksDTO
+            
+            # 2. Extract picks from each prediction
+            for pred_data in active_preds:
+                # pred_data is the JSON dict stored in 'match_predictions.data'
+                # Structure: { match: {...}, prediction: { suggested_picks: [...] } }
+                
+                prediction = pred_data.get("prediction", {})
+                match_info = pred_data.get("match", {})
+                picks = prediction.get("suggested_picks", [])
+                
+                match_label = f"{match_info.get('home_team', {}).get('name', '')} vs {match_info.get('away_team', {}).get('name', '')}"
+                match_id = match_info.get("id")
+                
+                for p in picks:
+                    # Filter out low value picks?
+                    # Let's keep all and sort by priority/probability
+                    
+                    # Ensure it's a valid pick object/dict
+                    if isinstance(p, dict):
+                         # Enrich reasoning with match info for the global list
+                         base_reasoning = p.get("reasoning", "")
+                         p["reasoning"] = f"[{match_label}] {base_reasoning}"
+                         
+                         dto = SuggestedPickDTO(**p)
+                         all_picks.append(dto)
+            
+            # 3. Sort picks
+            # Primary: Priority Score (Expected Value + ML Confidence)
+            # Secondary: Probability
+            all_picks.sort(key=lambda x: (x.priority_score, x.probability), reverse=True)
+            
+            # 4. Limit
+            top_picks = all_picks[:limit]
+            
+            from src.utils.time_utils import get_current_time
+            return TopMLPicksDTO(
+                picks=top_picks,
+                generated_at=get_current_time()
+            )
+            
+        except Exception as e:
+            logger.error(f"Error generating Top ML Picks: {e}", exc_info=True)
+            return None
