@@ -99,15 +99,34 @@ class GetLivePredictionsUseCase:
             return cached
         
         # Get live matches
-        if self.data_sources.football_data_org.is_configured:
-            matches = await self.data_sources.football_data_org.get_live_matches()
-        else:
-            matches = []
+        # Get live matches
+        matches = []
+        source_used = "None"
+
+        # Priority 1: FotMob (Rich Stats: Corners, Cards, etc.)
+        if self.fotmob:
+             try:
+                 matches = await self.fotmob.get_live_matches()
+                 if matches:
+                     source_used = "FotMob"
+             except Exception as e:
+                 logger.error(f"FotMob live fetch failed: {e}")
+
+        # Priority 2: Football-Data.org (Official Fallback, but fewer stats)
+        if not matches and self.data_sources.football_data_org.is_configured:
+            try:
+                matches = await self.data_sources.football_data_org.get_live_matches()
+                if matches:
+                    source_used = "Football-Data.org"
+            except Exception as e:
+                logger.error(f"Football-Data.org live fetch failed: {e}")
         
         if not matches:
             # Cache empty result for short period to avoid hammering API
             self.cache_service.set_live_matches([], cache_key)
             return []
+        
+        logger.info(f"Fetched {len(matches)} live matches from {source_used}")
         
         # Generate predictions for each match
         results: List[MatchPredictionDTO] = []
