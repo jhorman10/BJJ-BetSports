@@ -100,6 +100,10 @@ class StatisticsService:
             "ipswich town fc": "ipswich",
             "ipswich town": "ipswich",
             "ipswich": "ipswich",
+            "manchester city fc": "manchester city",
+            "manchester united fc": "manchester united",
+            "tottenham hotspur fc": "tottenham",
+            "wolverhampton wanderers fc": "wolverhampton",
             # Spain (La Liga)
             "alaves": "alaves",
             "deportivo alaves": "alaves",
@@ -112,10 +116,12 @@ class StatisticsService:
             "atl madrid": "atletico madrid",
             "ath madrid": "atletico madrid",
             "club atletico de madrid": "atletico madrid",
+            "club atlético de madrid": "atletico madrid", # UTF-8 catch
             "barcelona": "barcelona",
             "fc barcelona": "barcelona",
             "betis": "betis",
             "real betis balompié": "betis",
+            "real betis balompie": "betis", # No accent
             "real betis": "betis",
             "celta": "celta",
             "rc celta de vigo": "celta",
@@ -137,6 +143,7 @@ class StatisticsService:
             "osasuna": "osasuna",
             "ca osasuna": "osasuna",
             "club atletico osasuna": "osasuna",
+            "club atlético osasuna": "osasuna", # UTF-8 catch
             "oviedo": "oviedo",
             "real oviedo": "oviedo",
             "real madrid": "real madrid",
@@ -146,6 +153,7 @@ class StatisticsService:
             "sevilla fc": "sevilla",
             "sociedad": "sociedad",
             "real sociedad de fútbol": "sociedad",
+            "real sociedad de futbol": "sociedad", # No accent
             "real sociedad": "sociedad",
             "valencia": "valencia",
             "valencia cf": "valencia",
@@ -157,8 +165,32 @@ class StatisticsService:
             # Italy
             "inter": "inter milan",
             "internazionale": "inter milan",
+            "fc internazionale milano": "inter milan",
             "milan": "milan",
             "ac milan": "milan",
+            "cagliari calcio": "cagliari",
+            "como 1907": "como",
+            "udinese calcio": "udinese",
+            "genoa cfc": "genoa", 
+            "us sassuolo calcio": "sassuolo",
+            "parma calcio 1913": "parma",
+            "us lecce": "lecce",
+            "atalanta bc": "atalanta",
+            "ss lazio": "lazio",
+            "ssc napoli": "napoli",
+            "acf fiorentina": "fiorentina",
+            "hellas verona fc": "verona",
+            "hellas verona": "verona",
+            "bologna fc 1909": "bologna",
+            "bologna fc": "bologna",
+            "torino fc": "torino",
+            "us salernitana 1919": "salernitana",
+            "ac monza": "monza",
+            "empoli fc": "empoli",
+            "as roma": "roma",
+            "juventus fc": "juventus",
+            "us cremonese": "cremonese",
+            "ac pisa 1909": "pisa", # Added based on debug output (though Pisa is Serie B usually, might be cup or promotion)
             # France
             "racing club de lens": "lens",
             "rc lens": "lens",
@@ -184,22 +216,167 @@ class StatisticsService:
             "le havre ac": "le havre",
             "fc metz": "metz",
             "fc lorient": "lorient",
+            "rc strasbourg alsace": "strasbourg",
+
+            # Portugal (Primeira Liga)
+            "sl benfica": "benfica",
+            "sporting cp": "sp lisbon",
+            "sporting clube de portugal": "sp lisbon",
+            "fc porto": "porto",
+            "boavista fc": "boavista",
+            "rio ave fc": "rio ave",
+            "moreirense fc": "moreirense",
+            "sc farense": "farense",
+            "fc arouca": "arouca",
+            "gd estoril praia": "estoril",
+            "cf estrela da amadora": "estrela",
+            "sporting clube de braga": "braga",
+            "sc braga": "braga",
+            "cd santa clara": "santa clara",
+            "gil vicente fc": "gil vicente",
+            "fc famalicão": "famalicao",
+            "famalicao": "famalicao",
+            "casa pia ac": "casa pia",
+            "vitória sc": "guimaraes",
+            "vitoria sc": "guimaraes",
+            "vitoria guimaraes": "guimaraes",
+            "gd chaves": "chaves",
+            "portimonense sc": "portimonense",
+            "fc vizela": "vizela",
+            "avs futebol sad": "avs",
+            "fc alverca": "alverca",
+            "cd nacional": "nacional",
+            "cd tondela": "tondela",
+            "sport lisboa e benfica": "benfica",
+            "sl benfica": "benfica",
+            "sporting clube de braga": "sp braga", # CSV is Sp Braga
+            "sporting braga": "sp braga",
+            "sc braga": "sp braga",
+            "braga": "sp braga",
+            "sporting cp": "sp lisbon", # CSV is Sp Lisbon
+            "sporting clube de portugal": "sp lisbon",
+            "sporting lisboa": "sp lisbon",
+            "sporting": "sp lisbon",
+            "vitoria sc": "guimaraes",
+            "vitoria guimaraes": "guimaraes",
+            "vitória sc": "guimaraes",
+            
+            # Belgium (Jupiler Pro League)
+            "club brugge kv": "club brugge",
+            "club brugge": "club brugge",
+            "rsc anderlecht": "anderlecht",
+            "anderlecht": "anderlecht",
+            "royal antwerp fc": "antwerp",
+            "antwerp": "antwerp",
+            "krc genk": "genk",
+            "genk": "genk",
+            "kaa gent": "gent",
+            "gent": "gent",
+            "standard de liège": "standard",
+            "standard liege": "standard",
+            "standard": "standard",
+            "union saint-gilloise": "st. gilloise", # History: St. Gilloise
+            "union sg": "st. gilloise",
+            "st. gilloise": "st. gilloise",
+            "kv mechelen": "mechelen",
+            "mechelen": "mechelen",
+            "cercle brugge": "cercle brugge",
+            "cercle": "cercle brugge",
+            "oh leuven": "leuven", # Check strictly?
+            "oud-heverlee leuven": "leuven",
+            "sint-truidense vv": "st truiden",
+            "stvv": "st truiden",
+            "rwd molenbeek": "molenbeek",
+            "rwdm": "molenbeek",
+            "royal charleroi sc": "charleroi",
+            "charleroi": "charleroi",
+            "kvc westerlo": "westerlo",
+            "westerlo": "westerlo",
+            "kas eupen": "eupen",
+            "eupen": "eupen",
+            "kv kortrijk": "kortrijk",
+            "kortrijk": "kortrijk",
+            "beerschot": "beerschot",
+            "kv oostende": "oostende",
+            "zulte waregem": "waregem",
+            "seraing": "seraing",
+
+            # Netherlands (Eredivisie)
+            "nec nicmegen": "nec",
+            "nec": "nec",
+            "az alkmaar": "az alkmaar",
+            "az": "az alkmaar", # API "AZ" -> CSV "AZ Alkmaar"
+            "fc twente '65": "twente",
+            "fc twente": "twente",
+            "pec zwolle": "zwolle",
+            "psv eindhoven": "psv eindhoven",
+            "psv": "psv eindhoven", # API "PSV" -> CSV "PSV Eindhoven"
+            "sbv excelsior": "excelsior",
+            "feyenoord rotterdam": "feyenoord",
+            "feyenoord": "feyenoord",
+            "heracles almelo": "heracles",
+            "heracles": "heracles",
+            "fortuna sittard": "fortuna sittard",
+            "sparta rotterdam": "sparta rotterdam",
+            "rkc waalwijk": "rkc waalwijk",
+            "sc heerenveen": "heerenveen",
+            "go ahead eagles": "go ahead eagles",
+            "ga eagles": "go ahead eagles",
+            "fc utrecht": "utrecht",
+            "vitesse": "vitesse",
+            "vitesse arnhem": "vitesse",
+            "ajax": "ajax",
+            "afc ajax": "ajax",
+            "almere city fc": "almere city",
+            "fc volendam": "volendam", 
+            "telstar 1963": "telstar",
+            "sbv excelsior": "excelsior",
             # Germany
             "bayern": "bayern munich",
             "bayern munich": "bayern munich",
+            "fc bayern münchen": "bayern munich",
             "dortmund": "borussia dortmund", 
             "borussia dortmund": "borussia dortmund",
             "leverkusen": "bayer leverkusen",
             "bayer leverkusen": "bayer leverkusen",
+            "bayer 04 leverkusen": "bayer leverkusen",
             "gladbach": "borussia monchengladbach",
             "borussia monchengladbach": "borussia monchengladbach",
+            "borussia mönchengladbach": "borussia monchengladbach",
             "frankfurt": "eintracht frankfurt",
             "eintracht frankfurt": "eintracht frankfurt",
+            "sv werder bremen": "werder bremen",
+            "tsg 1899 hoffenheim": "hoffenheim",
+            "1. fc union berlin": "union berlin",
+            "1. fsv mainz 05": "mainz",
+            "1. fc heidenheim 1846": "heidenheim",
+            "1. fc köln": "fc koln",
+            "1. fc koln": "fc koln",
+            "vfb stuttgart": "stuttgart",
+            "vfl wolfsburg": "wolfsburg",
+            "vfl bochum": "bochum",
+            "vfl bochum 1848": "bochum",
+            "sc freiburg": "freiburg",
+            "fc augsburg": "augsburg",
+            "rb leipzig": "leipzig",
+            "hamburger sv": "hamburg", # If relevant
+            "fc st. pauli 1910": "st pauli",
         }
+        
+        # Normalize: Lower, Strip, Remove Accents
+        import unicodedata
         normalized = name.lower().strip()
+        nfkd_form = unicodedata.normalize('NFKD', normalized)
+        normalized_no_accents = "".join([c for c in nfkd_form if not unicodedata.combining(c)])
+        
+        # Check unaccented version against keys (assuming keys are unaccented)
+        if normalized_no_accents in aliases:
+            return aliases[normalized_no_accents]
+            
+        # Fallback: check exact (in case some keys have accents?)
         if normalized in aliases:
             return aliases[normalized]
-        # Check partials if needed, or return same
+            
         return name
 
     _normalization_cache = {}

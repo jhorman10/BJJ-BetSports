@@ -152,12 +152,20 @@ async def lifespan(app: FastAPI):
             logger.info("✓ Cached forecasts found. Starting scheduler normally...")
             scheduler.start(run_immediate=False)
         else:
-            logger.info("⚠ No cached forecasts. Starting scheduler and triggering initial run...")
-            scheduler.start(run_immediate=False)
-            asyncio.create_task(scheduler.run_daily_orchestrated_job())
-            logger.info("✓ Initial cache population triggered in background")
+            logger.info("⚠ No cached forecasts. Checking if background training is allowed...")
+            # Optimization: Disable heavy background training on Render Free Tier (512MB RAM)
+            # if GitHub Actions is handling the daily training.
+            disable_training = os.getenv("DISABLE_ML_TRAINING", "false").lower() == "true"
             
-        logger.info("✓ Daily training scheduler started (06:00 AM Colombia time)")
+            scheduler.start(run_immediate=False)
+            if not disable_training:
+                logger.info("✓ Triggering initial cache population in background...")
+                asyncio.create_task(scheduler.run_daily_orchestrated_job())
+            else:
+                logger.warning("🚫 Background training DISABLED via DISABLE_ML_TRAINING variable.")
+                logger.info("💡 Ensure GitHub Actions or a local run populates the cache.")
+            
+        logger.info("✓ Daily training scheduler configured (06:00 AM Colombia time)")
 
     except Exception as e:
         logger.error(f"FAILURE: Lifespan startup error: {e}", exc_info=True)

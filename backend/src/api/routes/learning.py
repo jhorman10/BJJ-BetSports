@@ -9,12 +9,9 @@ import os
 import zlib
 import gc
 
-# ML Imports
-try:
-    from sklearn.ensemble import RandomForestClassifier
-    import joblib
-except ImportError:
-    RandomForestClassifier = None
+# ML Imports will be lazy-loaded inside methods to prevent memory spikes on startup
+RandomForestClassifier = None
+joblib = None
 
 from src.api.dependencies import (
     get_learning_service, get_football_data_uk, get_prediction_service, 
@@ -126,6 +123,13 @@ async def run_training_session(
     """
     Executes a full backtest/training session.
     """
+    # Lazy Load ML Libraries
+    import joblib
+    try:
+        from sklearn.ensemble import RandomForestClassifier
+    except ImportError:
+        RandomForestClassifier = None
+        
     if request.reset_weights:
         learning_service.reset_weights()
 
@@ -164,6 +168,7 @@ async def run_training_session(
     
     # Cache the result for the dashboard
     from src.infrastructure.cache import get_training_cache
+    import joblib # Ensure joblib is available for any underlying serialization if needed
     cache = get_training_cache()
     cache.set_training_results(response.model_dump())
     
