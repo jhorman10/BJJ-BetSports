@@ -41,6 +41,10 @@ coverage/
 htmlcov/
 .pytest_cache/
 
+# Database
+backend/app_persistence.db
+backend/app_persistence.db-journal
+
 # Cache
 .cache/
 *.cache
