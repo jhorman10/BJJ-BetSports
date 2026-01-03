@@ -122,22 +122,19 @@ class GetSuggestedPicksUseCase:
             rt_odds = None
             home_elo, away_elo = None, None
             try:
-                # Get real-time odds from The Odds API
-                if self.odds_api:
-                     odds_data = await self.odds_api.get_odds(match.league.id)
-                     # Simple logic to find current match odds
-                     if odds_data:
-                        for item in odds_data:
-                            # Fuzzy match or name check
-                            if self.statistics_service._normalize_name(match.home_team.name) in self.statistics_service._normalize_name(item.get("home_team", "")):
-                                # Take first bookmaker's h2h odds
-                                for bm in item.get("bookmakers", []):
-                                    for mkt in bm.get("markets", []):
-                                        if mkt["key"] == "h2h":
-                                            rt_odds = {o["name"]: o["price"] for o in mkt["outcomes"]}
-                                            break
-                                    if rt_odds: break
-                                if rt_odds: break
+                # Get real-time odds (Now integrated from Match details via ESPN)
+                # If match has odds, we use them as "rt_odds" format for the prediction service
+                if match.home_odds and match.away_odds:
+                    # Construct odds dictionary in format expected by PredictionService/PicksService
+                    # The Service expects a dictionary where keys might be bookmakers or outcomes?
+                    # The original code produced: {outcome_name: price} e.g. {"Arsenal": 1.5, "Chelsea": 4.0}
+                    # To be compatible, we should use Team Names.
+                    rt_odds = {
+                        match.home_team.name: match.home_odds,
+                        match.away_team.name: match.away_odds
+                    }
+                    if match.draw_odds:
+                        rt_odds["Draw"] = match.draw_odds
                 
                 # Get Elo from ClubElo
                 home_elo, away_elo = await self.club_elo.get_elo_for_match(match.home_team.name, match.away_team.name)
