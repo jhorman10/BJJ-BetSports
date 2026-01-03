@@ -425,16 +425,16 @@ class MLTrainingOrchestrator:
                     
                     # Offload CPU-bound training to a thread
                     def _train_and_save():
-                        # Optimized for Low Resources (512MB RAM):
-                        # - Fewer trees (60 vs 150)
-                        # - Reduced depth (6 vs 10) to prevent OOM
-                        # - n_jobs=1 to avoid process overhead on 0.1 CPU
+                        # Optimized for High Performance (GitHub Actions):
+                        # - More trees (200 vs 60) for better accuracy
+                        # - Deeper trees (12 vs 6) for complex patterns
+                        # - n_jobs=-1 to use ALL available CPU cores
                         clf = RandomForestClassifier(
-                            n_estimators=60, 
-                            max_depth=6, 
+                            n_estimators=200, 
+                            max_depth=12, 
                             random_state=42,
                             class_weight='balanced',
-                            n_jobs=1
+                            n_jobs=-1
                         )
                         clf.fit(ml_features, ml_targets)
                         

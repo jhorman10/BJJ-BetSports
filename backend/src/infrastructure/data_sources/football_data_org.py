@@ -106,6 +106,10 @@ class FootballDataOrgSource:
             logger.warning("Football-Data.org not configured (no API key)")
             return None
         
+        # Mandatory safety delay for GitHub Actions / CI
+        # Limit to ~8 requests per minute to stay safely under 10 req/min limit
+        await asyncio.sleep(7)
+        
         await self._wait_for_rate_limit()
         
         url = f"{self.config.base_url}{endpoint}"

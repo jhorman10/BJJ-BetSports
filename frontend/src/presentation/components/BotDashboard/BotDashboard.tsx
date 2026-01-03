@@ -53,13 +53,18 @@ const BotDashboard: React.FC = () => {
   });
 
   const [startDate, setStartDate] = React.useState<string>(() => {
-    const year = new Date().getFullYear();
-    return `${year}-01-01`;
+    const now = new Date();
+    const year = now.getFullYear();
+    // If it's January, default to previous year to show backtest history
+    const targetYear = now.getMonth() === 0 ? year - 1 : year;
+    return `${targetYear}-01-01`;
   });
   // Display filter date (separate from training date - allows client-side filtering)
   const [displayStartDate, setDisplayStartDate] = React.useState<string>(() => {
-    const year = new Date().getFullYear();
-    return `${year}-01-01`;
+    const now = new Date();
+    const year = now.getFullYear();
+    const targetYear = now.getMonth() === 0 ? year - 1 : year;
+    return `${targetYear}-01-01`;
   });
   const [initialLoading, setInitialLoading] = React.useState(true);
   const [activeTab, setActiveTab] = React.useState(0);
@@ -68,9 +73,9 @@ const BotDashboard: React.FC = () => {
     setActiveTab(newValue);
   };
 
-  const [yearMode, setYearMode] = React.useState<"current" | "previous">(
-    "current"
-  );
+  const [yearMode, setYearMode] = React.useState<"current" | "previous">(() => {
+    return new Date().getMonth() === 0 ? "previous" : "current";
+  });
 
   const handleYearToggle = (
     _event: React.MouseEvent<HTMLElement>,
