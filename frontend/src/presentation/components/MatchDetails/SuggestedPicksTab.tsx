@@ -279,10 +279,11 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
     };
 
     sortedPicks.forEach((p) => {
-      // Check Top ML condition: MUST have is_ml_confirmed flag or legacy reasoning
+      // Check Top ML condition: MUST have is_ml_confirmed flag OR high ml_confidence
       // This ensures strictly ML recommended picks
       if (
         p.is_ml_confirmed ||
+        (p.ml_confidence !== undefined && p.ml_confidence > 0.7) ||
         (p.reasoning && p.reasoning.includes("ML Confianza Alta")) ||
         (p.reasoning && p.reasoning.includes("IA CONFIRMED"))
       ) {
@@ -331,6 +332,7 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
       return sortedPicks.filter(
         (p) =>
           p.is_ml_confirmed ||
+          (p.ml_confidence !== undefined && p.ml_confidence > 0.7) ||
           (p.reasoning && p.reasoning.includes("ML Confianza Alta")) ||
           (p.reasoning && p.reasoning.includes("IA CONFIRMED"))
       );

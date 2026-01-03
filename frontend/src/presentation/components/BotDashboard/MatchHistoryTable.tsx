@@ -190,10 +190,11 @@ const PickCard = ({ pick }: { pick: SuggestedPick }) => {
         </Box>
         <Box display="flex" gap={1} flexWrap="wrap" alignItems="center">
           {
-            /* Check for AI/ML status via flag OR reasoning text */
+            /* Check for AI/ML status via flag OR reasoning text OR ml_confidence */
             (() => {
               const isAi =
                 pick.is_ml_confirmed ||
+                (pick.ml_confidence !== undefined && pick.ml_confidence > 0) ||
                 (pick.reasoning &&
                   (pick.reasoning.includes("IA") ||
                     pick.reasoning.includes("ML") ||
@@ -300,6 +301,7 @@ const PickCard = ({ pick }: { pick: SuggestedPick }) => {
 const isAiPick = (pick: SuggestedPick): boolean => {
   return !!(
     pick.is_ml_confirmed ||
+    (pick.ml_confidence !== undefined && pick.ml_confidence > 0) ||
     (pick.reasoning &&
       (pick.reasoning.includes("IA") ||
         pick.reasoning.includes("ML") ||
