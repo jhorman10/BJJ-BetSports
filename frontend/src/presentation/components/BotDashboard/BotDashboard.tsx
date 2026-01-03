@@ -136,6 +136,21 @@ const BotDashboard: React.FC = () => {
       }
     }
 
+    // New AI Specific Metrics
+    let aiPicksTotal = 0;
+    let aiPicksWon = 0;
+    for (const match of filteredHistory) {
+      if (match.picks) {
+        for (const pick of match.picks) {
+          if (pick.is_ml_confirmed && pick.was_correct !== undefined) {
+            aiPicksTotal++;
+            if (pick.was_correct) aiPicksWon++;
+          }
+        }
+      }
+    }
+    const aiAccuracy = aiPicksTotal > 0 ? aiPicksWon / aiPicksTotal : 0;
+
     // Estimate ROI from filtered data (simplified calculation)
     const estimatedRoi =
       totalBets > 0 ? ((picksWon * 1.8 - totalBets) / totalBets) * 100 : 0;
@@ -157,7 +172,9 @@ const BotDashboard: React.FC = () => {
       profit_units: estimatedProfit,
       match_history: filteredHistory,
       roi_evolution: filteredRoiEvolution,
-    } as TrainingStatus;
+      ai_accuracy: aiAccuracy,
+      ai_total_picks: aiPicksTotal,
+    } as TrainingStatus & { ai_accuracy: number; ai_total_picks: number };
   }, [stats, displayStartDate]);
 
   const clvBeatRate = useMemo(() => {
@@ -521,6 +538,23 @@ const BotDashboard: React.FC = () => {
                       icon={<TrendingUp />}
                       color={clvBeatRate > 50 ? "#10b981" : "#f59e0b"}
                       subtitle="% Picks mejor que línea de cierre"
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 3 }}>
+                    <StatCard
+                      title="Efectividad IA"
+                      value={`${(
+                        (filteredStats as any).ai_accuracy * 100
+                      ).toFixed(1)}%`}
+                      icon={<SmartToy />}
+                      color={
+                        (filteredStats as any).ai_accuracy > 0.6
+                          ? "#8b5cf6"
+                          : "#f59e0b"
+                      }
+                      subtitle={`En ${
+                        (filteredStats as any).ai_total_picks
+                      } picks confirmados`}
                     />
                   </Grid>
                   <Grid size={{ xs: 12, md: 3 }}>

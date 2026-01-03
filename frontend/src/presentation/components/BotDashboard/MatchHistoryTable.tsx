@@ -25,6 +25,7 @@ import {
   Cancel,
   KeyboardArrowDown,
   Search,
+  SmartToy,
 } from "@mui/icons-material";
 import { MatchHistoryTableProps } from "../../../types";
 import {
@@ -554,6 +555,35 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                                                   }}
                                                 />
                                               )}
+                                              {pick.is_ml_confirmed && (
+                                                <Chip
+                                                  icon={
+                                                    <SmartToy
+                                                      sx={{
+                                                        fontSize:
+                                                          "14px !important",
+                                                      }}
+                                                    />
+                                                  }
+                                                  label={
+                                                    pick.was_correct
+                                                      ? "IA ✅"
+                                                      : "IA ❌"
+                                                  }
+                                                  size="small"
+                                                  sx={{
+                                                    bgcolor:
+                                                      "rgba(99, 102, 241, 0.2)",
+                                                    color: "#818cf8",
+                                                    fontSize: "0.65rem",
+                                                    height: 20,
+                                                    fontWeight: 700,
+                                                    border:
+                                                      "1px solid rgba(99, 102, 241, 0.3)",
+                                                    ml: 0.5,
+                                                  }}
+                                                />
+                                              )}
                                             </Typography>
                                             {pick.was_correct ? (
                                               <CheckCircle
@@ -950,6 +980,27 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                                       fontWeight: 700,
                                       border:
                                         "1px solid rgba(139, 92, 246, 0.3)",
+                                      flexShrink: 0,
+                                    }}
+                                  />
+                                )}
+                                {pick.is_ml_confirmed && (
+                                  <Chip
+                                    label={pick.was_correct ? "IA ✅" : "IA ❌"}
+                                    icon={
+                                      <SmartToy
+                                        sx={{ fontSize: "14px !important" }}
+                                      />
+                                    }
+                                    size="small"
+                                    sx={{
+                                      bgcolor: "rgba(99, 102, 241, 0.2)",
+                                      color: "#818cf8",
+                                      fontSize: "0.65rem",
+                                      height: 20,
+                                      fontWeight: 700,
+                                      border:
+                                        "1px solid rgba(99, 102, 241, 0.3)",
                                       flexShrink: 0,
                                     }}
                                   />

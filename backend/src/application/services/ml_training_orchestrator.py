@@ -317,7 +317,8 @@ class MLTrainingOrchestrator:
                             "reasoning": pick.reasoning,
                             "result": result_str,
                             "suggested_stake": getattr(pick, "suggested_stake", 0.0),
-                            "kelly_percentage": getattr(pick, "kelly_percentage", 0.0)
+                            "kelly_percentage": getattr(pick, "kelly_percentage", 0.0),
+                            "is_ml_confirmed": getattr(pick, "is_ml_confirmed", False)
                         }
                         
                         # Store Features for FUTURE training

@@ -172,11 +172,16 @@ class AIPicksService(PicksService):
 
             # --- PHASE D: AI Locks Generation ---
             # Criteria: Prob > 65%, Weight > 1.0, ML > 75%
-            is_ai_lock = (
-                pick.probability > 0.65 and
-                weight >= 1.0 and
-                ml_confidence > 0.75
-            )
+            # If ML model is missing (during backtesting), use stricter statistical thresholds
+            if self.ml_model and ml_confidence > 0:
+                is_ai_lock = (
+                    pick.probability > 0.65 and
+                    weight >= 1.0 and
+                    ml_confidence > 0.75
+                )
+            else:
+                # Fallback: Strong Statistical signal "Algo Lock" for history
+                is_ai_lock = (pick.probability > 0.75 and weight >= 1.1)
             
             if is_ai_lock:
                 pick.priority_score *= 1.5 # Massive boost

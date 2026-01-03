@@ -107,8 +107,8 @@ class FootballDataOrgSource:
             return None
         
         # Mandatory safety delay for GitHub Actions / CI
-        # Limit to ~8 requests per minute to stay safely under 10 req/min limit
-        await asyncio.sleep(7)
+        # Limit to ~6 requests per minute (very conservative)
+        await asyncio.sleep(9)
         
         await self._wait_for_rate_limit()
         
@@ -117,30 +117,48 @@ class FootballDataOrgSource:
             "X-Auth-Token": self.config.api_key,
         }
         
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    url,
-                    headers=headers,
-                    params=params,
-                    timeout=self.config.timeout,
-                )
+        # Retry logic for 429 Too Many Requests
+        max_retries = 3
+        backoff_seconds = 60 # Start with a full minute penalty if hit
+        
+        for attempt in range(max_retries + 1):
+            try:
+                async with httpx.AsyncClient() as client:
+                    response = await client.get(
+                        url,
+                        headers=headers,
+                        params=params,
+                        timeout=self.config.timeout,
+                    )
+                    
+                    self._request_times.append(datetime.utcnow())
+                    
+                    if response.status_code == 429:
+                        if attempt < max_retries:
+                            logger.warning(f"Football-Data.org rate limit hit (Attempt {attempt+1}/{max_retries}). Waiting {backoff_seconds}s...")
+                            await asyncio.sleep(backoff_seconds)
+                            continue 
+                        else:
+                            logger.error("Football-Data.org rate limit exhausted after retries.")
+                            return None
+                    
+                    response.raise_for_status()
+                    return response.json()
+                    
+            except httpx.HTTPStatusError as e:
+                # If 429 (caught above usually, but just in case)
+                if e.response.status_code == 429:
+                     logger.warning(f"Football-Data.org 429 Error. Waiting {backoff_seconds}s...")
+                     await asyncio.sleep(backoff_seconds)
+                     continue
+                     
+                logger.error(f"Football-Data.org HTTP error: {e}")
+                return None
+            except Exception as e:
+                logger.error(f"Football-Data.org request error: {e}")
+                return None
                 
-                self._request_times.append(datetime.utcnow())
-                
-                if response.status_code == 429:
-                    logger.warning("Football-Data.org rate limit hit")
-                    return None
-                
-                response.raise_for_status()
-                return response.json()
-                
-        except httpx.HTTPStatusError as e:
-            logger.error(f"Football-Data.org HTTP error: {e}")
-            return None
-        except Exception as e:
-            logger.error(f"Football-Data.org request error: {e}")
-            return None
+        return None
     
     async def get_competitions(self) -> list[dict]:
         """Get list of available competitions."""
