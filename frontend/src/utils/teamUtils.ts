@@ -29,9 +29,32 @@ export const getTeamLogo = (team: Team): string => {
 };
 
 /**
- * Get the shortest available team name
+ * Common football club suffixes/prefixes to remove for cleaner display
+ * Case insensitive regex to match whole words or commonly attached suffixes
+ * Includes:
+ * - English/Intl: FC, CF, AFC, SC, AC, AS, CD, UD
+ * - German: SV, VfB, FSV, TSG, SpVgg, 1. (prefix)
+ * - Eastern/Northern: FK, JK, SK, NK, HJK
+ * - Belgium/Dutch: KV, K, RSC, KAA, KRC, KAS, USG
+ * - Others: CA, CS, SD, RB (Red Bull - controversial but often removed for short names if generic)
+ */
+const TEAM_NAME_CLEANER_REGEX =
+  /\b(FC|CF|AFC|SC|AC|AS|CD|UD|SV|VfB|FSV|TSG|FK|JK|SK|NK|CA|CS|SD|SpVgg|KV|K|RSC|KAA|KRC|KAS|USG|FCV|KVC)\b/gi;
+
+/**
+ * Cleans a team name by stripping common Generic suffixes/prefixes
+ */
+export const cleanTeamName = (name: string): string => {
+  if (!name) return "";
+  return name.replace(TEAM_NAME_CLEANER_REGEX, "").replace(/\s+/g, " ").trim();
+};
+
+/**
+ * Get the shortest available team name and clean it up
  * Priority: short_name > name
+ * Cleans: "Chelsea FC" -> "Chelsea", "Arsenal AFC" -> "Arsenal"
  */
 export const getTeamDisplayName = (team: Team): string => {
-  return team.short_name || team.name;
+  const baseName = team.short_name || team.name;
+  return cleanTeamName(baseName);
 };

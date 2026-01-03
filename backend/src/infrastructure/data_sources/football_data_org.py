@@ -9,6 +9,7 @@ Free tier: 10 requests/minute
 """
 
 import os
+import json
 from datetime import datetime, timedelta
 from typing import Optional
 from dataclasses import dataclass
@@ -66,59 +67,80 @@ class FootballDataOrgSource:
         """Initialize the data source."""
         self.config = config or FootballDataOrgConfig()
         self._request_times: list[datetime] = []
+        self._memory_cache: dict = {}
+        self._last_request_time: Optional[datetime] = None
     
     @property
     def is_configured(self) -> bool:
         """Check if API key is configured."""
         return bool(self.config.api_key)
     
-    async def _wait_for_rate_limit(self):
-        """Wait if necessary to respect rate limit (10 req/min, using 9 for safety margin)."""
+    async def _wait_strict(self):
+        """
+        Strict rate limiting: 10 req/min = 1 req every 6 seconds.
+        We force 6.5s to be safe.
+        """
         now = datetime.utcnow()
-        minute_ago = now - timedelta(seconds=60)
+        if self._last_request_time:
+            # Check elapsed time since LAST request (not window)
+            elapsed = (now - self._last_request_time).total_seconds()
+            required_wait = 6.5
+            
+            if elapsed < required_wait:
+                wait_time = required_wait - elapsed
+                logger.debug(f"Rate Limit: Waiting {wait_time:.2f}s to respect strict 6.5s gap")
+                await asyncio.sleep(wait_time)
         
-        # Clean old request times
-        self._request_times = [t for t in self._request_times if t > minute_ago]
-        
-        # If we've made 9 requests in the last minute, wait for the oldest one to expire
-        if len(self._request_times) >= 9:
-            wait_time = (self._request_times[0] + timedelta(seconds=60) - now).total_seconds()
-            if wait_time > 0:
-                logger.debug(f"Rate limiting: waiting {wait_time:.2f}s (made {len(self._request_times)} requests in last minute)")
-                await asyncio.sleep(wait_time + 0.5)  # Small buffer for safety
-                # Clean again after waiting
-                self._request_times = [t for t in self._request_times if t > datetime.utcnow() - timedelta(seconds=60)]
-    
+        self._last_request_time = datetime.utcnow()
+
     async def _make_request(
         self,
         endpoint: str,
         params: Optional[dict] = None,
+        use_cache: bool = True,
+        ttl_seconds: int = 86400  # Default 24h
     ) -> Optional[dict]:
         """
-        Make authenticated request to Football-Data.org.
-        
-        Args:
-            endpoint: API endpoint
-            params: Query parameters
-            
-        Returns:
-            JSON response or None if failed
+        Make authenticated request with Multi-Level Caching:
+        1. Memory Cache (Session)
+        2. DB Cache (Persistent)
+        3. Real API Call (Rate Limited)
         """
         if not self.is_configured:
             logger.warning("Football-Data.org not configured (no API key)")
             return None
-        
-        # Smart rate limiting - only wait if we're approaching the limit
-        await self._wait_for_rate_limit()
+
+        # 1. Check Memory Cache
+        cache_key = f"{endpoint}:{json.dumps(params, sort_keys=True) if params else ''}"
+        if use_cache and cache_key in self._memory_cache:
+            # logger.debug(f"Memory Cache Hit: {endpoint}")
+            return self._memory_cache[cache_key]
+
+        # 2. Check DB Cache
+        repo = None
+        if use_cache:
+            from src.infrastructure.repositories.persistence_repository import get_persistence_repository
+            try:
+                repo = get_persistence_repository()
+                cached_data = repo.get_cached_response(endpoint, params)
+                if cached_data:
+                    # logger.info(f"DB Cache Hit: {endpoint}")
+                    self._memory_cache[cache_key] = cached_data # Populate memory
+                    return cached_data
+            except Exception as e:
+                logger.warning(f"DB Cache read failed: {e}")
+
+        # 3. Fetch from API (Strict Rate Limit)
+        await self._wait_strict()
         
         url = f"{self.config.base_url}{endpoint}"
         headers = {
             "X-Auth-Token": self.config.api_key,
         }
         
-        # Retry logic for 429 Too Many Requests
+        # Retry with backoff
         max_retries = 3
-        backoff_seconds = 60 # Start with a full minute penalty if hit
+        backoff = 60 # 1 minute if hit 429
         
         for attempt in range(max_retries + 1):
             try:
@@ -130,33 +152,30 @@ class FootballDataOrgSource:
                         timeout=self.config.timeout,
                     )
                     
-                    self._request_times.append(datetime.utcnow())
-                    
                     if response.status_code == 429:
                         if attempt < max_retries:
-                            logger.warning(f"Football-Data.org rate limit hit (Attempt {attempt+1}/{max_retries}). Waiting {backoff_seconds}s...")
-                            await asyncio.sleep(backoff_seconds)
-                            continue 
-                        else:
-                            logger.error("Football-Data.org rate limit exhausted after retries.")
-                            return None
-                    
+                            retry_after = int(response.headers.get("Retry-After", backoff))
+                            logger.warning(f"429 Too Many Requests. Waiting {retry_after}s...")
+                            await asyncio.sleep(retry_after)
+                            continue
+                        return None
+                        
                     response.raise_for_status()
-                    return response.json()
+                    data = response.json()
                     
-            except httpx.HTTPStatusError as e:
-                # If 429 (caught above usually, but just in case)
-                if e.response.status_code == 429:
-                     logger.warning(f"Football-Data.org 429 Error. Waiting {backoff_seconds}s...")
-                     await asyncio.sleep(backoff_seconds)
-                     continue
-                     
-                logger.error(f"Football-Data.org HTTP error: {e}")
-                return None
+                    # Save to caches
+                    self._memory_cache[cache_key] = data
+                    if use_cache and repo:
+                         repo.save_cached_response(endpoint, data, params, ttl_seconds)
+                    
+                    return data
+                    
             except Exception as e:
-                logger.error(f"Football-Data.org request error: {e}")
-                return None
-                
+                logger.error(f"Request failed: {e}")
+                if attempt < max_retries:
+                    await asyncio.sleep(5)
+                else:
+                    return None
         return None
     
     async def get_competitions(self) -> list[dict]:
@@ -231,7 +250,6 @@ class FootballDataOrgSource:
         if not data.get("matches"):
             return []
         
-        # Get competition info
         competition = data.get("competition", {})
         league = League(
             id=league_code,
@@ -248,6 +266,53 @@ class FootballDataOrgSource:
             except Exception as e:
                 logger.debug(f"Error parsing match: {e}")
         
+        return matches
+
+    async def get_league_matches(
+        self,
+        league_code: str,
+        date_from: str,
+        date_to: str,
+        status: Optional[str] = None
+    ) -> list[Match]:
+        """
+        Get all matches for a league within a date range (Optimized Batch Fetch).
+        Wrapper around /competitions/{id}/matches.
+        """
+        if league_code not in COMPETITION_CODE_MAPPING:
+            return []
+            
+        comp_code = COMPETITION_CODE_MAPPING[league_code]
+        params = {
+            "dateFrom": date_from,
+            "dateTo": date_to,
+        }
+        if status:
+            params["status"] = status
+            
+        data = await self._make_request(f"/competitions/{comp_code}/matches", params)
+        
+        if not data or not data.get("matches"):
+            return []
+            
+        # Parse result
+        matches = []
+        # Create league object once
+        competition = data.get("competition", {})
+        league = League(
+            id=league_code,
+            name=competition.get("name", "Unknown"),
+            country=competition.get("area", {}).get("name", "Unknown"),
+        )
+        
+        for match_data in data["matches"]:
+            try:
+                match = self._parse_match(match_data, league)
+                if match:
+                    matches.append(match)
+            except Exception as e:
+                logger.debug(f"Error parsing bulk match: {e}")
+                
         return matches
     
     def _parse_match(self, match_data: dict, league: League) -> Optional[Match]:

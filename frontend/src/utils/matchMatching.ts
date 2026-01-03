@@ -4,7 +4,9 @@ import { normalizeName } from "./searchUtils";
 export interface LiveMatchRaw {
   id: string;
   home_team: string;
+  home_short_name?: string;
   away_team: string;
+  away_short_name?: string;
   league_id: string;
   league_name: string;
   league_flag?: string;
@@ -63,8 +65,18 @@ export const matchLiveWithPrediction = (
   const matchPrediction: MatchPrediction = {
     match: {
       id: liveMatch.id,
-      home_team: { id: "0", name: liveMatch.home_team, logo: "" },
-      away_team: { id: "0", name: liveMatch.away_team, logo: "" },
+      home_team: {
+        id: "0",
+        name: liveMatch.home_team,
+        short_name: liveMatch.home_short_name,
+        logo: "",
+      },
+      away_team: {
+        id: "0",
+        name: liveMatch.away_team,
+        short_name: liveMatch.away_short_name,
+        logo: "",
+      },
       match_date: new Date().toISOString(),
       league: {
         id: liveMatch.league_id,

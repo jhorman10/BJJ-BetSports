@@ -27,7 +27,9 @@ const LiveMatchesList: React.FC<LiveMatchesListProps> = ({
     return matches.map((m) => ({
       id: m.match.id,
       home_team: m.match.home_team.name,
+      home_short_name: m.match.home_team.short_name,
       away_team: m.match.away_team.name,
+      away_short_name: m.match.away_team.short_name,
       home_score: m.match.home_goals ?? 0,
       away_score: m.match.away_goals ?? 0,
       status: m.match.status || "LIVE",
@@ -41,6 +43,8 @@ const LiveMatchesList: React.FC<LiveMatchesListProps> = ({
       away_yellow_cards: m.match.away_yellow_cards ?? 0,
       home_red_cards: m.match.home_red_cards ?? 0,
       away_red_cards: m.match.away_red_cards ?? 0,
+      home_logo_url: m.match.home_team.logo_url,
+      away_logo_url: m.match.away_team.logo_url,
       prediction: m.prediction,
     }));
   }, [matches]);

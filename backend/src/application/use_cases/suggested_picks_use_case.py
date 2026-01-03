@@ -66,13 +66,18 @@ class GetSuggestedPicksUseCase:
             learning_weights=learning_service.get_learning_weights()
         )
     
-    async def execute(self, match_id: str) -> Optional[MatchSuggestedPicksDTO]:
+    async def execute(
+        self, 
+        match_id: str,
+        match_data: Optional[Match] = None,
+        pre_fetched_history: Optional[list[Match]] = None
+    ) -> Optional[MatchSuggestedPicksDTO]:
         """
         Generate suggested picks for a match. Guaranteed to use real data.
         """
         try:
             # 1. Get match details (always returns a Match if reconstructible)
-            match = await self._get_match(match_id)
+            match = match_data if match_data else await self._get_match(match_id)
             if not match:
                 logger.warning(f"Match {match_id} could not be identified after fallbacks.")
                 from src.utils.time_utils import get_current_time
@@ -91,7 +96,12 @@ class GetSuggestedPicksUseCase:
                 global_averages = LeagueAverages(**global_avg_data)
 
             # 2. Get historical matches (Aggregated: CSV + OpenFootball + APIs)
-            historical_matches = await self._get_historical_matches(match)
+            if pre_fetched_history is not None:
+                historical_matches = pre_fetched_history
+                data_sources_used = ["Bulk Pre-fetch"]
+            else:
+                historical_matches = await self._get_historical_matches(match)
+                data_sources_used = ["Historical Data"]
             
             # 3. Calculate team statistics
             # These will containMP=0 if no history found, but service handles it.
@@ -137,6 +147,7 @@ class GetSuggestedPicksUseCase:
 
             # Define sources used
             prediction_sources = ["Historical Data"]
+            if pre_fetched_history: prediction_sources.append("Bulk Context")
             if self.data_sources.football_data_org.is_configured:
                 prediction_sources.append("Football-Data.org")
             if rt_odds:

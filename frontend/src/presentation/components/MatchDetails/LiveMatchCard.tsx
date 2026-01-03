@@ -12,6 +12,7 @@ import Grid from "@mui/material/Grid";
 import { Flag } from "@mui/icons-material";
 import { LiveMatchRaw } from "../../../utils/matchMatching";
 import { getLeagueName } from "../LeagueSelector/constants";
+import { cleanTeamName } from "../../../utils/teamUtils";
 
 // --- Estilos Personalizados ---
 const MatchCard = styled(Card)(() => ({
@@ -150,7 +151,9 @@ const LiveMatchCard: React.FC<LiveMatchCardProps> = memo(
                     <Box
                       component="img"
                       src={match.home_logo_url}
-                      alt={match.home_team}
+                      alt={cleanTeamName(
+                        match.home_short_name || match.home_team
+                      )}
                       sx={{ width: 28, height: 28, objectFit: "contain" }}
                     />
                   )}
@@ -160,7 +163,7 @@ const LiveMatchCard: React.FC<LiveMatchCardProps> = memo(
                     color="white"
                     sx={{ lineHeight: 1.2 }}
                   >
-                    {match.home_team}
+                    {cleanTeamName(match.home_short_name || match.home_team)}
                   </Typography>
                 </Box>
               </Box>
@@ -213,13 +216,15 @@ const LiveMatchCard: React.FC<LiveMatchCardProps> = memo(
                     align="right"
                     sx={{ lineHeight: 1.2 }}
                   >
-                    {match.away_team}
+                    {cleanTeamName(match.away_short_name || match.away_team)}
                   </Typography>
                   {match.away_logo_url && (
                     <Box
                       component="img"
                       src={match.away_logo_url}
-                      alt={match.away_team}
+                      alt={cleanTeamName(
+                        match.away_short_name || match.away_team
+                      )}
                       sx={{ width: 28, height: 28, objectFit: "contain" }}
                     />
                   )}

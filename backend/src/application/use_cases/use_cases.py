@@ -1030,8 +1030,20 @@ class GetTeamPredictionsUseCase:
         
         return MatchDTO(
             id=match.id,
-            home_team=TeamDTO(id=match.home_team.id, name=match.home_team.name, country=match.home_team.country, logo_url=match.home_team.logo_url or TeamService.get_team_logo(match.home_team.name)),
-            away_team=TeamDTO(id=match.away_team.id, name=match.away_team.name, country=match.away_team.country, logo_url=match.away_team.logo_url or TeamService.get_team_logo(match.away_team.name)),
+            home_team=TeamDTO(
+                id=match.home_team.id,
+                name=match.home_team.name,
+                short_name=match.home_team.short_name or TeamService.get_team_short_name(match.home_team.name),
+                country=match.home_team.country,
+                logo_url=match.home_team.logo_url or TeamService.get_team_logo(match.home_team.name)
+            ),
+            away_team=TeamDTO(
+                id=match.away_team.id,
+                name=match.away_team.name,
+                short_name=match.away_team.short_name or TeamService.get_team_short_name(match.away_team.name),
+                country=match.away_team.country,
+                logo_url=match.away_team.logo_url or TeamService.get_team_logo(match.away_team.name)
+            ),
             league=LeagueDTO(id=match.league.id, name=match.league.name, country=match.league.country, season=match.league.season),
             match_date=match.match_date,
             home_goals=match.home_goals,
@@ -1165,12 +1177,25 @@ class GetGlobalLiveMatchesUseCase:
         # Convert to DTOs
         # Helper reuse (technical debt: duplication)
         from src.application.dtos.dtos import TeamDTO, LeagueDTO
+        from src.domain.services.team_service import TeamService
         dtos = []
         for match in unique_matches.values():
              dtos.append(MatchDTO(
                 id=match.id,
-                home_team=TeamDTO(id=match.home_team.id, name=match.home_team.name, country=match.home_team.country, logo_url=match.home_team.logo_url),
-                away_team=TeamDTO(id=match.away_team.id, name=match.away_team.name, country=match.away_team.country, logo_url=match.away_team.logo_url),
+                home_team=TeamDTO(
+                    id=match.home_team.id,
+                    name=match.home_team.name,
+                    short_name=match.home_team.short_name or TeamService.get_team_short_name(match.home_team.name),
+                    country=match.home_team.country,
+                    logo_url=match.home_team.logo_url or TeamService.get_team_logo(match.home_team.name)
+                ),
+                away_team=TeamDTO(
+                    id=match.away_team.id,
+                    name=match.away_team.name,
+                    short_name=match.away_team.short_name or TeamService.get_team_short_name(match.away_team.name),
+                    country=match.away_team.country,
+                    logo_url=match.away_team.logo_url or TeamService.get_team_logo(match.away_team.name)
+                ),
                 league=LeagueDTO(id=match.league.id, name=match.league.name, country=match.league.country, season=match.league.season),
                 match_date=match.match_date,
                 home_goals=match.home_goals,
@@ -1257,12 +1282,25 @@ class GetGlobalDailyMatchesUseCase:
 
         # Map to DTOs
         from src.application.dtos.dtos import TeamDTO, LeagueDTO
+        from src.domain.services.team_service import TeamService # Ensure import
         dtos = []
         for match in unique_matches.values():
              dtos.append(MatchDTO(
                 id=match.id,
-                home_team=TeamDTO(id=match.home_team.id, name=match.home_team.name, country=match.home_team.country, logo_url=match.home_team.logo_url),
-                away_team=TeamDTO(id=match.away_team.id, name=match.away_team.name, country=match.away_team.country, logo_url=match.away_team.logo_url),
+                home_team=TeamDTO(
+                    id=match.home_team.id,
+                    name=match.home_team.name,
+                    short_name=match.home_team.short_name or TeamService.get_team_short_name(match.home_team.name),
+                    country=match.home_team.country,
+                    logo_url=match.home_team.logo_url or TeamService.get_team_logo(match.home_team.name)
+                ),
+                away_team=TeamDTO(
+                    id=match.away_team.id,
+                    name=match.away_team.name,
+                    short_name=match.away_team.short_name or TeamService.get_team_short_name(match.away_team.name),
+                    country=match.away_team.country,
+                    logo_url=match.away_team.logo_url or TeamService.get_team_logo(match.away_team.name)
+                ),
                 league=LeagueDTO(id=match.league.id, name=match.league.name, country=match.league.country, season=match.league.season),
                 match_date=match.match_date,
                 home_goals=match.home_goals,

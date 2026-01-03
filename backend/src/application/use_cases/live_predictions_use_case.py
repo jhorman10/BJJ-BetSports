@@ -128,6 +128,54 @@ class GetLivePredictionsUseCase:
         
         logger.info(f"Fetched {len(matches)} live matches from {source_used}")
         
+        # Optimization: Bulk fetch history for active leagues
+        bulk_history = {}
+        if self.data_sources.football_data_org.is_configured:
+            try:
+                # Identify active leagues
+                active_leagues = set()
+                from src.infrastructure.data_sources.football_data_org import COMPETITION_CODE_MAPPING
+                internal_to_comp = {k: v for k, v in COMPETITION_CODE_MAPPING.items()}
+                
+                for m in matches:
+                     # Try to find internal league code
+                     lid = m.league.id
+                     if lid in internal_to_comp:
+                         active_leagues.add(lid)
+                
+                if active_leagues:
+                    logger.info(f"Pre-fetching history for active leagues: {active_leagues}")
+                    from datetime import timedelta
+                    now_date = datetime.now()
+                    date_from = (now_date - timedelta(days=60)).strftime("%Y-%m-%d")
+                    date_to = now_date.strftime("%Y-%m-%d")
+                    
+                    tasks = []
+                    for lid in active_leagues:
+                        tasks.append(self.data_sources.football_data_org.get_league_matches(
+                            lid, date_from, date_to, status="FINISHED"
+                        ))
+                    
+                    league_results = await asyncio.gather(*tasks, return_exceptions=True)
+                    
+                    # Index by team name (normalized)
+                    for res in league_results:
+                        if isinstance(res, list):
+                            for history_match in res:
+                                h_norm = self.statistics_service._normalize_name(history_match.home_team.name)
+                                a_norm = self.statistics_service._normalize_name(history_match.away_team.name)
+                                
+                                if h_norm not in bulk_history: bulk_history[h_norm] = []
+                                if a_norm not in bulk_history: bulk_history[a_norm] = []
+                                
+                                bulk_history[h_norm].append(history_match)
+                                bulk_history[a_norm].append(history_match)
+                    
+                    logger.info(f"Bulk fetched history for {len(bulk_history)} teams")
+
+            except Exception as e:
+                logger.warning(f"Bulk fetch failed: {e}")
+
         # Generate predictions for each match
         results: List[MatchPredictionDTO] = []
         
@@ -155,7 +203,7 @@ class GetLivePredictionsUseCase:
 
                 # 2. EMERGENCY FALLBACK: Real-time calculation
                 logger.warning(f"⚠ Cache/DB miss for {match.id}. Running emergency real-time inference...")
-                prediction_dto = await self._generate_prediction(match)
+                prediction_dto = await self._generate_prediction(match, bulk_history)
                 match_dto = self._match_to_dto(match)
                 
                 results.append(MatchPredictionDTO(
@@ -176,7 +224,7 @@ class GetLivePredictionsUseCase:
         
         return results
     
-    async def _generate_prediction(self, match: Match) -> PredictionDTO:
+    async def _generate_prediction(self, match: Match, bulk_history: dict = None) -> PredictionDTO:
         """
         Generate prediction for a single match.
         
@@ -242,7 +290,7 @@ class GetLivePredictionsUseCase:
         # 2. Fallback to shallow fetch (API-Football) if no training stats
         # 2. Fallback to aggregated fetch (CSV + OpenFootball + APIs)
         if not home_stats or not away_stats:
-             historical_matches = await self._get_aggregated_history(match)
+             historical_matches = await self._get_aggregated_history(match, bulk_history)
              
              if not home_stats:
                  home_stats = self.statistics_service.calculate_team_statistics(
@@ -263,7 +311,7 @@ class GetLivePredictionsUseCase:
                      data_sources_used.append("FotMob")
         else:
              # We used deep stats, but maybe we still want league averages from recent data?
-             historical_matches = await self._get_aggregated_history(match)
+             historical_matches = await self._get_aggregated_history(match, bulk_history)
              league_averages = self.statistics_service.calculate_league_averages(historical_matches) if historical_matches else None
 
         
@@ -297,7 +345,7 @@ class GetLivePredictionsUseCase:
         
         return prediction_dto
     
-    async def _get_aggregated_history(self, match: Match) -> List[Match]:
+    async def _get_aggregated_history(self, match: Match, bulk_history: dict = None) -> List[Match]:
         """
         Get historical matches from ALL available sources and unify them.
         Identical strategy to SuggestedPicksUseCase for consistency.
@@ -320,7 +368,7 @@ class GetLivePredictionsUseCase:
             tasks.append(self._fetch_openfootball_history(internal_league_code))
             
         # 3. Team History Task
-        tasks.append(self._fetch_team_history_apis(match))
+        tasks.append(self._fetch_team_history_apis(match, bulk_history))
         
         # Execute in parallel
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -360,8 +408,26 @@ class GetLivePredictionsUseCase:
             pass
         return []
 
-    async def _fetch_team_history_apis(self, match: Match) -> list[Match]:
+    async def _fetch_team_history_apis(self, match: Match, bulk_history: dict = None) -> list[Match]:
         team_matches = []
+        
+        # Optimization: Check Bulk History First
+        if bulk_history:
+            h_norm = self.statistics_service._normalize_name(match.home_team.name)
+            a_norm = self.statistics_service._normalize_name(match.away_team.name)
+            
+            found_bulk = False
+            if h_norm in bulk_history:
+                team_matches.extend(bulk_history[h_norm])
+                found_bulk = True
+            if a_norm in bulk_history:
+                team_matches.extend(bulk_history[a_norm])
+                found_bulk = True
+                
+            if found_bulk:
+                # logger.debug(f"Using bulk history for {match.home_team.name}/{match.away_team.name}")
+                return team_matches
+
         # Aumentamos el límite para mejorar la significancia estadística (Ley de los Grandes Números)
         HISTORY_LIMIT = 25
         
@@ -437,14 +503,14 @@ class GetLivePredictionsUseCase:
             home_team=TeamDTO(
                 id=match.home_team.id,
                 name=match.home_team.name,
-                short_name=match.home_team.short_name,
+                short_name=match.home_team.short_name or TeamService.get_team_short_name(match.home_team.name),
                 country=match.home_team.country,
                 logo_url=match.home_team.logo_url or TeamService.get_team_logo(match.home_team.name),
             ),
             away_team=TeamDTO(
                 id=match.away_team.id,
                 name=match.away_team.name,
-                short_name=match.away_team.short_name,
+                short_name=match.away_team.short_name or TeamService.get_team_short_name(match.away_team.name),
                 country=match.away_team.country,
                 logo_url=match.away_team.logo_url or TeamService.get_team_logo(match.away_team.name),
             ),

@@ -35,14 +35,14 @@ def _map_match_to_dto(match: Any) -> MatchDTO:
         home_team=TeamDTO(
             id=match.home_team.id,
             name=match.home_team.name,
-            short_name=match.home_team.short_name,
+            short_name=match.home_team.short_name or TeamService.get_team_short_name(match.home_team.name),
             country=match.home_team.country,
             logo_url=match.home_team.logo_url or TeamService.get_team_logo(match.home_team.name),
         ),
         away_team=TeamDTO(
             id=match.away_team.id,
             name=match.away_team.name,
-            short_name=match.away_team.short_name,
+            short_name=match.away_team.short_name or TeamService.get_team_short_name(match.away_team.name),
             country=match.away_team.country,
             logo_url=match.away_team.logo_url or TeamService.get_team_logo(match.away_team.name),
         ),
