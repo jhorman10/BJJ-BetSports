@@ -18,7 +18,7 @@ from src.domain.services.picks_service import PicksService
 # Use the new AI-driven service
 from src.domain.services.ai_picks_service import AIPicksService
 from src.domain.services.learning_service import LearningService
-from src.infrastructure.data_sources.the_odds_api import TheOddsAPISource
+
 from src.infrastructure.data_sources.fotmob_source import FotMobSource
 from src.infrastructure.data_sources.club_elo import ClubEloSource
 from src.infrastructure.data_sources.understat_source import UnderstatSource
