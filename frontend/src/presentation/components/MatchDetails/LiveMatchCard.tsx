@@ -145,14 +145,24 @@ const LiveMatchCard: React.FC<LiveMatchCardProps> = memo(
                 flexDirection="column"
                 alignItems="flex-start"
               >
-                <Typography
-                  variant="body1"
-                  fontWeight={600}
-                  color="white"
-                  sx={{ lineHeight: 1.2 }}
-                >
-                  {match.home_team}
-                </Typography>
+                <Box display="flex" alignItems="center" gap={1}>
+                  {match.home_logo_url && (
+                    <Box
+                      component="img"
+                      src={match.home_logo_url}
+                      alt={match.home_team}
+                      sx={{ width: 28, height: 28, objectFit: "contain" }}
+                    />
+                  )}
+                  <Typography
+                    variant="body1"
+                    fontWeight={600}
+                    color="white"
+                    sx={{ lineHeight: 1.2 }}
+                  >
+                    {match.home_team}
+                  </Typography>
+                </Box>
               </Box>
 
               {/* Score Box */}
@@ -195,15 +205,25 @@ const LiveMatchCard: React.FC<LiveMatchCardProps> = memo(
                 flexDirection="column"
                 alignItems="flex-end"
               >
-                <Typography
-                  variant="body1"
-                  fontWeight={600}
-                  color="white"
-                  align="right"
-                  sx={{ lineHeight: 1.2 }}
-                >
-                  {match.away_team}
-                </Typography>
+                <Box display="flex" alignItems="center" gap={1}>
+                  <Typography
+                    variant="body1"
+                    fontWeight={600}
+                    color="white"
+                    align="right"
+                    sx={{ lineHeight: 1.2 }}
+                  >
+                    {match.away_team}
+                  </Typography>
+                  {match.away_logo_url && (
+                    <Box
+                      component="img"
+                      src={match.away_logo_url}
+                      alt={match.away_team}
+                      sx={{ width: 28, height: 28, objectFit: "contain" }}
+                    />
+                  )}
+                </Box>
               </Box>
             </Box>
 

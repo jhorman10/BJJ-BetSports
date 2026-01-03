@@ -18,6 +18,8 @@ export interface LiveMatchRaw {
   away_yellow_cards: number;
   home_red_cards: number;
   away_red_cards: number;
+  home_logo_url?: string;
+  away_logo_url?: string;
   prediction?: any;
 }
 

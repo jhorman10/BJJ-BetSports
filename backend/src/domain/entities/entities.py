@@ -317,6 +317,15 @@ class TeamStatistics:
     total_fouls: int = 0
     matches_with_shots: int = 0
     matches_with_fouls: int = 0
+    
+    # ESPN Advanced Stats (Possession, Passes, Defensive)
+    avg_possession: float = 0.5  # 0-1 normalized (e.g., 0.55 = 55%)
+    avg_pass_accuracy: float = 0.75  # 0-1 normalized
+    total_passes: int = 0
+    total_tackles: int = 0
+    total_interceptions: int = 0
+    matches_with_advanced_stats: int = 0
+    
     recent_form: str = ""  # e.g., "WWDLW"
     data_updated_at: Optional[datetime] = None
     

@@ -20,6 +20,7 @@ from io import StringIO
 from src.domain.entities.entities import Match, Team, League, TeamStatistics
 from src.domain.constants import LEAGUES_METADATA
 from src.domain.services.statistics_service import StatisticsService
+from src.domain.services.team_service import TeamService
 
 
 logger = logging.getLogger(__name__)
@@ -307,15 +308,21 @@ class FootballDataUKSource:
                     continue
                 
                 # Create teams
+                home_team_name = str(row['HomeTeam'])
+                away_team_name = str(row['AwayTeam'])
+
                 home_team = Team(
-                    id=f"{league.id}_{row['HomeTeam']}".replace(" ", "_").lower(),
-                    name=str(row['HomeTeam']),
+                    id=home_team_name.lower().replace(" ", "_"),
+                    name=home_team_name,
                     country=league.country,
+                    logo_url=TeamService.get_team_logo(home_team_name)
                 )
+                
                 away_team = Team(
-                    id=f"{league.id}_{row['AwayTeam']}".replace(" ", "_").lower(),
-                    name=str(row['AwayTeam']),
+                    id=away_team_name.lower().replace(" ", "_"),
+                    name=away_team_name,
                     country=league.country,
+                    logo_url=TeamService.get_team_logo(away_team_name)
                 )
                 
                 # Get goals (handle NaN for unplayed matches)

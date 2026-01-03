@@ -22,6 +22,7 @@ import {
   translateRecommendedBet,
   translateOverUnder,
 } from "../../../utils/translationUtils";
+import { getTeamLogo, getTeamDisplayName } from "../../../utils/teamUtils";
 
 interface MatchDetailsModalProps {
   open: boolean;
@@ -106,25 +107,23 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                   flexDirection="column"
                   alignItems="center"
                 >
-                  {details.match.home_team.logo_url && (
-                    <Box
-                      component="img"
-                      src={details.match.home_team.logo_url}
-                      alt={details.match.home_team.name}
-                      sx={{
-                        width: 40,
-                        height: 40,
-                        mb: 1,
-                        objectFit: "contain",
-                      }}
-                    />
-                  )}
+                  <Box
+                    component="img"
+                    src={getTeamLogo(details.match.home_team)}
+                    alt={getTeamDisplayName(details.match.home_team)}
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      mb: 1,
+                      objectFit: "contain",
+                    }}
+                  />
                   <Typography
                     variant={isMobile ? "body2" : "subtitle1"}
                     lineHeight={1.2}
                     fontWeight="bold"
                   >
-                    {details.match.home_team.name}
+                    {getTeamDisplayName(details.match.home_team)}
                   </Typography>
                   {details.match.home_spi && (
                     <Typography variant="caption" color="text.secondary">
@@ -176,25 +175,23 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                   flexDirection="column"
                   alignItems="center"
                 >
-                  {details.match.away_team.logo_url && (
-                    <Box
-                      component="img"
-                      src={details.match.away_team.logo_url}
-                      alt={details.match.away_team.name}
-                      sx={{
-                        width: 40,
-                        height: 40,
-                        mb: 1,
-                        objectFit: "contain",
-                      }}
-                    />
-                  )}
+                  <Box
+                    component="img"
+                    src={getTeamLogo(details.match.away_team)}
+                    alt={getTeamDisplayName(details.match.away_team)}
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      mb: 1,
+                      objectFit: "contain",
+                    }}
+                  />
                   <Typography
                     variant={isMobile ? "body2" : "subtitle1"}
                     lineHeight={1.2}
                     fontWeight="bold"
                   >
-                    {details.match.away_team.name}
+                    {getTeamDisplayName(details.match.away_team)}
                   </Typography>
                   {details.match.away_spi && (
                     <Typography variant="caption" color="text.secondary">
@@ -373,7 +370,9 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                 >
                   <Box display="flex" justifyContent="space-between" mb={0.5}>
                     <Typography variant="caption" noWrap>
-                      {isMobile ? "Local" : details.match.home_team.name}
+                      {isMobile
+                        ? "Local"
+                        : getTeamDisplayName(details.match.home_team)}
                     </Typography>
                     <Typography fontWeight="bold" color="primary">
                       {details.prediction.predicted_home_goals.toFixed(1)}
@@ -382,7 +381,9 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                   <Divider sx={{ my: 0.5 }} />
                   <Box display="flex" justifyContent="space-between">
                     <Typography variant="caption" noWrap>
-                      {isMobile ? "Visita" : details.match.away_team.name}
+                      {isMobile
+                        ? "Visita"
+                        : getTeamDisplayName(details.match.away_team)}
                     </Typography>
                     <Typography fontWeight="bold" color="error">
                       {details.prediction.predicted_away_goals.toFixed(1)}
@@ -470,10 +471,10 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                 justifyContent="space-between"
               >
                 <Typography variant="caption" fontWeight="bold">
-                  {details.match.home_team.name}
+                  {getTeamDisplayName(details.match.home_team)}
                 </Typography>
                 <Typography variant="caption" fontWeight="bold">
-                  {details.match.away_team.name}
+                  {getTeamDisplayName(details.match.away_team)}
                 </Typography>
               </Box>
 

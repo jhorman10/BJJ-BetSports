@@ -20,6 +20,7 @@ import {
 } from "@mui/icons-material";
 import { useParleyStore } from "../../../application/stores/useParleyStore";
 import { useUIStore } from "../../../application/stores/useUIStore";
+import { getTeamDisplayName } from "../../../utils/teamUtils";
 
 const ParleySlip: React.FC = () => {
   const { selectedPicks, removePick, clearPicks } = useParleyStore();
@@ -118,8 +119,8 @@ const ParleySlip: React.FC = () => {
                   }}
                 >
                   <Typography variant="caption" color="text.secondary">
-                    {item.match.match.home_team.name} vs{" "}
-                    {item.match.match.away_team.name}
+                    {getTeamDisplayName(item.match.match.home_team)} vs{" "}
+                    {getTeamDisplayName(item.match.match.away_team)}
                   </Typography>
                   <IconButton
                     size="small"

@@ -44,6 +44,7 @@ async def get_league_predictions(
         get_persistence_repository
     )
     from src.application.use_cases.use_cases import GetPredictionsUseCase
+    from src.domain.services.team_service import TeamService
     
     try:
         # GetPredictionsUseCase now handles Cache -> DB logic internally
@@ -56,6 +57,15 @@ async def get_league_predictions(
         )
         
         result = await use_case.execute(league_id, limit=30)
+        
+        # POST-PROCESS: Inject logos into cached data that may be missing them
+        for pred in result.predictions:
+            if pred.match.home_team:
+                if not pred.match.home_team.logo_url:
+                    pred.match.home_team.logo_url = TeamService.get_team_logo(pred.match.home_team.name)
+            if pred.match.away_team:
+                if not pred.match.away_team.logo_url:
+                    pred.match.away_team.logo_url = TeamService.get_team_logo(pred.match.away_team.name)
         
         if not result.predictions:
             logger.warning(f"No predictions found for {league_id}")

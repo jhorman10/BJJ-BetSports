@@ -36,6 +36,7 @@ import {
   translateOverUnder,
 } from "../../../utils/translationUtils";
 import { useCacheStore } from "../../../application/stores/useCacheStore";
+import { getTeamLogo, getTeamDisplayName } from "../../../utils/teamUtils";
 
 interface MatchCardProps {
   matchPrediction: MatchPrediction;
@@ -390,23 +391,40 @@ const MatchCard: React.FC<MatchCardProps> = memo(
           <Box mb={3}>
             <Stack
               direction="row"
-              alignItems="center"
+              alignItems="flex-start"
               justifyContent="space-between"
               mb={1}
               spacing={1}
             >
               {/* Home Team */}
-              <Box display="flex" alignItems="center" gap={1} sx={{ flex: 1 }}>
-                {match.home_team.logo_url && (
-                  <Box
-                    component="img"
-                    src={match.home_team.logo_url}
-                    alt={match.home_team.name}
-                    sx={{ width: 24, height: 24, objectFit: "contain" }}
-                  />
-                )}
-                <Typography variant="h6" fontWeight={600} noWrap>
-                  {match.home_team.name}
+              <Box
+                display="flex"
+                flexDirection="column"
+                alignItems="center"
+                sx={{ flex: 1, minWidth: 0 }}
+              >
+                <Box
+                  component="img"
+                  src={getTeamLogo(match.home_team)}
+                  alt={getTeamDisplayName(match.home_team)}
+                  sx={{
+                    width: { xs: 36, sm: 44, md: 48 },
+                    height: { xs: 36, sm: 44, md: 48 },
+                    objectFit: "contain",
+                    mb: 0.5,
+                  }}
+                />
+                <Typography
+                  variant="body2"
+                  fontWeight={600}
+                  sx={{
+                    textAlign: "center",
+                    fontSize: { xs: "0.75rem", sm: "0.875rem" },
+                    lineHeight: 1.2,
+                    wordBreak: "break-word",
+                  }}
+                >
+                  {getTeamDisplayName(match.home_team)}
                 </Typography>
                 {match.home_spi && (
                   <Tooltip title="Soccer Power Index (SPI)">
@@ -420,25 +438,43 @@ const MatchCard: React.FC<MatchCardProps> = memo(
                 )}
               </Box>
 
-              <Typography variant="body2" color="text.secondary" mx={1}>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ alignSelf: "center", mx: 0.5 }}
+              >
                 vs
               </Typography>
 
               {/* Away Team */}
               <Box
                 display="flex"
+                flexDirection="column"
                 alignItems="center"
-                justifyContent="flex-end"
-                gap={1}
-                sx={{ flex: 1 }}
+                sx={{ flex: 1, minWidth: 0 }}
               >
+                <Box
+                  component="img"
+                  src={getTeamLogo(match.away_team)}
+                  alt={getTeamDisplayName(match.away_team)}
+                  sx={{
+                    width: { xs: 36, sm: 44, md: 48 },
+                    height: { xs: 36, sm: 44, md: 48 },
+                    objectFit: "contain",
+                    mb: 0.5,
+                  }}
+                />
                 <Typography
-                  variant="h6"
+                  variant="body2"
                   fontWeight={600}
-                  sx={{ textAlign: "right" }}
-                  noWrap
+                  sx={{
+                    textAlign: "center",
+                    fontSize: { xs: "0.75rem", sm: "0.875rem" },
+                    lineHeight: 1.2,
+                    wordBreak: "break-word",
+                  }}
                 >
-                  {match.away_team.name}
+                  {getTeamDisplayName(match.away_team)}
                 </Typography>
                 {match.away_spi && (
                   <Tooltip title="Soccer Power Index (SPI)">
@@ -449,14 +485,6 @@ const MatchCard: React.FC<MatchCardProps> = memo(
                       SPI: {match.away_spi.toFixed(1)}
                     </Typography>
                   </Tooltip>
-                )}
-                {match.away_team.logo_url && (
-                  <Box
-                    component="img"
-                    src={match.away_team.logo_url}
-                    alt={match.away_team.name}
-                    sx={{ width: 24, height: 24, objectFit: "contain" }}
-                  />
                 )}
               </Box>
             </Stack>

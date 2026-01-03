@@ -430,6 +430,8 @@ class GetLivePredictionsUseCase:
     
     def _match_to_dto(self, match: Match) -> MatchDTO:
         """Convert Match entity to DTO."""
+        from src.domain.services.team_service import TeamService
+        
         return MatchDTO(
             id=match.id,
             home_team=TeamDTO(
@@ -437,12 +439,14 @@ class GetLivePredictionsUseCase:
                 name=match.home_team.name,
                 short_name=match.home_team.short_name,
                 country=match.home_team.country,
+                logo_url=match.home_team.logo_url or TeamService.get_team_logo(match.home_team.name),
             ),
             away_team=TeamDTO(
                 id=match.away_team.id,
                 name=match.away_team.name,
                 short_name=match.away_team.short_name,
                 country=match.away_team.country,
+                logo_url=match.away_team.logo_url or TeamService.get_team_logo(match.away_team.name),
             ),
             league=LeagueDTO(
                 id=match.league.id,

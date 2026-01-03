@@ -12,6 +12,7 @@ import {
 import Grid from "@mui/material/Grid";
 import { LocalActivity, TrendingUp } from "@mui/icons-material";
 import { MatchPrediction } from "../../../types";
+import { getTeamDisplayName } from "../../../utils/teamUtils";
 
 interface ParleySectionProps {
   predictions: MatchPrediction[];
@@ -190,7 +191,8 @@ const ParleySection: React.FC<ParleySectionProps> = ({
                         lineHeight: 1.2,
                       }}
                     >
-                      {pick.match.home_team.name} vs {pick.match.away_team.name}
+                      {getTeamDisplayName(pick.match.home_team)} vs{" "}
+                      {getTeamDisplayName(pick.match.away_team)}
                     </Typography>
 
                     <Divider

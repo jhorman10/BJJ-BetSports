@@ -9,6 +9,7 @@ import {
   styled,
 } from "@mui/material";
 import { Match, MatchEvent } from "../../../../domain/entities/match";
+import { getTeamLogo, getTeamDisplayName } from "../../../../utils/teamUtils";
 
 // --- Estilos Compartidos con LiveMatchCard ---
 const PulseDot = styled(Box)({
@@ -82,18 +83,17 @@ export const LiveScoreBoard: React.FC<LiveScoreBoardProps> = ({ match }) => {
           alignItems="center"
           justifyContent="center"
         >
-          {match.home_team.logo_url && (
-            <Box
-              component="img"
-              src={match.home_team.logo_url}
-              sx={{
-                width: isMobile ? 32 : 48,
-                height: isMobile ? 32 : 48,
-                mb: 1,
-                objectFit: "contain",
-              }}
-            />
-          )}
+          <Box
+            component="img"
+            src={getTeamLogo(match.home_team)}
+            alt={getTeamDisplayName(match.home_team)}
+            sx={{
+              width: isMobile ? 32 : 48,
+              height: isMobile ? 32 : 48,
+              mb: 1,
+              objectFit: "contain",
+            }}
+          />
           <Typography
             variant={isMobile ? "caption" : "body1"}
             fontWeight="bold"
@@ -108,7 +108,7 @@ export const LiveScoreBoard: React.FC<LiveScoreBoardProps> = ({ match }) => {
               color: "white",
             }}
           >
-            {match.home_team.name}
+            {getTeamDisplayName(match.home_team)}
           </Typography>
         </Box>
 
@@ -222,18 +222,17 @@ export const LiveScoreBoard: React.FC<LiveScoreBoardProps> = ({ match }) => {
           alignItems="center"
           justifyContent="center"
         >
-          {match.away_team.logo_url && (
-            <Box
-              component="img"
-              src={match.away_team.logo_url}
-              sx={{
-                width: isMobile ? 32 : 48,
-                height: isMobile ? 32 : 48,
-                mb: 1,
-                objectFit: "contain",
-              }}
-            />
-          )}
+          <Box
+            component="img"
+            src={getTeamLogo(match.away_team)}
+            alt={getTeamDisplayName(match.away_team)}
+            sx={{
+              width: isMobile ? 32 : 48,
+              height: isMobile ? 32 : 48,
+              mb: 1,
+              objectFit: "contain",
+            }}
+          />
           <Typography
             variant={isMobile ? "caption" : "body1"}
             fontWeight="bold"
@@ -248,7 +247,7 @@ export const LiveScoreBoard: React.FC<LiveScoreBoardProps> = ({ match }) => {
               color: "white",
             }}
           >
-            {match.away_team.name}
+            {getTeamDisplayName(match.away_team)}
           </Typography>
         </Box>
       </Box>
