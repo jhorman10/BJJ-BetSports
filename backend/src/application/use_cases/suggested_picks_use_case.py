@@ -203,7 +203,13 @@ class GetSuggestedPicksUseCase:
                     is_recommended=pick.is_recommended,
                     priority_score=pick.priority_score,
                     is_ml_confirmed=pick.is_ml_confirmed,
-                    ml_confidence=pick.ml_confidence
+                    ml_confidence=pick.ml_confidence,
+                    suggested_stake=pick.suggested_stake,
+                    kelly_percentage=pick.kelly_percentage,
+                    clv_beat=getattr(pick, 'clv_beat', False),
+                    expected_value=pick.expected_value,
+                    opening_odds=pick.odds,
+                    closing_odds=getattr(pick, 'closing_odds', 0.0)
                 ))
 
             # Build Prediction DTO (optional for internal consistency)

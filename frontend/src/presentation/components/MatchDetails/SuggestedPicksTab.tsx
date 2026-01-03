@@ -84,11 +84,45 @@ const PickRow: React.FC<{ pick: SuggestedPick }> = memo(({ pick }) => {
             size="small"
             sx={{
               ml: 1,
-              bgcolor: "rgba(124, 58, 237, 0.2)", // Violet/Purple for AI
-              color: "#a78bfa",
+              bgcolor: "rgba(56, 189, 248, 0.5)", // Sky 400 @ 50% (Unified AI Style)
+              color: "#ffffff",
               fontWeight: 700,
               fontSize: "0.70rem",
               height: 24,
+              border: "1px solid #38bdf8",
+              "& .MuiChip-label": { px: 1 },
+            }}
+          />
+        )}
+        {pick.expected_value !== undefined && pick.expected_value > 0 && (
+          <Chip
+            label={`EV: +${pick.expected_value.toFixed(1)}%`}
+            size="small"
+            sx={{
+              ml: 1,
+              bgcolor: "rgba(245, 158, 11, 0.5)", // Amber 500 @ 50%
+              color: "#ffffff",
+              fontWeight: 700,
+              fontSize: "0.70rem",
+              height: 24,
+              border: "1px solid #f59e0b",
+              "& .MuiChip-label": { px: 1 },
+            }}
+          />
+        )}
+        {pick.suggested_stake !== undefined && pick.suggested_stake > 0 && (
+          <Chip
+            label={`Stake: ${pick.suggested_stake.toFixed(2)}u`}
+            size="small"
+            sx={{
+              ml: 1,
+              bgcolor: "rgba(14, 165, 233, 0.5)", // Sky 500 @ 50%
+              color: "#ffffff",
+              fontWeight: 700,
+              fontSize: "0.70rem",
+              height: 24,
+              border: "1px solid #0ea5e9",
+              "& .MuiChip-label": { px: 1 },
             }}
           />
         )}
@@ -106,7 +140,47 @@ const PickRow: React.FC<{ pick: SuggestedPick }> = memo(({ pick }) => {
             fontStyle: "italic",
           }}
         >
-          {pick.reasoning}
+          {(() => {
+            const text = pick.reasoning || "";
+            const keywords = [
+              "IA CONFIRMED",
+              "ML Confianza Alta",
+              "Sugerido por IA",
+              "IA",
+              "ML",
+            ];
+
+            // Find first matching keyword to highlight
+            const keyword = keywords.find((k) => text.includes(k));
+
+            if (keyword) {
+              const parts = text.split(keyword);
+              return (
+                <span>
+                  {parts[0]}
+                  <Chip
+                    label={keyword}
+                    size="small"
+                    variant="outlined"
+                    sx={{
+                      bgcolor: "rgba(56, 189, 248, 0.5)", // Sky 400 at 50% opacity
+                      color: "#ffffff",
+                      borderColor: "#38bdf8", // Sky 400
+                      borderWidth: "1px",
+                      height: 20,
+                      fontSize: "0.65rem",
+                      fontWeight: 700,
+                      mr: 0.5,
+                      verticalAlign: "middle",
+                      "& .MuiChip-label": { px: 0.5 },
+                    }}
+                  />
+                  {parts.slice(1).join(keyword)}
+                </span>
+              );
+            }
+            return text;
+          })()}
         </Typography>
       )}
     </>

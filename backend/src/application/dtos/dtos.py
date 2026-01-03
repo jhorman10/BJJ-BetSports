@@ -217,6 +217,12 @@ class SuggestedPickDTO(BaseModel):
     priority_score: float = 0.0
     is_ml_confirmed: bool = False
     ml_confidence: float = 0.0
+    suggested_stake: float = 0.0
+    kelly_percentage: float = 0.0
+    clv_beat: bool = False
+    expected_value: float = 0.0
+    opening_odds: float = 0.0
+    closing_odds: float = 0.0
     
     model_config = ConfigDict(from_attributes=True)
 

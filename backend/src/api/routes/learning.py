@@ -61,6 +61,13 @@ class PickDetail(BaseModel):
     reasoning: Optional[str] = None
     result: Optional[str] = None
     is_ml_confirmed: bool = False
+    
+    # Advanced Metrics (Added for Dashboard visibility)
+    suggested_stake: float = 0.0
+    kelly_percentage: float = 0.0
+    clv_beat: bool = False
+    opening_odds: float = 0.0
+    closing_odds: float = 0.0
 
 class MatchPredictionHistory(BaseModel):
     """Individual match prediction result for verification."""

@@ -18,6 +18,7 @@ import {
   TablePagination,
   TextField,
   InputAdornment,
+  Tooltip,
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
 import {
@@ -172,12 +173,11 @@ const PickCard = ({ pick }: { pick: SuggestedPick }) => {
             {pick.market_label || getMarketLabel(pick.market_type)}
             {pick.is_contrarian && (
               <PickChip
-                label="VALUE BET"
-                color="secondary"
+                label="VALOR"
                 sx={{
-                  bgcolor: "rgba(139, 92, 246, 0.2)",
-                  color: "#8b5cf6",
-                  border: "1px solid rgba(139, 92, 246, 0.3)",
+                  bgcolor: "rgba(139, 92, 246, 0.5)", // Violet 500 @ 50%
+                  color: "#ffffff",
+                  border: "1px solid #8b5cf6",
                 }}
               />
             )}
@@ -189,60 +189,102 @@ const PickCard = ({ pick }: { pick: SuggestedPick }) => {
           )}
         </Box>
         <Box display="flex" gap={1} flexWrap="wrap">
-          {pick.is_ml_confirmed && (
-            <PickChip
-              label={isCorrect ? "IA ✅" : "IA ❌"}
-              icon={<SmartToy sx={{ fontSize: "14px !important" }} />}
-              sx={{
-                bgcolor: "rgba(99, 102, 241, 0.2)",
-                color: "#818cf8",
-                border: "1px solid rgba(99, 102, 241, 0.3)",
-              }}
-            />
-          )}
+          {
+            /* Check for AI/ML status via flag OR reasoning text */
+            (() => {
+              const isAi =
+                pick.is_ml_confirmed ||
+                (pick.reasoning &&
+                  (pick.reasoning.includes("IA") ||
+                    pick.reasoning.includes("ML") ||
+                    pick.reasoning.includes("Smart Model")));
+
+              if (isAi) {
+                return (
+                  <PickChip
+                    label={isCorrect ? "IA ✅" : "IA ❌"}
+                    icon={
+                      <SmartToy
+                        sx={{ fontSize: "14px !important", color: "#38bdf8" }}
+                      />
+                    }
+                    sx={{
+                      bgcolor: "rgba(56, 189, 248, 0.5)", // Sky 400 @ 50%
+                      color: "#ffffff",
+                      borderColor: "#38bdf8", // Sky 400
+                      borderWidth: "1px",
+                      fontWeight: 700,
+                    }}
+                  />
+                );
+              }
+              return null;
+            })()
+          }
           {pick.expected_value !== undefined && pick.expected_value > 0 && (
-            <PickChip
-              label={`EV: +${pick.expected_value.toFixed(1)}%`}
-              sx={{
-                bgcolor: "rgba(251, 191, 36, 0.2)",
-                color: "#fbbf24",
-                border: "none",
-              }}
-            />
+            <Tooltip
+              title="EV (Valor Esperado): Rentabilidad teórica a largo plazo de esta apuesta. >0% es bueno."
+              arrow
+            >
+              <Box component="span">
+                <PickChip
+                  label={`EV: +${pick.expected_value.toFixed(1)}%`}
+                  sx={{
+                    bgcolor: "rgba(245, 158, 11, 0.5)", // Amber 500 @ 50%
+                    color: "#ffffff",
+                    border: "1px solid #f59e0b",
+                  }}
+                />
+              </Box>
+            </Tooltip>
           )}
           <PickChip
             label={`Conf: ${(
               (pick.probability || pick.confidence || 0) * 100
             ).toFixed(0)}%`}
             sx={{
-              bgcolor: `${confColor}20`,
-              color: confColor,
-              border: "none",
+              bgcolor: confColor + "80", // 50% opacity (hex 80 is ~50%)
+              color: "#ffffff",
+              border: `1px solid ${confColor}`,
             }}
           />
           {pick.suggested_stake !== undefined && pick.suggested_stake > 0 && (
-            <PickChip
-              label={`Stake: ${pick.suggested_stake.toFixed(2)}u`}
-              sx={{
-                bgcolor: "rgba(56, 189, 248, 0.1)",
-                color: "#38bdf8",
-                border: "1px solid rgba(56, 189, 248, 0.2)",
-              }}
-            />
+            <Tooltip
+              title="Stake (Apuesta sugerida): Unidades a apostar según el criterio de Kelly para optimizar el bankroll."
+              arrow
+            >
+              <Box component="span">
+                <PickChip
+                  label={`Stake: ${pick.suggested_stake.toFixed(2)}u`}
+                  sx={{
+                    bgcolor: "rgba(14, 165, 233, 0.5)", // Sky 500 @ 50%
+                    color: "#ffffff",
+                    border: "1px solid #0ea5e9",
+                  }}
+                />
+              </Box>
+            </Tooltip>
           )}
           {pick.clv_beat !== undefined && (
-            <PickChip
-              label={pick.clv_beat ? "CLV WIN" : "CLV LOSS"}
-              sx={{
-                bgcolor: pick.clv_beat
-                  ? "rgba(16, 185, 129, 0.1)"
-                  : "rgba(239, 68, 68, 0.1)",
-                color: pick.clv_beat ? "#10b981" : "#ef4444",
-                borderColor: pick.clv_beat
-                  ? "rgba(16, 185, 129, 0.2)"
-                  : "rgba(239, 68, 68, 0.2)",
-              }}
-            />
+            <Tooltip
+              title="CLV (Valor de Línea de Cierre): Indica si la cuota que tomaste fue mejor que la cuota final del mercado. Ganar al CLV es el mejor indicador de éxito a largo plazo."
+              arrow
+            >
+              <Box component="span">
+                <PickChip
+                  label={pick.clv_beat ? "CLV ✅" : "CLV ❌"}
+                  sx={{
+                    bgcolor: pick.clv_beat
+                      ? "rgba(16, 185, 129, 0.5)" // Emerald 500 @ 50%
+                      : "rgba(239, 68, 68, 0.5)", // Red 500 @ 50%
+                    color: "#ffffff",
+                    border: pick.clv_beat
+                      ? "1px solid #10b981"
+                      : "1px solid #ef4444",
+                  }}
+                />
+              </Box>
+            </Tooltip>
           )}
         </Box>
       </CardContent>
@@ -250,10 +292,25 @@ const PickCard = ({ pick }: { pick: SuggestedPick }) => {
   );
 };
 
+// --- Helper for AI Detection ---
+const isAiPick = (pick: SuggestedPick): boolean => {
+  return !!(
+    pick.is_ml_confirmed ||
+    (pick.reasoning &&
+      (pick.reasoning.includes("IA") ||
+        pick.reasoning.includes("ML") ||
+        pick.reasoning.includes("Smart Model")))
+  );
+};
+
 const ExpandedMatchDetails = ({ match }: { match: MatchPredictionHistory }) => {
   const uniquePicks = getUniquePicks(match.picks || []);
   const correctCount = uniquePicks.filter((p) => p.was_correct).length;
   const wrongCount = uniquePicks.filter((p) => !p.was_correct).length;
+
+  const aiPicks = uniquePicks.filter(isAiPick);
+  const aiCorrectCount = aiPicks.filter((p) => p.was_correct).length;
+  const aiWrongCount = aiPicks.filter((p) => !p.was_correct).length;
 
   return (
     <Box sx={{ p: 3, bgcolor: "rgba(15, 23, 42, 0.6)" }}>
@@ -267,6 +324,7 @@ const ExpandedMatchDetails = ({ match }: { match: MatchPredictionHistory }) => {
           📊 Todos los Picks del Partido
         </Typography>
         <Box display="flex" gap={1}>
+          {/* Total Stats */}
           <PickChip
             icon={<CheckCircle sx={{ fontSize: "16px !important" }} />}
             label={`${correctCount} Aciertos`}
@@ -287,6 +345,34 @@ const ExpandedMatchDetails = ({ match }: { match: MatchPredictionHistory }) => {
               height: 24,
             }}
           />
+
+          {/* AI Specific Stats */}
+          {(aiCorrectCount > 0 || aiWrongCount > 0) && (
+            <>
+              <Box mx={1} width="1px" bgcolor="rgba(255,255,255,0.2)" />
+              <PickChip
+                icon={<SmartToy sx={{ fontSize: "14px !important" }} />}
+                label={`IA: ${aiCorrectCount} ✅`}
+                sx={{
+                  bgcolor: "rgba(56, 189, 248, 0.15)",
+                  color: "#38bdf8",
+                  borderColor: "#38bdf8",
+                  borderWidth: "1px",
+                  height: 24,
+                }}
+              />
+              <PickChip
+                label={`IA: ${aiWrongCount} ❌`}
+                sx={{
+                  bgcolor: "rgba(56, 189, 248, 0.05)",
+                  color: "rgba(255,255,255,0.7)",
+                  borderColor: "rgba(56, 189, 248, 0.3)",
+                  borderWidth: "1px",
+                  height: 24,
+                }}
+              />
+            </>
+          )}
         </Box>
       </Box>
       <Grid container spacing={2}>
@@ -415,6 +501,10 @@ const MobileMatchCard = ({
   const correctCount = uniquePicks.filter((p) => p.was_correct).length;
   const wrongCount = uniquePicks.filter((p) => !p.was_correct).length;
 
+  const aiPicks = uniquePicks.filter(isAiPick);
+  const aiCorrectCount = aiPicks.filter((p) => p.was_correct).length;
+  const aiWrongCount = aiPicks.filter((p) => !p.was_correct).length;
+
   return (
     <Card
       sx={{
@@ -423,150 +513,224 @@ const MobileMatchCard = ({
           "linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%)",
         backdropFilter: "blur(20px)",
         border: "1px solid rgba(148, 163, 184, 0.2)",
-        borderRadius: 2,
+        borderRadius: 3, // More rounded
+        boxShadow:
+          "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
       }}
     >
-      <CardContent sx={{ p: 2.5 }}>
+      <CardContent sx={{ p: 2 }}>
+        {/* Header: Date + Status */}
         <Box
           display="flex"
           justifyContent="space-between"
-          alignItems="flex-start"
+          alignItems="center"
           mb={2}
+          pb={1.5}
+          borderBottom="1px solid rgba(255,255,255,0.05)"
         >
-          <Typography variant="caption" color="text.secondary" fontWeight={600}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            fontWeight={600}
+            letterSpacing={0.5}
+          >
             {formatDate(match.match_date)}
           </Typography>
           {match.was_correct ? (
             <PickChip
               icon={<CheckCircle />}
-              label="Correcta"
+              label="ACIERTO"
               color="success"
               sx={{
-                borderColor: "rgba(34, 197, 94, 0.3)",
-                color: "#10b981",
-                fontSize: "0.7rem",
+                borderColor: "rgba(34, 197, 94, 0.5)",
+                color: "#4ade80",
+                fontSize: "0.65rem",
+                height: 22,
+                bgcolor: "rgba(34, 197, 94, 0.1)",
               }}
             />
           ) : (
             <PickChip
               icon={<Cancel />}
-              label="Errada"
+              label="FALLO"
               color="error"
               sx={{
-                borderColor: "rgba(239, 68, 68, 0.3)",
-                color: "#ef4444",
-                fontSize: "0.7rem",
+                borderColor: "rgba(239, 68, 68, 0.5)",
+                color: "#f87171",
+                fontSize: "0.65rem",
+                height: 22,
+                bgcolor: "rgba(239, 68, 68, 0.1)",
               }}
             />
           )}
         </Box>
 
-        <Box mb={1.5}>
-          <Typography variant="body2" fontWeight={600} color="white" mb={0.5}>
-            {match.home_team} vs {match.away_team}
-          </Typography>
+        {/* Main Content: Teams & Score */}
+        <Box mb={2} textAlign="center">
           <Typography
-            variant="body2"
+            variant="body1"
             fontWeight={700}
-            sx={{ color: "#10b981" }}
+            color="white"
+            sx={{ fontSize: "1.05rem", lineHeight: 1.3, mb: 1 }}
           >
-            Resultado: {match.actual_home_goals} - {match.actual_away_goals}
+            {match.home_team}{" "}
+            <span style={{ color: "rgba(255,255,255,0.4)", fontWeight: 400 }}>
+              vs
+            </span>{" "}
+            {match.away_team}
           </Typography>
+
+          <Box
+            display="inline-block"
+            px={2}
+            py={0.5}
+            bgcolor="rgba(16, 185, 129, 0.1)"
+            borderRadius={2}
+            border="1px solid rgba(16, 185, 129, 0.2)"
+          >
+            <Typography
+              variant="h6"
+              fontWeight={800}
+              sx={{ color: "#34d399", letterSpacing: 2 }}
+            >
+              {match.actual_home_goals} - {match.actual_away_goals}
+            </Typography>
+          </Box>
         </Box>
 
-        <Box mb={1.5}>
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            display="block"
-            mb={0.5}
-          >
-            Predicción del resultado:
+        {/* Prediction Row */}
+        <Box
+          display="flex"
+          justifyContent="space-between"
+          alignItems="center"
+          bgcolor="rgba(255,255,255,0.03)"
+          p={1.5}
+          borderRadius={2}
+          mb={2}
+        >
+          <Typography variant="caption" color="text.secondary">
+            Predicción:
           </Typography>
-          <Typography
-            variant="body2"
-            fontWeight={600}
-            color="rgba(255,255,255,0.9)"
-          >
-            {getPredictionLabel(
-              match.predicted_winner,
-              match.home_team,
-              match.away_team
-            )}{" "}
+          <Box textAlign="right">
             <Typography
-              component="span"
+              variant="body2"
+              fontWeight={700}
+              color="rgba(255,255,255,0.95)"
+            >
+              {getPredictionLabel(
+                match.predicted_winner,
+                match.home_team,
+                match.away_team
+              )}
+            </Typography>
+            <Typography
               variant="caption"
               color="text.disabled"
+              fontWeight={500}
             >
-              ({match.predicted_home_goals.toFixed(1)} -{" "}
+              (Esperado: {match.predicted_home_goals.toFixed(1)} -{" "}
               {match.predicted_away_goals.toFixed(1)})
             </Typography>
-          </Typography>
+          </Box>
         </Box>
 
+        {/* Expandable Picks Section */}
         {match.picks?.length > 0 && (
-          <Box mt={2}>
+          <Box mt={0}>
+            {/* Toggle Header */}
             <Box
               display="flex"
               justifyContent="space-between"
               alignItems="center"
-              mb={1}
               onClick={() => onToggleExpand(match.match_id)}
-              sx={{ cursor: "pointer" }}
+              sx={{
+                cursor: "pointer",
+                py: 1,
+                px: 0.5,
+                borderRadius: 1,
+                "&:active": { bgcolor: "rgba(255,255,255,0.03)" },
+              }}
             >
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                fontWeight={600}
-              >
-                📊 TODOS ({uniquePicks.length})
-              </Typography>
-              <Box display="flex" alignItems="center">
-                <Box display="flex" gap={1} mr={1}>
-                  <span
-                    style={{
-                      color: "#10b981",
-                      fontSize: "0.75rem",
-                      fontWeight: 600,
-                    }}
-                  >
-                    ✓ {correctCount}
-                  </span>
-                  <span
-                    style={{
-                      color: "#ef4444",
-                      fontSize: "0.75rem",
-                      fontWeight: 600,
-                    }}
-                  >
-                    ✗ {wrongCount}
-                  </span>
+              <Box display="flex" alignItems="center" gap={1}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  fontWeight={700}
+                  sx={{ textTransform: "uppercase" }}
+                >
+                  Picks ({uniquePicks.length})
+                </Typography>
+              </Box>
+
+              <Box display="flex" alignItems="center" gap={1.5}>
+                {/* Count Correct/Wrong */}
+                <Box display="flex" gap={1}>
+                  <Box display="flex" alignItems="center" gap={0.5}>
+                    <CheckCircle sx={{ fontSize: 14, color: "#34d399" }} />
+                    <Typography
+                      variant="caption"
+                      fontWeight={700}
+                      color="#34d399"
+                    >
+                      {correctCount}
+                    </Typography>
+                  </Box>
+                  <Box display="flex" alignItems="center" gap={0.5}>
+                    <Cancel sx={{ fontSize: 14, color: "#f87171" }} />
+                    <Typography
+                      variant="caption"
+                      fontWeight={700}
+                      color="#f87171"
+                    >
+                      {wrongCount}
+                    </Typography>
+                  </Box>
                 </Box>
-                <IconButton
-                  size="small"
+
+                {/* AI Counts */}
+                {(aiCorrectCount > 0 || aiWrongCount > 0) && (
+                  <Box
+                    display="flex"
+                    alignItems="center"
+                    gap={0.5}
+                    pl={1.5}
+                    borderLeft="1px solid rgba(255,255,255,0.15)"
+                  >
+                    <SmartToy sx={{ fontSize: 14, color: "#38bdf8" }} />
+                    <Typography
+                      variant="caption"
+                      fontWeight={700}
+                      color="#38bdf8"
+                    >
+                      {aiCorrectCount}/{aiWrongCount}
+                    </Typography>
+                  </Box>
+                )}
+
+                <KeyboardArrowDown
                   sx={{
-                    p: 0,
-                    color: "#6366f1",
+                    fontSize: 20,
+                    color: "rgba(255,255,255,0.5)",
                     transition: "transform 0.3s ease",
                     transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
+                    ml: 0.5,
                   }}
-                >
-                  <KeyboardArrowDown />
-                </IconButton>
+                />
               </Box>
             </Box>
+
             <Collapse in={isExpanded} timeout="auto" unmountOnExit>
-              {uniquePicks
-                .sort(
-                  (a, b) =>
-                    (b.probability || b.confidence || 0) -
-                    (a.probability || a.confidence || 0)
-                )
-                .map((pick, index) => (
-                  <Box key={index} mb={1.5}>
-                    <PickCard pick={pick} />
-                  </Box>
-                ))}
+              <Box mt={1.5} display="flex" flexDirection="column" gap={1.5}>
+                {uniquePicks
+                  .sort(
+                    (a, b) =>
+                      (b.probability || b.confidence || 0) -
+                      (a.probability || a.confidence || 0)
+                  )
+                  .map((pick, index) => (
+                    <PickCard key={index} pick={pick} />
+                  ))}
+              </Box>
             </Collapse>
           </Box>
         )}

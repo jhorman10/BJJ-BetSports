@@ -106,7 +106,9 @@ export const usePredictionStore = create<PredictionState>()(
         } catch (err: any) {
           // Check for network error / unreachable backend
           const isNetworkError =
-            err.message === "Network Error" || err.code === "ERR_NETWORK";
+            err.message === "Network Error" ||
+            err.code === "ERR_NETWORK" ||
+            err.code === "ECONNABORTED";
           if (isNetworkError) {
             useOfflineStore.getState().setBackendAvailable(false);
           }
@@ -114,7 +116,7 @@ export const usePredictionStore = create<PredictionState>()(
           // If we have data in cache (persisted), don't show robust error, just a warning maybe?
           // Using current error state to indicate staleness if needed, or keep showing data.
           // We set error string, UI can decide whether to block or show toast.
-          set({ leaguesError: err.message || "Error loading leagues" });
+          set({ leaguesError: err.message || "Error al cargar las ligas" });
         } finally {
           if (!background) {
             set({ leaguesLoading: false });
@@ -177,7 +179,9 @@ export const usePredictionStore = create<PredictionState>()(
 
           // If persistence worked, 'predictions' still has old data.
           // We set error so UI can show "Offline Mode" badge.
-          set({ predictionsError: err.message || "Error loading predictions" });
+          set({
+            predictionsError: err.message || "Error al cargar las predicciones",
+          });
         } finally {
           if (!background) {
             set({ predictionsLoading: false });

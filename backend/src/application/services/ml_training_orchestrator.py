@@ -318,7 +318,8 @@ class MLTrainingOrchestrator:
                             "result": result_str,
                             "suggested_stake": getattr(pick, "suggested_stake", 0.0),
                             "kelly_percentage": getattr(pick, "kelly_percentage", 0.0),
-                            "is_ml_confirmed": getattr(pick, "is_ml_confirmed", False)
+                            "is_ml_confirmed": getattr(pick, "is_ml_confirmed", False),
+                            "is_contrarian": float(pick.expected_value) > 0.05 # Flag as Value Bet if EV > 5%
                         }
                         
                         # Store Features for FUTURE training
