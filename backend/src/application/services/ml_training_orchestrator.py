@@ -493,8 +493,11 @@ class MLTrainingOrchestrator:
                 logger.info("Persisting training result to PostgreSQL...")
                 self.persistence_repository.save_training_result("latest_daily", result_data)
 
-            # 6. MASSIVE INFERENCE: Pre-populate all league forecasts for instant UI access
-            await self.execute_massive_inference_step(leagues)
+            # 6. MASSIVE INFERENCE: SKIPPED
+            # Predictions are already saved to PostgreSQL in the run_predictions.py worker (Step 2).
+            # Calling GetPredictionsUseCase.execute() again would make redundant API calls.
+            # If cache warming is needed, it should be done without external API calls.
+            logger.info("Skipping massive inference step (predictions already saved in worker Step 2)")
                 
             return final_result
 

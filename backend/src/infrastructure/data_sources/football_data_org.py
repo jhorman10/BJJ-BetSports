@@ -73,19 +73,21 @@ class FootballDataOrgSource:
         return bool(self.config.api_key)
     
     async def _wait_for_rate_limit(self):
-        """Wait if necessary to respect rate limit (10 req/min)."""
+        """Wait if necessary to respect rate limit (10 req/min, using 9 for safety margin)."""
         now = datetime.utcnow()
-        minute_ago = now - timedelta(minutes=1)
+        minute_ago = now - timedelta(seconds=60)
         
         # Clean old request times
         self._request_times = [t for t in self._request_times if t > minute_ago]
         
-        if len(self._request_times) >= 10:
-            # Wait until oldest request is more than a minute old
-            wait_time = (self._request_times[0] + timedelta(minutes=1) - now).total_seconds()
+        # If we've made 9 requests in the last minute, wait for the oldest one to expire
+        if len(self._request_times) >= 9:
+            wait_time = (self._request_times[0] + timedelta(seconds=60) - now).total_seconds()
             if wait_time > 0:
-                logger.debug(f"Rate limiting: waiting {wait_time:.2f}s")
-                await asyncio.sleep(wait_time)
+                logger.debug(f"Rate limiting: waiting {wait_time:.2f}s (made {len(self._request_times)} requests in last minute)")
+                await asyncio.sleep(wait_time + 0.5)  # Small buffer for safety
+                # Clean again after waiting
+                self._request_times = [t for t in self._request_times if t > datetime.utcnow() - timedelta(seconds=60)]
     
     async def _make_request(
         self,
@@ -106,10 +108,7 @@ class FootballDataOrgSource:
             logger.warning("Football-Data.org not configured (no API key)")
             return None
         
-        # Mandatory safety delay for GitHub Actions / CI
-        # Limit to ~6 requests per minute (very conservative)
-        await asyncio.sleep(9)
-        
+        # Smart rate limiting - only wait if we're approaching the limit
         await self._wait_for_rate_limit()
         
         url = f"{self.config.base_url}{endpoint}"
