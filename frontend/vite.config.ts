@@ -96,8 +96,8 @@ export default defineConfig({
     },
   },
   build: {
-    // Target modern browsers for smaller bundles
-    target: "esnext",
+    // Target slightly older browsers for better mobile compatibility
+    target: "es2020",
     // Enable minification
     minify: "esbuild",
     sourcemap: false,
