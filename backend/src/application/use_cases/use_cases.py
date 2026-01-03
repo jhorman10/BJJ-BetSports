@@ -16,6 +16,8 @@ from src.infrastructure.services.background_processor import BackgroundProcessor
 from src.domain.entities.entities import Match, League, Prediction, TeamStatistics
 from src.domain.services.prediction_service import PredictionService
 from src.domain.services.picks_service import PicksService
+from src.domain.services.ai_picks_service import AIPicksService
+from src.infrastructure.repositories.persistence_repository import PersistenceRepository
 from src.domain.value_objects.value_objects import LeagueAverages
 from src.domain.exceptions import InsufficientDataException
 from src.infrastructure.data_sources.football_data_uk import (
@@ -120,7 +122,8 @@ class GetPredictionsUseCase:
         self.prediction_service = prediction_service
         self.statistics_service = statistics_service
         self.persistence_repository = persistence_repository
-        self.picks_service = PicksService()
+        from src.domain.services.learning_service import LearningService
+        self.picks_service = AIPicksService(learning_weights=get_learning_service().get_learning_weights() if 'get_learning_service' in globals() else {})
         self.background_processor = background_processor
     
     async def execute(self, league_id: str, limit: int = 20) -> PredictionsResponseDTO:
@@ -608,7 +611,9 @@ class GetMatchDetailsUseCase:
         self.data_sources = data_sources
         self.prediction_service = prediction_service
         self.statistics_service = statistics_service
-        self.picks_service = PicksService()
+        from src.domain.services.learning_service import LearningService
+        from src.application.dependencies import get_learning_service
+        self.picks_service = AIPicksService(learning_weights=get_learning_service().get_learning_weights())
 
     async def execute(self, match_id: str) -> MatchPredictionDTO:
         # 1. Get match details
@@ -907,7 +912,9 @@ class GetTeamPredictionsUseCase:
         self.data_sources = data_sources
         self.prediction_service = prediction_service
         self.statistics_service = statistics_service
-        self.picks_service = PicksService()
+        from src.domain.services.learning_service import LearningService
+        from src.application.dependencies import get_learning_service
+        self.picks_service = AIPicksService(learning_weights=get_learning_service().get_learning_weights())
         
     async def execute(self, team_name: str) -> list[MatchPredictionDTO]:
         """
@@ -1120,8 +1127,9 @@ class GetGlobalLiveMatchesUseCase:
     - Aggregates and deduplicates data to provide the most complete picture.
     """
     
-    def __init__(self, data_sources: DataSources):
+    def __init__(self, data_sources: DataSources, persistence_repository: Optional[PersistenceRepository] = None):
         self.data_sources = data_sources
+        self.persistence_repository = persistence_repository
         
     async def execute(self) -> list[MatchDTO]:
         """
@@ -1224,6 +1232,40 @@ class GetGlobalLiveMatchesUseCase:
                 away_offsides=match.away_offsides,
             ))
             
+        # 4. Persistence: Index live matches for the Explorer
+        if self.persistence_repository and dtos:
+            try:
+                # Convert to MatchPredictionDTO format for storage consistency
+                # These are "informational only" matches (no predictions yet)
+                prediction_batch = [
+                    {
+                        "match_id": m.id,
+                        "league_id": m.league.id,
+                        "data": MatchPredictionDTO(
+                            match=m,
+                            prediction=PredictionDTO(
+                                match_id=m.id,
+                                home_win_probability=0.0,
+                                draw_probability=0.0,
+                                away_win_probability=0.0,
+                                over_25_probability=0.0,
+                                under_25_probability=0.0,
+                                predicted_home_goals=0.0,
+                                predicted_away_goals=0.0,
+                                confidence=0.0,
+                                data_sources=["Discovery"],
+                                created_at=datetime.now()
+                            )
+                        ).model_dump(),
+                        "ttl_seconds": 3600 # 1 hour for live matches
+                    }
+                    for m in dtos
+                ]
+                self.persistence_repository.bulk_save_predictions(prediction_batch)
+                logger.info(f"Indexed {len(dtos)} live matches in Explorer DB")
+            except Exception as e:
+                logger.warning(f"Failed to index live matches: {e}")
+
         return dtos
 
 
@@ -1236,8 +1278,9 @@ class GetGlobalDailyMatchesUseCase:
     - NO mock data allowed.
     """
     
-    def __init__(self, data_sources: DataSources):
+    def __init__(self, data_sources: DataSources, persistence_repository: Optional[PersistenceRepository] = None):
         self.data_sources = data_sources
+        self.persistence_repository = persistence_repository
         
     async def execute(self, date_str: Optional[str] = None) -> list[MatchDTO]:
         """Get daily matches combined."""
@@ -1329,4 +1372,36 @@ class GetGlobalDailyMatchesUseCase:
                 away_offsides=match.away_offsides,
             ))
             
+        # 4. Persistence: Index daily matches for the Explorer
+        if self.persistence_repository and dtos:
+            try:
+                prediction_batch = [
+                    {
+                        "match_id": m.id,
+                        "league_id": m.league.id,
+                        "data": MatchPredictionDTO(
+                            match=m,
+                            prediction=PredictionDTO(
+                                match_id=m.id,
+                                home_win_probability=0.0,
+                                draw_probability=0.0,
+                                away_win_probability=0.0,
+                                over_25_probability=0.0,
+                                under_25_probability=0.0,
+                                predicted_home_goals=0.0,
+                                predicted_away_goals=0.0,
+                                confidence=0.0,
+                                data_sources=["Discovery"],
+                                created_at=datetime.now()
+                            )
+                        ).model_dump(),
+                        "ttl_seconds": 86400 # 24 hours for daily matches
+                    }
+                    for m in dtos
+                ]
+                self.persistence_repository.bulk_save_predictions(prediction_batch)
+                logger.info(f"Indexed {len(dtos)} daily matches in Explorer DB")
+            except Exception as e:
+                logger.warning(f"Failed to index daily matches: {e}")
+
         return dtos

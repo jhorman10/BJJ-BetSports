@@ -99,6 +99,7 @@ def _map_match_to_dto(match: Any) -> MatchDTO:
 )
 async def get_live_matches(
     data_sources: DataSources = Depends(get_data_sources),
+    persistence_repository = Depends(get_persistence_repository),
 ) -> List[MatchDTO]:
     """Get all live matches using aggregated sources (NO MOCK DATA)."""
     try:
@@ -110,7 +111,7 @@ async def get_live_matches(
             return [MatchDTO(**m) if isinstance(m, dict) else m for m in cached_data]
 
         from src.application.use_cases.use_cases import GetGlobalLiveMatchesUseCase
-        use_case = GetGlobalLiveMatchesUseCase(data_sources)
+        use_case = GetGlobalLiveMatchesUseCase(data_sources, persistence_repository=persistence_repository)
         result = await use_case.execute()
         
         # Cache Result (Small TTL: 30s)
@@ -139,6 +140,7 @@ async def get_live_matches(
 async def get_daily_matches(
     date_str: str = Query(None, description="Date in YYYY-MM-DD format"),
     data_sources: DataSources = Depends(get_data_sources),
+    persistence_repository = Depends(get_persistence_repository),
 ) -> List[MatchDTO]:
     """Get all daily matches using aggregated sources (NO MOCK DATA)."""
     try:
@@ -155,7 +157,7 @@ async def get_daily_matches(
             return [MatchDTO(**m) if isinstance(m, dict) else m for m in cached_data]
 
         from src.application.use_cases.use_cases import GetGlobalDailyMatchesUseCase
-        use_case = GetGlobalDailyMatchesUseCase(data_sources)
+        use_case = GetGlobalDailyMatchesUseCase(data_sources, persistence_repository=persistence_repository)
         result = await use_case.execute(date_str)
         
         # Cache Result (Medium TTL: 5 min = 300s)

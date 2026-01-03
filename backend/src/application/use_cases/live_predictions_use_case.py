@@ -222,6 +222,23 @@ class GetLivePredictionsUseCase:
         self.cache_service.set_live_matches(results, cache_key)
         logger.info(f"Generated {len(results)} live match predictions")
         
+        # 3. Persistence: Index calculated live matches for the Explorer
+        if self.persistence_repository and results:
+            try:
+                prediction_batch = [
+                    {
+                        "match_id": p_dto.match.id,
+                        "league_id": p_dto.match.league.id,
+                        "data": p_dto.model_dump(),
+                        "ttl_seconds": 3600 # 1 hour for live matches
+                    }
+                    for p_dto in results
+                ]
+                self.persistence_repository.bulk_save_predictions(prediction_batch)
+                logger.info(f"Indexed {len(results)} live prediction matches in Explorer DB")
+            except Exception as e:
+                logger.warning(f"Failed to index live predictions: {e}")
+        
         return results
     
     async def _generate_prediction(self, match: Match, bulk_history: dict = None) -> PredictionDTO:

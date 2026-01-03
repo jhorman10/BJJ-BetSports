@@ -19,7 +19,7 @@ from src.domain.services.statistics_service import StatisticsService
 from src.domain.services.pick_resolution_service import PickResolutionService
 from src.application.services.training_data_service import TrainingDataService
 from src.domain.services.ml_feature_extractor import MLFeatureExtractor
-from src.domain.services.picks_service import PicksService
+from src.domain.services.ai_picks_service import AIPicksService
 from src.domain.services.risk_management.risk_manager import RiskManager
 from src.domain.entities.entities import Match
 from src.infrastructure.cache.cache_service import CacheService
@@ -109,7 +109,7 @@ class MLTrainingOrchestrator:
         self.cache_service.set(self.CACHE_KEY_MESSAGE, "Iniciando orquestación del servidor...", ttl_seconds=3600)
         
         # 1. Initialize logic-dependant services
-        picks_service_instance = PicksService(learning_weights=self.learning_service.get_learning_weights())
+        picks_service_instance = AIPicksService(learning_weights=self.learning_service.get_learning_weights())
         
         matches_processed = 0
         correct_predictions = 0

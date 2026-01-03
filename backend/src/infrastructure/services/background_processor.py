@@ -7,12 +7,12 @@ import multiprocessing
 
 from src.domain.entities.entities import Match, TeamStatistics
 from src.application.dtos.dtos import MatchDTO, MatchPredictionDTO
-from src.domain.services.picks_service import PicksService
+from src.domain.services.ai_picks_service import AIPicksService
 
 logger = logging.getLogger(__name__)
 
 # Global worker state
-_picks_service: Optional[PicksService] = None
+_picks_service: Optional[AIPicksService] = None
 
 def _init_worker():
     """
@@ -22,8 +22,8 @@ def _init_worker():
     global _picks_service
     # Initialize service (loads ML model)
     try:
-        _picks_service = PicksService()
-        logger.info(f"Worker process initialized PicksService (PID: {multiprocessing.current_process().pid})")
+        _picks_service = AIPicksService()
+        logger.info(f"Worker process initialized AIPicksService (PID: {multiprocessing.current_process().pid})")
     except Exception as e:
         logger.error(f"Failed to initialize worker PicksService: {e}")
 
