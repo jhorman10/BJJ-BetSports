@@ -60,6 +60,7 @@ class PickDetail(BaseModel):
     is_contrarian: bool = False  # True if pick differs from main prediction (Value Bet)
     reasoning: Optional[str] = None
     result: Optional[str] = None
+    is_ml_confirmed: bool = False
 
 class MatchPredictionHistory(BaseModel):
     """Individual match prediction result for verification."""

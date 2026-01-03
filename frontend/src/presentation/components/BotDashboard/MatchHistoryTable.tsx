@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   Table,
   TableBody,
@@ -27,13 +27,19 @@ import {
   Search,
   SmartToy,
 } from "@mui/icons-material";
-import { MatchHistoryTableProps } from "../../../types";
+import {
+  MatchHistoryTableProps,
+  MatchPredictionHistory,
+  SuggestedPick,
+} from "../../../types";
 import {
   getPickColor,
   getMarketIcon,
   getUniquePicks,
 } from "../../../utils/marketUtils";
+import { useMatchHistoryTable } from "../../hooks/useMatchHistoryTable";
 
+// --- Utility Functions ---
 const formatDate = (dateString: string): string => {
   const date = new Date(dateString);
   return date.toLocaleDateString("es-ES", {
@@ -48,14 +54,12 @@ const getPredictionLabel = (
   homeTeam: string,
   awayTeam: string
 ): string => {
-  // More descriptive prediction labels
   if (winner === "1" || winner === "home") return `${homeTeam} gana`;
   if (winner === "2" || winner === "away") return `${awayTeam} gana`;
   if (winner === "X" || winner === "draw") return "Empate";
   return "Empate";
 };
 
-// Map market types to readable Spanish labels
 const MARKET_TYPE_LABELS: Record<string, string> = {
   winner: "Resultado 1X2",
   draw: "Empate",
@@ -97,97 +101,501 @@ const getMarketLabel = (marketType: string | undefined): string => {
   return MARKET_TYPE_LABELS[marketType] || marketType.replace(/_/g, " ");
 };
 
-// Utility functions getPickColor, getMarketIcon, getUniquePicks imported from marketUtils
+// --- Sub-Components ---
 
-const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
-  type SortColumn = "date" | "result" | "default";
-  type SortDirection = "asc" | "desc";
+const PickChip = ({
+  icon,
+  label,
+  color,
+  sx = {},
+}: {
+  icon?: React.ReactElement;
+  label: string;
+  color?:
+    | "success"
+    | "error"
+    | "default"
+    | "primary"
+    | "secondary"
+    | "info"
+    | "warning";
+  sx?: any;
+}) => (
+  <Chip
+    icon={icon}
+    label={label}
+    color={color}
+    size="small"
+    variant="outlined"
+    sx={{ fontWeight: 600, fontSize: "0.65rem", height: 20, ...sx }}
+  />
+);
 
-  const [sortColumn, setSortColumn] = useState<SortColumn>("default");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
-  const [expandedRow, setExpandedRow] = useState<string | null>(null);
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [searchQuery, setSearchQuery] = useState("");
+const PickCard = ({ pick }: { pick: SuggestedPick }) => {
+  const confColor = getPickColor(pick.probability || pick.confidence || 0);
+  const isCorrect = pick.was_correct;
 
-  const handleSort = (column: SortColumn) => {
-    if (sortColumn === column) {
-      // Toggle direction if same column
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    } else {
-      // New column, default to descending
-      setSortColumn(column);
-      setSortDirection("desc");
-    }
-  };
-
-  const handleChangePage = (_event: unknown, newPage: number) => {
-    setPage(newPage);
-  };
-
-  const handleChangeRowsPerPage = (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
-  };
-
-  const filteredMatches = React.useMemo(() => {
-    if (!matches) return [];
-    if (!searchQuery) return matches;
-    const lowerQuery = searchQuery.toLowerCase();
-    return matches.filter(
-      (match) =>
-        match.home_team.toLowerCase().includes(lowerQuery) ||
-        match.away_team.toLowerCase().includes(lowerQuery)
-    );
-  }, [matches, searchQuery]);
-
-  const sortedMatches = React.useMemo(() => {
-    if (!filteredMatches || filteredMatches.length === 0) return [];
-    const sorted = [...filteredMatches];
-
-    // Helper to get timestamp
-    const getTime = (m: any) => new Date(m.match_date).getTime();
-
-    if (sortColumn === "date") {
-      sorted.sort((a, b) => {
-        const timeA = getTime(a);
-        const timeB = getTime(b);
-        return sortDirection === "asc" ? timeA - timeB : timeB - timeA;
-      });
-    } else if (sortColumn === "result") {
-      sorted.sort((a, b) => {
-        // Get correctness value (1 for correct, 0 for incorrect)
-        // This matches "what is painted" (Green vs Red chips)
-        const getCorrectness = (m: any) => {
-          return m.was_correct ? 1 : 0;
-        };
-
-        const valA = getCorrectness(a);
-        const valB = getCorrectness(b);
-
-        if (valA !== valB) {
-          return sortDirection === "asc" ? valA - valB : valB - valA;
-        }
-
-        // Tie-breaker: Always sort by Date Descending (Most recent first)
-        return getTime(b) - getTime(a);
-      });
-    } else {
-      // Default sorting: Date Descending (Most recent first)
-      sorted.sort((a, b) => getTime(b) - getTime(a));
-    }
-
-    return sorted;
-  }, [filteredMatches, sortColumn, sortDirection]);
-
-  const paginatedMatches = sortedMatches.slice(
-    page * rowsPerPage,
-    page * rowsPerPage + rowsPerPage
+  return (
+    <Card
+      sx={{
+        background: isCorrect
+          ? "linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.1) 100%)"
+          : "linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(220, 38, 38, 0.1) 100%)",
+        border: `1px solid ${
+          isCorrect ? "rgba(16, 185, 129, 0.3)" : "rgba(239, 68, 68, 0.3)"
+        }`,
+        borderRadius: 2,
+      }}
+    >
+      <CardContent sx={{ p: 2 }}>
+        <Box
+          display="flex"
+          justifyContent="space-between"
+          alignItems="flex-start"
+          mb={1}
+        >
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            fontWeight={600}
+            textTransform="uppercase"
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 0.5,
+              flexWrap: "wrap",
+            }}
+          >
+            <span style={{ fontSize: "1.2em" }}>
+              {getMarketIcon(pick.market_type)}
+            </span>{" "}
+            {pick.market_label || getMarketLabel(pick.market_type)}
+            {pick.is_contrarian && (
+              <PickChip
+                label="VALUE BET"
+                color="secondary"
+                sx={{
+                  bgcolor: "rgba(139, 92, 246, 0.2)",
+                  color: "#8b5cf6",
+                  border: "1px solid rgba(139, 92, 246, 0.3)",
+                }}
+              />
+            )}
+          </Typography>
+          {isCorrect ? (
+            <CheckCircle sx={{ fontSize: 20, color: "#10b981" }} />
+          ) : (
+            <Cancel sx={{ fontSize: 20, color: "#ef4444" }} />
+          )}
+        </Box>
+        <Box display="flex" gap={1} flexWrap="wrap">
+          {pick.is_ml_confirmed && (
+            <PickChip
+              label={isCorrect ? "IA ✅" : "IA ❌"}
+              icon={<SmartToy sx={{ fontSize: "14px !important" }} />}
+              sx={{
+                bgcolor: "rgba(99, 102, 241, 0.2)",
+                color: "#818cf8",
+                border: "1px solid rgba(99, 102, 241, 0.3)",
+              }}
+            />
+          )}
+          {pick.expected_value !== undefined && pick.expected_value > 0 && (
+            <PickChip
+              label={`EV: +${pick.expected_value.toFixed(1)}%`}
+              sx={{
+                bgcolor: "rgba(251, 191, 36, 0.2)",
+                color: "#fbbf24",
+                border: "none",
+              }}
+            />
+          )}
+          <PickChip
+            label={`Conf: ${(
+              (pick.probability || pick.confidence || 0) * 100
+            ).toFixed(0)}%`}
+            sx={{
+              bgcolor: `${confColor}20`,
+              color: confColor,
+              border: "none",
+            }}
+          />
+          {pick.suggested_stake !== undefined && pick.suggested_stake > 0 && (
+            <PickChip
+              label={`Stake: ${pick.suggested_stake.toFixed(2)}u`}
+              sx={{
+                bgcolor: "rgba(56, 189, 248, 0.1)",
+                color: "#38bdf8",
+                border: "1px solid rgba(56, 189, 248, 0.2)",
+              }}
+            />
+          )}
+          {pick.clv_beat !== undefined && (
+            <PickChip
+              label={pick.clv_beat ? "CLV WIN" : "CLV LOSS"}
+              sx={{
+                bgcolor: pick.clv_beat
+                  ? "rgba(16, 185, 129, 0.1)"
+                  : "rgba(239, 68, 68, 0.1)",
+                color: pick.clv_beat ? "#10b981" : "#ef4444",
+                borderColor: pick.clv_beat
+                  ? "rgba(16, 185, 129, 0.2)"
+                  : "rgba(239, 68, 68, 0.2)",
+              }}
+            />
+          )}
+        </Box>
+      </CardContent>
+    </Card>
   );
+};
 
-  if (!matches || matches.length === 0) {
+const ExpandedMatchDetails = ({ match }: { match: MatchPredictionHistory }) => {
+  const uniquePicks = getUniquePicks(match.picks || []);
+  const correctCount = uniquePicks.filter((p) => p.was_correct).length;
+  const wrongCount = uniquePicks.filter((p) => !p.was_correct).length;
+
+  return (
+    <Box sx={{ p: 3, bgcolor: "rgba(15, 23, 42, 0.6)" }}>
+      <Box
+        display="flex"
+        alignItems="center"
+        justifyContent="space-between"
+        mb={2}
+      >
+        <Typography variant="h6" fontWeight={700} color="white">
+          📊 Todos los Picks del Partido
+        </Typography>
+        <Box display="flex" gap={1}>
+          <PickChip
+            icon={<CheckCircle sx={{ fontSize: "16px !important" }} />}
+            label={`${correctCount} Aciertos`}
+            sx={{
+              bgcolor: "rgba(16, 185, 129, 0.1)",
+              color: "#10b981",
+              border: "1px solid rgba(16, 185, 129, 0.2)",
+              height: 24,
+            }}
+          />
+          <PickChip
+            icon={<Cancel sx={{ fontSize: "16px !important" }} />}
+            label={`${wrongCount} Fallos`}
+            sx={{
+              bgcolor: "rgba(239, 68, 68, 0.1)",
+              color: "#ef4444",
+              border: "1px solid rgba(239, 68, 68, 0.2)",
+              height: 24,
+            }}
+          />
+        </Box>
+      </Box>
+      <Grid container spacing={2}>
+        {uniquePicks
+          .sort(
+            (a, b) =>
+              (b.probability || b.confidence || 0) -
+              (a.probability || a.confidence || 0)
+          )
+          .map((pick, index) => (
+            <Grid size={{ xs: 12, sm: 6, md: 4 }} key={index}>
+              <PickCard pick={pick} />
+            </Grid>
+          ))}
+      </Grid>
+    </Box>
+  );
+};
+
+// --- Desktop Components ---
+const DesktopMatchRow = ({
+  match,
+  isExpanded,
+  onToggleExpand,
+}: {
+  match: MatchPredictionHistory;
+  isExpanded: boolean;
+  onToggleExpand: (id: string) => void;
+}) => (
+  <>
+    <TableRow
+      sx={{
+        "&:hover": {
+          bgcolor: "rgba(148, 163, 184, 0.05)",
+          cursor: match.picks?.length > 0 ? "pointer" : "default",
+        },
+        "& td, & th": { borderBottom: isExpanded ? "none" : undefined },
+      }}
+      onClick={() => match.picks?.length > 0 && onToggleExpand(match.match_id)}
+    >
+      <TableCell sx={{ width: 48, p: 1 }}>
+        {match.picks?.length > 0 && (
+          <IconButton
+            size="small"
+            sx={{
+              color: "#6366f1",
+              transition: "transform 0.3s ease",
+              transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
+            }}
+          >
+            <KeyboardArrowDown />
+          </IconButton>
+        )}
+      </TableCell>
+      <TableCell sx={{ color: "white" }}>
+        {formatDate(match.match_date)}
+      </TableCell>
+      <TableCell sx={{ color: "white" }}>
+        <Typography variant="body2" fontWeight={500}>
+          {match.home_team} vs {match.away_team}
+        </Typography>
+      </TableCell>
+      <TableCell align="center">
+        <Typography variant="body2" fontWeight={700} sx={{ color: "#10b981" }}>
+          {match.actual_home_goals} - {match.actual_away_goals}
+        </Typography>
+      </TableCell>
+      <TableCell>
+        <Typography
+          variant="body2"
+          fontWeight={600}
+          color="rgba(255,255,255,0.9)"
+        >
+          {getPredictionLabel(
+            match.predicted_winner,
+            match.home_team,
+            match.away_team
+          )}
+        </Typography>
+        <Typography variant="caption" color="text.disabled">
+          ({match.predicted_home_goals.toFixed(1)} -{" "}
+          {match.predicted_away_goals.toFixed(1)})
+        </Typography>
+      </TableCell>
+      <TableCell align="center">
+        {match.was_correct ? (
+          <PickChip
+            icon={<CheckCircle />}
+            label="Correcta"
+            color="success"
+            sx={{ borderColor: "rgba(34, 197, 94, 0.3)", color: "#10b981" }}
+          />
+        ) : (
+          <PickChip
+            icon={<Cancel />}
+            label="Errada"
+            color="error"
+            sx={{ borderColor: "rgba(239, 68, 68, 0.3)", color: "#ef4444" }}
+          />
+        )}
+      </TableCell>
+    </TableRow>
+    {match.picks?.length > 0 && (
+      <TableRow>
+        <TableCell colSpan={7} sx={{ p: 0, border: 0 }}>
+          <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+            <ExpandedMatchDetails match={match} />
+          </Collapse>
+        </TableCell>
+      </TableRow>
+    )}
+  </>
+);
+
+// --- Mobile Components ---
+const MobileMatchCard = ({
+  match,
+  isExpanded,
+  onToggleExpand,
+}: {
+  match: MatchPredictionHistory;
+  isExpanded: boolean;
+  onToggleExpand: (id: string) => void;
+}) => {
+  const uniquePicks = getUniquePicks(match.picks || []);
+  const correctCount = uniquePicks.filter((p) => p.was_correct).length;
+  const wrongCount = uniquePicks.filter((p) => !p.was_correct).length;
+
+  return (
+    <Card
+      sx={{
+        mb: 2,
+        background:
+          "linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%)",
+        backdropFilter: "blur(20px)",
+        border: "1px solid rgba(148, 163, 184, 0.2)",
+        borderRadius: 2,
+      }}
+    >
+      <CardContent sx={{ p: 2.5 }}>
+        <Box
+          display="flex"
+          justifyContent="space-between"
+          alignItems="flex-start"
+          mb={2}
+        >
+          <Typography variant="caption" color="text.secondary" fontWeight={600}>
+            {formatDate(match.match_date)}
+          </Typography>
+          {match.was_correct ? (
+            <PickChip
+              icon={<CheckCircle />}
+              label="Correcta"
+              color="success"
+              sx={{
+                borderColor: "rgba(34, 197, 94, 0.3)",
+                color: "#10b981",
+                fontSize: "0.7rem",
+              }}
+            />
+          ) : (
+            <PickChip
+              icon={<Cancel />}
+              label="Errada"
+              color="error"
+              sx={{
+                borderColor: "rgba(239, 68, 68, 0.3)",
+                color: "#ef4444",
+                fontSize: "0.7rem",
+              }}
+            />
+          )}
+        </Box>
+
+        <Box mb={1.5}>
+          <Typography variant="body2" fontWeight={600} color="white" mb={0.5}>
+            {match.home_team} vs {match.away_team}
+          </Typography>
+          <Typography
+            variant="body2"
+            fontWeight={700}
+            sx={{ color: "#10b981" }}
+          >
+            Resultado: {match.actual_home_goals} - {match.actual_away_goals}
+          </Typography>
+        </Box>
+
+        <Box mb={1.5}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            display="block"
+            mb={0.5}
+          >
+            Predicción del resultado:
+          </Typography>
+          <Typography
+            variant="body2"
+            fontWeight={600}
+            color="rgba(255,255,255,0.9)"
+          >
+            {getPredictionLabel(
+              match.predicted_winner,
+              match.home_team,
+              match.away_team
+            )}{" "}
+            <Typography
+              component="span"
+              variant="caption"
+              color="text.disabled"
+            >
+              ({match.predicted_home_goals.toFixed(1)} -{" "}
+              {match.predicted_away_goals.toFixed(1)})
+            </Typography>
+          </Typography>
+        </Box>
+
+        {match.picks?.length > 0 && (
+          <Box mt={2}>
+            <Box
+              display="flex"
+              justifyContent="space-between"
+              alignItems="center"
+              mb={1}
+              onClick={() => onToggleExpand(match.match_id)}
+              sx={{ cursor: "pointer" }}
+            >
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                fontWeight={600}
+              >
+                📊 TODOS ({uniquePicks.length})
+              </Typography>
+              <Box display="flex" alignItems="center">
+                <Box display="flex" gap={1} mr={1}>
+                  <span
+                    style={{
+                      color: "#10b981",
+                      fontSize: "0.75rem",
+                      fontWeight: 600,
+                    }}
+                  >
+                    ✓ {correctCount}
+                  </span>
+                  <span
+                    style={{
+                      color: "#ef4444",
+                      fontSize: "0.75rem",
+                      fontWeight: 600,
+                    }}
+                  >
+                    ✗ {wrongCount}
+                  </span>
+                </Box>
+                <IconButton
+                  size="small"
+                  sx={{
+                    p: 0,
+                    color: "#6366f1",
+                    transition: "transform 0.3s ease",
+                    transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
+                  }}
+                >
+                  <KeyboardArrowDown />
+                </IconButton>
+              </Box>
+            </Box>
+            <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+              {uniquePicks
+                .sort(
+                  (a, b) =>
+                    (b.probability || b.confidence || 0) -
+                    (a.probability || a.confidence || 0)
+                )
+                .map((pick, index) => (
+                  <Box key={index} mb={1.5}>
+                    <PickCard pick={pick} />
+                  </Box>
+                ))}
+            </Collapse>
+          </Box>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+// --- Main Container Component ---
+
+const MatchHistoryTable: React.FC<MatchHistoryTableProps> = (props) => {
+  const {
+    page,
+    rowsPerPage,
+    searchQuery,
+    expandedRow,
+    sortColumn,
+    sortDirection,
+    paginatedMatches,
+    totalMatches,
+    isEmpty,
+    handleSort,
+    handleChangePage,
+    handleChangeRowsPerPage,
+    handleSearchChange,
+    handleToggleExpand,
+  } = useMatchHistoryTable(props);
+
+  if (isEmpty) {
     return (
       <Box p={3} textAlign="center">
         <Typography color="text.secondary">
@@ -205,10 +613,7 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
           variant="outlined"
           placeholder="Buscar equipo..."
           value={searchQuery}
-          onChange={(e) => {
-            setSearchQuery(e.target.value);
-            setPage(0);
-          }}
+          onChange={handleSearchChange}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
@@ -243,7 +648,6 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
             <TableHead>
               <TableRow>
                 <TableCell sx={{ width: 48 }} />
-                {/* Expand button column */}
                 <TableCell sx={{ color: "text.secondary", fontWeight: 600 }}>
                   <TableSortLabel
                     active={sortColumn === "date"}
@@ -251,9 +655,7 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                     onClick={() => handleSort("date")}
                     sx={{
                       color: "rgba(255,255,255,0.7) !important",
-                      "&.Mui-active": {
-                        color: "#6366f1 !important",
-                      },
+                      "&.Mui-active": { color: "#6366f1 !important" },
                       "& .MuiTableSortLabel-icon": {
                         color: "#6366f1 !important",
                       },
@@ -284,9 +686,7 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
                     onClick={() => handleSort("result")}
                     sx={{
                       color: "rgba(255,255,255,0.7) !important",
-                      "&.Mui-active": {
-                        color: "#6366f1 !important",
-                      },
+                      "&.Mui-active": { color: "#6366f1 !important" },
                       "& .MuiTableSortLabel-icon": {
                         color: "#6366f1 !important",
                       },
@@ -299,404 +699,12 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
             </TableHead>
             <TableBody>
               {paginatedMatches.map((match) => (
-                <React.Fragment key={match.match_id}>
-                  <TableRow
-                    sx={{
-                      "&:hover": {
-                        bgcolor: "rgba(148, 163, 184, 0.05)",
-                        cursor: match.picks?.length > 0 ? "pointer" : "default",
-                      },
-                      "& td, & th": {
-                        borderBottom:
-                          expandedRow === match.match_id ? "none" : undefined,
-                      },
-                    }}
-                    onClick={() => {
-                      if (match.picks?.length > 0) {
-                        setExpandedRow(
-                          expandedRow === match.match_id ? null : match.match_id
-                        );
-                      }
-                    }}
-                  >
-                    <TableCell sx={{ width: 48, p: 1 }}>
-                      {match.picks?.length > 0 && (
-                        <IconButton
-                          size="small"
-                          sx={{
-                            color: "#6366f1",
-                            transition: "transform 0.3s ease",
-                            transform:
-                              expandedRow === match.match_id
-                                ? "rotate(180deg)"
-                                : "rotate(0deg)",
-                          }}
-                        >
-                          <KeyboardArrowDown />
-                        </IconButton>
-                      )}
-                    </TableCell>
-
-                    <TableCell sx={{ color: "white" }}>
-                      {formatDate(match.match_date)}
-                    </TableCell>
-                    <TableCell sx={{ color: "white" }}>
-                      <Typography variant="body2" fontWeight={500}>
-                        {match.home_team} vs {match.away_team}
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="center">
-                      <Typography
-                        variant="body2"
-                        fontWeight={700}
-                        sx={{ color: "#10b981" }}
-                      >
-                        {match.actual_home_goals} - {match.actual_away_goals}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography
-                        variant="body2"
-                        fontWeight={600}
-                        color="rgba(255,255,255,0.9)"
-                      >
-                        {getPredictionLabel(
-                          match.predicted_winner,
-                          match.home_team,
-                          match.away_team
-                        )}
-                      </Typography>
-                      <Typography variant="caption" color="text.disabled">
-                        ({match.predicted_home_goals.toFixed(1)} -{" "}
-                        {match.predicted_away_goals.toFixed(1)})
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="center">
-                      {match.was_correct ? (
-                        <Chip
-                          icon={<CheckCircle />}
-                          label="Predicción Correcta"
-                          color="success"
-                          size="small"
-                          variant="outlined"
-                          sx={{
-                            borderColor: "rgba(34, 197, 94, 0.3)",
-                            color: "#10b981",
-                            fontWeight: 600,
-                          }}
-                        />
-                      ) : (
-                        <Chip
-                          icon={<Cancel />}
-                          label="Predicción Errada"
-                          color="error"
-                          size="small"
-                          variant="outlined"
-                          sx={{
-                            borderColor: "rgba(239, 68, 68, 0.3)",
-                            color: "#ef4444",
-                            fontWeight: 600,
-                          }}
-                        />
-                      )}
-                    </TableCell>
-                  </TableRow>
-
-                  {match.picks?.length > 0 && (
-                    <TableRow>
-                      <TableCell colSpan={7} sx={{ p: 0, border: 0 }}>
-                        <Collapse
-                          in={expandedRow === match.match_id}
-                          timeout="auto"
-                          unmountOnExit
-                        >
-                          <Box
-                            sx={{
-                              p: 3,
-                              bgcolor: "rgba(15, 23, 42, 0.6)",
-                            }}
-                          >
-                            <Box
-                              display="flex"
-                              alignItems="center"
-                              justifyContent="space-between"
-                              mb={2}
-                            >
-                              <Typography
-                                variant="h6"
-                                fontWeight={700}
-                                color="white"
-                              >
-                                📊 Todos los Picks del Partido
-                              </Typography>
-
-                              {(() => {
-                                const uniquePicks = getUniquePicks(
-                                  match.picks || []
-                                );
-                                const correctCount = uniquePicks.filter(
-                                  (p) => p.was_correct
-                                ).length;
-                                const wrongCount = uniquePicks.filter(
-                                  (p) => !p.was_correct
-                                ).length;
-
-                                return (
-                                  <Box display="flex" gap={1}>
-                                    <Chip
-                                      icon={
-                                        <CheckCircle
-                                          sx={{ fontSize: "16px !important" }}
-                                        />
-                                      }
-                                      label={`${correctCount} Aciertos`}
-                                      size="small"
-                                      sx={{
-                                        bgcolor: "rgba(16, 185, 129, 0.1)",
-                                        color: "#10b981",
-                                        border:
-                                          "1px solid rgba(16, 185, 129, 0.2)",
-                                        fontWeight: 600,
-                                        height: 24,
-                                      }}
-                                    />
-                                    <Chip
-                                      icon={
-                                        <Cancel
-                                          sx={{ fontSize: "16px !important" }}
-                                        />
-                                      }
-                                      label={`${wrongCount} Fallos`}
-                                      size="small"
-                                      sx={{
-                                        bgcolor: "rgba(239, 68, 68, 0.1)",
-                                        color: "#ef4444",
-                                        border:
-                                          "1px solid rgba(239, 68, 68, 0.2)",
-                                        fontWeight: 600,
-                                        height: 24,
-                                      }}
-                                    />
-                                  </Box>
-                                );
-                              })()}
-                            </Box>
-                            <Grid container spacing={2}>
-                              {getUniquePicks(match.picks || [])
-                                .sort(
-                                  (a, b) =>
-                                    (b.probability || b.confidence || 0) -
-                                    (a.probability || a.confidence || 0)
-                                )
-                                .map((pick, index) => {
-                                  const confColor = getPickColor(
-                                    pick.probability || pick.confidence || 0
-                                  );
-                                  return (
-                                    <Grid
-                                      size={{ xs: 12, sm: 6, md: 4 }}
-                                      key={index}
-                                    >
-                                      <Card
-                                        sx={{
-                                          background: pick.was_correct
-                                            ? "linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.1) 100%)"
-                                            : "linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(220, 38, 38, 0.1) 100%)",
-                                          border: `1px solid ${
-                                            pick.was_correct
-                                              ? "rgba(16, 185, 129, 0.3)"
-                                              : "rgba(239, 68, 68, 0.3)"
-                                          }`,
-                                          borderRadius: 2,
-                                        }}
-                                      >
-                                        <CardContent sx={{ p: 2 }}>
-                                          <Box
-                                            display="flex"
-                                            justifyContent="space-between"
-                                            alignItems="flex-start"
-                                            mb={1}
-                                          >
-                                            <Typography
-                                              variant="caption"
-                                              color="text.secondary"
-                                              fontWeight={600}
-                                              textTransform="uppercase"
-                                              sx={{
-                                                display: "flex",
-                                                alignItems: "center",
-                                                gap: 0.5,
-                                              }}
-                                            >
-                                              <span
-                                                style={{ fontSize: "1.2em" }}
-                                              >
-                                                {getMarketIcon(
-                                                  pick.market_type
-                                                )}
-                                              </span>{" "}
-                                              {pick.market_label ||
-                                                getMarketLabel(
-                                                  pick.market_type
-                                                )}
-                                              {pick.is_contrarian && (
-                                                <Chip
-                                                  label="VALUE BET"
-                                                  size="small"
-                                                  sx={{
-                                                    bgcolor:
-                                                      "rgba(139, 92, 246, 0.2)",
-                                                    color: "#8b5cf6",
-                                                    fontSize: "0.65rem",
-                                                    height: 20,
-                                                    fontWeight: 700,
-                                                    border:
-                                                      "1px solid rgba(139, 92, 246, 0.3)",
-                                                  }}
-                                                />
-                                              )}
-                                              {pick.is_ml_confirmed && (
-                                                <Chip
-                                                  icon={
-                                                    <SmartToy
-                                                      sx={{
-                                                        fontSize:
-                                                          "14px !important",
-                                                      }}
-                                                    />
-                                                  }
-                                                  label={
-                                                    pick.was_correct
-                                                      ? "IA ✅"
-                                                      : "IA ❌"
-                                                  }
-                                                  size="small"
-                                                  sx={{
-                                                    bgcolor:
-                                                      "rgba(99, 102, 241, 0.2)",
-                                                    color: "#818cf8",
-                                                    fontSize: "0.65rem",
-                                                    height: 20,
-                                                    fontWeight: 700,
-                                                    border:
-                                                      "1px solid rgba(99, 102, 241, 0.3)",
-                                                    ml: 0.5,
-                                                  }}
-                                                />
-                                              )}
-                                            </Typography>
-                                            {pick.was_correct ? (
-                                              <CheckCircle
-                                                sx={{
-                                                  fontSize: 20,
-                                                  color: "#10b981",
-                                                }}
-                                              />
-                                            ) : (
-                                              <Cancel
-                                                sx={{
-                                                  fontSize: 20,
-                                                  color: "#ef4444",
-                                                }}
-                                              />
-                                            )}
-                                          </Box>
-                                          <Box
-                                            display="flex"
-                                            gap={1}
-                                            flexWrap="wrap"
-                                          >
-                                            {pick.expected_value !==
-                                              undefined &&
-                                              pick.expected_value > 0 && (
-                                                <Chip
-                                                  label={`EV: +${pick.expected_value.toFixed(
-                                                    1
-                                                  )}%`}
-                                                  size="small"
-                                                  sx={{
-                                                    bgcolor:
-                                                      "rgba(251, 191, 36, 0.2)",
-                                                    color: "#fbbf24",
-                                                    fontSize: "0.65rem",
-                                                    height: 20,
-                                                  }}
-                                                />
-                                              )}
-                                            <Chip
-                                              label={`Conf: ${(
-                                                (pick.probability ||
-                                                  pick.confidence ||
-                                                  0) * 100
-                                              ).toFixed(0)}%`}
-                                              size="small"
-                                              sx={{
-                                                bgcolor: `${confColor}20`,
-                                                color: confColor,
-                                                fontSize: "0.65rem",
-                                                height: 20,
-                                                fontWeight: 700,
-                                              }}
-                                            />
-                                            {pick.suggested_stake !==
-                                              undefined &&
-                                              pick.suggested_stake > 0 && (
-                                                <Chip
-                                                  label={`Stake: ${pick.suggested_stake.toFixed(
-                                                    2
-                                                  )}u`}
-                                                  size="small"
-                                                  sx={{
-                                                    bgcolor:
-                                                      "rgba(56, 189, 248, 0.1)",
-                                                    color: "#38bdf8",
-                                                    fontSize: "0.65rem",
-                                                    height: 20,
-                                                    fontWeight: 600,
-                                                    border:
-                                                      "1px solid rgba(56, 189, 248, 0.2)",
-                                                  }}
-                                                />
-                                              )}
-                                            {pick.clv_beat !== undefined && (
-                                              <Chip
-                                                label={
-                                                  pick.clv_beat
-                                                    ? "CLV WIN"
-                                                    : "CLV LOSS"
-                                                }
-                                                size="small"
-                                                sx={{
-                                                  bgcolor: pick.clv_beat
-                                                    ? "rgba(16, 185, 129, 0.1)"
-                                                    : "rgba(239, 68, 68, 0.1)",
-                                                  color: pick.clv_beat
-                                                    ? "#10b981"
-                                                    : "#ef4444",
-                                                  fontSize: "0.65rem",
-                                                  height: 20,
-                                                  fontWeight: 600,
-                                                  borderColor: pick.clv_beat
-                                                    ? "rgba(16, 185, 129, 0.2)"
-                                                    : "rgba(239, 68, 68, 0.2)",
-                                                  borderWidth: 1,
-                                                  borderStyle: "solid",
-                                                }}
-                                              />
-                                            )}
-                                          </Box>
-                                        </CardContent>
-                                      </Card>
-                                    </Grid>
-                                  );
-                                })}
-                            </Grid>
-                          </Box>
-                        </Collapse>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </React.Fragment>
+                <DesktopMatchRow
+                  key={match.match_id}
+                  match={match}
+                  isExpanded={expandedRow === match.match_id}
+                  onToggleExpand={handleToggleExpand}
+                />
               ))}
             </TableBody>
           </Table>
@@ -704,7 +712,7 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
         <TablePagination
           rowsPerPageOptions={[10, 25, 50, 100]}
           component="div"
-          count={sortedMatches.length}
+          count={totalMatches}
           rowsPerPage={rowsPerPage}
           page={page}
           onPageChange={handleChangePage}
@@ -726,387 +734,17 @@ const MatchHistoryTable: React.FC<MatchHistoryTableProps> = ({ matches }) => {
       {/* Mobile Card View */}
       <Box sx={{ display: { xs: "block", md: "none" } }}>
         {paginatedMatches.map((match) => (
-          <Card
+          <MobileMatchCard
             key={match.match_id}
-            sx={{
-              mb: 2,
-              position: "relative",
-              background:
-                "linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%)",
-              backdropFilter: "blur(20px)",
-              border: "1px solid rgba(148, 163, 184, 0.2)",
-              borderRadius: 2,
-            }}
-          >
-            <CardContent sx={{ p: 2.5 }}>
-              {/* Header: Fecha y Estado */}
-              <Box
-                display="flex"
-                justifyContent="space-between"
-                alignItems="flex-start"
-                mb={2}
-              >
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  fontWeight={600}
-                >
-                  {formatDate(match.match_date)}
-                </Typography>
-
-                {/* Estado - mismo que desktop */}
-                {/* Estado - mismo que desktop */}
-                {match.was_correct ? (
-                  <Chip
-                    icon={<CheckCircle />}
-                    label="Predicción Correcta"
-                    color="success"
-                    size="small"
-                    variant="outlined"
-                    sx={{
-                      borderColor: "rgba(34, 197, 94, 0.3)",
-                      color: "#10b981",
-                      fontWeight: 600,
-                      fontSize: "0.7rem",
-                    }}
-                  />
-                ) : (
-                  <Chip
-                    icon={<Cancel />}
-                    label="Predicción Errada"
-                    color="error"
-                    size="small"
-                    variant="outlined"
-                    sx={{
-                      borderColor: "rgba(239, 68, 68, 0.3)",
-                      color: "#ef4444",
-                      fontWeight: 600,
-                      fontSize: "0.7rem",
-                    }}
-                  />
-                )}
-              </Box>
-
-              {/* Partido y Resultado */}
-              <Box mb={1.5}>
-                <Typography
-                  variant="body2"
-                  fontWeight={600}
-                  color="white"
-                  mb={0.5}
-                >
-                  {match.home_team} vs {match.away_team}
-                </Typography>
-                <Typography
-                  variant="body2"
-                  fontWeight={700}
-                  sx={{ color: "#10b981" }}
-                >
-                  Resultado: {match.actual_home_goals} -{" "}
-                  {match.actual_away_goals}
-                </Typography>
-              </Box>
-
-              {/* Predicción */}
-              <Box mb={1.5}>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  display="block"
-                  mb={0.5}
-                >
-                  Predicción del resultado:
-                </Typography>
-                <Typography
-                  variant="body2"
-                  fontWeight={600}
-                  color="rgba(255,255,255,0.9)"
-                >
-                  {getPredictionLabel(
-                    match.predicted_winner,
-                    match.home_team,
-                    match.away_team
-                  )}{" "}
-                  <Typography
-                    component="span"
-                    variant="caption"
-                    color="text.disabled"
-                  >
-                    ({match.predicted_home_goals.toFixed(1)} -{" "}
-                    {match.predicted_away_goals.toFixed(1)})
-                  </Typography>
-                </Typography>
-              </Box>
-
-              {/* Mobile: All Picks */}
-              {match.picks?.length > 0 && (
-                <Box mt={2}>
-                  <Box
-                    display="flex"
-                    justifyContent="space-between"
-                    alignItems="center"
-                    mb={1}
-                    onClick={() =>
-                      setExpandedRow(
-                        expandedRow === match.match_id ? null : match.match_id
-                      )
-                    }
-                    sx={{ cursor: "pointer" }}
-                  >
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      fontWeight={600}
-                    >
-                      📊 TODOS ({getUniquePicks(match.picks || []).length})
-                    </Typography>
-
-                    {(() => {
-                      const uniquePicks = getUniquePicks(match.picks || []);
-                      const correctCount = uniquePicks.filter(
-                        (p) => p.was_correct
-                      ).length;
-                      const wrongCount = uniquePicks.filter(
-                        (p) => !p.was_correct
-                      ).length;
-
-                      return (
-                        <Box display="flex" gap={1} mr={1}>
-                          <span
-                            style={{
-                              color: "#10b981",
-                              fontSize: "0.75rem",
-                              fontWeight: 600,
-                            }}
-                          >
-                            ✓ {correctCount}
-                          </span>
-                          <span
-                            style={{
-                              color: "#ef4444",
-                              fontSize: "0.75rem",
-                              fontWeight: 600,
-                            }}
-                          >
-                            ✗ {wrongCount}
-                          </span>
-                        </Box>
-                      );
-                    })()}
-
-                    <IconButton
-                      size="small"
-                      sx={{
-                        p: 0,
-                        color: "#6366f1",
-                        transition: "transform 0.3s ease",
-                        transform:
-                          expandedRow === match.match_id
-                            ? "rotate(180deg)"
-                            : "rotate(0deg)",
-                      }}
-                    >
-                      <KeyboardArrowDown />
-                    </IconButton>
-                  </Box>
-                  <Collapse
-                    in={expandedRow === match.match_id}
-                    timeout="auto"
-                    unmountOnExit
-                  >
-                    {getUniquePicks(match.picks || [])
-                      .sort(
-                        (a, b) =>
-                          (b.probability || b.confidence || 0) -
-                          (a.probability || a.confidence || 0)
-                      )
-                      .map((pick, index) => {
-                        const confColor = getPickColor(pick.confidence || 0);
-                        return (
-                          <Box
-                            key={index}
-                            sx={{
-                              p: 2,
-                              mb: 1.5,
-                              borderRadius: 2,
-                              background: pick.was_correct
-                                ? "linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.1) 100%)"
-                                : "linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(220, 38, 38, 0.1) 100%)",
-                              border: `1px solid ${
-                                pick.was_correct
-                                  ? "rgba(16, 185, 129, 0.3)"
-                                  : "rgba(239, 68, 68, 0.3)"
-                              }`,
-                            }}
-                          >
-                            <Box
-                              display="flex"
-                              justifyContent="space-between"
-                              alignItems="flex-start"
-                              mb={1}
-                            >
-                              <Typography
-                                variant="caption"
-                                color="text.secondary"
-                                fontWeight={600}
-                                textTransform="uppercase"
-                                sx={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 0.5,
-                                  flexWrap: "wrap",
-                                  wordBreak: "break-word",
-                                  overflowWrap: "break-word",
-                                }}
-                              >
-                                <span
-                                  style={{ fontSize: "1.2em", flexShrink: 0 }}
-                                >
-                                  {getMarketIcon(pick.market_type)}
-                                </span>{" "}
-                                <span style={{ wordBreak: "break-word" }}>
-                                  {pick.market_label ||
-                                    getMarketLabel(pick.market_type)}
-                                </span>
-                                {pick.is_contrarian && (
-                                  <Chip
-                                    label="VALUE BET"
-                                    size="small"
-                                    sx={{
-                                      bgcolor: "rgba(139, 92, 246, 0.2)",
-                                      color: "#8b5cf6",
-                                      fontSize: "0.65rem",
-                                      height: 20,
-                                      fontWeight: 700,
-                                      border:
-                                        "1px solid rgba(139, 92, 246, 0.3)",
-                                      flexShrink: 0,
-                                    }}
-                                  />
-                                )}
-                                {pick.is_ml_confirmed && (
-                                  <Chip
-                                    label={pick.was_correct ? "IA ✅" : "IA ❌"}
-                                    icon={
-                                      <SmartToy
-                                        sx={{ fontSize: "14px !important" }}
-                                      />
-                                    }
-                                    size="small"
-                                    sx={{
-                                      bgcolor: "rgba(99, 102, 241, 0.2)",
-                                      color: "#818cf8",
-                                      fontSize: "0.65rem",
-                                      height: 20,
-                                      fontWeight: 700,
-                                      border:
-                                        "1px solid rgba(99, 102, 241, 0.3)",
-                                      flexShrink: 0,
-                                    }}
-                                  />
-                                )}
-                              </Typography>
-                              {pick.was_correct ? (
-                                <CheckCircle
-                                  sx={{
-                                    fontSize: 20,
-                                    color: "#10b981",
-                                  }}
-                                />
-                              ) : (
-                                <Cancel
-                                  sx={{
-                                    fontSize: 20,
-                                    color: "#ef4444",
-                                  }}
-                                />
-                              )}
-                            </Box>
-                            <Box display="flex" gap={1} flexWrap="wrap">
-                              {pick.expected_value !== undefined &&
-                                pick.expected_value > 0 && (
-                                  <Chip
-                                    label={`EV: +${pick.expected_value.toFixed(
-                                      1
-                                    )}%`}
-                                    size="small"
-                                    sx={{
-                                      bgcolor: "rgba(251, 191, 36, 0.2)",
-                                      color: "#fbbf24",
-                                      fontSize: "0.65rem",
-                                      height: 20,
-                                    }}
-                                  />
-                                )}
-                              <Chip
-                                label={`Conf: ${(
-                                  (pick.probability || pick.confidence || 0) *
-                                  100
-                                ).toFixed(0)}%`}
-                                size="small"
-                                sx={{
-                                  bgcolor: `${confColor}20`,
-                                  color: confColor,
-                                  fontSize: "0.65rem",
-                                  height: 20,
-                                  fontWeight: 700,
-                                }}
-                              />
-                              {pick.suggested_stake !== undefined &&
-                                pick.suggested_stake > 0 && (
-                                  <Chip
-                                    label={`Stake: ${pick.suggested_stake.toFixed(
-                                      2
-                                    )}u`}
-                                    size="small"
-                                    sx={{
-                                      bgcolor: "rgba(56, 189, 248, 0.1)",
-                                      color: "#38bdf8",
-                                      fontSize: "0.65rem",
-                                      height: 20,
-                                      fontWeight: 600,
-                                      border:
-                                        "1px solid rgba(56, 189, 248, 0.2)",
-                                    }}
-                                  />
-                                )}
-                              {pick.clv_beat !== undefined && (
-                                <Chip
-                                  label={pick.clv_beat ? "CLV WIN" : "CLV LOSS"}
-                                  size="small"
-                                  sx={{
-                                    bgcolor: pick.clv_beat
-                                      ? "rgba(16, 185, 129, 0.1)"
-                                      : "rgba(239, 68, 68, 0.1)",
-                                    color: pick.clv_beat
-                                      ? "#10b981"
-                                      : "#ef4444",
-                                    fontSize: "0.65rem",
-                                    height: 20,
-                                    fontWeight: 600,
-                                    borderColor: pick.clv_beat
-                                      ? "rgba(16, 185, 129, 0.2)"
-                                      : "rgba(239, 68, 68, 0.2)",
-                                    borderWidth: 1,
-                                    borderStyle: "solid",
-                                  }}
-                                />
-                              )}
-                            </Box>
-                          </Box>
-                        );
-                      })}
-                  </Collapse>
-                </Box>
-              )}
-            </CardContent>
-          </Card>
+            match={match}
+            isExpanded={expandedRow === match.match_id}
+            onToggleExpand={handleToggleExpand}
+          />
         ))}
-        {/* Pagination options synchronized with desktop */}
         <TablePagination
           rowsPerPageOptions={[10, 25, 50, 100]}
           component="div"
-          count={sortedMatches.length}
+          count={totalMatches}
           rowsPerPage={rowsPerPage}
           page={page}
           onPageChange={handleChangePage}
