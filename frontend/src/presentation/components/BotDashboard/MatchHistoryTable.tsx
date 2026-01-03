@@ -188,7 +188,7 @@ const PickCard = ({ pick }: { pick: SuggestedPick }) => {
             <Cancel sx={{ fontSize: 20, color: "#ef4444" }} />
           )}
         </Box>
-        <Box display="flex" gap={1} flexWrap="wrap">
+        <Box display="flex" gap={1} flexWrap="wrap" alignItems="center">
           {
             /* Check for AI/ML status via flag OR reasoning text */
             (() => {
@@ -201,21 +201,23 @@ const PickCard = ({ pick }: { pick: SuggestedPick }) => {
 
               if (isAi) {
                 return (
-                  <PickChip
-                    label={isCorrect ? "IA ✅" : "IA ❌"}
-                    icon={
-                      <SmartToy
-                        sx={{ fontSize: "14px !important", color: "#38bdf8" }}
-                      />
-                    }
-                    sx={{
-                      bgcolor: "rgba(56, 189, 248, 0.5)", // Sky 400 @ 50%
-                      color: "#ffffff",
-                      borderColor: "#38bdf8", // Sky 400
-                      borderWidth: "1px",
-                      fontWeight: 700,
-                    }}
-                  />
+                  <Box component="span">
+                    <PickChip
+                      label={isCorrect ? "IA ✅" : "IA ❌"}
+                      icon={
+                        <SmartToy
+                          sx={{ fontSize: "14px !important", color: "#38bdf8" }}
+                        />
+                      }
+                      sx={{
+                        bgcolor: "rgba(56, 189, 248, 0.5)", // Sky 400 @ 50%
+                        color: "#ffffff",
+                        borderColor: "#38bdf8", // Sky 400
+                        borderWidth: "1px",
+                        fontWeight: 700,
+                      }}
+                    />
+                  </Box>
                 );
               }
               return null;
@@ -238,16 +240,18 @@ const PickCard = ({ pick }: { pick: SuggestedPick }) => {
               </Box>
             </Tooltip>
           )}
-          <PickChip
-            label={`Conf: ${(
-              (pick.probability || pick.confidence || 0) * 100
-            ).toFixed(0)}%`}
-            sx={{
-              bgcolor: confColor + "80", // 50% opacity (hex 80 is ~50%)
-              color: "#ffffff",
-              border: `1px solid ${confColor}`,
-            }}
-          />
+          <Box component="span">
+            <PickChip
+              label={`Conf: ${(
+                (pick.probability || pick.confidence || 0) * 100
+              ).toFixed(0)}%`}
+              sx={{
+                bgcolor: confColor + "80", // 50% opacity (hex 80 is ~50%)
+                color: "#ffffff",
+                border: `1px solid ${confColor}`,
+              }}
+            />
+          </Box>
           {pick.suggested_stake !== undefined && pick.suggested_stake > 0 && (
             <Tooltip
               title="Stake (Apuesta sugerida): Unidades a apostar según el criterio de Kelly para optimizar el bankroll."

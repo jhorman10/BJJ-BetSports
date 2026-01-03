@@ -107,16 +107,6 @@ export const useBotStore = create<BotState>()(
               loading: false,
             });
 
-            // Persist & Notify
-            localStorageObserver.persist(
-              "bot-training-data",
-              {
-                stats: statusRes.result,
-                timestamp: updateDate.toISOString(),
-              },
-              1000
-            );
-
             useOfflineStore.getState().setBackendAvailable(true);
             return;
           }
@@ -176,15 +166,6 @@ export const useBotStore = create<BotState>()(
                 error: null,
               });
 
-              localStorageObserver.persist(
-                "bot-training-data",
-                {
-                  stats: statusRes.result,
-                  timestamp: updateDate.toISOString(),
-                },
-                1000
-              );
-
               return;
             }
 
@@ -208,6 +189,7 @@ export const useBotStore = create<BotState>()(
           "Tiempo agotado: El entrenamiento está tardando demasiado"
         );
       },
+
       updateStats: (stats) => {
         const now = new Date();
         set({
@@ -215,16 +197,6 @@ export const useBotStore = create<BotState>()(
           lastUpdate: now,
           lastFetchTimestamp: Date.now(),
         });
-
-        // Notify observers
-        localStorageObserver.persist(
-          "bot-training-data",
-          {
-            stats,
-            timestamp: now.toISOString(),
-          },
-          1000
-        );
       },
 
       clearCache: () => {
@@ -270,16 +242,6 @@ export const useBotStore = create<BotState>()(
                 lastUpdate: new Date(cachedResponse.last_update!),
                 lastFetchTimestamp: Date.now(),
               });
-
-              // Persist reconciled data
-              localStorageObserver.persist(
-                "bot-training-data",
-                {
-                  stats: cachedResponse.data,
-                  timestamp: cachedResponse.last_update,
-                },
-                0 // No debounce for reconciliation
-              );
             }
           }
         } catch (error) {
@@ -295,18 +257,6 @@ export const useBotStore = create<BotState>()(
         getItem: async (name: string) => {
           const val = await localforage.getItem(name);
           if (!val) return null;
-          // handle ancient plain strings vs parsed objects if necessary,
-          // but here we trust zustand writes objects.
-          // Helper to revive dates if needed, but createJSONStorage usually handles stringifying.
-          // localforage stores actual JS objects (IndexedDB), so JSON.parse/stringify
-          // might be redundant but createJSONStorage expects string/null mapping.
-          // Actually, createJSONStorage + localforage is tricky because localforage is async
-          // and createJSONStorage enables async.
-
-          // Wait, standard localforage.getItem() returns the Object if it was setItem() as object.
-          // But createJSONStorage expects string.
-          // Let's wrap it to return string, or use the object directly if we didn't use createJSONStorage.
-          // Best practice with Zustand async:
           return JSON.stringify(val);
         },
         setItem: async (name: string, value: string) => {

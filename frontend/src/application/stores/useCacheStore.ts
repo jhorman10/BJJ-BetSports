@@ -1,7 +1,16 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import localforage from "localforage";
 import { SuggestedPick } from "../../types";
 import api from "../../services/api";
+
+// Configure localforage to use IndexedDB
+localforage.config({
+  name: "BJJ-BetSports",
+  storeName: "picks_cache",
+});
+
+const MAX_CACHE_ENTRIES = 100; // Limit cache entries to prevent unlimited growth
 
 interface CacheState {
   // Data
@@ -26,15 +35,26 @@ export const useCacheStore = create<CacheState>()(
       fetching: {},
 
       cachePicks: (matchId, picks) => {
-        set((state) => ({
-          picksCache: {
+        set((state) => {
+          const newCache = {
             ...state.picksCache,
             [matchId]: {
               picks,
               timestamp: Date.now(),
             },
-          },
-        }));
+          };
+
+          // Basic LRU: If cache exceeds max entries, remove oldest
+          const keys = Object.keys(newCache);
+          if (keys.length > MAX_CACHE_ENTRIES) {
+            const oldestKey = keys.sort(
+              (a, b) => newCache[a].timestamp - newCache[b].timestamp
+            )[0];
+            delete newCache[oldestKey];
+          }
+
+          return { picksCache: newCache };
+        });
       },
 
       getPicks: (matchId) => {
@@ -93,6 +113,19 @@ export const useCacheStore = create<CacheState>()(
             }
           });
 
+          // Enforce max entries after batch ingest
+          const keys = Object.keys(newCache);
+          if (keys.length > MAX_CACHE_ENTRIES) {
+            const sortedKeys = keys.sort(
+              (a, b) => newCache[a].timestamp - newCache[b].timestamp
+            );
+            const keysToRemove = sortedKeys.slice(
+              0,
+              sortedKeys.length - MAX_CACHE_ENTRIES
+            );
+            keysToRemove.forEach((k) => delete newCache[k]);
+          }
+
           return hasUpdates ? { picksCache: newCache } : {};
         });
       },
@@ -114,9 +147,10 @@ export const useCacheStore = create<CacheState>()(
       },
     }),
     {
-      name: "bjj-bets-cache-storage-v7", // Version bump for new structure if needed (v6 is fine but let's be safe)
-      storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ picksCache: state.picksCache }), // Only persist data, not fetching status
+      name: "bjj-bets-cache-storage-v7",
+      // Important: Use localforage for IndexedDB support (much larger quota than localStorage)
+      storage: createJSONStorage(() => localforage as any),
+      partialize: (state) => ({ picksCache: state.picksCache }),
     }
   )
 );
