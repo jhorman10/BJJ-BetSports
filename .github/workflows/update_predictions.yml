@@ -1,9 +1,9 @@
 name: Update Predictions
 
 on:
-  # Run every 6 hours
+  # Run every 12 hours
   schedule:
-    - cron: "0 */6 * * *"
+    - cron: "0 */12 * * *"
 
   # Allow manual trigger
   workflow_dispatch:
