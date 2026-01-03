@@ -49,10 +49,12 @@ export const useLiveStore = create<LiveState>()(
             useOfflineStore.getState().setBackendAvailable(false);
           }
 
-          // Don't clear matches on error to keep "stale" data visible??
-          // Or show empty? Hook showed empty.
-          // We'll keep old matches if available, but set error.
-          set({ error: err.message || "Error al cargar partidos en vivo" });
+          // Suppress technical error string if it's a network issue
+          set({
+            error: isNetworkError
+              ? null
+              : err.message || "Error al cargar partidos en vivo",
+          });
         } finally {
           set({ loading: false });
         }

@@ -113,10 +113,13 @@ export const usePredictionStore = create<PredictionState>()(
             useOfflineStore.getState().setBackendAvailable(false);
           }
 
-          // If we have data in cache (persisted), don't show robust error, just a warning maybe?
-          // Using current error state to indicate staleness if needed, or keep showing data.
-          // We set error string, UI can decide whether to block or show toast.
-          set({ leaguesError: err.message || "Error al cargar las ligas" });
+          // If we have a network error, we don't set leaguesError to avoid showing the red alert box.
+          // The global OfflineIndicator will show the orange "Limited Connection" bar.
+          set({
+            leaguesError: isNetworkError
+              ? null
+              : err.message || "Error al cargar las ligas",
+          });
         } finally {
           if (!background) {
             set({ leaguesLoading: false });
@@ -177,10 +180,11 @@ export const usePredictionStore = create<PredictionState>()(
             useOfflineStore.getState().setBackendAvailable(false);
           }
 
-          // If persistence worked, 'predictions' still has old data.
-          // We set error so UI can show "Offline Mode" badge.
+          // If we have a network error, we don't set predictionsError to avoid technical alerts.
           set({
-            predictionsError: err.message || "Error al cargar las predicciones",
+            predictionsError: isNetworkError
+              ? null
+              : err.message || "Error al cargar las predicciones",
           });
         } finally {
           if (!background) {

@@ -127,10 +127,23 @@ export const useBotStore = create<BotState>()(
             await get().pollTrainingStatus();
           }
         } catch (err: any) {
+          const isNetworkError =
+            err.message === "Network Error" ||
+            err.code === "ERR_NETWORK" ||
+            err.code === "ECONNABORTED";
+
+          if (isNetworkError) {
+            useOfflineStore.getState().setBackendAvailable(false);
+          }
+
           set({
-            error: err.message || "Error al cargar los datos de entrenamiento",
-            trainingStatus: "ERROR",
-            trainingMessage: "Error en la conexión",
+            error: isNetworkError
+              ? null
+              : err.message || "Error al cargar los datos de entrenamiento",
+            trainingStatus: isNetworkError ? "IDLE" : "ERROR",
+            trainingMessage: isNetworkError
+              ? "Buscando servidor..."
+              : "Error en la conexión",
           });
         } finally {
           set({ loading: false });
