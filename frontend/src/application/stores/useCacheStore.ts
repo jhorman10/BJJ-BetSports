@@ -15,6 +15,7 @@ interface CacheState {
   getPicks: (matchId: string) => SuggestedPick[] | null;
   prefetchMatch: (matchId: string) => Promise<void>;
   isFetching: (matchId: string) => boolean;
+  ingestPredictions: (predictions: any[]) => void;
   cleanStaleCache: (ttlSeconds?: number) => void;
 }
 
@@ -70,6 +71,32 @@ export const useCacheStore = create<CacheState>()(
         }
       },
 
+      ingestPredictions: (predictions: any[]) => {
+        // Batch update cache with embedded picks
+        set((state) => {
+          const newCache = { ...state.picksCache };
+          let hasUpdates = false;
+
+          predictions.forEach((p) => {
+            const matchId = p.match.id;
+            // Check if prediction has valid picks
+            if (
+              p.prediction &&
+              p.prediction.suggested_picks &&
+              p.prediction.suggested_picks.length > 0
+            ) {
+              newCache[matchId] = {
+                picks: p.prediction.suggested_picks,
+                timestamp: Date.now(),
+              };
+              hasUpdates = true;
+            }
+          });
+
+          return hasUpdates ? { picksCache: newCache } : {};
+        });
+      },
+
       cleanStaleCache: (ttlSeconds = 60 * 60 * 24) => {
         // Default 24h cleanup
         const now = Date.now();
@@ -87,7 +114,7 @@ export const useCacheStore = create<CacheState>()(
       },
     }),
     {
-      name: "bjj-bets-cache-storage-v6", // Version bump to force clear cache
+      name: "bjj-bets-cache-storage-v7", // Version bump for new structure if needed (v6 is fine but let's be safe)
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({ picksCache: state.picksCache }), // Only persist data, not fetching status
     }

@@ -43,7 +43,7 @@ const PredictionGrid: React.FC = memo(() => {
 
   const { selectedPicks, addPick, removePick } = useParleyStore();
   const { isBackendAvailable } = useOfflineStore();
-  const { prefetchMatch } = useCacheStore();
+  const { prefetchMatch, ingestPredictions } = useCacheStore();
 
   // Local state for modal
   const [selectedMatch, setSelectedMatch] =
@@ -212,6 +212,9 @@ const PredictionGrid: React.FC = memo(() => {
   // Batch prefetch picks when predictions are loaded or sorted
   React.useEffect(() => {
     if (!predictionsLoading && sortedPredictions.length > 0) {
+      // 1. Ingest embedded picks immediately
+      ingestPredictions(sortedPredictions);
+
       // Prefetch the first 15 matches from the sorted list (most relevant to user)
       const matchesToPrefetch = sortedPredictions.slice(0, 15);
 
@@ -227,7 +230,7 @@ const PredictionGrid: React.FC = memo(() => {
 
       prefetchBatch();
     }
-  }, [sortedPredictions, predictionsLoading, prefetchMatch]);
+  }, [sortedPredictions, predictionsLoading, prefetchMatch, ingestPredictions]);
 
   // Persistent Header with Conditional Content Below
   return (
