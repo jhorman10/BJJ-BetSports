@@ -87,12 +87,12 @@ def get_parley_service() -> ParleyService:
     """Get parley service (cached)."""
     return ParleyService()
 
-from src.domain.services.picks_service import PicksService
+from src.domain.services.ai_picks_service import AIPicksService
 
 @lru_cache()
-def get_picks_service() -> PicksService:
-    """Get picks service (cached)."""
-    return PicksService()
+def get_picks_service() -> AIPicksService:
+    """Get AI picks service (cached)."""
+    return AIPicksService()
 
 @lru_cache()
 def get_match_enrichment_service() -> MatchEnrichmentService:

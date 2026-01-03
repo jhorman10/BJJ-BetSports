@@ -167,21 +167,23 @@ class AIPicksService(PicksService):
                 try:
                     features = [MLFeatureExtractor.extract_features(pick)]
                     ml_confidence = self.ml_model.predict_proba(features)[0][1]
+                    pick.ml_confidence = float(ml_confidence)
                 except Exception:
                     pass
 
             # --- PHASE D: AI Locks Generation ---
-            # Criteria: Prob > 65%, Weight > 1.0, ML > 75%
+            # Criteria: Prob > 60%, Weight >= 1.0, ML > 70%
             # If ML model is missing (during backtesting), use stricter statistical thresholds
             if self.ml_model and ml_confidence > 0:
                 is_ai_lock = (
-                    pick.probability > 0.65 and
+                    pick.probability > 0.60 and
                     weight >= 1.0 and
-                    ml_confidence > 0.75
+                    ml_confidence > 0.70
                 )
             else:
                 # Fallback: Strong Statistical signal "Algo Lock" for history
-                is_ai_lock = (pick.probability > 0.75 and weight >= 1.1)
+                # Relaxed from 0.75/1.1 to 0.70/1.0 to ensure visibility
+                is_ai_lock = (pick.probability > 0.70 and weight >= 1.0)
             
             if is_ai_lock:
                 pick.priority_score *= 1.5 # Massive boost

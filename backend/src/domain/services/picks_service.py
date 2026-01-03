@@ -394,10 +394,21 @@ class PicksService:
         # 5. Build Final Reasoning
         final_reasoning = f"{reasoning}{penalty_note}{suffix}"
 
+        # Synthetic Odds Logic if real odds invalid
+        used_odds = odds
+        if used_odds <= 1.0:
+             used_odds = (1.0 / display_prob) * 0.95 # 5% margin
+             
+        # Recalculate EV with synthetic odds if needed for ranking (though usually we prefer real odds for EV)
+        # But if we have no odds, EV is 0 unless we use synthetic.
+        # User implies we should use it for internal value estimation.
+        if ev == 0.0 and odds <= 1.0:
+             ev = self._calculate_ev(probability, used_odds)
+
         # 6. Calculate Stake (Risk Management)
         suggested_stake = self.bankroll_service.calculate_stake(
             probability=display_prob,
-            odds=odds if odds > 1.0 else (1/(display_prob) * 0.95), # Estimate odds if missing
+            odds=used_odds, 
             confidence=1.0 # Base confidence is handled by probability and odds
         )
         

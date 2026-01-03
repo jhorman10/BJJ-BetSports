@@ -34,7 +34,7 @@ class ApiCacheModel(Base):
     """
     SQLAlchemy model for caching API responses.
     """
-    __tablename__ = "api_cache"
+    __tablename__ = "api_response_cache"
     
     endpoint = Column(String, primary_key=True)  # Full endpoint path e.g. /competitions/PL/matches
     params = Column(String, primary_key=True, default="") # Flattened params string

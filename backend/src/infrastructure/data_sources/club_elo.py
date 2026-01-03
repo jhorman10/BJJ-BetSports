@@ -36,25 +36,40 @@ class ClubEloSource:
         if self._last_fetch and (now - self._last_fetch) < timedelta(hours=24):
             return
 
-        try:
-            # Lazy import pandas (only when fetching data)
-            import pandas as pd
+        # Retry with exponential backoff (Resilience improvement)
+        max_retries = 3
+        backoff_delay = 2 # Start with 2 seconds
+        
+        import asyncio
+        for attempt in range(max_retries):
+            try:
+                # Lazy import pandas (only when fetching data)
+                import pandas as pd
+                
+                # Fetch current ratings for all teams
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(f"{self.BASE_URL}/{now.strftime('%Y-%m-%d')}") as response:
+                        if response.status == 200:
+                            content = await response.text()
+                            # Parse CSV
+                            df = pd.read_csv(io.StringIO(content))
+                            # Cache: {TeamName: Elo}
+                            self._cache = dict(zip(df['Club'], df['Elo']))
+                            self._last_fetch = now
+                            logger.info(f"Fetched {len(self._cache)} ClubElo ratings")
+                            return # Success
+                        else:
+                            logger.warning(f"Failed to fetch ClubElo (Status {response.status}). Attempt {attempt+1}/{max_retries}")
             
-            # Fetch current ratings for all teams
-            async with aiohttp.ClientSession() as session:
-                async with session.get(f"{self.BASE_URL}/{now.strftime('%Y-%m-%d')}") as response:
-                    if response.status == 200:
-                        content = await response.text()
-                        # Parse CSV
-                        df = pd.read_csv(io.StringIO(content))
-                        # Cache: {TeamName: Elo}
-                        self._cache = dict(zip(df['Club'], df['Elo']))
-                        self._last_fetch = now
-                        logger.info(f"Fetched {len(self._cache)} ClubElo ratings")
-                    else:
-                        logger.warning(f"Failed to fetch ClubElo: {response.status}")
-        except Exception as e:
-            logger.error(f"Error fetching ClubElo data: {e}")
+            except Exception as e:
+                logger.error(f"Error fetching ClubElo data (Attempt {attempt+1}/{max_retries}): {e}")
+            
+            if attempt < max_retries - 1:
+                await asyncio.sleep(backoff_delay)
+                backoff_delay *= 2 # Exponential backoff
+                
+        # Fallback if all retries fail
+        logger.error("ClubElo fetch failed after all retries. Using cached or empty data.")
 
     def _find_team_elo(self, team_name: str) -> Optional[float]:
         """Fuzzy search for team name in Elo cache."""

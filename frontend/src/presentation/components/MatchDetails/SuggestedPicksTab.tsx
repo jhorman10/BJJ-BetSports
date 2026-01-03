@@ -78,6 +78,20 @@ const PickRow: React.FC<{ pick: SuggestedPick }> = memo(({ pick }) => {
             "& .MuiChip-label": { px: 1 },
           }}
         />
+        {pick.ml_confidence !== undefined && pick.ml_confidence > 0 && (
+          <Chip
+            label={`🤖 ${(pick.ml_confidence * 100).toFixed(0)}%`}
+            size="small"
+            sx={{
+              ml: 1,
+              bgcolor: "rgba(124, 58, 237, 0.2)", // Violet/Purple for AI
+              color: "#a78bfa",
+              fontWeight: 700,
+              fontSize: "0.70rem",
+              height: 24,
+            }}
+          />
+        )}
       </Box>
       {pick.reasoning && (
         <Typography
@@ -195,7 +209,8 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
       // This ensures strictly ML recommended picks
       if (
         p.is_ml_confirmed ||
-        (p.reasoning && p.reasoning.includes("ML Confianza Alta"))
+        (p.reasoning && p.reasoning.includes("ML Confianza Alta")) ||
+        (p.reasoning && p.reasoning.includes("IA CONFIRMED"))
       ) {
         counts.TOP_ML++;
       }
@@ -242,7 +257,8 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
       return sortedPicks.filter(
         (p) =>
           p.is_ml_confirmed ||
-          (p.reasoning && p.reasoning.includes("ML Confianza Alta"))
+          (p.reasoning && p.reasoning.includes("ML Confianza Alta")) ||
+          (p.reasoning && p.reasoning.includes("IA CONFIRMED"))
       );
     }
 

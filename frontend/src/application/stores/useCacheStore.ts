@@ -87,7 +87,7 @@ export const useCacheStore = create<CacheState>()(
       },
     }),
     {
-      name: "bjj-bets-cache-storage-v5", // Version bump to force clear cache
+      name: "bjj-bets-cache-storage-v6", // Version bump to force clear cache
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({ picksCache: state.picksCache }), // Only persist data, not fetching status
     }

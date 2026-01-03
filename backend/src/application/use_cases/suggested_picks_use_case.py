@@ -204,7 +204,9 @@ class GetSuggestedPicksUseCase:
                     reasoning=pick.reasoning,
                     risk_level=pick.risk_level,
                     is_recommended=pick.is_recommended,
-                    priority_score=pick.priority_score
+                    priority_score=pick.priority_score,
+                    is_ml_confirmed=pick.is_ml_confirmed,
+                    ml_confidence=pick.ml_confidence
                 ))
 
             # Build Prediction DTO (optional for internal consistency)

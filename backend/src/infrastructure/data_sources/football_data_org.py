@@ -180,7 +180,121 @@ class FootballDataOrgSource:
     
     async def get_competitions(self) -> list[dict]:
         """Get list of available competitions."""
-        data = await self._make_request("/competitions")
+        # Static Data: 7 Days TTL (604800s)
+        data = await self._make_request("/competitions", ttl_seconds=604800)
+        
+        if not data:
+            return []
+        
+        return data.get("competitions", [])
+    
+    async def get_league_teams(self, league_code: str) -> list[Team]:
+        """
+        Get teams for a league.
+        
+        Args:
+            league_code: Our league code
+            
+        Returns:
+            List of Team entities
+        """
+        if league_code not in COMPETITION_CODE_MAPPING:
+            return []
+        
+        comp_code = COMPETITION_CODE_MAPPING[league_code]
+        # Static Data: 7 Days TTL (604800s)
+        data = await self._make_request(f"/competitions/{comp_code}/teams", ttl_seconds=604800)
+        
+        if not data or not data.get("teams"):
+            return []
+        
+        teams = []
+        for team_data in data["teams"]:
+            teams.append(Team(
+                id=str(team_data.get("id")),
+                name=team_data.get("name", "Unknown"),
+                short_name=team_data.get("shortName"),
+                country=team_data.get("area", {}).get("name"),
+            ))
+        
+        return teams
+    
+    async def get_upcoming_matches(
+        self,
+        league_code: str,
+        matchday: Optional[int] = None,
+    ) -> list[Match]:
+        """
+        Get scheduled matches for a league.
+        
+        Args:
+            league_code: Our league code
+            matchday: Specific matchday or None for upcoming
+            
+        Returns:
+            List of Match entities
+        """
+        if league_code not in COMPETITION_CODE_MAPPING:
+            return []
+        
+        comp_code = COMPETITION_CODE_MAPPING[league_code]
+        # Only fetch matches that are scheduled or have a set time (avoiding finished games)
+        params = {"status": "SCHEDULED,TIMED"}
+        
+        if matchday:
+            params["matchday"] = matchday
+        
+        # Dynamic Data: 1 Hour TTL (3600s)
+        data = await self._make_request(f"/competitions/{comp_code}/matches", params, ttl_seconds=3600)
+        
+        if data is None:
+            return None
+
+        if not data.get("matches"):
+            return []
+        
+        competition = data.get("competition", {})
+        league = League(
+            id=league_code,
+            name=competition.get("name", "Unknown"),
+            country=competition.get("area", {}).get("name", "Unknown"),
+        )
+        
+        matches = []
+        for match_data in data["matches"]:
+            try:
+                match = self._parse_match(match_data, league)
+                if match:
+                    matches.append(match)
+            except Exception as e:
+                logger.debug(f"Error parsing match: {e}")
+        
+        return matches
+
+    async def get_league_matches(
+        self,
+        league_code: str,
+        date_from: str,
+        date_to: str,
+        status: Optional[str] = None
+    ) -> list[Match]:
+        """
+        Get all matches for a league within a date range (Optimized Batch Fetch).
+        Wrapper around /competitions/{id}/matches.
+        """
+        if league_code not in COMPETITION_CODE_MAPPING:
+            return []
+            
+        comp_code = COMPETITION_CODE_MAPPING[league_code]
+        params = {
+            "dateFrom": date_from,
+            "dateTo": date_to,
+        }
+        if status:
+            params["status"] = status
+            
+        # Match Data: 1 Hour TTL (3600s)
+        data = await self._make_request(f"/competitions/{comp_code}/matches", params, ttl_seconds=3600)
         
         if not data:
             return []
