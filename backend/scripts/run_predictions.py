@@ -47,7 +47,8 @@ async def main():
             get_data_sources,
             get_prediction_service,
             get_statistics_service,
-            get_cache_service
+            get_cache_service,
+            get_learning_service
         )
         from src.application.use_cases.use_cases import GetPredictionsUseCase
         
@@ -59,6 +60,7 @@ async def main():
         prediction_service = get_prediction_service()
         statistics_service = get_statistics_service()
         cache_service = get_cache_service()
+        learning_service = get_learning_service()
         
         # Ensure database tables exist
         logger.info("🗄️  Creating/verifying database tables...")
@@ -111,12 +113,12 @@ async def main():
                 league_cache_key = f"forecasts:league_{league_id}"
                 persistence_repo.save_training_result(
                     league_cache_key,
-                    predictions_dto.dict() if hasattr(predictions_dto, 'dict') else predictions_dto.model_dump()
+                    predictions_dto.model_dump() if hasattr(predictions_dto, 'model_dump') else predictions_dto.dict()
                 )
                 
                 # Save individual match predictions
                 for match_pred in predictions_dto.predictions:
-                    match_data = match_pred.dict() if hasattr(match_pred, 'dict') else match_pred.model_dump()
+                    match_data = match_pred.model_dump() if hasattr(match_pred, 'model_dump') else match_pred.dict()
                     persistence_repo.save_match_prediction(
                         match_id=match_pred.match.id,
                         league_id=league_id,
@@ -132,8 +134,11 @@ async def main():
                 from src.application.use_cases.use_cases import GetSuggestedPicksUseCase
                 
                 picks_use_case = GetSuggestedPicksUseCase(
+                    data_sources=data_sources,
                     prediction_service=prediction_service,
-                    persistence_repository=persistence_repo
+                    statistics_service=statistics_service,
+                    learning_service=learning_service,
+                    cache_service=cache_service
                 )
                 
                 picks_saved = 0
@@ -145,7 +150,7 @@ async def main():
                         if picks_dto and picks_dto.picks:
                             # Save picks to database
                             picks_cache_key = f"picks:match_{match_pred.match.id}"
-                            picks_data = picks_dto.dict() if hasattr(picks_dto, 'dict') else picks_dto.model_dump()
+                            picks_data = picks_dto.model_dump() if hasattr(picks_dto, 'model_dump') else picks_dto.dict()
                             persistence_repo.save_training_result(
                                 picks_cache_key,
                                 picks_data
@@ -186,13 +191,13 @@ async def main():
             if top_picks_dto and top_picks_dto.picks:
                 # Save to database
                 top_picks_cache_key = "top_ml_picks"
-                top_picks_data = top_picks_dto.dict() if hasattr(top_picks_dto, 'dict') else top_picks_dto.model_dump()
+                top_picks_data = top_picks_dto.model_dump() if hasattr(top_picks_dto, 'model_dump') else top_picks_dto.dict()
                 persistence_repo.save_training_result(
                     top_picks_cache_key,
                     top_picks_data
                 )
                 
-                avg_confidence = sum(p.confidence for p in top_picks_dto.picks) / len(top_picks_dto.picks)
+                avg_confidence = sum(p.probability for p in top_picks_dto.picks) / len(top_picks_dto.picks)
                 logger.info(f"   ✅ Saved {len(top_picks_dto.picks)} Top ML Picks")
                 logger.info(f"   📊 Average confidence: {avg_confidence:.1f}%")
             else:
