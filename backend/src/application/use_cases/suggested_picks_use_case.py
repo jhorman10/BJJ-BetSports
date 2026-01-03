@@ -55,7 +55,7 @@ class GetSuggestedPicksUseCase:
         self.learning_service = learning_service
         self.learning_service = learning_service
         self.cache_service = cache_service
-        self.odds_api = TheOddsAPISource()
+        self.odds_api = None # TheOddsAPISource removed
         # Initialize new sources if not passed in data_sources (fallback)
         self.club_elo = getattr(data_sources, "club_elo", None) or ClubEloSource()
         self.understat = getattr(data_sources, "understat", None) or UnderstatSource()
