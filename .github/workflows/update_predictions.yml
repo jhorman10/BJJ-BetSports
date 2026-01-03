@@ -21,7 +21,7 @@ permissions:
 jobs:
   update-predictions:
     runs-on: ubuntu-latest
-    timeout-minutes: 60 # 1 hour timeout
+    timeout-minutes: 360 # 6 hours timeout
 
     steps:
       - name: 📥 Checkout code
