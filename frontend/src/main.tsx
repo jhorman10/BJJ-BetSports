@@ -36,8 +36,9 @@ const clearDevelopmentPwaState = async (): Promise<void> => {
         )
         .map((cacheKey) => caches.delete(cacheKey))
     );
-  } catch {
+  } catch (error) {
     // Best-effort cleanup in development. Ignore failures to avoid unhandled rejections.
+    console.warn("PWA cleanup failed:", error);
   }
 };
 

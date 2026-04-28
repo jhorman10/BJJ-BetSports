@@ -753,9 +753,9 @@ class GetTopMLPicksUseCase:
 
             for pred_data in active_preds:
                 if "prediction" in pred_data:
-                    payload = pred_data.get("prediction")
+                    payload = pred_data["prediction"]
                 elif "data" in pred_data:
-                    payload = pred_data.get("data")
+                    payload = pred_data["data"]
                 else:
                     payload = pred_data
                 if not isinstance(payload, dict):
