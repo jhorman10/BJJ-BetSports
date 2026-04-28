@@ -23,8 +23,13 @@ from src.application.dtos.dtos import (
     SuggestedPickDTO,
     TeamDTO,
 )
-from src.domain.constants import CLUB_INTERNATIONAL_LEAGUES
-from src.domain.entities.entities import League, Match, Prediction
+from src.domain.constants import ALL_INTERNATIONAL_TOURNAMENTS, CLUB_INTERNATIONAL_LEAGUES
+from src.domain.entities.entities import (
+    League,
+    Match,
+    Prediction,
+    TrainingDataContextBundle,
+)
 from src.domain.services.match_aggregator_service import MatchAggregatorService
 from src.domain.services.prediction_service import PredictionService
 from src.domain.services.statistics_service import StatisticsService
@@ -53,6 +58,77 @@ class DataSources:
 # Lightweight type aliases to satisfy linters for runtime-opaque types
 MongoRepository = Any
 BackgroundProcessor = Any
+
+
+def _requires_contextual_team_statistics(league_id: str) -> bool:
+    """Return True when a match requires contextual international team stats."""
+    return league_id in ALL_INTERNATIONAL_TOURNAMENTS
+
+
+def _context_bundle_has_team_context(
+    context_bundle: TrainingDataContextBundle,
+    team_name: str,
+) -> bool:
+    normalized_team_name = StatisticsService.normalize_team_name(team_name)
+    if normalized_team_name in context_bundle.support_matches_by_team:
+        return True
+
+    return any(
+        normalized_team_name
+        in {
+            StatisticsService.normalize_team_name(match.home_team.name),
+            StatisticsService.normalize_team_name(match.away_team.name),
+        }
+        for match in context_bundle.target_matches
+    )
+
+
+async def _load_contextual_training_bundle(
+    league_id: str,
+) -> Optional[TrainingDataContextBundle]:
+    """Load the contextual target/support bundle for international inference."""
+    if not _requires_contextual_team_statistics(league_id):
+        return None
+
+    try:
+        from src.application.dependencies import get_training_data_service
+
+        context_bundle = cast(
+            TrainingDataContextBundle,
+            await get_training_data_service().fetch_contextual_training_data(
+                leagues=[league_id],
+                days_back=550,
+            ),
+        )
+    except Exception as exc:
+        logger.warning(
+            "Failed to load contextual training bundle for %s: %s",
+            league_id,
+            exc,
+        )
+        return None
+
+    if context_bundle.target_matches or context_bundle.support_matches:
+        return context_bundle
+    return None
+
+
+def _build_match_team_statistics(
+    statistics_service: StatisticsService,
+    team_name: str,
+    match: Match,
+    historical_matches: list[Match],
+    context_bundle: Optional[TrainingDataContextBundle] = None,
+) -> TeamStatistics:
+    """Build team stats using the contextual bundle when international context exists."""
+    if context_bundle and _context_bundle_has_team_context(context_bundle, team_name):
+        return statistics_service.build_contextual_team_statistics(
+            team_name,
+            match,
+            context_bundle,
+        )
+
+    return statistics_service.calculate_team_statistics(team_name, historical_matches)
 
 
 class GetLeaguesUseCase:
@@ -411,6 +487,7 @@ class GetPredictionsUseCase:
         league_averages: Any,
         min_matches: int,
         data_sources_used: list[str],
+        context_bundle: Optional[TrainingDataContextBundle] = None,
     ) -> tuple[list[dict], list[dict]]:
         """Build match_tasks and matches_processing_data from upcoming matches.
 
@@ -425,13 +502,19 @@ class GetPredictionsUseCase:
 
         for match in upcoming_matches[:limit]:
             # Get team statistics using the generic service
-            home_stats = self.statistics_service.calculate_team_statistics(
+            home_stats = _build_match_team_statistics(
+                self.statistics_service,
                 match.home_team.name,
+                match,
                 historical_matches,
+                context_bundle=context_bundle,
             )
-            away_stats = self.statistics_service.calculate_team_statistics(
+            away_stats = _build_match_team_statistics(
+                self.statistics_service,
                 match.away_team.name,
+                match,
                 historical_matches,
+                context_bundle=context_bundle,
             )
 
             # Generate prediction
@@ -927,6 +1010,9 @@ class GetPredictionsUseCase:
         # Build predictions
         predictions = []
         data_sources_used = self._determine_data_sources()
+        context_bundle = await _load_contextual_training_bundle(league_id)
+        if context_bundle and "Contextual International History" not in data_sources_used:
+            data_sources_used.append("Contextual International History")
 
         # Prepare parallel tasks
         min_matches = self._calculate_min_matches(league_id)
@@ -939,6 +1025,7 @@ class GetPredictionsUseCase:
             league_averages,
             min_matches,
             data_sources_used,
+            context_bundle=context_bundle,
         )
 
         # Execute generation (parallel via background processor or synchronous fallback)

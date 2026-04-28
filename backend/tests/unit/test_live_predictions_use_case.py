@@ -1,5 +1,9 @@
 import asyncio
+import sys
 from datetime import datetime
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 from src.application.dtos.dtos import (
     LeagueDTO,
@@ -8,12 +12,15 @@ from src.application.dtos.dtos import (
     PredictionDTO,
     TeamDTO,
 )
+import src.application.use_cases.live_predictions_use_case as live_module
 from src.application.use_cases.live_predictions_use_case import (
     GetLivePredictionsUseCase,
+    _get_context_bundle_from_cache,
     _determine_data_sources,
     _normalize_and_apply_probs,
     _persist_and_cache_response,
 )
+from src.domain.entities.entities import TrainingDataContextBundle
 
 
 def test_normalize_and_apply_probs_module():
@@ -268,3 +275,38 @@ def test_execute_dry_run():
 
     assert isinstance(results, list)
     assert len(results) >= 0
+
+
+def test_get_context_bundle_from_cache_reuses_loaded_bundle():
+    expected_bundle = TrainingDataContextBundle(target_matches=[])
+    context_bundle_cache = {}
+    calls = []
+    original_loader = live_module._load_contextual_training_bundle
+
+    async def fake_loader(league_id):
+        calls.append(league_id)
+        return expected_bundle
+
+    live_module._load_contextual_training_bundle = fake_loader
+    try:
+        first_result = asyncio.run(
+            _get_context_bundle_from_cache("LIB", context_bundle_cache)
+        )
+        second_result = asyncio.run(
+            _get_context_bundle_from_cache("LIB", context_bundle_cache)
+        )
+    finally:
+        live_module._load_contextual_training_bundle = original_loader
+
+    assert first_result is expected_bundle
+    assert second_result is expected_bundle
+    assert calls == ["LIB"]
+
+
+def test_get_context_bundle_from_cache_skips_domestic_leagues():
+    context_bundle_cache = {}
+
+    result = asyncio.run(_get_context_bundle_from_cache("E0", context_bundle_cache))
+
+    assert result is None
+    assert context_bundle_cache == {}

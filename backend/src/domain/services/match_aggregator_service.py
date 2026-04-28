@@ -76,13 +76,13 @@ class MatchAggregatorService:
         else:
             tasks.append(asyncio.sleep(0))
 
-        # 3. ESPN (Support for UCL/International)
+        # 3. ESPN (Support for all international tournaments, including LIB/SUD)
         if self.espn:
-            # ESPN is great for recent history of UCL
+            espn_days_back = 365 if league_id in ALL_INTERNATIONAL_TOURNAMENTS else 120
             tasks.append(
                 self.espn.get_finished_matches(
                     league_codes=[league_id],
-                    days_back=120,  # Get last 4 months for UCL context
+                    days_back=espn_days_back,
                 )
             )
         else:
