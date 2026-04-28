@@ -292,4 +292,3 @@ def test_build_match_tasks_uses_contextual_stats_for_both_teams_when_bundle_exis
         ("contextual", "Palmeiras"),
         ("contextual", "River Plate"),
     ]
-

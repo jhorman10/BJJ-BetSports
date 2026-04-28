@@ -16,10 +16,10 @@ except ImportError:
     RandomForestClassifier = None
     ML_AVAILABLE = False
 
-from src.application.services.training_data_service import TrainingDataService
 from src.application.services.ml_training_orchestrator_helper import (
     _process_single_match_task,
 )
+from src.application.services.training_data_service import TrainingDataService
 from src.core.constants import DEFAULT_LEAGUES
 from src.core.model_artifacts import cleanup_model_artifacts
 from src.domain.services.learning_service import LearningService

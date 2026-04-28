@@ -742,14 +742,18 @@ class StatisticsService:
             if match.league.id in ALL_INTERNATIONAL_TOURNAMENTS
         ]
         target_competition_matches = [
-            match for match in blended_matches if match.league.id == target_match.league.id
+            match
+            for match in blended_matches
+            if match.league.id == target_match.league.id
         ]
 
         contextual_stats.domestic_stats = StatisticsService._build_context_stats_dict(
             team_name, domestic_matches
         )
         contextual_stats.international_stats = (
-            StatisticsService._build_context_stats_dict(team_name, international_matches)
+            StatisticsService._build_context_stats_dict(
+                team_name, international_matches
+            )
         )
         contextual_stats.target_competition_stats = (
             StatisticsService._build_context_stats_dict(
@@ -957,7 +961,6 @@ class StatisticsService:
                 stats["domestic_stats"], match, is_home
             )
 
-
     @staticmethod
     def convert_to_domain_stats(team_name: str, raw_stats: dict) -> TeamStatistics:
         """Convert a raw stats dictionary to a TeamStatistics domain entity."""
@@ -989,9 +992,7 @@ class StatisticsService:
             domestic_stats=raw_stats.get("domestic_stats"),
             international_stats=raw_stats.get("international_stats"),
             target_competition_stats=raw_stats.get("target_competition_stats"),
-            context_resolution_metadata=raw_stats.get(
-                "context_resolution_metadata"
-            ),
+            context_resolution_metadata=raw_stats.get("context_resolution_metadata"),
         )
 
     def calculate_league_averages(self, matches: List[Match]) -> LeagueAverages:

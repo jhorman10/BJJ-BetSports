@@ -3,7 +3,11 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 
-from src.domain.entities.suggested_pick import ConfidenceLevel, MarketType, SuggestedPick
+from src.domain.entities.suggested_pick import (
+    ConfidenceLevel,
+    MarketType,
+    SuggestedPick,
+)
 from src.domain.services.ml_feature_extractor import MLFeatureExtractor
 
 

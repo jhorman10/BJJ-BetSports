@@ -7,11 +7,11 @@ import pytest
 
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 
+from src.application.services.training_data_service import TrainingDataService
 from src.domain.constants import LEAGUES_METADATA
 from src.domain.entities.entities import League, Match, Team
 from src.domain.services.match_enrichment_service import MatchEnrichmentService
 from src.domain.services.statistics_service import StatisticsService
-from src.application.services.training_data_service import TrainingDataService
 
 
 def _build_league(league_id: str, season: str | None = None) -> League:
@@ -81,7 +81,7 @@ async def test_fetch_contextual_training_data_keeps_domestic_bundle_compatible()
 
 
 @pytest.mark.asyncio
-async def test_fetch_contextual_training_data_separates_target_and_support_for_club_tournaments():
+async def test_fetch_contextual_training_data_separates_club_support_matches() -> None:
     service = _build_service()
     target_matches = [
         _build_match(
@@ -155,14 +155,19 @@ async def test_fetch_contextual_training_data_separates_target_and_support_for_c
     assert bundle.coverage_report["target_match_count"] == 1
     assert bundle.coverage_report["support_match_count"] == 3
     assert bundle.coverage_report["team_count"] == 2
-    assert bundle.coverage_report["teams"][palmeiras_key]["base_competition_id"] == "BRA1"
+    assert (
+        bundle.coverage_report["teams"][palmeiras_key]["base_competition_id"] == "BRA1"
+    )
     assert bundle.coverage_report["teams"][river_key]["base_competition_id"] == "ARG1"
-    assert "LIB" in bundle.coverage_report["teams"][palmeiras_key]["support_competition_ids"]
+    assert (
+        "LIB"
+        in bundle.coverage_report["teams"][palmeiras_key]["support_competition_ids"]
+    )
     assert service.fetch_comprehensive_training_data.await_count == 2
 
 
 @pytest.mark.asyncio
-async def test_fetch_contextual_training_data_uses_national_team_support_without_club_noise():
+async def test_fetch_contextual_training_data_uses_national_team_support_only() -> None:
     service = _build_service()
     target_matches = [
         _build_match(
@@ -223,9 +228,10 @@ async def test_fetch_contextual_training_data_uses_national_team_support_without
         "spain-euro-support",
         "spain-wc-support",
     }
-    assert {
-        match.league.id for match in bundle.support_matches_by_team[spain_key]
-    } == {"EURO", "WC"}
+    assert {match.league.id for match in bundle.support_matches_by_team[spain_key]} == {
+        "EURO",
+        "WC",
+    }
     assert {
         match.league.id for match in bundle.support_matches_by_team[france_key]
     } == {"WC"}
@@ -238,4 +244,9 @@ async def test_fetch_contextual_training_data_uses_national_team_support_without
         "confidence",
         "evidence",
     }
-    assert "SP1" in bundle.coverage_report["teams"][spain_key]["evidence"]["excluded_club_competitions"]
+    assert (
+        "SP1"
+        in bundle.coverage_report["teams"][spain_key]["evidence"][
+            "excluded_club_competitions"
+        ]
+    )

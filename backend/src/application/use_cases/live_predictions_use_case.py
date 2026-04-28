@@ -381,7 +381,10 @@ class GetLivePredictionsUseCase:
             return {}
 
         bundles = await asyncio.gather(
-            *[_load_contextual_training_bundle(league_id) for league_id in contextual_leagues]
+            *[
+                _load_contextual_training_bundle(league_id)
+                for league_id in contextual_leagues
+            ]
         )
         return dict(zip(contextual_leagues, bundles))
 

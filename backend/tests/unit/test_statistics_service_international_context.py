@@ -5,12 +5,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 from src.domain.constants import LEAGUES_METADATA
-from src.domain.entities.entities import (
-    League,
-    Match,
-    Team,
-    TrainingDataContextBundle,
-)
+from src.domain.entities.entities import League, Match, Team, TrainingDataContextBundle
 from src.domain.services.statistics_service import StatisticsService
 
 
@@ -83,7 +78,7 @@ def test_build_contextual_team_statistics_preserves_domestic_legacy_shape() -> N
     assert stats.context_resolution_metadata["mode"] == "domestic"
 
 
-def test_build_contextual_team_statistics_separates_club_domestic_and_target_context() -> None:
+def test_build_contextual_team_statistics_separates_club_contexts() -> None:
     target_match = _build_match(
         "lib-target",
         "Palmeiras",
@@ -154,7 +149,7 @@ def test_build_contextual_team_statistics_separates_club_domestic_and_target_con
     assert stats.context_resolution_metadata["support_match_count"] == 2
 
 
-def test_build_contextual_team_statistics_keeps_national_team_without_club_domestic_stats() -> None:
+def test_build_contextual_team_statistics_keeps_national_team_stats() -> None:
     target_match = _build_match(
         "euro-target",
         "Spain",

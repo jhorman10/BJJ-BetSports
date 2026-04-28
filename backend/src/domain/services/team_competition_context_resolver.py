@@ -5,7 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Literal, Sequence
 
-from src.domain.constants import ALL_INTERNATIONAL_TOURNAMENTS, NATIONAL_TEAM_TOURNAMENTS
+from src.domain.constants import (
+    ALL_INTERNATIONAL_TOURNAMENTS,
+    NATIONAL_TEAM_TOURNAMENTS,
+)
 from src.domain.entities.entities import Match
 from src.domain.services.statistics_service import StatisticsService
 
@@ -92,12 +95,17 @@ class TeamCompetitionContextResolver:
             days_gap = abs((target_match.match_date - match.match_date).days)
             recency_weight = max(
                 0.0,
-                1.0 - min(days_gap, self.domestic_window_days) / self.domestic_window_days,
+                1.0
+                - min(days_gap, self.domestic_window_days) / self.domestic_window_days,
             )
             season_bonus = 0.75 if self._season_key(match) == target_season_key else 0.0
             score = 1.0 + recency_weight + season_bonus
-            competition_scores[league_id] = competition_scores.get(league_id, 0.0) + score
-            competition_match_counts[league_id] = competition_match_counts.get(league_id, 0) + 1
+            competition_scores[league_id] = (
+                competition_scores.get(league_id, 0.0) + score
+            )
+            competition_match_counts[league_id] = (
+                competition_match_counts.get(league_id, 0) + 1
+            )
 
         ranked_competitions = sorted(
             competition_scores.items(),
@@ -108,12 +116,16 @@ class TeamCompetitionContextResolver:
             ),
         )
         base_competition_id, top_score = ranked_competitions[0]
-        second_score = ranked_competitions[1][1] if len(ranked_competitions) > 1 else 0.0
+        second_score = (
+            ranked_competitions[1][1] if len(ranked_competitions) > 1 else 0.0
+        )
         total_score = sum(competition_scores.values())
         top_share = top_score / total_score if total_score else 1.0
         confidence = min(
             0.99,
-            0.45 + (top_share * 0.35) + (min(max(top_score - second_score, 0.0), 3.0) * 0.08),
+            0.45
+            + (top_share * 0.35)
+            + (min(max(top_score - second_score, 0.0), 3.0) * 0.08),
         )
 
         support_competition_ids = tuple(

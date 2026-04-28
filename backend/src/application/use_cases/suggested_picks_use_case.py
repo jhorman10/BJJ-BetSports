@@ -139,7 +139,10 @@ class GetSuggestedPicksUseCase:
             league_averages = self.statistics_service.calculate_league_averages(
                 league_source_matches
             )
-            if context_bundle and "Contextual International History" not in _data_sources_used:
+            if (
+                context_bundle
+                and "Contextual International History" not in _data_sources_used
+            ):
                 _data_sources_used.append("Contextual International History")
 
             # 4. Enrich with new sources (Best effort, no blocking)

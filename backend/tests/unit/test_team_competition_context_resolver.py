@@ -235,7 +235,7 @@ def test_resolve_club_context_reuses_statistics_normalization():
 
     assert context.participant_type == "club"
     assert context.base_competition_id == "E0"
-    assert context.evidence["normalized_team_name"] == StatisticsService.normalize_team_name(
-        "Manchester City FC"
-    )
+    assert context.evidence[
+        "normalized_team_name"
+    ] == StatisticsService.normalize_team_name("Manchester City FC")
     assert "UCL" in context.support_competition_ids

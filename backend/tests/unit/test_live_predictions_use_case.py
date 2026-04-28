@@ -5,6 +5,7 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 
+import src.application.use_cases.live_predictions_use_case as live_module
 from src.application.dtos.dtos import (
     LeagueDTO,
     MatchDTO,
@@ -12,11 +13,10 @@ from src.application.dtos.dtos import (
     PredictionDTO,
     TeamDTO,
 )
-import src.application.use_cases.live_predictions_use_case as live_module
 from src.application.use_cases.live_predictions_use_case import (
     GetLivePredictionsUseCase,
-    _get_context_bundle_from_cache,
     _determine_data_sources,
+    _get_context_bundle_from_cache,
     _normalize_and_apply_probs,
     _persist_and_cache_response,
 )

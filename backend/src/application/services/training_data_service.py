@@ -11,7 +11,10 @@ from typing import Any, List, Optional, cast
 
 from src.application.use_cases.use_cases import DataSources
 from src.core.constants import DEFAULT_LEAGUES
-from src.domain.constants import ALL_INTERNATIONAL_TOURNAMENTS, NATIONAL_TEAM_TOURNAMENTS
+from src.domain.constants import (
+    ALL_INTERNATIONAL_TOURNAMENTS,
+    NATIONAL_TEAM_TOURNAMENTS,
+)
 from src.domain.entities.entities import League, Match, TrainingDataContextBundle
 from src.domain.services.match_enrichment_service import MatchEnrichmentService
 from src.domain.services.statistics_service import StatisticsService
@@ -247,7 +250,9 @@ class TrainingDataService:
         target_match_keys = {
             self._build_match_key(match) for match in sorted_target_matches
         }
-        target_matches_by_team = self._group_target_matches_by_team(sorted_target_matches)
+        target_matches_by_team = self._group_target_matches_by_team(
+            sorted_target_matches
+        )
 
         support_matches_by_team: dict[str, List[Match]] = {}
         support_match_map: dict[str, Match] = {}

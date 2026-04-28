@@ -23,7 +23,10 @@ from src.application.dtos.dtos import (
     SuggestedPickDTO,
     TeamDTO,
 )
-from src.domain.constants import ALL_INTERNATIONAL_TOURNAMENTS, CLUB_INTERNATIONAL_LEAGUES
+from src.domain.constants import (
+    ALL_INTERNATIONAL_TOURNAMENTS,
+    CLUB_INTERNATIONAL_LEAGUES,
+)
 from src.domain.entities.entities import (
     League,
     Match,
@@ -120,7 +123,7 @@ def _build_match_team_statistics(
     historical_matches: list[Match],
     context_bundle: Optional[TrainingDataContextBundle] = None,
 ) -> TeamStatistics:
-    """Build team stats using the contextual bundle when international context exists."""
+    """Build team stats with contextual bundles for international matches."""
     if context_bundle and _context_bundle_has_team_context(context_bundle, team_name):
         return statistics_service.build_contextual_team_statistics(
             team_name,
@@ -1011,7 +1014,10 @@ class GetPredictionsUseCase:
         predictions = []
         data_sources_used = self._determine_data_sources()
         context_bundle = await _load_contextual_training_bundle(league_id)
-        if context_bundle and "Contextual International History" not in data_sources_used:
+        if (
+            context_bundle
+            and "Contextual International History" not in data_sources_used
+        ):
             data_sources_used.append("Contextual International History")
 
         # Prepare parallel tasks
