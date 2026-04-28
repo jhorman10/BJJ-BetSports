@@ -168,7 +168,12 @@ class AIPicksService(PicksService):
         # 3. Apply "Model-First" Filtering & Logic
         # This is where the AI takes over: Filtering, Boosting, Locking.
         ai_refined_picks = self._process_ai_logic(
-            match, candidates, context_semantics, ml_model
+            match,
+            candidates,
+            context_semantics,
+            home_stats,
+            away_stats,
+            ml_model,
         )
 
         # 4. Update the container
@@ -249,6 +254,8 @@ class AIPicksService(PicksService):
         match: Match,
         picks: List[SuggestedPick],
         context: dict[str, bool],
+        home_stats: Optional[TeamStatistics],
+        away_stats: Optional[TeamStatistics],
         ml_model: Optional[object] = None,
     ) -> List[SuggestedPick]:
         """
@@ -263,7 +270,15 @@ class AIPicksService(PicksService):
         predict_proba = getattr(target_model, "predict_proba", None)
         if callable(predict_proba):
             try:
-                features_batch = [MLFeatureExtractor.extract_features(p) for p in picks]
+                features_batch = [
+                    MLFeatureExtractor.extract_features(
+                        pick,
+                        match,
+                        home_stats,
+                        away_stats,
+                    )
+                    for pick in picks
+                ]
                 probs = predict_proba(features_batch)
                 ml_confidences = []
                 for p in probs:
