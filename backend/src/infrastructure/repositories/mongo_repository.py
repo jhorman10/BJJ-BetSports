@@ -30,6 +30,16 @@ def _to_bson_friendly(value: Any) -> Any:
     return value
 
 
+def _to_prediction_result(doc: Dict[str, Any]) -> Dict[str, Any]:
+    """Expose active prediction docs in the shape expected by callers."""
+    return {
+        "match_id": doc["match_id"],
+        "league_id": doc.get("league_id"),
+        "prediction": doc.get("data"),
+        "last_updated": doc.get("last_updated"),
+    }
+
+
 class MongoRepository:
     """Drop-in replacement for PostgreSQL PersistenceRepository using MongoDB."""
 
@@ -197,14 +207,16 @@ class MongoRepository:
 
     def get_all_active_predictions(self) -> List[dict]:
         docs = self.match_predictions.find({"expires_at": {"$gt": get_current_time()}})
-        return [
+        return [_to_prediction_result(doc) for doc in docs]
+
+    def get_league_predictions(self, league_id: str) -> List[dict]:
+        docs = self.match_predictions.find(
             {
-                "match_id": doc["match_id"],
-                "prediction": doc["data"],
-                "last_updated": doc.get("last_updated"),
+                "league_id": league_id,
+                "expires_at": {"$gt": get_current_time()},
             }
-            for doc in docs
-        ]
+        )
+        return [_to_prediction_result(doc) for doc in docs]
 
     def save_cached_response(
         self,

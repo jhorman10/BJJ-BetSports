@@ -26,6 +26,7 @@ interface BotState {
   loading: boolean;
   error: string | null;
   isReconciling: boolean;
+  isTrainingServiceUnavailable: boolean;
 
   // Actions
   fetchTrainingData: (options?: {
@@ -58,6 +59,7 @@ export const useBotStore = create<BotState>()(
       loading: false,
       error: null,
       isReconciling: false,
+      isTrainingServiceUnavailable: false,
 
       fetchTrainingData: async (options = {}) => {
         const { forceRecalculate = false } = options;
@@ -86,6 +88,7 @@ export const useBotStore = create<BotState>()(
             trainingStatus: statusRes.status,
             trainingMessage: statusRes.message,
             hasResult: statusRes.has_result,
+            isTrainingServiceUnavailable: false,
           });
 
           // 2. If we have a result and it's what we need, use it immediately
@@ -99,6 +102,8 @@ export const useBotStore = create<BotState>()(
               lastUpdate: updateDate,
               lastFetchTimestamp: Date.now(),
               loading: false,
+              error: null,
+              isTrainingServiceUnavailable: false,
             });
 
             useOfflineStore.getState().setBackendAvailable(true);
@@ -111,8 +116,8 @@ export const useBotStore = create<BotState>()(
             return;
           }
 
-          // 4. If we need to trigger a new training
-          if (forceRecalculate || !statusRes.has_result) {
+          // 4. Only trigger a new training run when the user explicitly requests it.
+          if (forceRecalculate) {
             set({
               trainingStatus: "IN_PROGRESS",
               trainingMessage: "Iniciando entrenamiento...",
@@ -123,10 +128,13 @@ export const useBotStore = create<BotState>()(
         } catch (err: unknown) {
           const error =
             err instanceof Error ? err : new Error("Error desconocido");
+          const statusCode = (err as { response?: { status?: number } })?.response
+            ?.status;
           const isNetworkError =
             error.message === "Network Error" ||
             (err as { code?: string })?.code === "ERR_NETWORK" ||
             (err as { code?: string })?.code === "ECONNABORTED";
+          const isTrainingServiceUnavailable = statusCode === 503;
 
           if (isNetworkError) {
             useOfflineStore.getState().setBackendAvailable(false);
@@ -135,11 +143,17 @@ export const useBotStore = create<BotState>()(
           set({
             error: isNetworkError
               ? null
+              : isTrainingServiceUnavailable
+              ? "El servicio de entrenamiento no esta disponible en este momento. Intenta de nuevo en unos minutos."
               : error.message || "Error al cargar los datos de entrenamiento",
-            trainingStatus: isNetworkError ? "IDLE" : "ERROR",
+            trainingStatus:
+              isNetworkError || isTrainingServiceUnavailable ? "IDLE" : "ERROR",
             trainingMessage: isNetworkError
               ? "Buscando servidor..."
+              : isTrainingServiceUnavailable
+              ? "Servicio de entrenamiento temporalmente no disponible"
               : "Error en la conexión",
+            isTrainingServiceUnavailable,
           });
         } finally {
           set({ loading: false });
@@ -173,6 +187,7 @@ export const useBotStore = create<BotState>()(
                 lastUpdate: updateDate,
                 lastFetchTimestamp: Date.now(),
                 error: null,
+                isTrainingServiceUnavailable: false,
               });
 
               return;
@@ -205,6 +220,8 @@ export const useBotStore = create<BotState>()(
           stats,
           lastUpdate: now,
           lastFetchTimestamp: Date.now(),
+          error: null,
+          isTrainingServiceUnavailable: false,
         });
       },
 
@@ -214,6 +231,7 @@ export const useBotStore = create<BotState>()(
           lastUpdate: null,
           lastFetchTimestamp: null,
           error: null,
+          isTrainingServiceUnavailable: false,
         });
         localStorageObserver.remove("bot-training-data");
         localforage.removeItem("bot-storage");

@@ -21,6 +21,9 @@ from src.api.schemas.health import HealthResponse
 from src.api.security import require_admin_key
 from src.api.utils.helpers import _load_training_result
 from src.api.utils.serializers import _utc_now_iso
+from src.core.env import load_backend_env
+
+load_backend_env()
 
 # Logger and runtime globals
 _logger = logging.getLogger(__name__)

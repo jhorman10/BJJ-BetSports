@@ -53,8 +53,9 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         runtimeCaching: [
           {
-            // Match any API call (works with any backend URL)
-            urlPattern: /\/api\/.*/i,
+            // Only cache real backend API calls, not Vite source modules like /src/infrastructure/api/*.ts
+            urlPattern: ({ url }) =>
+              url.pathname === "/api" || url.pathname.startsWith("/api/"),
             handler: "NetworkFirst",
             options: {
               cacheName: "api-cache",

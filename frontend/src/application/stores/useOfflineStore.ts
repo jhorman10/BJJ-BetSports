@@ -1,4 +1,33 @@
 import { create } from "zustand";
+import { api } from "../../services/api";
+
+const CONNECTIVITY_CHECK_TIMEOUT_MS = 3000;
+
+const getBrowserOnlineState = (): boolean => {
+  if (typeof navigator === "undefined") {
+    return true;
+  }
+
+  return navigator.onLine;
+};
+
+const withTimeout = <T>(promise: Promise<T>, timeoutMs: number): Promise<T> =>
+  new Promise<T>((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => {
+      reject(new Error("Connectivity check timed out"));
+    }, timeoutMs);
+
+    promise.then(
+      (value) => {
+        window.clearTimeout(timeoutId);
+        resolve(value);
+      },
+      (error) => {
+        window.clearTimeout(timeoutId);
+        reject(error);
+      }
+    );
+  });
 
 interface OfflineState {
   isOnline: boolean;
@@ -11,7 +40,7 @@ interface OfflineState {
 }
 
 export const useOfflineStore = create<OfflineState>((set) => ({
-  isOnline: navigator.onLine,
+  isOnline: true,
   isBackendAvailable: true,
   lastSync: null,
 
@@ -20,26 +49,31 @@ export const useOfflineStore = create<OfflineState>((set) => ({
   updateLastSync: () => set({ lastSync: Date.now() }),
 
   checkConnectivity: async () => {
-    // 1. Basic network check
-    if (!navigator.onLine) {
-      set({ isOnline: false });
+    const browserOnline = getBrowserOnlineState();
+
+    if (!browserOnline) {
+      set({ isOnline: false, isBackendAvailable: false });
       return;
     }
 
-    set({ isOnline: true });
-
-    // 2. Check Backend Health (optional, or just rely on API failure)
-    // We can assume backend is available until proven otherwise by an API error
-    // so we won't ping explicitly constantly, but we can do a quick check on mount if needed.
+    try {
+      await withTimeout(api.healthCheck(), CONNECTIVITY_CHECK_TIMEOUT_MS);
+      set({ isOnline: true, isBackendAvailable: true });
+    } catch {
+      set({
+        isOnline: browserOnline,
+        isBackendAvailable: false,
+      });
+    }
   },
 }));
 
 // Setup global listeners
 if (typeof window !== "undefined") {
-  window.addEventListener("online", () =>
-    useOfflineStore.getState().setOnline(true)
-  );
-  window.addEventListener("offline", () =>
-    useOfflineStore.getState().setOnline(false)
-  );
+  const recheckConnectivity = () => {
+    void useOfflineStore.getState().checkConnectivity();
+  };
+
+  window.addEventListener("online", recheckConnectivity);
+  window.addEventListener("offline", recheckConnectivity);
 }
