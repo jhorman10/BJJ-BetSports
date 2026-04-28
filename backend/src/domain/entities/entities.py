@@ -362,6 +362,8 @@ class TeamStatistics:
     # Contexto Local e Internacional (World Cup / Libertadores expansion)
     domestic_stats: Optional[dict[str, Any]] = field(default=None)
     international_stats: Optional[dict[str, Any]] = field(default=None)
+    target_competition_stats: Optional[dict[str, Any]] = field(default=None)
+    context_resolution_metadata: Optional[dict[str, Any]] = field(default=None)
     data_updated_at: Optional[datetime] = None
 
     @property
