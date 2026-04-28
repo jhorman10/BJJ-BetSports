@@ -12,7 +12,7 @@ def _process_single_match_task(
     statistics_service: Any,
     resolution_service: Any,
     feature_extractor: Any,
-) -> tuple[Any, Any, Any] | None:
+) -> tuple[Any, Any, Any, Any, Any] | None:
     """
     Standalone function to process a single match for prediction and pick generation.
     Designed to be picklable for parallel execution.
@@ -48,7 +48,13 @@ def _process_single_match_task(
             away_win_prob=prediction.away_win_probability,
         )
 
-        return (match, prediction, suggested_picks_container)
+        return (
+            match,
+            prediction,
+            suggested_picks_container,
+            home_stats,
+            away_stats,
+        )
 
     except Exception:
         # We can't log easily here if pickling logger issues arise, so just return None

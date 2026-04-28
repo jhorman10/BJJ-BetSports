@@ -17,6 +17,9 @@ except ImportError:
     ML_AVAILABLE = False
 
 from src.application.services.training_data_service import TrainingDataService
+from src.application.services.ml_training_orchestrator_helper import (
+    _process_single_match_task,
+)
 from src.core.constants import DEFAULT_LEAGUES
 from src.core.model_artifacts import cleanup_model_artifacts
 from src.domain.services.learning_service import LearningService
@@ -110,6 +113,8 @@ def _compute_picks_metrics(
     resolution_service: PickResolutionService,
     feature_extractor: MLFeatureExtractor,
     match: Any,
+    home_stats: Any,
+    away_stats: Any,
 ) -> tuple[
     List[dict[str, Any]],
     List[Any],
@@ -151,7 +156,14 @@ def _compute_picks_metrics(
         }
         picks_list.append(p_detail)
 
-        ml_feats.append(feature_extractor.extract_features(pick))
+        ml_feats.append(
+            feature_extractor.extract_features(
+                pick,
+                match,
+                home_stats,
+                away_stats,
+            )
+        )
         ml_tgts.append(1 if is_won else 0)
 
         if p_detail["market_type"] in ["winner", "draw", "result_1x2"]:
@@ -250,6 +262,8 @@ def _build_match_history_entry(
 
 def _process_match_for_dataset(
     match: Any,
+    raw_home: dict[str, Any],
+    raw_away: dict[str, Any],
     prediction_service: PredictionService,
     cache_service: CacheService,
     picks_service_instance: PicksService,
@@ -281,38 +295,35 @@ def _process_match_for_dataset(
     try:
         league_averages = league_averages_map.get(match.league.id)
 
-        prediction = prediction_service.generate_prediction(
+        processed_match = _process_single_match_task(
             match=match,
-            home_stats=statistics_service.convert_to_domain_stats(
-                match.home_team.name, statistics_service.create_empty_stats_dict()
-            ),
-            away_stats=statistics_service.convert_to_domain_stats(
-                match.away_team.name, statistics_service.create_empty_stats_dict()
-            ),
+            raw_home=raw_home,
+            raw_away=raw_away,
             league_averages=league_averages,
-            min_matches=0,
+            global_averages_obj=None,
+            prediction_service=prediction_service,
+            picks_service=picks_service_instance,
+            statistics_service=statistics_service,
+            resolution_service=resolution_service,
+            feature_extractor=feature_extractor,
         )
+        if not processed_match:
+            return None
+
+        (
+            _,
+            prediction,
+            generated_picks_container,
+            home_stats,
+            away_stats,
+        ) = processed_match
 
         cache_key = f"forecasts:match_{match.id}"
         cached_result = cache_service.get(cache_key)
 
         suggested_picks_container = _parse_cached_suggested_picks(cached_result, match)
         if not suggested_picks_container:
-            suggested_picks_container = picks_service_instance.generate_suggested_picks(
-                match=match,
-                home_stats=statistics_service.convert_to_domain_stats(
-                    match.home_team.name, statistics_service.create_empty_stats_dict()
-                ),
-                away_stats=statistics_service.convert_to_domain_stats(
-                    match.away_team.name, statistics_service.create_empty_stats_dict()
-                ),
-                league_averages=league_averages,
-                predicted_home_goals=prediction.predicted_home_goals,
-                predicted_away_goals=prediction.predicted_away_goals,
-                home_win_prob=prediction.home_win_probability,
-                draw_prob=prediction.draw_probability,
-                away_win_prob=prediction.away_win_probability,
-            )
+            suggested_picks_container = generated_picks_container
 
         picks_to_process = (
             suggested_picks_container.suggested_picks
@@ -331,7 +342,12 @@ def _process_match_for_dataset(
             pick_was_correct,
             max_ev_value,
         ) = _compute_picks_metrics(
-            picks_to_process, resolution_service, feature_extractor, match
+            picks_to_process,
+            resolution_service,
+            feature_extractor,
+            match,
+            home_stats,
+            away_stats,
         )
 
         match_entry = _build_match_history_entry(
@@ -447,6 +463,8 @@ async def prepare_datasets(
         # Delegate heavy per-match processing to helper
         processed = _process_match_for_dataset(
             match,
+            raw_home,
+            raw_away,
             prediction_service,
             cache_service,
             picks_service_instance,
