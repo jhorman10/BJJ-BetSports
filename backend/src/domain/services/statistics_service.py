@@ -9,6 +9,7 @@ from __future__ import annotations
 import unicodedata
 from typing import Any, List, Optional
 
+from src.domain.constants import ALL_INTERNATIONAL_TOURNAMENTS
 from src.domain.entities.entities import Match, TeamH2HStatistics, TeamStatistics
 from src.domain.value_objects.value_objects import LeagueAverages
 
@@ -783,7 +784,7 @@ class StatisticsService:
         StatisticsService._update_raw_stats_dict(stats, match, is_home)
 
         # Update contextual stats
-        is_intl = match.league.id in ["UCL", "UEL", "UECL", "WC", "EURO", "LIB", "SUD"]
+        is_intl = match.league.id in ALL_INTERNATIONAL_TOURNAMENTS
 
         if is_intl:
             if "international_stats" not in stats:
