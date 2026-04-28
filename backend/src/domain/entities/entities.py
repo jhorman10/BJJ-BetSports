@@ -169,6 +169,16 @@ class Match:
         return self.home_goals + self.away_goals
 
 
+@dataclass(frozen=True)
+class TrainingDataContextBundle:
+    """Explicit training-data contract for contextual target/support corpora."""
+
+    target_matches: list[Match] = field(default_factory=list)
+    support_matches: list[Match] = field(default_factory=list)
+    support_matches_by_team: dict[str, list[Match]] = field(default_factory=dict)
+    coverage_report: dict[str, Any] = field(default_factory=dict)
+
+
 @dataclass
 class MatchEvent:
     """
