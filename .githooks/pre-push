@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+
+if [[ -z "$REPO_ROOT" ]]; then
+    echo "❌ No se pudo resolver la raíz del repositorio." >&2
+    exit 1
+fi
+
+cd "$REPO_ROOT"
+
+echo "🚀 Ejecutando quality gate full-stack antes del push..."
+./scripts/quality_gate.sh all
+echo "✅ CI local aprobada. Push habilitado."
