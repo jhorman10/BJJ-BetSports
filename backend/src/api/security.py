@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import os
 from typing import Optional
-from urllib.parse import urlparse
 
 from fastapi import HTTPException, Request, Security
 from fastapi.security import APIKeyHeader
@@ -33,21 +32,8 @@ def _get_request_host(request: Request) -> str:
     return ""
 
 
-def _get_origin_host(request: Request) -> str:
-    origin = request.headers.get("origin") or request.headers.get("referer")
-    if not origin:
-        return ""
-
-    parsed = urlparse(origin)
-    hostname = parsed.hostname or ""
-    return str(hostname).strip().lower()
-
-
 def _is_local_dev_request(request: Request) -> bool:
-    return (
-        _get_request_host(request) in _LOCAL_DEV_HOSTS
-        or _get_origin_host(request) in _LOCAL_DEV_HOSTS
-    )
+    return _get_request_host(request) in _LOCAL_DEV_HOSTS
 
 
 def _allow_local_dev_bypass(request: Request) -> bool:

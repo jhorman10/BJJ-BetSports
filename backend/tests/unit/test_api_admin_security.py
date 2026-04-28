@@ -55,7 +55,6 @@ def test_trigger_training_allows_local_dev_browser_without_api_key(monkeypatch) 
     client = TestClient(main_mod.app)
     response = client.post(
         "/api/v1/train/run-now",
-        headers={"Origin": "http://localhost:5173"},
     )
 
     assert response.status_code == 200

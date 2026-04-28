@@ -752,9 +752,12 @@ class GetTopMLPicksUseCase:
             unique_match_picks = []
 
             for pred_data in active_preds:
-                payload = (
-                    pred_data.get("prediction") or pred_data.get("data") or pred_data
-                )
+                if "prediction" in pred_data:
+                    payload = pred_data.get("prediction")
+                elif "data" in pred_data:
+                    payload = pred_data.get("data")
+                else:
+                    payload = pred_data
                 if not isinstance(payload, dict):
                     continue
 

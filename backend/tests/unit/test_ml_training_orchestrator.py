@@ -3,7 +3,6 @@ import datetime
 
 from src.application.services import ml_training_orchestrator as orchestrator
 from src.domain.entities.betting_feedback import LearningWeights
-from src.domain.services.learning_service import LearningService
 
 
 class _Simple:
@@ -156,6 +155,10 @@ def test_prepare_datasets_passes_learning_weights_entity_to_picks_factory():
         captured.update(kwargs)
         return DummyPicksService()
 
+    class DummyLearningService:
+        def get_learning_weights(self):
+            return LearningWeights()
+
     asyncio.run(
         orchestrator.prepare_datasets(
             training_data_service=DummyTrainingDataService(),
@@ -164,7 +167,7 @@ def test_prepare_datasets_passes_learning_weights_entity_to_picks_factory():
             resolution_service=_Simple(),
             cache_service=_Simple(),
             feature_extractor=_Simple(),
-            learning_service=LearningService(),
+            learning_service=DummyLearningService(),
             picks_service_factory=picks_service_factory,
             league_ids=["L1"],
             days_back=1,
