@@ -4,6 +4,20 @@ Domain Constants
 This module contains constant definitions valid across the domain layer.
 """
 
+ORDERED_INTERNATIONAL_TOURNAMENTS = (
+    "UCL",
+    "UEL",
+    "UECL",
+    "EURO",
+    "WC",
+    "LIB",
+    "SUD",
+)
+
+CLUB_INTERNATIONAL_LEAGUES = frozenset({"UCL", "UEL", "UECL", "LIB", "SUD"})
+NATIONAL_TEAM_TOURNAMENTS = frozenset({"EURO", "WC"})
+ALL_INTERNATIONAL_TOURNAMENTS = CLUB_INTERNATIONAL_LEAGUES | NATIONAL_TEAM_TOURNAMENTS
+
 # Mapping of league codes to metadata
 LEAGUES_METADATA = {
     # England

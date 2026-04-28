@@ -15,6 +15,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import Any, Coroutine, List
 
+from src.domain.constants import ALL_INTERNATIONAL_TOURNAMENTS
 from src.domain.entities.entities import League, Match
 from src.infrastructure.data_sources.espn import ESPNSource
 from src.infrastructure.data_sources.football_data_org import FootballDataOrgSource
@@ -258,8 +259,7 @@ class MatchAggregatorService:
         Fetch upcoming matches from available sources.
         """
         # Tournament leagues play less frequently, need more days_ahead
-        tournament_leagues = ["UCL", "UEL", "UECL", "EURO", "WC"]
-        days_ahead = 30 if league_id in tournament_leagues else 7
+        days_ahead = 30 if league_id in ALL_INTERNATIONAL_TOURNAMENTS else 7
 
         # 1. Try ESPN (Primary - Has Odds)
         try:

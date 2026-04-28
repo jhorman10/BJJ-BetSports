@@ -2,6 +2,8 @@
 Centralized constants for the BJJ-BetSports backend.
 """
 
+from src.domain.constants import ORDERED_INTERNATIONAL_TOURNAMENTS
+
 # Default leagues used for training and predictions (§15.B compliant)
 DEFAULT_LEAGUES = [
     # Top Tier
@@ -27,13 +29,7 @@ DEFAULT_LEAGUES = [
     "B2",
     "P2",
     # International & South America
-    "UCL",
-    "UEL",
-    "UECL",
-    "EURO",
-    "WC",
-    "LIB",
-    "SUD",
+    *ORDERED_INTERNATIONAL_TOURNAMENTS,
     "COL1",
     "ARG1",
     "BRA1",

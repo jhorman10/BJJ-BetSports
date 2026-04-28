@@ -23,6 +23,7 @@ from src.application.dtos.dtos import (
     SuggestedPickDTO,
     TeamDTO,
 )
+from src.domain.constants import CLUB_INTERNATIONAL_LEAGUES
 from src.domain.entities.entities import League, Match, Prediction
 from src.domain.services.match_aggregator_service import MatchAggregatorService
 from src.domain.services.prediction_service import PredictionService
@@ -993,7 +994,7 @@ class GetPredictionsUseCase:
     def _calculate_min_matches(self, league_id: str) -> int:
         """Determine min_matches threshold based on league type."""
         min_matches = 6
-        if league_id in ["UCL", "UEL", "UECL"]:
+        if league_id in CLUB_INTERNATIONAL_LEAGUES:
             min_matches = 3
             logger.info(
                 f"Using relaxed min_matches={min_matches} for tournament {league_id}"
