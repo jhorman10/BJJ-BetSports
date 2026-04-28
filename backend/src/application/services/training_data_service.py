@@ -7,11 +7,21 @@ from multiple sources (GitHub, CSV, API-Football, ESPN, etc.).
 
 import logging
 from datetime import datetime, timedelta
-from typing import List, Optional, cast
+from typing import Any, List, Optional, cast
 
 from src.application.use_cases.use_cases import DataSources
-from src.domain.entities.entities import League, Match
+from src.core.constants import DEFAULT_LEAGUES
+from src.domain.constants import (
+    ALL_INTERNATIONAL_TOURNAMENTS,
+    NATIONAL_TEAM_TOURNAMENTS,
+)
+from src.domain.entities.entities import League, Match, TrainingDataContextBundle
 from src.domain.services.match_enrichment_service import MatchEnrichmentService
+from src.domain.services.statistics_service import StatisticsService
+from src.domain.services.team_competition_context_resolver import (
+    TeamCompetitionContext,
+    TeamCompetitionContextResolver,
+)
 from src.utils.time_utils import COLOMBIA_TZ, get_current_time
 
 logger = logging.getLogger(__name__)
@@ -23,10 +33,14 @@ class TrainingDataService:
     """
 
     def __init__(
-        self, data_sources: DataSources, enrichment_service: MatchEnrichmentService
+        self,
+        data_sources: DataSources,
+        enrichment_service: MatchEnrichmentService,
+        context_resolver: Optional[TeamCompetitionContextResolver] = None,
     ) -> None:
         self.data_sources = data_sources
         self.enrichment_service = enrichment_service
+        self.context_resolver = context_resolver or TeamCompetitionContextResolver()
 
     async def _fetch_github_matches(
         self, leagues: List[str], start_date: Optional[str], days_back: Optional[int]
@@ -156,6 +170,175 @@ class TrainingDataService:
         if dt.tzinfo is None:
             return cast(datetime, COLOMBIA_TZ.localize(dt))
         return cast(datetime, dt)
+
+    async def fetch_contextual_training_data(
+        self,
+        leagues: List[str],
+        days_back: Optional[int] = None,
+        start_date: Optional[str] = None,
+        force_refresh: bool = False,
+    ) -> TrainingDataContextBundle:
+        """Return an explicit target/support bundle for contextual training flows."""
+        target_matches = await self.fetch_comprehensive_training_data(
+            leagues=leagues,
+            days_back=days_back,
+            start_date=start_date,
+            force_refresh=force_refresh,
+        )
+
+        if not target_matches or not self._requires_contextual_bundle(leagues):
+            return self._build_domestic_training_bundle(leagues, target_matches)
+
+        support_candidates = await self._fetch_contextual_support_candidates(
+            leagues=leagues,
+            days_back=days_back,
+            start_date=start_date,
+            force_refresh=force_refresh,
+        )
+        candidate_matches = self.enrichment_service.merge_matches(
+            list(target_matches), support_candidates
+        )
+        return self._build_international_training_bundle(
+            leagues=leagues,
+            target_matches=target_matches,
+            candidate_matches=candidate_matches,
+        )
+
+    def _requires_contextual_bundle(self, leagues: List[str]) -> bool:
+        return any(league_id in ALL_INTERNATIONAL_TOURNAMENTS for league_id in leagues)
+
+    async def _fetch_contextual_support_candidates(
+        self,
+        leagues: List[str],
+        days_back: Optional[int],
+        start_date: Optional[str],
+        force_refresh: bool,
+    ) -> List[Match]:
+        support_leagues = sorted(set(DEFAULT_LEAGUES).union(leagues))
+        return await self.fetch_comprehensive_training_data(
+            leagues=support_leagues,
+            days_back=days_back,
+            start_date=start_date,
+            force_refresh=force_refresh,
+        )
+
+    def _build_domestic_training_bundle(
+        self, leagues: List[str], target_matches: List[Match]
+    ) -> TrainingDataContextBundle:
+        sorted_target_matches = sorted(target_matches, key=self._get_sortable_date)
+        return TrainingDataContextBundle(
+            target_matches=sorted_target_matches,
+            support_matches=[],
+            support_matches_by_team={},
+            coverage_report={
+                "mode": "domestic",
+                "requested_league_ids": tuple(leagues),
+                "target_match_count": len(sorted_target_matches),
+                "support_match_count": 0,
+                "team_count": 0,
+                "teams": {},
+            },
+        )
+
+    def _build_international_training_bundle(
+        self,
+        leagues: List[str],
+        target_matches: List[Match],
+        candidate_matches: List[Match],
+    ) -> TrainingDataContextBundle:
+        sorted_target_matches = sorted(target_matches, key=self._get_sortable_date)
+        target_match_keys = {
+            self._build_match_key(match) for match in sorted_target_matches
+        }
+        target_matches_by_team = self._group_target_matches_by_team(
+            sorted_target_matches
+        )
+
+        support_matches_by_team: dict[str, List[Match]] = {}
+        support_match_map: dict[str, Match] = {}
+        team_reports: dict[str, dict[str, Any]] = {}
+
+        for normalized_team_name, team_target_matches in target_matches_by_team.items():
+            anchor_match = max(team_target_matches, key=self._get_sortable_date)
+            context = self.context_resolver.resolve(
+                normalized_team_name, anchor_match, candidate_matches
+            )
+            team_support_matches = [
+                match
+                for match in candidate_matches
+                if self._match_contains_team(normalized_team_name, match)
+                and self._build_match_key(match) not in target_match_keys
+                and self._match_is_valid_support(match, context)
+            ]
+            team_support_matches.sort(key=self._get_sortable_date)
+
+            support_matches_by_team[normalized_team_name] = team_support_matches
+            for match in team_support_matches:
+                support_match_map.setdefault(self._build_match_key(match), match)
+
+            team_reports[normalized_team_name] = {
+                "participant_type": context.participant_type,
+                "base_competition_id": context.base_competition_id,
+                "support_competition_ids": context.support_competition_ids,
+                "target_match_count": len(team_target_matches),
+                "support_match_count": len(team_support_matches),
+                "confidence": context.confidence,
+                "evidence": context.evidence,
+            }
+
+        support_matches = sorted(
+            support_match_map.values(), key=self._get_sortable_date
+        )
+        return TrainingDataContextBundle(
+            target_matches=sorted_target_matches,
+            support_matches=support_matches,
+            support_matches_by_team=support_matches_by_team,
+            coverage_report={
+                "mode": "international",
+                "requested_league_ids": tuple(leagues),
+                "target_match_count": len(sorted_target_matches),
+                "support_match_count": len(support_matches),
+                "team_count": len(target_matches_by_team),
+                "teams": team_reports,
+            },
+        )
+
+    def _group_target_matches_by_team(
+        self, target_matches: List[Match]
+    ) -> dict[str, List[Match]]:
+        grouped_matches: dict[str, List[Match]] = {}
+        for match in target_matches:
+            for team_name in (match.home_team.name, match.away_team.name):
+                normalized_team_name = StatisticsService.normalize_team_name(team_name)
+                grouped_matches.setdefault(normalized_team_name, []).append(match)
+        return grouped_matches
+
+    def _match_contains_team(self, normalized_team_name: str, match: Match) -> bool:
+        return normalized_team_name in {
+            StatisticsService.normalize_team_name(match.home_team.name),
+            StatisticsService.normalize_team_name(match.away_team.name),
+        }
+
+    def _match_is_valid_support(
+        self, match: Match, context: TeamCompetitionContext
+    ) -> bool:
+        if context.participant_type == "national_team":
+            return match.league.id in NATIONAL_TEAM_TOURNAMENTS
+
+        relevant_competitions = set(context.support_competition_ids)
+        if context.base_competition_id:
+            relevant_competitions.add(context.base_competition_id)
+        return match.league.id in relevant_competitions
+
+    def _build_match_key(self, match: Match) -> str:
+        return "|".join(
+            [
+                match.match_date.strftime("%Y-%m-%d"),
+                StatisticsService.normalize_team_name(match.home_team.name),
+                StatisticsService.normalize_team_name(match.away_team.name),
+                match.league.id,
+            ]
+        )
 
     async def fetch_comprehensive_training_data(
         self,

@@ -16,10 +16,6 @@ on:
         type: number
         default: 1
 
-permissions:
-  administration: write
-  contents: read
-
 jobs:
   protect-main:
     name: 🔒 Proteger rama main
@@ -29,15 +25,24 @@ jobs:
       - name: Aplicar reglas de protección a main
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.BRANCH_PROTECTION_TOKEN }}
           script: |
             const reviewCount = Number('${{ inputs.required_approving_review_count }}') || 1;
+            const requiredStatusChecks = {
+              strict: true,
+              contexts: [
+                'Backend: Lint + Types',
+                'Backend: Tests',
+                'Frontend: Lint + Build',
+                'Frontend: Tests',
+              ],
+            };
 
             await github.rest.repos.updateBranchProtection({
               owner: context.repo.owner,
               repo: context.repo.repo,
               branch: 'main',
-              required_status_checks: null,
+              required_status_checks: requiredStatusChecks,
               enforce_admins: true,
               required_pull_request_reviews: {
                 dismiss_stale_reviews: true,
@@ -53,6 +58,7 @@ jobs:
             core.summary.addHeading('🔒 Rama main protegida', 3);
             core.summary.addList([
               'Commits directos bloqueados — solo se permiten Pull Requests',
+              'Se requieren todos los checks de CI del PR antes de mergear',
               `Se requieren ${reviewCount} revisión(es) aprobatoria(s)`,
               'Las reviews obsoletas se descartan al hacer nuevos commits',
               'Reglas aplicadas también a administradores',
@@ -68,15 +74,24 @@ jobs:
       - name: Aplicar reglas de protección a develop
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.BRANCH_PROTECTION_TOKEN }}
           script: |
             const reviewCount = Number('${{ inputs.required_approving_review_count }}') || 1;
+            const requiredStatusChecks = {
+              strict: true,
+              contexts: [
+                'Backend: Lint + Types',
+                'Backend: Tests',
+                'Frontend: Lint + Build',
+                'Frontend: Tests',
+              ],
+            };
 
             await github.rest.repos.updateBranchProtection({
               owner: context.repo.owner,
               repo: context.repo.repo,
               branch: 'develop',
-              required_status_checks: null,
+              required_status_checks: requiredStatusChecks,
               enforce_admins: true,
               required_pull_request_reviews: {
                 dismiss_stale_reviews: true,
@@ -92,6 +107,7 @@ jobs:
             core.summary.addHeading('🔒 Rama develop protegida', 3);
             core.summary.addList([
               'Commits directos bloqueados — solo se permiten Pull Requests',
+              'Se requieren todos los checks de CI del PR antes de mergear',
               `Se requieren ${reviewCount} revisión(es) aprobatoria(s)`,
               'Las reviews obsoletas se descartan al hacer nuevos commits',
               'Reglas aplicadas también a administradores',

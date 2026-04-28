@@ -4,6 +4,24 @@ Resumen rápido
 --------------
 Esta guía recoge el flujo canónico para validar backend y frontend localmente y para entender cómo CI valida el código.
 
+Política de push
+----------------
+- Antes de cualquier `git push`, instala el hook versionado una vez desde la raíz:
+
+```bash
+./scripts/setup-hooks.sh
+```
+
+- El hook de `pre-push` ejecuta el gate completo:
+
+```bash
+./scripts/quality_gate.sh all
+```
+
+- Si el gate falla, el push queda bloqueado y no debe subirse código hasta corregirlo.
+- La validación remota se completa en Pull Requests: `setup-branch-protection.yml` está preparado para exigir los checks `Backend: Lint + Types`, `Backend: Tests`, `Frontend: Lint + Build` y `Frontend: Tests` antes de mergear a ramas protegidas.
+- Para ejecutar `setup-branch-protection.yml`, configura el secreto `BRANCH_PROTECTION_TOKEN` con permisos de administración del repositorio.
+
 Comandos principales (local)
 ---------------------------
 - Ejecutar el gate canónico full-stack desde la raíz del repo:

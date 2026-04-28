@@ -75,6 +75,11 @@ class GetSuggestedPicksUseCase:
         Generate suggested picks for a match. Guaranteed to use real data.
         """
         try:
+            from src.application.use_cases.use_cases import (
+                _build_match_team_statistics,
+                _load_contextual_training_bundle,
+            )
+
             # 1. Get match details (always returns a Match if reconstructible)
             match = match_data if match_data else await self._get_match(match_id)
             if not match:
@@ -89,6 +94,8 @@ class GetSuggestedPicksUseCase:
                     combination_warning="Partido no encontrado o datos insuficientes.",
                     generated_at=get_current_time(),
                 )
+
+            context_bundle = await _load_contextual_training_bundle(match.league.id)
 
             # 1.5 Fetch Global Averages (async-safe)
             global_avg_data = await self.cache_service.aget(
@@ -109,20 +116,34 @@ class GetSuggestedPicksUseCase:
                 _data_sources_used = ["Historical Data"]
 
             # 3. Calculate team statistics
-            # These will containMP=0 if no history found, but service handles it.
-            home_stats = self.statistics_service.calculate_team_statistics(
+            # These will contain MP=0 if no history found, but service handles it.
+            home_stats = _build_match_team_statistics(
+                self.statistics_service,
                 match.home_team.name,
+                match,
                 historical_matches,
+                context_bundle=context_bundle,
             )
-            away_stats = self.statistics_service.calculate_team_statistics(
+            away_stats = _build_match_team_statistics(
+                self.statistics_service,
                 match.away_team.name,
+                match,
                 historical_matches,
+                context_bundle=context_bundle,
             )
 
             # 4. Calculate League Averages (REAL data from aggregated history)
-            league_averages = self.statistics_service.calculate_league_averages(
-                historical_matches
+            league_source_matches = (
+                context_bundle.target_matches if context_bundle else historical_matches
             )
+            league_averages = self.statistics_service.calculate_league_averages(
+                league_source_matches
+            )
+            if (
+                context_bundle
+                and "Contextual International History" not in _data_sources_used
+            ):
+                _data_sources_used.append("Contextual International History")
 
             # 4. Enrich with new sources (Best effort, no blocking)
             highlights_url = None
@@ -156,8 +177,10 @@ class GetSuggestedPicksUseCase:
                 logger.warning("Secondary data enrichment failed: %s", e)
 
             # Define sources used
-            prediction_sources = ["Historical Data"]
-            if pre_fetched_history:
+            prediction_sources = list(_data_sources_used)
+            if not prediction_sources:
+                prediction_sources = ["Historical Data"]
+            if pre_fetched_history and "Bulk Context" not in prediction_sources:
                 prediction_sources.append("Bulk Context")
             if self.data_sources.football_data_org.is_configured:
                 prediction_sources.append("Football-Data.org")

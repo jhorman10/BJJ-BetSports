@@ -1,14 +1,11 @@
-import asyncio
+import sys
+from pathlib import Path
 
 import pytest
 
-
-# Provide an asyncio event loop for tests that use asyncio
-@pytest.fixture(scope="session")
-def event_loop():
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+if str(BACKEND_ROOT) not in sys.path:
+    sys.path.insert(0, str(BACKEND_ROOT))
 
 
 class DummyCache:

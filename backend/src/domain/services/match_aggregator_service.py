@@ -15,6 +15,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import Any, Coroutine, List
 
+from src.domain.constants import ALL_INTERNATIONAL_TOURNAMENTS
 from src.domain.entities.entities import League, Match
 from src.infrastructure.data_sources.espn import ESPNSource
 from src.infrastructure.data_sources.football_data_org import FootballDataOrgSource
@@ -75,13 +76,13 @@ class MatchAggregatorService:
         else:
             tasks.append(asyncio.sleep(0))
 
-        # 3. ESPN (Support for UCL/International)
+        # 3. ESPN (Support for all international tournaments, including LIB/SUD)
         if self.espn:
-            # ESPN is great for recent history of UCL
+            espn_days_back = 365 if league_id in ALL_INTERNATIONAL_TOURNAMENTS else 120
             tasks.append(
                 self.espn.get_finished_matches(
                     league_codes=[league_id],
-                    days_back=120,  # Get last 4 months for UCL context
+                    days_back=espn_days_back,
                 )
             )
         else:
@@ -258,8 +259,7 @@ class MatchAggregatorService:
         Fetch upcoming matches from available sources.
         """
         # Tournament leagues play less frequently, need more days_ahead
-        tournament_leagues = ["UCL", "UEL", "UECL", "EURO", "WC"]
-        days_ahead = 30 if league_id in tournament_leagues else 7
+        days_ahead = 30 if league_id in ALL_INTERNATIONAL_TOURNAMENTS else 7
 
         # 1. Try ESPN (Primary - Has Odds)
         try:

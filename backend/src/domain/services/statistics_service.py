@@ -9,7 +9,13 @@ from __future__ import annotations
 import unicodedata
 from typing import Any, List, Optional
 
-from src.domain.entities.entities import Match, TeamH2HStatistics, TeamStatistics
+from src.domain.constants import ALL_INTERNATIONAL_TOURNAMENTS
+from src.domain.entities.entities import (
+    Match,
+    TeamH2HStatistics,
+    TeamStatistics,
+    TrainingDataContextBundle,
+)
 from src.domain.value_objects.value_objects import LeagueAverages
 
 
@@ -702,6 +708,161 @@ class StatisticsService:
         }
 
     @staticmethod
+    def build_contextual_team_statistics(
+        team_name: str,
+        target_match: Match,
+        context_bundle: TrainingDataContextBundle,
+    ) -> TeamStatistics:
+        """Build model-facing team statistics from explicit target/support corpora."""
+        normalized_team_name = StatisticsService.normalize_team_name(team_name)
+        target_matches = StatisticsService._filter_matches_for_team(
+            normalized_team_name, context_bundle.target_matches
+        )
+        support_matches = context_bundle.support_matches_by_team.get(
+            normalized_team_name,
+            StatisticsService._filter_matches_for_team(
+                normalized_team_name, context_bundle.support_matches
+            ),
+        )
+        blended_matches = StatisticsService._merge_unique_matches(
+            target_matches, support_matches
+        )
+        contextual_stats = StatisticsService.calculate_team_statistics(
+            team_name, blended_matches
+        )
+
+        domestic_matches = [
+            match
+            for match in blended_matches
+            if match.league.id not in ALL_INTERNATIONAL_TOURNAMENTS
+        ]
+        international_matches = [
+            match
+            for match in blended_matches
+            if match.league.id in ALL_INTERNATIONAL_TOURNAMENTS
+        ]
+        target_competition_matches = [
+            match
+            for match in blended_matches
+            if match.league.id == target_match.league.id
+        ]
+
+        contextual_stats.domestic_stats = StatisticsService._build_context_stats_dict(
+            team_name, domestic_matches
+        )
+        contextual_stats.international_stats = (
+            StatisticsService._build_context_stats_dict(
+                team_name, international_matches
+            )
+        )
+        contextual_stats.target_competition_stats = (
+            StatisticsService._build_context_stats_dict(
+                team_name, target_competition_matches
+            )
+        )
+        contextual_stats.context_resolution_metadata = (
+            StatisticsService._build_context_resolution_metadata(
+                normalized_team_name, context_bundle, target_matches, support_matches
+            )
+        )
+        return contextual_stats
+
+    @staticmethod
+    def _filter_matches_for_team(
+        normalized_team_name: str, matches: List[Match]
+    ) -> List[Match]:
+        return [
+            match
+            for match in matches
+            if StatisticsService._match_contains_team(normalized_team_name, match)
+        ]
+
+    @staticmethod
+    def _match_contains_team(normalized_team_name: str, match: Match) -> bool:
+        return normalized_team_name in {
+            StatisticsService.normalize_team_name(match.home_team.name),
+            StatisticsService.normalize_team_name(match.away_team.name),
+        }
+
+    @staticmethod
+    def _merge_unique_matches(*match_groups: List[Match]) -> List[Match]:
+        merged_matches: dict[str, Match] = {}
+        for matches in match_groups:
+            for match in matches:
+                merged_matches.setdefault(
+                    StatisticsService._build_match_key(match), match
+                )
+        return sorted(merged_matches.values(), key=lambda match: match.match_date)
+
+    @staticmethod
+    def _build_match_key(match: Match) -> str:
+        return "|".join(
+            [
+                match.match_date.strftime("%Y-%m-%d"),
+                StatisticsService.normalize_team_name(match.home_team.name),
+                StatisticsService.normalize_team_name(match.away_team.name),
+                match.league.id,
+            ]
+        )
+
+    @staticmethod
+    def _build_context_stats_dict(
+        team_name: str, matches: List[Match]
+    ) -> Optional[dict[str, Any]]:
+        if not matches:
+            return None
+
+        stats = StatisticsService.calculate_team_statistics(team_name, matches)
+        if stats.matches_played == 0:
+            return None
+
+        return {
+            "matches_played": stats.matches_played,
+            "wins": stats.wins,
+            "draws": stats.draws,
+            "losses": stats.losses,
+            "goals_scored": stats.goals_scored,
+            "goals_conceded": stats.goals_conceded,
+            "home_wins": stats.home_wins,
+            "away_wins": stats.away_wins,
+            "corners_for": stats.total_corners,
+            "yellow_cards": stats.total_yellow_cards,
+            "red_cards": stats.total_red_cards,
+            "matches_with_corners": stats.matches_with_corners,
+            "matches_with_cards": stats.matches_with_cards,
+            "shots": stats.total_shots,
+            "shots_on_target": stats.total_shots_on_target,
+            "fouls": stats.total_fouls,
+            "matches_with_shots": stats.matches_with_shots,
+            "matches_with_fouls": stats.matches_with_fouls,
+            "recent_corners": list(stats.recent_corners[-5:]),
+            "recent_yellow_cards": list(stats.recent_yellow_cards[-5:]),
+            "recent_shots": list(stats.recent_shots[-5:]),
+            "recent_form": stats.recent_form,
+        }
+
+    @staticmethod
+    def _build_context_resolution_metadata(
+        normalized_team_name: str,
+        context_bundle: TrainingDataContextBundle,
+        target_matches: List[Match],
+        support_matches: List[Match],
+    ) -> dict[str, Any]:
+        team_reports = context_bundle.coverage_report.get("teams", {})
+        team_report = dict(team_reports.get(normalized_team_name, {}))
+        team_report.update(
+            {
+                "mode": context_bundle.coverage_report.get("mode", "legacy"),
+                "requested_league_ids": context_bundle.coverage_report.get(
+                    "requested_league_ids", ()
+                ),
+                "target_match_count": len(target_matches),
+                "support_match_count": len(support_matches),
+            }
+        )
+        return team_report
+
+    @staticmethod
     def _update_raw_stats_dict(
         stats: dict[str, Any], match: Match, is_home: bool
     ) -> None:
@@ -783,7 +944,7 @@ class StatisticsService:
         StatisticsService._update_raw_stats_dict(stats, match, is_home)
 
         # Update contextual stats
-        is_intl = match.league.id in ["UCL", "UEL", "UECL", "WC", "EURO", "LIB", "SUD"]
+        is_intl = match.league.id in ALL_INTERNATIONAL_TOURNAMENTS
 
         if is_intl:
             if "international_stats" not in stats:
@@ -830,6 +991,8 @@ class StatisticsService:
             recent_form="",  # Form is calculated from full history if needed
             domestic_stats=raw_stats.get("domestic_stats"),
             international_stats=raw_stats.get("international_stats"),
+            target_competition_stats=raw_stats.get("target_competition_stats"),
+            context_resolution_metadata=raw_stats.get("context_resolution_metadata"),
         )
 
     def calculate_league_averages(self, matches: List[Match]) -> LeagueAverages:

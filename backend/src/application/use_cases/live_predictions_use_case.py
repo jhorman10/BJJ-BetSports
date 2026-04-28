@@ -20,8 +20,19 @@ from src.application.dtos.dtos import (
     SuggestedPickDTO,
     TeamDTO,
 )
-from src.application.use_cases.use_cases import DataSources
-from src.domain.entities.entities import League, Match, Prediction, TeamStatistics
+from src.application.use_cases.use_cases import (
+    DataSources,
+    _build_match_team_statistics,
+    _load_contextual_training_bundle,
+    _requires_contextual_team_statistics,
+)
+from src.domain.entities.entities import (
+    League,
+    Match,
+    Prediction,
+    TeamStatistics,
+    TrainingDataContextBundle,
+)
 from src.domain.services.picks_service import PicksService
 from src.domain.services.prediction_service import PredictionService
 from src.domain.services.statistics_service import StatisticsService
@@ -211,6 +222,25 @@ def _persist_and_cache_response(
         logger.warning("Failed to persist/cache live predictions: %s", e)
 
 
+async def _get_context_bundle_from_cache(
+    league_id: str,
+    context_bundle_cache: Optional[
+        Dict[str, Optional[TrainingDataContextBundle]]
+    ] = None,
+) -> Optional[TrainingDataContextBundle]:
+    """Resolve and memoize the contextual bundle per league for live inference."""
+    if not _requires_contextual_team_statistics(league_id):
+        return None
+
+    if context_bundle_cache is not None and league_id in context_bundle_cache:
+        return context_bundle_cache[league_id]
+
+    context_bundle = await _load_contextual_training_bundle(league_id)
+    if context_bundle_cache is not None:
+        context_bundle_cache[league_id] = context_bundle
+    return context_bundle
+
+
 @dataclass
 class LiveMatchPrediction:
     """Combined live match data with prediction."""
@@ -337,6 +367,27 @@ class GetLivePredictionsUseCase:
 
         return bulk_history
 
+    async def _prefetch_context_bundles(
+        self, matches: List[Match]
+    ) -> Dict[str, Optional[TrainingDataContextBundle]]:
+        contextual_leagues = sorted(
+            {
+                match.league.id
+                for match in matches
+                if _requires_contextual_team_statistics(match.league.id)
+            }
+        )
+        if not contextual_leagues:
+            return {}
+
+        bundles = await asyncio.gather(
+            *[
+                _load_contextual_training_bundle(league_id)
+                for league_id in contextual_leagues
+            ]
+        )
+        return dict(zip(contextual_leagues, bundles))
+
     def _finalize_and_persist(
         self, results: List[MatchPredictionDTO], cache_key: str
     ) -> List[MatchPredictionDTO]:
@@ -386,6 +437,7 @@ class GetLivePredictionsUseCase:
 
         # Pre-fetch bulk history for active leagues (if available)
         bulk_history = await self._prefetch_bulk_history(live_matches)
+        context_bundle_cache = await self._prefetch_context_bundles(live_matches)
 
         # Pre-fetch pre-calculated predictions in bulk to avoid N+1 DB calls
         pre_calculated_map: dict = {}
@@ -405,7 +457,7 @@ class GetLivePredictionsUseCase:
                 try:
                     pre_calculated_map = await asyncio.to_thread(
                         self.persistence_repository.get_match_predictions_bulk,
-                        [m.id for m in matches],
+                        [m.id for m in live_matches],
                     )
                 except Exception as e2:
                     logger.warning(
@@ -423,7 +475,11 @@ class GetLivePredictionsUseCase:
                 start_time = time.time()
 
             processed = await self._process_single_live_match(
-                match, bulk_history, start_time, pre_calculated_map
+                match,
+                bulk_history,
+                start_time,
+                pre_calculated_map,
+                context_bundle_cache,
             )
             results.append(processed)
 
@@ -450,7 +506,12 @@ class GetLivePredictionsUseCase:
         return filtered_results
 
     async def _generate_prediction(
-        self, match: Match, bulk_history: Optional[Dict[str, List[Match]]] = None
+        self,
+        match: Match,
+        bulk_history: Optional[Dict[str, List[Match]]] = None,
+        context_bundle_cache: Optional[
+            Dict[str, Optional[TrainingDataContextBundle]]
+        ] = None,
     ) -> PredictionDTO:
         """
         Generate prediction for a single match.
@@ -478,8 +539,42 @@ class GetLivePredictionsUseCase:
             bulk_history,
         )
 
+        context_bundle = None
+        if _requires_contextual_team_statistics(match.league.id):
+            context_bundle = (
+                context_bundle_cache.get(match.league.id)
+                if context_bundle_cache is not None
+                else None
+            )
+            if context_bundle is None and context_bundle_cache is None:
+                context_bundle = await _load_contextual_training_bundle(match.league.id)
+
+        if context_bundle:
+            historical_matches = await self._get_aggregated_history(match, bulk_history)
+            home_stats = _build_match_team_statistics(
+                self.statistics_service,
+                match.home_team.name,
+                match,
+                historical_matches,
+                context_bundle=context_bundle,
+            )
+            away_stats = _build_match_team_statistics(
+                self.statistics_service,
+                match.away_team.name,
+                match,
+                historical_matches,
+                context_bundle=context_bundle,
+            )
+            league_source_matches = context_bundle.target_matches or historical_matches
+            league_averages = (
+                self.statistics_service.calculate_league_averages(league_source_matches)
+                if league_source_matches
+                else None
+            )
+            if "Contextual International History" not in data_sources_used:
+                data_sources_used.append("Contextual International History")
         # If we don't have deep stats, aggregate history and compute stats
-        if not home_stats or not away_stats:
+        elif not home_stats or not away_stats:
             historical_matches = await self._get_aggregated_history(match, bulk_history)
 
             if not home_stats:
@@ -548,6 +643,9 @@ class GetLivePredictionsUseCase:
         bulk_history: Dict[str, List[Match]],
         start_time: float,
         pre_calculated_map: Optional[Dict[str, Any]] = None,
+        context_bundle_cache: Optional[
+            Dict[str, Optional[TrainingDataContextBundle]]
+        ] = None,
     ) -> MatchPredictionDTO:
         """Process a single live match: try DB lookup, otherwise run realtime inference.
 
@@ -610,7 +708,11 @@ class GetLivePredictionsUseCase:
                 "⚠ Cache/DB miss for %s. Running emergency real-time inference...",
                 match.id,
             )
-            prediction_dto = await self._generate_prediction(match, bulk_history)
+            prediction_dto = await self._generate_prediction(
+                match,
+                bulk_history,
+                context_bundle_cache,
+            )
             match_dto = self._match_to_dto(match)
 
             return MatchPredictionDTO(match=match_dto, prediction=prediction_dto)

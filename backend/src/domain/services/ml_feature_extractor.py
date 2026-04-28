@@ -19,6 +19,8 @@ class MLFeatureExtractor:
     Service for extracting features from picks for ML model consumption.
     """
 
+    FEATURE_VECTOR_LENGTH = 45
+
     @staticmethod
     def _calculate_variance_features(
         recent_list: Sequence[float], season_avg: float
@@ -61,6 +63,14 @@ class MLFeatureExtractor:
         if mp == 0:
             return 0.0
         return float(stats_dict.get("wins", 0) / mp)
+
+    @classmethod
+    def _validate_feature_vector_length(cls, features: Sequence[float]) -> None:
+        if len(features) != cls.FEATURE_VECTOR_LENGTH:
+            raise ValueError(
+                "Invalid ML feature vector length: "
+                f"expected {cls.FEATURE_VECTOR_LENGTH}, got {len(features)}"
+            )
 
     @staticmethod
     def extract_features(
@@ -291,8 +301,11 @@ class MLFeatureExtractor:
             features.append(float(a_intl_wr - a_dom_wr))
 
         else:
-            # Padding if no stats provided (41 zeros: 35 original + 4 new
-            # efficiency/interaction features + 2 new context features)
-            features.extend([0.0] * 41)
+            padding_length = MLFeatureExtractor.FEATURE_VECTOR_LENGTH - len(features)
+            if padding_length < 0:
+                raise ValueError("ML feature vector overflow while padding")
+            features.extend([0.0] * padding_length)
+
+        MLFeatureExtractor._validate_feature_vector_length(features)
 
         return features
