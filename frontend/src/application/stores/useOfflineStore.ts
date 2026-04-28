@@ -51,11 +51,6 @@ export const useOfflineStore = create<OfflineState>((set) => ({
   checkConnectivity: async () => {
     const browserOnline = getBrowserOnlineState();
 
-    if (!browserOnline) {
-      set({ isOnline: false, isBackendAvailable: false });
-      return;
-    }
-
     try {
       await withTimeout(api.healthCheck(), CONNECTIVITY_CHECK_TIMEOUT_MS);
       set({ isOnline: true, isBackendAvailable: true });
