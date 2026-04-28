@@ -236,6 +236,51 @@ class AsyncMongoAdapter:
                     self._sync_repo.bulk_save_predictions, predictions_data
                 )
 
+    async def get_all_active_predictions(self) -> List[dict]:
+        if self._use_motor:
+            docs = await self.match_predictions.find(
+                {"expires_at": {"$gt": get_current_time()}}
+            ).to_list(length=None)
+            return [
+                {
+                    "match_id": doc["match_id"],
+                    "league_id": doc.get("league_id"),
+                    "prediction": doc.get("data"),
+                    "last_updated": doc.get("last_updated"),
+                }
+                for doc in docs
+            ]
+
+        if not self._sync_repo:
+            return []
+
+        return await asyncio.to_thread(self._sync_repo.get_all_active_predictions)
+
+    async def get_league_predictions(self, league_id: str) -> List[dict]:
+        if self._use_motor:
+            docs = await self.match_predictions.find(
+                {
+                    "league_id": league_id,
+                    "expires_at": {"$gt": get_current_time()},
+                }
+            ).to_list(length=None)
+            return [
+                {
+                    "match_id": doc["match_id"],
+                    "league_id": doc.get("league_id"),
+                    "prediction": doc.get("data"),
+                    "last_updated": doc.get("last_updated"),
+                }
+                for doc in docs
+            ]
+
+        if not self._sync_repo:
+            return []
+
+        return await asyncio.to_thread(
+            self._sync_repo.get_league_predictions, league_id
+        )
+
     async def get_training_result_with_timestamp(
         self, key: str
     ) -> Tuple[Optional[dict], Optional[Any]]:

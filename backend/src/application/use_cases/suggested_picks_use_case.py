@@ -752,8 +752,14 @@ class GetTopMLPicksUseCase:
             unique_match_picks = []
 
             for pred_data in active_preds:
-                prediction = pred_data.get("prediction", {})
-                match_info = pred_data.get("match", {})
+                payload = (
+                    pred_data.get("prediction") or pred_data.get("data") or pred_data
+                )
+                if not isinstance(payload, dict):
+                    continue
+
+                prediction = payload.get("prediction", {})
+                match_info = payload.get("match", {})
 
                 # Check match date (ensure only future matches)
                 from src.utils.time_utils import get_current_time

@@ -56,6 +56,16 @@ else:
 logger = logging.getLogger(__name__)
 
 
+def _to_prediction_result(doc: Dict[str, Any]) -> Dict[str, Any]:
+    """Expose active prediction docs in the shape expected by callers."""
+    return {
+        "match_id": doc["match_id"],
+        "league_id": doc.get("league_id"),
+        "prediction": doc.get("data"),
+        "last_updated": doc.get("last_updated"),
+    }
+
+
 class AsyncMongoRepository:
     """Async Motor-based repository exposing the same operations as the
     existing sync `MongoRepository` but with async methods.
@@ -220,13 +230,19 @@ class AsyncMongoRepository:
         )
         out = []
         async for doc in cursor:
-            out.append(
-                {
-                    "match_id": doc["match_id"],
-                    "prediction": doc["data"],
-                    "last_updated": doc.get("last_updated"),
-                }
-            )
+            out.append(_to_prediction_result(doc))
+        return out
+
+    async def get_league_predictions(self, league_id: str) -> List[dict]:
+        cursor = self.match_predictions.find(
+            {
+                "league_id": league_id,
+                "expires_at": {"$gt": get_current_time()},
+            }
+        )
+        out = []
+        async for doc in cursor:
+            out.append(_to_prediction_result(doc))
         return out
 
     async def save_cached_response(
