@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, cast
 
-import joblib
 from pytz import timezone
 
 if TYPE_CHECKING:
@@ -142,47 +141,24 @@ class GetPredictionsUseCase:
 
         from src.domain.services.ai_picks_service import AIPicksService
 
-        self.picks_service = AIPicksService(learning_weights=learning_weights)
+        self.picks_service = AIPicksService(
+            learning_weights=learning_weights,
+            persistence_repo=self.persistence_repository,
+        )
 
         self.background_processor = background_processor
 
-        # Load ML Model for Rigorous Probability Calculation
-        self.ml_model = None
-        try:
-            # Path relative to backend/src/application/use_cases/ ->
-            # backend/ml_picks_classifier.joblib
-            # Based on orchestrator path:
-            # backend/src/application/services/../../../ml_picks_classifier.joblib
-            model_path = os.path.abspath(
-                os.path.join(
-                    os.path.dirname(__file__),
-                    "../../../../backend/ml_picks_classifier.joblib",
-                )
+        # Reuse the DB-first loader from AIPicksService so training and
+        # prediction consume the same persisted artifact source.
+        self.ml_model = self.picks_service.ml_model
+        if self.ml_model is None:
+            logger.info(
+                "ML model unavailable from DB/disk. Using heuristic probabilities."
             )
-            # Fallback check
-            if not os.path.exists(model_path):
-                model_path = os.path.abspath(
-                    os.path.join(
-                        os.path.dirname(__file__), "../../../ml_picks_classifier.joblib"
-                    )
-                )
-
-            if os.path.exists(model_path):
-                self.ml_model = joblib.load(model_path)
-                logger.info(
-                    "✅ Loaded ML Model for rigorous probabilities from %s",
-                    model_path,
-                )
-            else:
-                logger.info(
-                    (
-                        "ML model not found at %s. Using heuristic "
-                        "probabilities as expected."
-                    ),
-                    model_path,
-                )
-        except Exception as e:
-            logger.error(f"❌ Failed to load ML model: {e}")
+        else:
+            logger.info(
+                "✅ Loaded ML Model for rigorous probabilities via AIPicksService"
+            )
 
     def _compute_seasons(self) -> list[str]:
         """Compute current and previous season codes like '2425'."""
@@ -356,7 +332,7 @@ class GetPredictionsUseCase:
             )
 
             if features_batch:
-                probs = self.ml_model.predict_proba(features_batch)
+                probs = cast(Any, self.ml_model).predict_proba(features_batch)
                 ml_probs = [p[1] for p in probs]
                 # Normalize and apply ML probabilities
                 self._normalize_and_apply_probs(prediction, ml_probs)
@@ -993,7 +969,6 @@ class GetPredictionsUseCase:
 
     def _handle_api_only_mode(self, league_id: str) -> Optional[PredictionsResponseDTO]:
         """Check if running in API-only mode and return empty response if so."""
-        import os
 
         from src.domain.constants import LEAGUES_METADATA
 
