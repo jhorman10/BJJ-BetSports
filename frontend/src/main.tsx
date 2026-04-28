@@ -15,6 +15,30 @@ import "./index.css";
 
 import ErrorBoundary from "./presentation/components/common/ErrorBoundary";
 
+const clearDevelopmentPwaState = async (): Promise<void> => {
+  if (!import.meta.env.DEV || !("serviceWorker" in navigator)) {
+    return;
+  }
+
+  const registrations = await navigator.serviceWorker.getRegistrations();
+  await Promise.all(registrations.map((registration) => registration.unregister()));
+
+  if (!("caches" in window)) {
+    return;
+  }
+
+  const cacheKeys = await caches.keys();
+  await Promise.all(
+    cacheKeys
+      .filter(
+        (cacheKey) => cacheKey === "api-cache" || cacheKey.startsWith("workbox-")
+      )
+      .map((cacheKey) => caches.delete(cacheKey))
+  );
+};
+
+void clearDevelopmentPwaState();
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ErrorBoundary>
