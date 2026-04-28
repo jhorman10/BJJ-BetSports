@@ -232,15 +232,9 @@ class LearningService:
             self.learning_weights.market_performances,
         )
 
-    def get_learning_weights(self) -> Dict[str, Any]:
-        """Get the current learning weights as a dictionary."""
-        if not self._learning_weights:
-            self._load_weights()
-
-        if not self._learning_weights:
-            return {}
-
-        return self._serialize_weights(self._learning_weights)
+    def get_learning_weights(self) -> LearningWeights:
+        """Get the current learning weights as a domain entity."""
+        return self.learning_weights
 
     def reset_weights(self) -> None:
         """Reset all learning weights to default."""

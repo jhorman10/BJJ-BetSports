@@ -2,6 +2,8 @@ import asyncio
 import datetime
 
 from src.application.services import ml_training_orchestrator as orchestrator
+from src.domain.entities.betting_feedback import LearningWeights
+from src.domain.services.learning_service import LearningService
 
 
 class _Simple:
@@ -58,7 +60,7 @@ async def _run_prepare(  # noqa: C901
 
     class DummyLearningService:
         def get_learning_weights(self):
-            return {}
+            return LearningWeights()
 
     class DummyPicksService:
         def generate_suggested_picks(self, **kwargs):
@@ -134,6 +136,42 @@ def _make_match(mid=1):
         away_goals=1,
         match_date=datetime.datetime.utcnow(),
     )
+
+
+def test_prepare_datasets_passes_learning_weights_entity_to_picks_factory():
+    captured: dict[str, object] = {}
+
+    class DummyTrainingDataService:
+        async def fetch_comprehensive_training_data(self, **kwargs):
+            return []
+
+    class DummyStatisticsService:
+        def calculate_league_averages(self, matches):
+            return {}
+
+    class DummyPicksService:
+        pass
+
+    def picks_service_factory(**kwargs):
+        captured.update(kwargs)
+        return DummyPicksService()
+
+    asyncio.run(
+        orchestrator.prepare_datasets(
+            training_data_service=DummyTrainingDataService(),
+            statistics_service=DummyStatisticsService(),
+            prediction_service=_Simple(),
+            resolution_service=_Simple(),
+            cache_service=_Simple(),
+            feature_extractor=_Simple(),
+            learning_service=LearningService(),
+            picks_service_factory=picks_service_factory,
+            league_ids=["L1"],
+            days_back=1,
+        )
+    )
+
+    assert isinstance(captured["learning_weights"], LearningWeights)
 
 
 def test_prepare_datasets_basic():
