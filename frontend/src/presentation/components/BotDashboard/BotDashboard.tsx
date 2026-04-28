@@ -140,6 +140,7 @@ const BotDashboard: React.FC = () => {
     error,
     trainingStatus,
     trainingMessage,
+    isTrainingServiceUnavailable,
     fetchTrainingData,
     reconcile,
   } = useBotStore();
@@ -261,7 +262,7 @@ const BotDashboard: React.FC = () => {
     );
   }
 
-  if (error && !filteredData) {
+  if (error && !filteredData && !isTrainingServiceUnavailable) {
     return (
       <Alert severity="error" sx={{ m: 2 }}>
         {error}
@@ -576,6 +577,20 @@ const BotDashboard: React.FC = () => {
             <SmartToy
               sx={{ fontSize: 64, color: "rgba(255, 255, 255, 0.2)", mb: 2 }}
             />
+            {isTrainingServiceUnavailable && (
+              <Alert
+                severity="warning"
+                sx={{ mb: 3, width: "100%", maxWidth: 560, textAlign: "left" }}
+              >
+                <Typography variant="body2" fontWeight={700} sx={{ mb: 0.5 }}>
+                  Servicio de entrenamiento no disponible
+                </Typography>
+                <Typography variant="body2">
+                  {error ||
+                    "El backend respondio 503 al iniciar el entrenamiento. Espera unos minutos y vuelve a intentar."}
+                </Typography>
+              </Alert>
+            )}
             <Typography variant="h6" color="white" gutterBottom>
               No hay datos disponibles
             </Typography>
@@ -584,12 +599,15 @@ const BotDashboard: React.FC = () => {
               color="text.secondary"
               sx={{ maxWidth: 500, mb: 3 }}
             >
-              No hay datos de entrenamiento. Haz clic en el botón para iniciar.
+              {isTrainingServiceUnavailable
+                ? "El entrenamiento no pudo iniciar porque el servicio temporalmente no esta disponible."
+                : "No hay datos de entrenamiento. Haz clic en el botón para iniciar."}
             </Typography>
             <Button
               variant="contained"
               onClick={() => runTraining(true)}
               startIcon={<SmartToy />}
+              disabled={loading}
               sx={{
                 background: "linear-gradient(135deg, #fbbf24 0%, #d97706 100%)",
                 color: "#fff",
@@ -598,7 +616,7 @@ const BotDashboard: React.FC = () => {
                 py: 1.5,
               }}
             >
-              Cargar Datos
+              {isTrainingServiceUnavailable ? "Reintentar entrenamiento" : "Cargar Datos"}
             </Button>
           </Box>
         )}

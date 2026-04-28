@@ -47,7 +47,7 @@ const LiveMatchesView: React.FC<LiveMatchesViewProps> = ({
   selectedLeagueNames = [],
   onMatchClick,
 }) => {
-  const { isBackendAvailable } = useOfflineStore();
+  const { isOnline, isBackendAvailable } = useOfflineStore();
   // Filtrar Partidos (Sin Agrupar)
   const filteredMatches = useMemo(() => {
     // 1. Filtrar por ligas seleccionadas (si hay selección)
@@ -127,7 +127,9 @@ const LiveMatchesView: React.FC<LiveMatchesViewProps> = ({
         <Box textAlign="center" p={4} color="rgba(255, 255, 255, 0.5)">
           <SportsSoccer sx={{ fontSize: 40, opacity: 0.3, mb: 1 }} />
           <Typography variant="body2">
-            No hay partidos en vivo en las ligas seleccionadas.
+            {!isOnline
+              ? "Sin internet no se pueden cargar partidos en vivo."
+              : "No hay partidos en vivo en las ligas seleccionadas."}
           </Typography>
         </Box>
       ) : (
