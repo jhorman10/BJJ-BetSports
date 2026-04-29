@@ -11,6 +11,8 @@ The repository mirrors the sync `MongoRepository` API but with async methods.
 
 from __future__ import annotations
 
+import asyncio
+import inspect
 import logging
 import os
 from datetime import timedelta
@@ -18,7 +20,7 @@ from typing import Any, Dict, List, Optional, Tuple, cast
 
 from bson.binary import Binary
 from pymongo import UpdateOne
-from src.utils.time_utils import get_current_time
+from src.utils.time_utils import get_current_time, is_future_time
 
 _mongo_to_bson_friendly: Any
 
@@ -98,10 +100,61 @@ class AsyncMongoRepository:
         self.api_cache = self.db["api_cache"]
         self.app_state = self.db["app_state"]
         self.binary_artifacts = self.db["binary_artifacts"]
+        self._indexes_ready = False
+        self._index_init_task: Optional[asyncio.Task[None]] = None
+        self._index_lock = asyncio.Lock()
+
+        self._initialize_indexes()
 
         logger.info("AsyncMongoRepository initialized (Motor)")
 
+    def _initialize_indexes(self) -> None:
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            asyncio.run(self._ensure_indexes())
+            return
+
+        self._index_init_task = loop.create_task(self._ensure_indexes())
+
+    async def _await_if_needed(self, value: Any) -> Any:
+        if inspect.isawaitable(value):
+            return await value
+        return value
+
+    async def _ensure_indexes(self) -> None:
+        if self._indexes_ready:
+            return
+
+        async with self._index_lock:
+            if self._indexes_ready:
+                return
+
+            await self._await_if_needed(
+                self.training_results.create_index("key", unique=True)
+            )
+            await self._await_if_needed(
+                self.match_predictions.create_index("match_id", unique=True)
+            )
+            await self._await_if_needed(self.api_cache.create_index("key", unique=True))
+            await self._await_if_needed(self.app_state.create_index("key", unique=True))
+            await self._await_if_needed(
+                self.binary_artifacts.create_index("key", unique=True)
+            )
+            self._indexes_ready = True
+
+    async def _ensure_ready(self) -> None:
+        if self._indexes_ready:
+            return
+
+        if self._index_init_task is not None:
+            await self._index_init_task
+            return
+
+        await self._ensure_indexes()
+
     async def save_training_result(self, key: str, data: dict) -> None:
+        await self._ensure_ready()
         normalized = _to_bson_friendly(data)
         await self.training_results.update_one(
             {"key": key},
@@ -110,18 +163,21 @@ class AsyncMongoRepository:
         )
 
     async def get_training_result(self, key: str) -> Optional[dict]:
+        await self._ensure_ready()
         doc = await self.training_results.find_one({"key": key})
         return doc.get("data") if doc else None
 
     async def get_training_result_with_timestamp(
         self, key: str
     ) -> Tuple[Optional[dict], Optional[Any]]:
+        await self._ensure_ready()
         doc = await self.training_results.find_one({"key": key})
         if doc:
             return doc.get("data"), doc.get("last_updated")
         return None, None
 
     async def get_training_results_by_pattern(self, pattern: str) -> dict:
+        await self._ensure_ready()
         regex_pattern = pattern.replace("%", ".*")
         cursor = self.training_results.find({"key": {"$regex": f"^{regex_pattern}$"}})
         out = {}
@@ -132,6 +188,7 @@ class AsyncMongoRepository:
     async def save_match_prediction(
         self, match_id: str, league_id: str, data: dict, ttl_seconds: int = 86400
     ) -> None:
+        await self._ensure_ready()
         try:
             if not isinstance(data, dict):
                 data = {"payload": data}
@@ -160,17 +217,20 @@ class AsyncMongoRepository:
         )
 
     async def get_match_prediction(self, match_id: str) -> Optional[dict]:
+        await self._ensure_ready()
         doc = await self.match_predictions.find_one({"match_id": match_id})
-        if doc and doc.get("expires_at") and doc["expires_at"] > get_current_time():
+        if doc and is_future_time(doc.get("expires_at")):
             return cast(Optional[dict], doc.get("data"))
         return None
 
     async def get_match_prediction_document(self, match_id: str) -> Optional[dict]:
         """Return the full match_predictions document (including league_id)."""
+        await self._ensure_ready()
         doc = await self.match_predictions.find_one({"match_id": match_id})
         return cast(Optional[dict], doc)
 
     async def get_match_predictions_bulk(self, match_ids: List[str]) -> Dict[str, dict]:
+        await self._ensure_ready()
         if not match_ids:
             return {}
         cursor = self.match_predictions.find(
@@ -184,6 +244,7 @@ class AsyncMongoRepository:
         return result
 
     async def bulk_save_predictions(self, predictions_data: List[dict]) -> None:
+        await self._ensure_ready()
         if not predictions_data:
             return
 
@@ -225,6 +286,7 @@ class AsyncMongoRepository:
             await self.match_predictions.bulk_write(operations)
 
     async def get_all_active_predictions(self) -> List[dict]:
+        await self._ensure_ready()
         cursor = self.match_predictions.find(
             {"expires_at": {"$gt": get_current_time()}}
         )
@@ -234,6 +296,7 @@ class AsyncMongoRepository:
         return out
 
     async def get_league_predictions(self, league_id: str) -> List[dict]:
+        await self._ensure_ready()
         cursor = self.match_predictions.find(
             {
                 "league_id": league_id,
@@ -252,6 +315,7 @@ class AsyncMongoRepository:
         params: Optional[dict] = None,
         ttl_seconds: int = 3600,
     ) -> None:
+        await self._ensure_ready()
         key = f"{endpoint}:{str(params)}"
         expires_at = get_current_time() + timedelta(seconds=ttl_seconds)
         await self.api_cache.update_one(
@@ -263,15 +327,17 @@ class AsyncMongoRepository:
     async def get_cached_response(
         self, endpoint: str, params: Optional[dict] = None
     ) -> Optional[dict]:
+        await self._ensure_ready()
         key = f"{endpoint}:{str(params)}"
         doc = await self.api_cache.find_one({"key": key})
-        if doc and doc.get("expires_at") and doc["expires_at"] > get_current_time():
+        if doc and is_future_time(doc.get("expires_at")):
             return cast(Optional[dict], doc.get("data"))
         return None
 
     async def clear_all_predictions(
         self, league_ids: Optional[List[str]] = None
     ) -> bool:
+        await self._ensure_ready()
         if league_ids:
             await self.match_predictions.delete_many({"league_id": {"$in": league_ids}})
         else:
@@ -279,6 +345,7 @@ class AsyncMongoRepository:
         return True
 
     async def clear_all_data(self) -> Dict[str, int]:
+        await self._ensure_ready()
         training_deleted = (await self.training_results.delete_many({})).deleted_count
         predictions_deleted = (
             await self.match_predictions.delete_many({})
@@ -296,6 +363,7 @@ class AsyncMongoRepository:
         }
 
     async def save_app_state(self, key: str, data: dict) -> None:
+        await self._ensure_ready()
         normalized = _to_bson_friendly(data)
         await self.app_state.update_one(
             {"key": key},
@@ -304,10 +372,12 @@ class AsyncMongoRepository:
         )
 
     async def get_app_state(self, key: str) -> Optional[dict]:
+        await self._ensure_ready()
         doc = await self.app_state.find_one({"key": key})
         return doc.get("data") if doc else None
 
     async def save_binary_artifact(self, key: str, binary_data: bytes) -> None:
+        await self._ensure_ready()
         await self.binary_artifacts.update_one(
             {"key": key},
             {"$set": {"data": Binary(binary_data), "last_updated": get_current_time()}},
@@ -315,6 +385,7 @@ class AsyncMongoRepository:
         )
 
     async def get_binary_artifact(self, key: str) -> Optional[bytes]:
+        await self._ensure_ready()
         doc = await self.binary_artifacts.find_one({"key": key})
         if doc and "data" in doc:
             return bytes(doc["data"])

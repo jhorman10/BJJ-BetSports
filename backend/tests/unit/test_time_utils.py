@@ -2,9 +2,16 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from pytz import utc
+
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 
-from src.utils.time_utils import COLOMBIA_TZ, get_today_str, to_colombia_time
+from src.utils.time_utils import (
+    COLOMBIA_TZ,
+    get_today_str,
+    is_future_time,
+    to_colombia_time,
+)
 
 
 def test_to_colombia_time_localizes_naive_datetime_as_utc() -> None:
@@ -34,3 +41,9 @@ def test_get_today_str_returns_iso_date() -> None:
 
     parsed = datetime.strptime(today_str, "%Y-%m-%d")
     assert parsed.strftime("%Y-%m-%d") == today_str
+
+
+def test_is_future_time_normalizes_naive_datetimes() -> None:
+    future_utc = utc.localize(datetime(2099, 1, 1, 12, 0, 0)).replace(tzinfo=None)
+
+    assert is_future_time(future_utc) is True
