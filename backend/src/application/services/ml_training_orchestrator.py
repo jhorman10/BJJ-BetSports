@@ -22,6 +22,7 @@ from src.application.services.ml_training_orchestrator_helper import (
 from src.application.services.training_data_service import TrainingDataService
 from src.core.constants import DEFAULT_LEAGUES
 from src.core.model_artifacts import cleanup_model_artifacts
+from src.domain.constants import ALL_INTERNATIONAL_TOURNAMENTS
 from src.domain.services.learning_service import LearningService
 from src.domain.services.ml_feature_extractor import MLFeatureExtractor
 from src.domain.services.pick_resolution_service import PickResolutionService
@@ -71,6 +72,110 @@ def _ensure_team_stats(
         team_stats_cache[match.home_team.name],
         team_stats_cache[match.away_team.name],
     )
+
+
+def _requires_contextual_training_bundle(leagues: List[str]) -> bool:
+    return any(league_id in ALL_INTERNATIONAL_TOURNAMENTS for league_id in leagues)
+
+
+async def _load_training_matches(
+    training_data_service: TrainingDataService,
+    leagues: List[str],
+    days_back: int,
+    start_date: Optional[str],
+    force_refresh: bool,
+) -> tuple[List[Any], List[Any], Optional[Dict[str, Any]]]:
+    if _requires_contextual_training_bundle(leagues):
+        context_bundle = await training_data_service.fetch_contextual_training_data(
+            leagues=leagues,
+            days_back=days_back,
+            start_date=start_date,
+            force_refresh=force_refresh,
+        )
+        return (
+            context_bundle.target_matches,
+            context_bundle.support_matches,
+            context_bundle.coverage_report,
+        )
+
+    matches = await training_data_service.fetch_comprehensive_training_data(
+        leagues=leagues,
+        days_back=days_back,
+        start_date=start_date,
+        force_refresh=force_refresh,
+    )
+    return matches, [], None
+
+
+def _seed_support_team_stats(
+    support_matches: List[Any],
+    team_stats_cache: Dict[str, dict],
+    statistics_service: StatisticsService,
+) -> None:
+    for match in support_matches:
+        if match.home_goals is None or match.away_goals is None:
+            continue
+
+        raw_home, raw_away = _ensure_team_stats(
+            team_stats_cache, statistics_service, match
+        )
+        statistics_service.update_team_stats_dict(raw_home, match, is_home=True)
+        statistics_service.update_team_stats_dict(raw_away, match, is_home=False)
+
+
+def _summarize_context_coverage(
+    coverage_report: Optional[Dict[str, Any]],
+) -> Dict[str, Any]:
+    if not coverage_report:
+        return {}
+
+    requested_league_ids = list(coverage_report.get("requested_league_ids", ()))
+    requested_league_set = set(requested_league_ids)
+    teams = coverage_report.get("teams", {})
+    summary = {
+        "mode": coverage_report.get("mode", "domestic"),
+        "requested_league_ids": requested_league_ids,
+        "team_count": coverage_report.get("team_count", len(teams)),
+        "target_match_count": coverage_report.get("target_match_count", 0),
+        "support_match_count": coverage_report.get("support_match_count", 0),
+        "complete_context_teams": 0,
+        "ambiguous_resolution_teams": 0,
+        "clubs_without_domestic_context": 0,
+        "national_teams_without_baseline": 0,
+        "teams_without_target_history": 0,
+    }
+
+    for team_report in teams.values():
+        participant_type = team_report.get("participant_type")
+        base_competition_id = team_report.get("base_competition_id")
+        support_match_count = int(team_report.get("support_match_count", 0) or 0)
+        support_competition_ids = set(team_report.get("support_competition_ids", ()))
+        confidence = float(team_report.get("confidence", 0.0) or 0.0)
+        evidence = team_report.get("evidence") or {}
+        is_ambiguous = evidence.get("resolution") == "ambiguous" or confidence < 0.5
+
+        if is_ambiguous:
+            summary["ambiguous_resolution_teams"] += 1
+
+        if requested_league_set.isdisjoint(support_competition_ids):
+            summary["teams_without_target_history"] += 1
+
+        if participant_type == "club" and (
+            not base_competition_id or support_match_count == 0
+        ):
+            summary["clubs_without_domestic_context"] += 1
+
+        if participant_type == "national_team" and support_match_count == 0:
+            summary["national_teams_without_baseline"] += 1
+
+        has_complete_context = support_match_count > 0 and not is_ambiguous
+        if participant_type == "club":
+            has_complete_context = has_complete_context and bool(base_competition_id)
+
+        if has_complete_context:
+            summary["complete_context_teams"] += 1
+
+    return summary
 
 
 def _parse_cached_suggested_picks(
@@ -400,12 +505,13 @@ async def prepare_datasets(
     float,
     float,
     Dict[str, "LeagueAverages"],
+    Dict[str, Any],
 ]:
     """Fetches matches and processes them into ML-ready datasets.
 
     Returns a tuple with: (ml_features, ml_targets, daily_stats, match_history,
     team_stats_cache, matches_processed, total_bets, total_staked, total_return,
-    league_averages_map)
+    league_averages_map, context_summary)
     """
     picks_service_instance = picks_service_factory(
         learning_weights=learning_service.get_learning_weights()
@@ -422,12 +528,14 @@ async def prepare_datasets(
     ml_targets: List[int] = []
 
     leagues = league_ids if league_ids else DEFAULT_LEAGUES
-    all_matches = await training_data_service.fetch_comprehensive_training_data(
+    all_matches, support_matches, coverage_report = await _load_training_matches(
+        training_data_service,
         leagues=leagues,
         days_back=days_back,
         start_date=start_date,
         force_refresh=force_refresh,
     )
+    context_summary = _summarize_context_coverage(coverage_report)
 
     league_matches_map: Dict[str, List[Any]] = {}
     for m in all_matches:
@@ -441,8 +549,12 @@ async def prepare_datasets(
     }
 
     team_stats_cache: Dict[str, dict] = {}
+    _seed_support_team_stats(support_matches, team_stats_cache, statistics_service)
+
     total_matches = len(all_matches)
     logger.info("Processing %s matches...", total_matches)
+    if context_summary:
+        logger.info("Context coverage summary: %s", context_summary)
 
     try:
         from tqdm import tqdm
@@ -520,6 +632,7 @@ async def prepare_datasets(
         total_staked,
         total_return,
         league_averages_map,
+        context_summary,
     )
 
 
@@ -557,6 +670,7 @@ class TrainingResult(BaseModel):
     roi_evolution: List[Any] = []
     pick_efficiency: List[Any] = []
     team_stats: dict = {}
+    context_summary: dict = {}
 
 
 class MLTrainingOrchestrator:
@@ -616,6 +730,7 @@ class MLTrainingOrchestrator:
                 total_staked,
                 total_return,
                 league_averages_map,
+                context_summary,
             ) = await prepare_datasets(
                 self.training_data_service,
                 self.statistics_service,
@@ -680,6 +795,7 @@ class MLTrainingOrchestrator:
                 roi_evolution=self._calculate_roi_evolution(daily_stats),
                 pick_efficiency=self._calculate_pick_efficiency(match_history),
                 team_stats=team_stats_cache,
+                context_summary=context_summary,
             )
         finally:
             cleanup_model_artifacts(logger)

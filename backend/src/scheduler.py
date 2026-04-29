@@ -129,6 +129,9 @@ class BotScheduler:
                         "roi_evolution": training_result.roi_evolution,
                         "pick_efficiency": training_result.pick_efficiency,
                         "team_stats": training_result.team_stats,
+                        "context_summary": getattr(
+                            training_result, "context_summary", {}
+                        ),
                         "global_averages": getattr(
                             training_result, "global_averages", {}
                         ),
@@ -154,6 +157,9 @@ class BotScheduler:
                         "market_stats": training_result.market_stats,
                         "roi_evolution": training_result.roi_evolution,
                         "pick_efficiency": training_result.pick_efficiency,
+                        "context_summary": getattr(
+                            training_result, "context_summary", {}
+                        ),
                     }
                     persistence_repo.save_training_result(
                         "latest_daily",
