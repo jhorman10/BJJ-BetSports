@@ -2,7 +2,7 @@
 title: Excelencia de Validación Full-Stack
 author: GitHub Copilot
 date: 2026-04-27
-status: in-progress
+status: completed
 tags: [quality, testing, ci, frontend, backend, linting]
 ---
 
@@ -105,3 +105,17 @@ Siguientes pasos inmediatos
 1. Crear el comando canónico full-stack.
 2. Reapuntar `scripts/local_checks.sh` a la fuente de verdad nueva.
 3. Ejecutar el gate y capturar fallos prioritarios.
+
+Estado de cierre verificado
+---------------------------
+- `scripts/quality_gate.sh all` ejecuta backend y frontend con un único comando y quedó verde.
+- El backend valida `ruff`, `black`, `isort`, `mypy` y `pytest` en el mismo orden documentado.
+- El frontend valida `eslint`, `build` y `vitest` con el mismo orden usado por el gate local.
+- `.github/workflows/ci.yml` y `.github/workflows/ci-pr.yml` quedaron alineados con la matriz canónica.
+- `.github/workflows/lint.yml` dejó de usar shortcuts por archivos cambiados y ahora refleja los mismos checks de lint/tipado/build que el gate.
+- `docs/developer-linting.md` ya documenta el gate como fuente de verdad local y remota.
+
+Deuda restante no bloqueante
+----------------------------
+- Coverage global obligatorio sigue fuera de alcance para este spec.
+- La siguiente iteración natural queda separada como endurecimiento de coverage, tipado más estricto y refactors de complejidad, no como bloqueo del gate canónico.
