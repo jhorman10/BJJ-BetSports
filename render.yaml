@@ -27,6 +27,12 @@ services:
         fromDatabase:
           name: bjj-betsports-db
           property: connectionString
+      - key: MONGO_URI
+        sync: false
+      - key: MONGO_DB_NAME
+        value: "bjj_betsports"
+      - key: MONGO_ASYNC_MODE
+        value: "off"
     healthCheckPath: /health
 
   # 2. Frontend Service (React Static Site)
