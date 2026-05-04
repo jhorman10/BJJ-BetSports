@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import logging
 import os
-import subprocess  # noqa: F401
-import threading  # noqa: F401
 from pathlib import Path
 from typing import Any, Dict
 
@@ -30,8 +28,6 @@ load_backend_env()
 
 # Logger and runtime globals
 _logger = logging.getLogger(__name__)
-# Tracks whether a training run is currently active (used by /train/run-now endpoint)
-_training_running = False
 _BACKEND_DIR = Path(__file__).parent.parent.parent
 app = FastAPI(
     title="BJJ-BetSports API",

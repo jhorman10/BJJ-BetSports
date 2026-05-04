@@ -14,6 +14,8 @@ from src.domain.training.models import (
     ModelAdapterDefinition,
     TrainingJob,
     TrainingJobEvent,
+    TrainingJobPhase,
+    TrainingJobStatus,
     TrainingRecipe,
 )
 from src.domain.training.registries import ExecutorRegistry, ModelRegistry
@@ -102,8 +104,16 @@ class TrainingJobService:
         submission_payload = cast(dict, submission_payload)
         job.executor_type = submission_payload.get("executor_type")
         job.executor_run_id = submission_payload.get("executor_run_id")
-        job.status = submission_payload.get("status", job.status)
-        job.phase = submission_payload.get("phase", job.phase)
+        raw_status = submission_payload.get("status", job.status)
+        raw_phase = submission_payload.get("phase", job.phase)
+        job.status = (
+            TrainingJobStatus(raw_status)
+            if isinstance(raw_status, str)
+            else raw_status
+        )
+        job.phase = (
+            TrainingJobPhase(raw_phase) if isinstance(raw_phase, str) else raw_phase
+        )
         job.status_message = submission_payload.get(
             "status_message", job.status_message
         )

@@ -160,6 +160,9 @@ export const useBotStore = create<BotState>()(
             isTrainingServiceUnavailable: false,
           });
 
+          useOfflineStore.getState().setBackendAvailable(true);
+          useOfflineStore.getState().updateLastSync();
+
           if (activeJob) {
             await get().pollTrainingStatus(activeJob.job_id);
             return;
