@@ -310,13 +310,22 @@ class GetLivePredictionsUseCase:
             espn_only_leagues = [
                 lid for lid in DEFAULT_LEAGUES if lid not in fdo_covered
             ]
-            if espn_only_leagues and hasattr(self.data_sources, "espn") and self.data_sources.espn:
-                espn_live = await self.data_sources.espn.get_live_matches(espn_only_leagues)
+            if (
+                espn_only_leagues
+                and hasattr(self.data_sources, "espn")
+                and self.data_sources.espn
+            ):
+                espn_live = await self.data_sources.espn.get_live_matches(
+                    espn_only_leagues
+                )
                 if espn_live:
                     matches.extend(espn_live)
-                    source_used = f"{source_used}+ESPN" if source_used != "None" else "ESPN"
+                    source_used = (
+                        f"{source_used}+ESPN" if source_used != "None" else "ESPN"
+                    )
                     logger.info(
-                        "ESPN fallback: added %d live matches from %d uncovered leagues",
+                        "ESPN fallback: added %d live matches from %d uncovered"
+                        " leagues",
                         len(espn_live),
                         len(espn_only_leagues),
                     )
@@ -462,45 +471,9 @@ class GetLivePredictionsUseCase:
         context_bundle_cache = await self._prefetch_context_bundles(live_matches)
 
         # Pre-fetch pre-calculated predictions in bulk to avoid N+1 DB calls
-        pre_calculated_map: dict = {}
-        active_predictions_by_name: dict = {}
-        # Use async mongo adapter when available to prefetch pre-calculated predictions
-        try:
-            from src.infrastructure.repositories.async_mongo_adapter import (
-                get_async_mongo_repository,
-            )
-
-            async_repo = get_async_mongo_repository()
-            match_ids = [m.id for m in live_matches]
-            pre_calculated_map = await async_repo.get_match_predictions_bulk(match_ids)
-            
-            # Phase 1: Build name-based map for fallback matching (when IDs mismatch, e.g. ESPN vs FDO)
-            all_active = await async_repo.get_all_active_predictions()
-            for doc in all_active:
-                p_data = doc.get("prediction", {})
-                if not p_data:
-                    continue
-                m_data = p_data.get("match", {})
-                h_name = m_data.get("home_team", {}).get("name", "")
-                a_name = m_data.get("away_team", {}).get("name", "")
-                if h_name and a_name:
-                    h_norm = self.statistics_service._normalize_name(h_name)
-                    a_norm = self.statistics_service._normalize_name(a_name)
-                    key = f"{h_norm}_vs_{a_norm}"
-                    active_predictions_by_name[key] = p_data
-        except Exception as e:
-            # Fallback to sync persistence repository if async adapter fails
-            logger.warning("Bulk prefetch predictions (async) failed: %s", e)
-            if self.persistence_repository:
-                try:
-                    pre_calculated_map = await asyncio.to_thread(
-                        self.persistence_repository.get_match_predictions_bulk,
-                        [m.id for m in live_matches],
-                    )
-                except Exception as e2:
-                    logger.warning(
-                        "Bulk prefetch predictions (threaded) failed: %s", e2
-                    )
+        pre_calculated_map, active_predictions_by_name = (
+            await self._fetch_precalculated_data(live_matches)
+        )
 
         # Generate predictions for each match
         results: List[MatchPredictionDTO] = []
@@ -692,84 +665,19 @@ class GetLivePredictionsUseCase:
         Returns a MatchPredictionDTO (may contain empty prediction on failures).
         """
         try:
-            # 1. ATTEMPT DB LOOKUP (Pre-calculated in Training Action)
-            pre_calculated_dto = None
-            # First try the bulk-prefetched map to avoid per-match DB calls
-            pre_calculated_data = None
-            if pre_calculated_map and match.id in pre_calculated_map:
-                pre_calculated_data = pre_calculated_map.get(match.id)
-
-            if not pre_calculated_data and self.persistence_repository:
-                try:
-                    pre_calculated_data = await asyncio.to_thread(
-                        self.persistence_repository.get_match_prediction, match.id
-                    )
-                except Exception as e:
-                    logger.warning("Single pre-calculated lookup failed: %s", e)
-                    
-            # 1.5. FALLBACK: Name-based matching if ID didn't work (for ESPN matches)
-            if not pre_calculated_data and active_predictions_by_name:
-                h_norm = self.statistics_service._normalize_name(match.home_team.name)
-                a_norm = self.statistics_service._normalize_name(match.away_team.name)
-                name_key = f"{h_norm}_vs_{a_norm}"
-                if name_key in active_predictions_by_name:
-                    pre_calculated_data = active_predictions_by_name[name_key]
-                    logger.info("Found pre-calculated prediction via name fallback for %s vs %s", match.home_team.name, match.away_team.name)
-
-            if pre_calculated_data:
-                try:
-                    pre_calculated_dto = MatchPredictionDTO(**pre_calculated_data)
-                    logger.info(
-                        "✓ Using pre-calculated data from DB for match %s",
-                        match.id,
-                    )
-                except Exception as parse_e:
-                    logger.warning(
-                        "Failed to parse pre-calculated data for %s: %s",
-                        match.id,
-                        parse_e,
-                    )
-
+            pre_calculated_dto = await self._try_get_precalculated_dto(
+                match, pre_calculated_map, active_predictions_by_name
+            )
             if pre_calculated_dto:
-                # Update potentially stale live data (score, minute) while keeping
-                # AI prediction
-                pre_calculated_dto.match.home_goals = match.home_goals
-                pre_calculated_dto.match.away_goals = match.away_goals
-                pre_calculated_dto.match.status = match.status
-                pre_calculated_dto.match.minute = match.minute
                 return pre_calculated_dto
 
-            # 2. EMERGENCY FALLBACK: Real-time calculation with soft timeout
-            import time
-
-            if time.time() - start_time > 20.0:  # 20s Soft Timeout
-                logger.warning(
-                    "⏳ Time limit reached (20s). Skipping ML for %s "
-                    "to avoid API timeout.",
-                    match.id,
-                )
-                return MatchPredictionDTO(
-                    match=self._match_to_dto(match),
-                    prediction=self._empty_prediction(match.id),
-                )
-
-            logger.warning(
-                "⚠ Cache/DB miss for %s. Running emergency real-time inference...",
-                match.id,
+            return await self._fallback_realtime_prediction(
+                match, bulk_history, start_time, context_bundle_cache
             )
-            prediction_dto = await self._generate_prediction(
-                match,
-                bulk_history,
-                context_bundle_cache,
-            )
-            match_dto = self._match_to_dto(match)
-
-            return MatchPredictionDTO(match=match_dto, prediction=prediction_dto)
         except Exception as e:
             logger.error(
                 f"Failed to generate/retrieve prediction for match {match.id}: {e}"
             )
-            # Still include match without prediction to avoid breaks
             return MatchPredictionDTO(
                 match=self._match_to_dto(match),
                 prediction=self._empty_prediction(match.id),
@@ -1074,3 +982,141 @@ class GetLivePredictionsUseCase:
             over_under_recommendation="N/A",
             created_at=datetime.now(timezone("America/Bogota")),
         )
+
+    async def _fetch_precalculated_data(
+        self, live_matches: List[Match]
+    ) -> tuple[dict, dict]:
+        """
+        Fetch pre-calculated predictions and build name-based lookup map.
+        Returns:
+            (pre_calculated_map, active_predictions_by_name)
+        """
+        pre_calculated_map: dict = {}
+        active_predictions_by_name: dict = {}
+        try:
+            from src.infrastructure.repositories.async_mongo_adapter import (
+                get_async_mongo_repository,
+            )
+
+            async_repo = get_async_mongo_repository()
+            match_ids = [m.id for m in live_matches]
+            pre_calculated_map = await async_repo.get_match_predictions_bulk(match_ids)
+
+            # Build name-based map for fallback matching (ESPN vs FDO mismatches)
+            all_active = await async_repo.get_all_active_predictions()
+            for doc in all_active:
+                p_data = doc.get("prediction", {})
+                if not p_data:
+                    continue
+                m_data = p_data.get("match", {})
+                h_name = m_data.get("home_team", {}).get("name", "")
+                a_name = m_data.get("away_team", {}).get("name", "")
+                if h_name and a_name:
+                    h_norm = self.statistics_service._normalize_name(h_name)
+                    a_norm = self.statistics_service._normalize_name(a_name)
+                    key = f"{h_norm}_vs_{a_norm}"
+                    active_predictions_by_name[key] = p_data
+        except Exception as e:
+            logger.warning("Bulk prefetch predictions (async) failed: %s", e)
+            if self.persistence_repository:
+                try:
+                    pre_calculated_map = await asyncio.to_thread(
+                        self.persistence_repository.get_match_predictions_bulk,
+                        [m.id for m in live_matches],
+                    )
+                except Exception as e2:
+                    logger.warning(
+                        "Bulk prefetch predictions (threaded) failed: %s", e2
+                    )
+        return pre_calculated_map, active_predictions_by_name
+
+    async def _try_get_precalculated_dto(
+        self,
+        match: Match,
+        pre_calculated_map: Optional[Dict[str, Any]],
+        active_predictions_by_name: Optional[Dict[str, Any]],
+    ) -> MatchPredictionDTO | None:
+        """
+        Try to obtain a pre-calculated prediction for the match from DB cache.
+        Returns MatchPredictionDTO if found and valid, else None.
+        """
+        pre_calculated_data = None
+        if pre_calculated_map and match.id in pre_calculated_map:
+            pre_calculated_data = pre_calculated_map.get(match.id)
+
+        if not pre_calculated_data and self.persistence_repository:
+            try:
+                pre_calculated_data = await asyncio.to_thread(
+                    self.persistence_repository.get_match_prediction, match.id
+                )
+            except Exception as e:
+                logger.warning("Single pre-calculated lookup failed: %s", e)
+
+        if not pre_calculated_data and active_predictions_by_name:
+            h_norm = self.statistics_service._normalize_name(match.home_team.name)
+            a_norm = self.statistics_service._normalize_name(match.away_team.name)
+            key = f"{h_norm}_vs_{a_norm}"
+            if key in active_predictions_by_name:
+                pre_calculated_data = active_predictions_by_name[key]
+                logger.info(
+                    "Found pre-calculated prediction via name fallback for %s vs %s",
+                    match.home_team.name,
+                    match.away_team.name,
+                )
+
+        if pre_calculated_data:
+            try:
+                pre_calculated_dto = MatchPredictionDTO(**pre_calculated_data)
+                logger.info(
+                    "✓ Using pre-calculated data from DB for match %s",
+                    match.id,
+                )
+                # Update potentially stale live data while keeping AI prediction
+                pre_calculated_dto.match.home_goals = match.home_goals
+                pre_calculated_dto.match.away_goals = match.away_goals
+                pre_calculated_dto.match.status = match.status
+                pre_calculated_dto.match.minute = match.minute
+                return pre_calculated_dto
+            except Exception as parse_e:
+                logger.warning(
+                    "Failed to parse pre-calculated data for %s: %s",
+                    match.id,
+                    parse_e,
+                )
+        return None
+
+    async def _fallback_realtime_prediction(
+        self,
+        match: Match,
+        bulk_history: Dict[str, List[Match]],
+        start_time: float,
+        context_bundle_cache: Optional[Dict[str, Optional[TrainingDataContextBundle]]],
+    ) -> MatchPredictionDTO:
+        """
+        Perform real-time inference as a fallback when no pre-calculated
+        prediction is available. Enforces a soft timeout to avoid long API
+        responses.
+        """
+        import time
+
+        if time.time() - start_time > 20.0:  # 20s Soft Timeout
+            logger.warning(
+                "⏳ Time limit reached (20s). Skipping ML for %s to avoid API timeout.",
+                match.id,
+            )
+            return MatchPredictionDTO(
+                match=self._match_to_dto(match),
+                prediction=self._empty_prediction(match.id),
+            )
+
+        logger.warning(
+            "⚠ Cache/DB miss for %s. Running emergency real-time inference...",
+            match.id,
+        )
+        prediction_dto = await self._generate_prediction(
+            match,
+            bulk_history,
+            context_bundle_cache,
+        )
+        match_dto = self._match_to_dto(match)
+        return MatchPredictionDTO(match=match_dto, prediction=prediction_dto)
