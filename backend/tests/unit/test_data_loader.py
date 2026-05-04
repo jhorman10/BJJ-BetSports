@@ -69,13 +69,15 @@ class PredictionRepoWithTraining:
 
 
 def test_data_loader_loads_predictions_and_training_result():
+    upcoming_match_date = (datetime.utcnow() + timedelta(days=1)).isoformat() + "Z"
+
     doc = {
         "league_id": "E0",
         "match_id": "m1",
         "prediction": {
             "match": {
                 "id": "m1",
-                "match_date": "2026-03-31T12:00:00Z",
+                "match_date": upcoming_match_date,
                 "home_team": {"id": "h1", "name": "A"},
                 "away_team": {"id": "a1", "name": "B"},
                 "status": "scheduled",
