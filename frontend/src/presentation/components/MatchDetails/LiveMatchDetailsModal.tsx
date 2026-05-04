@@ -17,6 +17,7 @@ import { useUIStore } from "../../../application/stores/useUIStore";
 import { LiveScoreBoard } from "./components/LiveScoreBoard";
 import { LiveMatchStats } from "./components/LiveMatchStats";
 import { PreMatchPrediction } from "./components/PreMatchPrediction";
+import SuggestedPicksTab from "./SuggestedPicksTab";
 
 const LiveMatchDetailsModal: React.FC = () => {
   const { liveModalOpen, selectedLiveMatch, closeLiveMatchModal } =
@@ -97,6 +98,16 @@ const LiveMatchDetailsModal: React.FC = () => {
           isAvailable={isPredictionAvailable}
           match={match}
         />
+
+        {/* Suggested Picks with Live Validation */}
+        {isPredictionAvailable && (
+          <Box mt={3} pt={2} borderTop="1px solid rgba(255,255,255,0.1)">
+            <Typography variant="subtitle1" fontWeight="bold" mb={2}>
+              Picks y Resolución en Vivo
+            </Typography>
+            <SuggestedPicksTab matchPrediction={{ match, prediction }} />
+          </Box>
+        )}
       </DialogContent>
       <DialogActions sx={{ p: 2 }}>
         <Button
