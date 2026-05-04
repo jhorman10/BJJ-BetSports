@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import logging
 import os
+import subprocess
+import threading
 from pathlib import Path
 from typing import Any, Dict
 
@@ -15,12 +17,12 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
 from src.api.schemas.auxiliary import TrainingCachedPayload, TrainingStatusPayload
-from src.api.schemas.training import TrainingJobCreatePayload
 from src.api.schemas.health import HealthResponse
+from src.api.schemas.training import TrainingJobCreatePayload
 from src.api.security import require_admin_key
-from src.application.training.job_service import TrainingJobService
 from src.api.utils.helpers import _load_training_result
 from src.api.utils.serializers import _utc_now_iso
+from src.application.training.job_service import TrainingJobService
 from src.core.env import load_backend_env
 from src.dependencies import get_training_job_service
 
@@ -28,6 +30,8 @@ load_backend_env()
 
 # Logger and runtime globals
 _logger = logging.getLogger(__name__)
+# Tracks whether a training run is currently active (used by /train/run-now endpoint)
+_training_running = False
 _BACKEND_DIR = Path(__file__).parent.parent.parent
 app = FastAPI(
     title="BJJ-BetSports API",
@@ -161,7 +165,9 @@ def trigger_training(
     train_days = os.getenv("TRAIN_DAYS", "550")
     predict_leagues = os.getenv("PREDICT_LEAGUES", "E0")
     n_jobs = os.getenv("N_JOBS", "2")
-    league_ids = [league.strip() for league in predict_leagues.split(",") if league.strip()]
+    league_ids = [
+        league.strip() for league in predict_leagues.split(",") if league.strip()
+    ]
 
     job = training_job_service.create_job(
         TrainingJobCreatePayload(
@@ -174,7 +180,9 @@ def trigger_training(
             feature_profile="default",
             hyperparameter_profile=f"n-jobs:{n_jobs}",
             executor_target=os.getenv("TRAIN_EXECUTOR_TARGET", "default"),
-            description="Bridge from /api/v1/train/run-now to the training control plane.",
+            description=(
+                "Bridge from /api/v1/train/run-now to the training control plane."
+            ),
         ),
         requested_by=admin_key or None,
     )

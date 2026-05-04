@@ -7,14 +7,22 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+# ruff: noqa: E402
 from fastapi.testclient import TestClient
-
-from src.api.main import app
-from src.api.security import require_admin_key, require_training_read, require_training_write
-from src.api.schemas.training import TrainingJobCreatePayload
-from src.application.training.job_service import TrainingJobService
-from src.dependencies import get_training_job_service
-from src.domain.training.models import TrainingJobEvent, TrainingJobPhase, TrainingJobStatus
+from src.api.main import app  # noqa: E402
+from src.api.schemas.training import TrainingJobCreatePayload  # noqa: E402
+from src.api.security import (  # noqa: E402
+    require_admin_key,
+    require_training_read,
+    require_training_write,
+)
+from src.application.training.job_service import TrainingJobService  # noqa: E402
+from src.dependencies import get_training_job_service  # noqa: E402
+from src.domain.training.models import (  # noqa: E402
+    TrainingJobEvent,
+    TrainingJobPhase,
+    TrainingJobStatus,
+)
 
 
 class InMemoryJobRepository:

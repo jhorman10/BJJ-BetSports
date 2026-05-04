@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import pytest
-
-from src.domain.training.models import TrainingJobEvent, TrainingJobPhase, TrainingJobStatus
+from src.domain.training.models import (
+    TrainingJobEvent,
+    TrainingJobPhase,
+    TrainingJobStatus,
+)
 
 
 class InMemoryJobRepository:
@@ -92,8 +95,8 @@ class StubExecutorRegistry:
 
 
 def test_training_job_service_creates_queued_job_with_audit_and_event() -> None:
-    from src.application.training.job_service import TrainingJobService
     from src.api.schemas.training import TrainingJobCreatePayload
+    from src.application.training.job_service import TrainingJobService
 
     service = TrainingJobService(
         job_repository=InMemoryJobRepository(),
@@ -127,8 +130,8 @@ def test_training_job_service_creates_queued_job_with_audit_and_event() -> None:
 
 
 def test_training_job_service_rejects_unknown_model_key() -> None:
-    from src.application.training.job_service import TrainingJobService
     from src.api.schemas.training import TrainingJobCreatePayload
+    from src.application.training.job_service import TrainingJobService
 
     service = TrainingJobService(
         job_repository=InMemoryJobRepository(),
@@ -153,8 +156,8 @@ def test_training_job_service_rejects_unknown_model_key() -> None:
 
 
 def test_training_job_service_rejects_unavailable_executor_target() -> None:
-    from src.application.training.job_service import TrainingJobService
     from src.api.schemas.training import TrainingJobCreatePayload
+    from src.application.training.job_service import TrainingJobService
 
     service = TrainingJobService(
         job_repository=InMemoryJobRepository(),

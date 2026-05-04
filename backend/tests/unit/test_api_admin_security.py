@@ -41,6 +41,8 @@ def test_trigger_training_allows_local_dev_browser_without_api_key(monkeypatch) 
     monkeypatch.delenv("ADMIN_API_KEY", raising=False)
     monkeypatch.setenv("API_ONLY_MODE", "false")
     monkeypatch.setattr(main_mod, "_training_running", False)
+    # Disable rate limiting for this test
+    monkeypatch.setattr(main_mod.limiter, "enabled", False)
     monkeypatch.setattr(
         main_mod.subprocess,
         "run",

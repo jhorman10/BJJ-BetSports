@@ -3,16 +3,16 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+# ruff: noqa: E402
 from fastapi.testclient import TestClient
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.api.main import app
-from src.api.security import require_training_read
-from src.dependencies import (
-    get_training_capability_service,
+from src.api.main import app  # noqa: E402
+from src.api.security import require_training_read  # noqa: E402
+from src.dependencies import (  # noqa: E402
     get_training_result_reader,
 )
 
