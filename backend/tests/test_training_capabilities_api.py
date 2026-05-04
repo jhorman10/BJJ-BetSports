@@ -12,9 +12,7 @@ if str(ROOT) not in sys.path:
 
 from src.api.main import app  # noqa: E402
 from src.api.security import require_training_read  # noqa: E402
-from src.dependencies import (  # noqa: E402
-    get_training_result_reader,
-)
+from src.dependencies import get_training_result_reader  # noqa: E402
 
 
 class StubTrainingResultReader:
