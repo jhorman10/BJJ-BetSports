@@ -11,6 +11,14 @@ from functools import lru_cache
 from typing import Any
 
 from src.application.services.ml_training_orchestrator import MLTrainingOrchestrator
+from src.application.training.catalog import (
+    ModelRegistryService,
+    TrainingCapabilityService,
+    TrainingExecutorRegistry,
+)
+from src.application.training.executors import PassiveTrainingExecutor
+from src.application.training.job_service import TrainingJobService
+from src.application.training.result_reader import TrainingResultReader
 from src.application.services.training_data_service import TrainingDataService
 from src.application.use_cases.use_cases import DataSources
 from src.domain.services.ai_picks_service import AIPicksService
@@ -37,6 +45,10 @@ from src.infrastructure.repositories.mongo_repository import (
     get_mongo_repository,
 )
 from src.infrastructure.services.background_processor import BackgroundProcessor
+from src.infrastructure.training.repositories import (
+    TrainingJobEventRepository,
+    TrainingJobRepository,
+)
 
 
 @lru_cache()
@@ -161,6 +173,48 @@ def get_async_persistence_repository() -> Any:
     Use this in FastAPI async handlers to avoid blocking the event loop.
     """
     return get_async_mongo_repository()
+
+
+@lru_cache()
+def get_training_model_registry() -> ModelRegistryService:
+    """Get the model registry service for training capabilities."""
+    return ModelRegistryService.build_default()
+
+
+@lru_cache()
+def get_training_executor_registry() -> TrainingExecutorRegistry:
+    """Get the executor registry service for training capabilities."""
+    return TrainingExecutorRegistry.build_default()
+
+
+@lru_cache()
+def get_training_capability_service() -> TrainingCapabilityService:
+    """Get the training capability service (cached)."""
+    return TrainingCapabilityService(
+        model_registry=get_training_model_registry(),
+        executor_registry=get_training_executor_registry(),
+    )
+
+
+@lru_cache()
+def get_training_result_reader() -> TrainingResultReader:
+    """Get the reader for the latest persisted training result."""
+    return TrainingResultReader(repository=get_persistence_repository())
+
+
+@lru_cache()
+def get_training_job_service() -> TrainingJobService:
+    """Get the training job control-plane service (cached)."""
+    persistence_repo = get_persistence_repository()
+    return TrainingJobService(
+        job_repository=TrainingJobRepository(persistence_repo=persistence_repo),
+        event_repository=TrainingJobEventRepository(
+            persistence_repo=persistence_repo
+        ),
+        executor=PassiveTrainingExecutor(),
+        model_registry=get_training_model_registry(),
+        executor_registry=get_training_executor_registry(),
+    )
 
 
 async def get_async_learning_service() -> "LearningService":
