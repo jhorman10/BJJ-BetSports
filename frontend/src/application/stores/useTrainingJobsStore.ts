@@ -72,8 +72,7 @@ const initialState = {
 const normalizeJob = (
   job: TrainingJobSummary | TrainingJobDetailsResponse
 ): TrainingJobSummary => {
-  // recipe_snapshot may be partial in Details, cast to any for safe access
-  const recipe = job.recipe_snapshot as any;
+  const recipe = job.recipe_snapshot as Partial<TrainingJobRecipeSnapshot> | undefined;
 
   // Determine created_at: Summary has it, Details has queued_at
   const created_at = "created_at" in job ? job.created_at : job.queued_at ?? null;
@@ -95,7 +94,7 @@ const normalizeJob = (
     phase: job.phase,
     executor_type: job.executor_type ?? null,
     executor_run_id: job.executor_run_id ?? null,
-    recipe_snapshot: recipe as TrainingJobRecipeSnapshot,
+    recipe_snapshot: recipe as TrainingJobRecipeSnapshot | undefined,
     result_summary: job.result_summary ?? {},
     artifact_ids: job.artifact_ids ?? [],
     audit_trail: job.audit_trail ?? [],

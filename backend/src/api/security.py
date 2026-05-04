@@ -5,6 +5,7 @@ Provee dependencia para endpoints administrativos.
 
 from __future__ import annotations
 
+import ipaddress
 import os
 from enum import Enum
 from typing import Any, Optional
@@ -39,21 +40,28 @@ def _get_request_host(request: Request) -> str:
     return ""
 
 
+def _is_local_dev_bypass_enabled() -> bool:
+    return os.getenv("LOCAL_DEV_BYPASS_ENABLED", "false").strip().lower() == "true"
+
+
 def _is_local_dev_request(request: Request) -> bool:
     host = _get_request_host(request)
     if host in _LOCAL_DEV_HOSTS:
         return True
 
-    # Allow Docker and private network IPs (172.16.x.x - 172.31.x.x,
-    # 192.168.x.x, 10.x.x.x)
-    if host.startswith("172.") or host.startswith("192.168.") or host.startswith("10."):
-        return True
-
-    return False
+    try:
+        addr = ipaddress.ip_address(host)
+        return addr.is_private or addr.is_loopback
+    except ValueError:
+        return False
 
 
 def _allow_local_dev_bypass(request: Request) -> bool:
-    return not _is_api_only_mode() and _is_local_dev_request(request)
+    return (
+        _is_local_dev_bypass_enabled()
+        and not _is_api_only_mode()
+        and _is_local_dev_request(request)
+    )
 
 
 def _get_training_permissions() -> set[TrainingPermission]:
