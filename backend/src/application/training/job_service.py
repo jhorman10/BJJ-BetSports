@@ -5,8 +5,16 @@ from uuid import uuid4
 
 from src.api.schemas.training import TrainingJobCreatePayload
 from src.application.training.audit import append_audit_entry, build_training_job_event
-from src.application.training.executors.base import PassiveTrainingExecutor, TrainingExecutor
-from src.domain.training.models import TrainingJob, TrainingRecipe
+from src.application.training.executors.base import (
+    PassiveTrainingExecutor,
+    TrainingExecutor,
+)
+from src.domain.training.models import (
+    ExecutorDefinition,
+    ModelAdapterDefinition,
+    TrainingJob,
+    TrainingRecipe,
+)
 from src.domain.training.registries import ExecutorRegistry, ModelRegistry
 from src.infrastructure.training.repositories import (
     TrainingJobEventRepository,
@@ -31,68 +39,30 @@ class TrainingJobService:
         self.executor_registry = executor_registry
 
     def _validate_payload(self, payload: TrainingJobCreatePayload) -> None:
-        if payload.days_back <= 0:
-            raise ValueError("days_back must be greater than 0")
-        if not payload.league_ids:
-            raise ValueError("league_ids must include at least one scope")
+        self._validate_days_back_positive(payload)
+        self._validate_league_ids_present(payload)
 
-        model = self.model_registry.get_model(payload.model_key) if self.model_registry else None
+        model = (
+            self.model_registry.get_model(payload.model_key)
+            if self.model_registry
+            else None
+        )
         if self.model_registry and model is None:
             raise ValueError(f"model_key '{payload.model_key}' is not available")
 
         if model is not None:
-            if (
-                model.supported_dataset_profiles
-                and payload.dataset_profile not in model.supported_dataset_profiles
-            ):
-                raise ValueError(
-                    f"dataset_profile '{payload.dataset_profile}' is not supported"
-                )
-            if (
-                model.supported_feature_profiles
-                and payload.feature_profile not in model.supported_feature_profiles
-            ):
-                raise ValueError(
-                    f"feature_profile '{payload.feature_profile}' is not supported"
-                )
-            if (
-                model.supported_executor_targets
-                and payload.executor_target not in model.supported_executor_targets
-            ):
-                raise ValueError(
-                    f"executor_target '{payload.executor_target}' is not supported for model_key '{payload.model_key}'"
-                )
-            if model.supported_league_ids:
-                invalid_leagues = sorted(
-                    {league_id for league_id in payload.league_ids if league_id not in model.supported_league_ids}
-                )
-                if invalid_leagues:
-                    raise ValueError(
-                        "league_ids contains unsupported scopes: "
-                        + ", ".join(invalid_leagues)
-                    )
-            if (
-                model.supported_days_back
-                and payload.days_back not in model.supported_days_back
-            ):
-                raise ValueError(
-                    f"days_back '{payload.days_back}' is not supported for model_key '{payload.model_key}'"
-                )
+            self._validate_dataset_profile(model, payload)
+            self._validate_feature_profile(model, payload)
+            self._validate_executor_target_supported(model, payload)
+            self._validate_league_ids_allowed(model, payload)
+            self._validate_days_back_allowed(model, payload)
 
         executor_definition = (
             self.executor_registry.get_executor(payload.executor_target)
             if self.executor_registry
             else None
         )
-        if self.executor_registry and executor_definition is None:
-            raise ValueError(
-                f"executor_target '{payload.executor_target}' is not available"
-            )
-        if executor_definition is not None and not executor_definition.is_available:
-            reasons = ", ".join(executor_definition.unavailable_reasons) or "executor unavailable"
-            raise ValueError(
-                f"executor_target '{payload.executor_target}' is not available: {reasons}"
-            )
+        self._validate_executor_available(payload, executor_definition)
 
     def create_job(
         self,
@@ -131,7 +101,9 @@ class TrainingJobService:
         job.executor_run_id = submission_payload.get("executor_run_id")
         job.status = submission_payload.get("status", job.status)
         job.phase = submission_payload.get("phase", job.phase)
-        job.status_message = submission_payload.get("status_message", job.status_message)
+        job.status_message = submission_payload.get(
+            "status_message", job.status_message
+        )
         job.audit_trail = append_audit_entry(
             job.audit_trail,
             "training.job.created",
@@ -168,3 +140,94 @@ class TrainingJobService:
 
     def list_events(self, job_id: str):
         return self.event_repository.list_for_job(job_id)
+
+    # --- Validation helpers (reduce _validate_payload complexity) ---
+    def _validate_days_back_positive(self, payload: TrainingJobCreatePayload) -> None:
+        if payload.days_back <= 0:
+            raise ValueError("days_back must be greater than 0")
+
+    def _validate_league_ids_present(self, payload: TrainingJobCreatePayload) -> None:
+        if not payload.league_ids:
+            raise ValueError("league_ids must include at least one scope")
+
+    def _validate_dataset_profile(
+        self, model: ModelAdapterDefinition, payload: TrainingJobCreatePayload
+    ) -> None:
+        if (
+            model.supported_dataset_profiles
+            and payload.dataset_profile not in model.supported_dataset_profiles
+        ):
+            raise ValueError(
+                f"dataset_profile '{payload.dataset_profile}' is not supported"
+            )
+
+    def _validate_feature_profile(
+        self, model: ModelAdapterDefinition, payload: TrainingJobCreatePayload
+    ) -> None:
+        if (
+            model.supported_feature_profiles
+            and payload.feature_profile not in model.supported_feature_profiles
+        ):
+            raise ValueError(
+                f"feature_profile '{payload.feature_profile}' is not supported"
+            )
+
+    def _validate_executor_target_supported(
+        self, model: ModelAdapterDefinition, payload: TrainingJobCreatePayload
+    ) -> None:
+        if (
+            model.supported_executor_targets
+            and payload.executor_target not in model.supported_executor_targets
+        ):
+            raise ValueError(
+                f"executor_target '{payload.executor_target}' is not supported"
+                f" for model_key '{payload.model_key}'"
+            )
+
+    def _validate_league_ids_allowed(
+        self, model: ModelAdapterDefinition, payload: TrainingJobCreatePayload
+    ) -> None:
+        if model.supported_league_ids:
+            invalid_leagues = sorted(
+                {
+                    league_id
+                    for league_id in payload.league_ids
+                    if league_id not in model.supported_league_ids
+                }
+            )
+            if invalid_leagues:
+                raise ValueError(
+                    "league_ids contains unsupported scopes: "
+                    + ", ".join(invalid_leagues)
+                )
+
+    def _validate_days_back_allowed(
+        self, model: ModelAdapterDefinition, payload: TrainingJobCreatePayload
+    ) -> None:
+        if (
+            model.supported_days_back
+            and payload.days_back not in model.supported_days_back
+        ):
+            raise ValueError(
+                f"days_back '{payload.days_back}' is not supported"
+                f" for model_key '{payload.model_key}'"
+            )
+
+    def _validate_executor_available(
+        self,
+        payload: TrainingJobCreatePayload,
+        executor_definition: ExecutorDefinition | None,
+    ) -> None:
+        if self.executor_registry and executor_definition is None:
+            raise ValueError(
+                f"executor_target '{payload.executor_target}' is not available"
+            )
+        if executor_definition is not None and not executor_definition.is_available:
+            reasons = (
+                ", ".join(executor_definition.unavailable_reasons)
+                or "executor unavailable"
+            )
+            raise ValueError(
+                f"executor_target '{payload.executor_target}' is not available:"
+                f" {reasons}"
+            )
