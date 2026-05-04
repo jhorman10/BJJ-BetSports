@@ -14,14 +14,12 @@ spec = importlib.util.spec_from_file_location("orchestrator_cli", SCRIPT_PATH)
 mod = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = mod
 
-# --- Inject lightweight fakes for dependencies before loading the module ---
 fake_deps = types.ModuleType("src.dependencies")
 fake_deps.get_persistence_repository = lambda: "FAKE_REPO"
 fake_deps.get_data_sources = lambda: "FAKE_DS"
 fake_deps.get_match_aggregator_service = lambda: "FAKE_MA"
 fake_deps.get_prediction_service = lambda: "FAKE_PS"
 fake_deps.get_statistics_service = lambda: "FAKE_SS"
-sys.modules["src.dependencies"] = fake_deps
 
 fake_uc_mod = types.ModuleType("src.application.use_cases.use_cases")
 
@@ -49,18 +47,15 @@ class FakeGetPredictionsUseCase:
 
 fake_uc_mod.GetPredictionsUseCase = FakeGetPredictionsUseCase
 
-# Minimal LEAGUES_METADATA expected by process_league_async
-fake_fd_mod = types.ModuleType("src.infrastructure.data_sources.football_data_uk")
-fake_fd_mod.LEAGUES_METADATA = {"E0": {}}
-sys.modules["src.infrastructure.data_sources.football_data_uk"] = fake_fd_mod
-
 # Now load the orchestrator_cli module
 spec.loader.exec_module(mod)
 
 
 def test_prepare_services_returns_use_case_and_repo():
-    # Temporarily inject the fake use case module for this test only
+    # Temporarily inject the fake dependency surfaces for this test only.
+    _orig_deps = sys.modules.get("src.dependencies")
     _orig = sys.modules.get("src.application.use_cases.use_cases")
+    sys.modules["src.dependencies"] = fake_deps
     sys.modules["src.application.use_cases.use_cases"] = fake_uc_mod
     try:
         use_case, repo = mod.prepare_services()
@@ -68,6 +63,13 @@ def test_prepare_services_returns_use_case_and_repo():
         assert hasattr(use_case, "_args")
         assert use_case._args[0] == "FAKE_DS"
     finally:
+        if _orig_deps is not None:
+            sys.modules["src.dependencies"] = _orig_deps
+        else:
+            try:
+                del sys.modules["src.dependencies"]
+            except KeyError:
+                pass
         if _orig is not None:
             sys.modules["src.application.use_cases.use_cases"] = _orig
         else:

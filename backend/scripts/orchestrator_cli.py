@@ -128,6 +128,7 @@ async def cmd_train(
             "accuracy": training_result.accuracy,
             "roi": training_result.roi,
             "global_averages": getattr(training_result, "global_averages", {}),
+            "context_summary": getattr(training_result, "context_summary", {}),
         }
         cache.set("ml_training_result_data", training_data, ttl_seconds=86400)
 
@@ -145,6 +146,7 @@ async def cmd_train(
             "market_stats": training_result.market_stats,
             "roi_evolution": training_result.roi_evolution,
             "pick_efficiency": training_result.pick_efficiency,
+            "context_summary": getattr(training_result, "context_summary", {}),
             # Exclude: match_history (~60MB), team_stats (~9MB)
         }
         try:

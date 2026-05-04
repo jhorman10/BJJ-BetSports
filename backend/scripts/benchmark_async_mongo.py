@@ -100,6 +100,24 @@ def percentile(data: List[float], p: float) -> float:
     return s[f] * (c - k) + s[c] * (k - f)
 
 
+def serialize_benchmark_results(
+    results: Dict[str, BenchmarkResult],
+) -> Dict[str, Dict[str, float | int]]:
+    return {
+        op: {
+            "p50_ms": res.p50,
+            "p95_ms": res.p95,
+            "p99_ms": res.p99,
+            "mean_ms": res.mean,
+            "min_ms": res.min,
+            "max_ms": res.max,
+            "ok": res.ok,
+            "errors": res.errors,
+        }
+        for op, res in results.items()
+    }
+
+
 async def benchmark_single_operation(
     repo: AsyncMongoRepository,
     operation: str,
@@ -241,32 +259,47 @@ def run_sync_comparison(
     return BenchmarkResult(operation=operation, durations_ms=durations, errors=errors)
 
 
+async def seed_async_repo(repo: AsyncMongoRepository, data: Dict[str, Any]) -> None:
+    await repo.save_match_prediction(
+        data["match_id"],
+        data["league_id"],
+        data["payload"],
+        data.get("ttl", 3600),
+    )
+    await repo.bulk_save_predictions(data["predictions"])
+    await repo.save_cached_response(
+        data["endpoint"],
+        data["cached_data"],
+        None,
+        data.get("ttl", 3600),
+    )
+
+
+def seed_sync_repo(repo: MongoRepository, data: Dict[str, Any]) -> None:
+    repo.save_match_prediction(
+        data["match_id"],
+        data["league_id"],
+        data["payload"],
+        data.get("ttl", 3600),
+    )
+    repo.bulk_save_predictions(data["predictions"])
+    repo.save_cached_response(
+        data["endpoint"],
+        data["cached_data"],
+        None,
+        data.get("ttl", 3600),
+    )
+
+
 async def run_async_benchmarks(
     repo: AsyncMongoRepository,
     operations: List[str],
     iterations: int,
     concurrency: int,
+    test_data: Dict[str, Any],
 ) -> Dict[str, BenchmarkResult]:
     sem = asyncio.Semaphore(concurrency)
     results: Dict[str, BenchmarkResult] = {}
-
-    test_data = {
-        "match_id": f"bench_{int(time.time())}",
-        "match_ids": [f"m_{i}" for i in range(50)],
-        "league_id": "E0",
-        "payload": {"test": True, "timestamp": time.time()},
-        "predictions": [
-            {
-                "match_id": f"m_{i}",
-                "league_id": "E0",
-                "data": {"test": True},
-                "ttl_seconds": 3600,
-            }
-            for i in range(10)
-        ],
-        "endpoint": "/api/benchmark",
-        "cached_data": {"result": "benchmark", "timestamp": time.time()},
-    }
 
     for op in operations:
         print(f"  Running {op}...")
@@ -313,9 +346,28 @@ async def main():
         f"Benchmarking AsyncMongoRepository (n={args.iterations}, c={args.concurrency})"
     )
 
+    test_data = {
+        "match_id": f"bench_{int(time.time())}",
+        "match_ids": [f"m_{i}" for i in range(50)],
+        "league_id": "E0",
+        "payload": {"test": True, "timestamp": time.time()},
+        "predictions": [
+            {
+                "match_id": f"m_{i}",
+                "league_id": "E0",
+                "data": {"test": True},
+                "ttl_seconds": 3600,
+            }
+            for i in range(10)
+        ],
+        "endpoint": "/api/benchmark",
+        "cached_data": {"result": "benchmark", "timestamp": time.time()},
+    }
+
     repo = create_async_repo()
+    await seed_async_repo(repo, test_data)
     async_results = await run_async_benchmarks(
-        repo, operations, args.iterations, args.concurrency
+        repo, operations, args.iterations, args.concurrency, test_data
     )
 
     # Summary
@@ -334,13 +386,20 @@ async def main():
     print(f"\nAverage p50: {avg_p50:.2f}ms")
 
     # Sync comparison if requested
+    sync_results: Dict[str, BenchmarkResult] = {}
     if args.sync:
         print("\n=== Sync Comparison ===")
         sync_repo = create_sync_repo()
+        seed_sync_repo(sync_repo, test_data)
         for op in operations:
             res = run_sync_comparison(
-                sync_repo, op, {}, args.iterations, args.concurrency
+                sync_repo,
+                op,
+                test_data,
+                args.iterations,
+                args.concurrency,
             )
+            sync_results[op] = res
             print(
                 f"{op}: p50={res.p50:.2f}ms "
                 f"p95={res.p95:.2f}ms "
@@ -352,20 +411,13 @@ async def main():
         "timestamp": time.time(),
         "iterations": args.iterations,
         "concurrency": args.concurrency,
-        "async": {
-            op: {
-                "p50_ms": res.p50,
-                "p95_ms": res.p95,
-                "p99_ms": res.p99,
-                "mean_ms": res.mean,
-                "min_ms": res.min,
-                "max_ms": res.max,
-                "ok": res.ok,
-                "errors": res.errors,
-            }
-            for op, res in async_results.items()
-        },
+        "operations": operations,
+        "sync_requested": args.sync,
+        "async": serialize_benchmark_results(async_results),
     }
+
+    if sync_results:
+        output_data["sync"] = serialize_benchmark_results(sync_results)
 
     if args.output:
         with open(args.output, "w") as f:

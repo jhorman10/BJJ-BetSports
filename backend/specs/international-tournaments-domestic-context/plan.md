@@ -47,3 +47,10 @@ entrenamiento e inferencia.
 - `EURO` y `WC` usan contexto de selección, no de clubes.
 - Entrenamiento e inferencia comparten el mismo contrato de estadísticas y features.
 - Las pruebas focalizadas e integraciones del slice pasan sin regresiones relevantes.
+
+## Cierre ejecutado
+- Observabilidad añadida en `TrainingResult.context_summary` y propagada a los reportes
+   lightweight persistidos por el pipeline.
+- Integración validada explícitamente para `LIB`, `SUD`, `UCL`, `EURO` y regresión doméstica
+   `E0`.
+- Gate backend canónico ejecutado en verde con lint, formato, typing y `78` pruebas.

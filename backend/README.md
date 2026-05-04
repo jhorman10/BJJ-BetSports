@@ -37,9 +37,18 @@ Once running, visit: http://localhost:8000/docs
 Create a `.env` file:
 
 ```env
-API_FOOTBALL_KEY=your_api_key_here
 FOOTBALL_DATA_ORG_KEY=your_api_key_here
+MONGO_URI=mongodb://admin:adminpassword@localhost:27017/
+MONGO_DB_NAME=bjj_betsports
+MONGO_ASYNC_MODE=off
 ```
+
+Notas de despliegue:
+
+- `MONGO_URI` y `MONGO_DB_NAME` son obligatorios para cualquier path Mongo, incluido el fallback sync.
+- `MONGO_ASYNC_MODE=off` es el baseline seguro para despliegues antes del canary async.
+- No activar `MONGO_ASYNC_MODE=on` hasta tener un Mongo real accesible desde el entorno objetivo.
+- En Render, `MONGO_DB_NAME` puede quedar fijo en `bjj_betsports`; el valor que sigue siendo manual y sensible es `MONGO_URI`.
 
 ## Testing
 

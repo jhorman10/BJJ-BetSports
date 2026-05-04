@@ -109,7 +109,7 @@ Qué hacer si hay fallos
 
 CI
 --
-Las acciones de GitHub relevantes están en `.github/workflows/ci.yml`, `.github/workflows/ci-pr.yml` y `.github/workflows/lint.yml`. La intención operativa local debe replicar esta matriz:
+Las acciones de GitHub relevantes están en `.github/workflows/ci.yml`, `.github/workflows/ci-pr.yml` y `.github/workflows/lint.yml`. La matriz remota ya quedó alineada con el gate canónico local y usa los mismos comandos base por slice:
 - Backend: `ruff`, `black`, `isort`, `mypy`, `pytest`
 - Frontend: `eslint`, `build`, `vitest`
 

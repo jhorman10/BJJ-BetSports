@@ -2,7 +2,7 @@
 title: Contexto doméstico real para torneos internacionales
 author: GitHub Copilot
 date: 2026-04-28
-status: proposed
+status: completed
 tags: [backend, ml, training, predictions, tournaments, data-quality]
 ---
 
@@ -27,6 +27,30 @@ La validación del código actual muestra tres brechas concretas:
 El objetivo de este cambio es que cualquier partido internacional use contexto real del equipo
 participante, sin inventar datos, y que el contrato de features sea idéntico entre
 entrenamiento e inferencia.
+
+Estado de cierre verificado
+---------------------------
+- `LIB`: el bundle contextual resuelve contexto base distinto para ambos clubes y combina
+  soporte doméstico + internacional del torneo objetivo.
+- `SUD`: la degradación por falta de contexto doméstico ya es explícita, real y auditable vía
+  `no_domestic_context`; no se inventan matches ni ligas base.
+- `UCL`: el contexto del club mezcla historial doméstico e internacional manteniendo separado
+  `target_competition_stats`.
+- `EURO`: la selección usa baseline nacional (`EURO`/`WC`) y excluye contaminación de clubes.
+- `E0`: la ruta doméstica se mantiene compatible y estable.
+- `TrainingResult` ahora expone `context_summary`, y esa señal se persiste en los payloads
+  lightweight del entrenamiento.
+- Validación final ejecutada:
+  - `pytest tests/unit -q`
+  - `pytest tests/integration -q`
+  - `bash scripts/quality_gate.sh backend`
+
+Limitaciones reales documentadas
+--------------------------------
+- Si un club internacional no tiene soporte doméstico suficiente en las fuentes disponibles,
+  el sistema degrada a contexto internacional real y reporta cobertura incompleta.
+- Para selecciones, la calidad del baseline nacional sigue dependiendo de que existan partidos
+  reales recientes en `EURO`, `WC` u otras competiciones nacionales disponibles en la fuente.
 
 Estado actual verificado
 ------------------------

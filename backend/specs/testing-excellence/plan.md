@@ -23,6 +23,13 @@ que replique CI, exponga la deuda restante y permita iterar hacia un estado verd
    - Continuar por familias: imports/nombres indefinidos, tipado básico, formato,
      refactors complejos con tests, coverage y branch protection.
 
+## Cierre ejecutado
+
+- `scripts/quality_gate.sh all` ya es la fuente de verdad full-stack y pasó en verde.
+- `scripts/local_checks.sh` dejó de divergir del flujo canónico.
+- Los workflows remotos relevantes (`ci.yml`, `ci-pr.yml`, `lint.yml`) quedaron alineados con los mismos checks base del gate local.
+- La deuda restante ya no bloquea reproducibilidad ni paridad local/remota; queda relegada a endurecimiento incremental fuera del alcance de este spec.
+
 ## Decisiones técnicas
 
 - El flujo canónico debe fallar rápido y devolver un código de salida no cero ante el

@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
-"""Benchmark endpoints in-process using httpx AsyncClient(app=app).
+"""Benchmark endpoints locally or against a live deployment.
 
 Usage:
   python scripts/benchmark_async.py -n 100 -c 10
+    python scripts/benchmark_async.py --base-url http://localhost:8000
+    python scripts/benchmark_async.py --base-url https://staging.example.com \
+            --header "Authorization: Bearer <token>"
 
-The script imports `src.api.main:app` and runs concurrent requests against
-the provided endpoints. Results are printed and saved to `backend/tmp/`.
+Without `--base-url`, the script imports `src.api.main:app` and benchmarks the
+API in-process. With `--base-url`, it sends real HTTP requests against the
+target deployment and skips the in-memory repository patching used for local
+benchmarks.
 """
 
 from __future__ import annotations
@@ -22,7 +27,7 @@ import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
 
@@ -197,12 +202,15 @@ async def make_request(
 
 
 async def run_benchmark(
-    app, path: str, method: str = "GET", total: int = 100, concurrency: int = 10
+    client: httpx.AsyncClient,
+    path: str,
+    method: str = "GET",
+    total: int = 100,
+    concurrency: int = 10,
 ) -> Result:
     sem = asyncio.Semaphore(concurrency)
-    async with httpx.AsyncClient(app=app, base_url="http://test") as client:
-        tasks = [make_request(client, method, path, sem) for _ in range(total)]
-        results = await asyncio.gather(*tasks)
+    tasks = [make_request(client, method, path, sem) for _ in range(total)]
+    results = await asyncio.gather(*tasks)
 
     durations = [r[0] for r in results]
     statuses = [r[1] for r in results]
@@ -278,43 +286,108 @@ def _install_fake_repository() -> None:
         pass
 
 
-def _run_endpoint_benchmarks(
-    app: Any, endpoints: List[str], requests: int, concurrency: int
-) -> dict:
-    loop = asyncio.get_event_loop()
-    overall = {}
-
-    for endpoint in endpoints:
-        print(
-            f"Running benchmark: {endpoint} "
-            f"(requests={requests}, concurrency={concurrency})"
-        )
-        res = loop.run_until_complete(
-            run_benchmark(app, endpoint, "GET", requests, concurrency)
-        )
-        summary = summarize(res)
-        overall[endpoint] = summary
-        print(json.dumps({"endpoint": endpoint, "summary": summary}, indent=2))
-
-        file_name = os.path.join(
-            ensure_tmp_dir(), f"benchmark_{endpoint.strip('/').replace('/', '_')}.json"
-        )
-        with open(file_name, "w") as fh:
-            json.dump(
-                {
-                    "durations_ms": res.durations,
-                    "statuses": res.statuses,
-                    "summary": summary,
-                },
-                fh,
+def _parse_headers(header_args: Optional[List[str]]) -> Dict[str, str]:
+    headers: Dict[str, str] = {}
+    for raw_header in header_args or []:
+        name, separator, value = raw_header.partition(":")
+        if not separator:
+            raise ValueError(
+                f"Invalid header '{raw_header}'. Expected 'Name: Value' format."
             )
+
+        headers[name.strip()] = value.strip()
+
+    return headers
+
+
+async def _run_endpoint_benchmarks_async(
+    app: Any,
+    base_url: str,
+    headers: Dict[str, str],
+    timeout_seconds: float,
+    endpoints: List[str],
+    requests: int,
+    concurrency: int,
+) -> dict:
+    client_kwargs = {
+        "base_url": base_url,
+        "headers": headers,
+        "timeout": timeout_seconds,
+        "follow_redirects": True,
+    }
+    if app is not None:
+        client_kwargs["app"] = app
+
+    overall = {}
+    async with httpx.AsyncClient(**client_kwargs) as client:
+        for endpoint in endpoints:
+            print(
+                f"Running benchmark: {endpoint} "
+                f"(requests={requests}, concurrency={concurrency})"
+            )
+            res = await run_benchmark(client, endpoint, "GET", requests, concurrency)
+            summary = summarize(res)
+            overall[endpoint] = summary
+            print(json.dumps({"endpoint": endpoint, "summary": summary}, indent=2))
+
+            file_name = os.path.join(
+                ensure_tmp_dir(),
+                f"benchmark_{endpoint.strip('/').replace('/', '_')}.json",
+            )
+            with open(file_name, "w") as fh:
+                json.dump(
+                    {
+                        "mode": "external" if app is None else "in-process",
+                        "base_url": base_url,
+                        "endpoint": endpoint,
+                        "requests": requests,
+                        "concurrency": concurrency,
+                        "durations_ms": res.durations,
+                        "statuses": res.statuses,
+                        "summary": summary,
+                    },
+                    fh,
+                    indent=2,
+                )
 
     out_fname = os.path.join(ensure_tmp_dir(), "benchmark_summary.json")
     with open(out_fname, "w") as fh:
-        json.dump(overall, fh, indent=2)
+        json.dump(
+            {
+                "mode": "external" if app is None else "in-process",
+                "base_url": base_url,
+                "requests": requests,
+                "concurrency": concurrency,
+                "results": overall,
+            },
+            fh,
+            indent=2,
+        )
     print("Benchmark complete. Results saved to backend/tmp/")
 
     return overall
+
+
+def _run_endpoint_benchmarks(
+    app: Any,
+    base_url: str,
+    headers: Dict[str, str],
+    timeout_seconds: float,
+    endpoints: List[str],
+    requests: int,
+    concurrency: int,
+) -> dict:
+    return asyncio.run(
+        _run_endpoint_benchmarks_async(
+            app,
+            base_url,
+            headers,
+            timeout_seconds,
+            endpoints,
+            requests,
+            concurrency,
+        )
+    )
 
 
 def main() -> None:
@@ -322,9 +395,42 @@ def main() -> None:
     parser.add_argument("-n", "--requests", type=int, default=50)
     parser.add_argument("-c", "--concurrency", type=int, default=10)
     parser.add_argument("--endpoints", nargs="*", default=None)
+    parser.add_argument(
+        "--base-url",
+        default=None,
+        help=(
+            "Run benchmarks against a live deployment instead of importing "
+            "the app in-process."
+        ),
+    )
+    parser.add_argument(
+        "--header",
+        action="append",
+        default=None,
+        help="HTTP header in 'Name: Value' format. Repeat for multiple headers.",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=30.0,
+        help="Per-request timeout in seconds.",
+    )
+    parser.add_argument(
+        "--no-fake-repo",
+        action="store_true",
+        help="Keep the real repository wiring when benchmarking in-process.",
+    )
     args = parser.parse_args()
+    headers = _parse_headers(args.header)
+    app = None
+    base_url = "http://test"
 
-    app = _load_app()
+    if args.base_url:
+        base_url = args.base_url.rstrip("/")
+    else:
+        app = _load_app()
+        if not args.no_fake_repo:
+            _install_fake_repository()
 
     endpoints = args.endpoints or [
         "/api/v1/suggested-picks/match/m_1001",
@@ -333,8 +439,15 @@ def main() -> None:
     ]
 
     ensure_tmp_dir()
-    _install_fake_repository()
-    _run_endpoint_benchmarks(app, endpoints, args.requests, args.concurrency)
+    _run_endpoint_benchmarks(
+        app,
+        base_url,
+        headers,
+        args.timeout,
+        endpoints,
+        args.requests,
+        args.concurrency,
+    )
 
 
 if __name__ == "__main__":

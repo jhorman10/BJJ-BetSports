@@ -11,11 +11,11 @@
 - [x] Actualizar `docs/developer-linting.md` con el comando fuente de verdad.
 
 ## Verificación
-- [ ] Ejecutar el gate canónico completo.
+- [x] Ejecutar el gate canónico completo.
 - [x] Registrar las familias de fallos resultantes.
 - [x] Corregir la primera familia crítica seleccionada.
-- [ ] Reejecutar el gate afectado y luego el gate completo.
+- [x] Reejecutar el gate afectado y luego el gate completo.
 
 ## Seguimiento
-- [ ] Dejar documentado el estado exacto de la deuda restante.
-- [ ] Preparar la siguiente iteración: tipado y refactor de complejidad.
+- [x] Dejar documentado el estado exacto de la deuda restante.
+- [x] Preparar la siguiente iteración: tipado y refactor de complejidad.

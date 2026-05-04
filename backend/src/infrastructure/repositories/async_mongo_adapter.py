@@ -23,7 +23,7 @@ import os
 from datetime import timedelta
 from typing import Any, Dict, List, Optional, Tuple, cast
 
-from src.utils.time_utils import get_current_time
+from src.utils.time_utils import get_current_time, is_future_time
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +90,7 @@ class AsyncMongoAdapter:
         key = f"{endpoint}:{str(params)}"
         if self._use_motor:
             doc = await self.api_cache.find_one({"key": key})
-            if doc and doc.get("expires_at") and doc["expires_at"] > get_current_time():
+            if doc and is_future_time(doc.get("expires_at")):
                 return cast(Optional[dict], doc.get("data"))
             return None
         else:
@@ -128,7 +128,7 @@ class AsyncMongoAdapter:
     async def get_match_prediction(self, match_id: str) -> Optional[dict]:
         if self._use_motor:
             doc = await self.match_predictions.find_one({"match_id": match_id})
-            if doc and doc.get("expires_at") and doc["expires_at"] > get_current_time():
+            if doc and is_future_time(doc.get("expires_at")):
                 return cast(Optional[dict], doc.get("data"))
             return None
         else:
@@ -333,6 +333,23 @@ def _load_async_mode_flag() -> Optional[bool]:
     return _MONGO_ASYNC_MODE
 
 
+def _load_required_async_mongo_settings() -> Tuple[str, str]:
+    """Load explicit Mongo settings for rollout-controlled async modes.
+
+    When `MONGO_ASYNC_MODE` is explicitly set, do not silently fall back to the
+    local default URI. Deployment environments must provide a real Mongo target.
+    """
+    mongo_uri = os.getenv("MONGO_URI", "").strip()
+    db_name = os.getenv("MONGO_DB_NAME", "").strip() or "bjj_betsports"
+
+    if not mongo_uri:
+        raise RuntimeError(
+            "MONGO_ASYNC_MODE explicit requires MONGO_URI to be set explicitly."
+        )
+
+    return mongo_uri, db_name
+
+
 def reset_async_mongo_repository() -> None:
     """Reset the singleton (useful for testing or reconfiguration)."""
     global _async_mongo_repo
@@ -357,7 +374,11 @@ def get_async_mongo_repository() -> Any:
 
         if async_flag is False:
             # Explicitly disabled: use sync fallback
-            _async_mongo_repo = AsyncMongoAdapter()
+            mongo_uri, db_name = _load_required_async_mongo_settings()
+            _async_mongo_repo = AsyncMongoAdapter(
+                mongo_uri=mongo_uri,
+                db_name=db_name,
+            )
             logger.info(
                 (
                     "get_async_mongo_repository: MONGO_ASYNC_MODE=off, using "
@@ -367,11 +388,15 @@ def get_async_mongo_repository() -> Any:
         elif async_flag is True:
             # Explicitly enabled: require Motor
             try:
+                mongo_uri, db_name = _load_required_async_mongo_settings()
                 from src.infrastructure.repositories.async_mongo_repository import (
                     AsyncMongoRepository,
                 )
 
-                _async_mongo_repo = AsyncMongoRepository()
+                _async_mongo_repo = AsyncMongoRepository(
+                    mongo_uri=mongo_uri,
+                    db_name=db_name,
+                )
                 logger.info(
                     (
                         "get_async_mongo_repository: MONGO_ASYNC_MODE=on, using "

@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 
 from pytz import timezone, utc
 
@@ -23,3 +24,15 @@ def to_colombia_time(dt: datetime) -> datetime:
         dt = utc.localize(dt)
 
     return dt.astimezone(COLOMBIA_TZ)
+
+
+def is_future_time(dt: Optional[datetime]) -> bool:
+    """Return True when a datetime is still in the future in Colombia TZ.
+
+    Mongo reads may yield naive datetimes even when the application stored aware
+    values, so normalize before comparing against the current app clock.
+    """
+    if dt is None:
+        return False
+
+    return to_colombia_time(dt) > get_current_time()

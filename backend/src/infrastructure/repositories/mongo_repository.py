@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
 from pymongo import MongoClient
-from src.utils.time_utils import get_current_time
+from src.utils.time_utils import get_current_time, is_future_time
 
 logger = logging.getLogger(__name__)
 
@@ -142,7 +142,7 @@ class MongoRepository:
 
     def get_match_prediction(self, match_id: str) -> Optional[Dict[str, Any]]:
         doc = self.match_predictions.find_one({"match_id": match_id})
-        if doc and doc.get("expires_at") and doc["expires_at"] > get_current_time():
+        if doc and is_future_time(doc.get("expires_at")):
             res = doc.get("data")
             return res if isinstance(res, dict) else None
         return None
@@ -238,8 +238,7 @@ class MongoRepository:
     ) -> Optional[Dict[str, Any]]:
         key = f"{endpoint}:{str(params)}"
         doc = self.api_cache.find_one({"key": key})
-        # Check expiration - assuming get_current_time and expires_at are compatible
-        if doc and doc.get("expires_at") and doc["expires_at"] > get_current_time():
+        if doc and is_future_time(doc.get("expires_at")):
             res = doc.get("data")
             return res if isinstance(res, dict) else None
         return None
