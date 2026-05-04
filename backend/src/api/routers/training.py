@@ -26,8 +26,11 @@ from src.dependencies import (
     get_training_job_service,
     get_training_result_reader,
 )
-
-from src.domain.training.models import ExecutorDefinition, ModelAdapterDefinition, TrainingJob
+from src.domain.training.models import (
+    ExecutorDefinition,
+    ModelAdapterDefinition,
+    TrainingJob,
+)
 
 router = APIRouter(prefix="/api/v1/training", tags=["training"])
 
