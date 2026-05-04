@@ -27,6 +27,8 @@ from src.dependencies import (
     get_training_result_reader,
 )
 
+from src.domain.training.models import ExecutorDefinition, ModelAdapterDefinition, TrainingJob
+
 router = APIRouter(prefix="/api/v1/training", tags=["training"])
 
 
@@ -34,11 +36,12 @@ def _iso(value: Any) -> str | None:
     if value is None:
         return None
     if hasattr(value, "isoformat"):
-        return value.isoformat()
+        # Cast to str to satisfy mypy (isoformat may return Any)
+        return str(value.isoformat())
     return str(value)
 
 
-def _job_payload(job) -> TrainingJobPayload:
+def _job_payload(job: TrainingJob) -> TrainingJobPayload:
     recipe = job.recipe_snapshot
     return TrainingJobPayload(
         job_id=job.job_id,
@@ -75,7 +78,7 @@ def _job_payload(job) -> TrainingJobPayload:
     )
 
 
-def _model_payload(model) -> TrainingModelOptionModel:
+def _model_payload(model: ModelAdapterDefinition) -> TrainingModelOptionModel:
     return TrainingModelOptionModel(
         key=model.key,
         label=model.label,
@@ -89,7 +92,7 @@ def _model_payload(model) -> TrainingModelOptionModel:
     )
 
 
-def _executor_payload(executor) -> TrainingExecutorOptionModel:
+def _executor_payload(executor: ExecutorDefinition) -> TrainingExecutorOptionModel:
     description = executor.description
     if not executor.is_available and executor.unavailable_reasons:
         description = "; ".join(executor.unavailable_reasons)

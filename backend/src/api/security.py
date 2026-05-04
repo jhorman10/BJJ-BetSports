@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import os
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import HTTPException, Request, Security
 from fastapi.security import APIKeyHeader
@@ -110,7 +110,7 @@ async def require_admin_key(
     return api_key
 
 
-def require_training_permission(permission: TrainingPermission):
+def require_training_permission(permission: TrainingPermission) -> Any:
     async def _dependency(
         request: Request,
         api_key: Optional[str] = Security(API_KEY_HEADER),

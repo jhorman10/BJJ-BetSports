@@ -61,3 +61,6 @@ LEAGUES_METADATA = {
     "ARG1": {"name": "Liga Profesional", "country": "Argentina"},
     "BRA1": {"name": "Série A", "country": "Brazil"},
 }
+
+# Default set of league codes considered for predictions
+DEFAULT_LEAGUES = list(LEAGUES_METADATA.keys())

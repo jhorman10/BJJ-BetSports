@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from typing import Any, Iterable
 
 from src.domain.training.models import ExecutorDefinition, ModelAdapterDefinition
 from src.domain.training.registries import ExecutorRegistry, ModelRegistry
@@ -197,7 +198,7 @@ def _resolve_league_ids() -> list[str]:
     return resolved or ["E0"]
 
 
-def _dedupe_options(values) -> list[TrainingCatalogOption]:
+def _dedupe_options(values: Iterable[Any]) -> list[TrainingCatalogOption]:
     seen: set[str] = set()
     options: list[TrainingCatalogOption] = []
     for value in values:

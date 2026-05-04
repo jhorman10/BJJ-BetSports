@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import logging
 import os
-import subprocess
-import threading
+import subprocess  # noqa: F401
+import threading  # noqa: F401
 from pathlib import Path
 from typing import Any, Dict
 

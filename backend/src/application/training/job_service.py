@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 from uuid import uuid4
 
 from src.api.schemas.training import TrainingJobCreatePayload
@@ -13,6 +13,7 @@ from src.domain.training.models import (
     ExecutorDefinition,
     ModelAdapterDefinition,
     TrainingJob,
+    TrainingJobEvent,
     TrainingRecipe,
 )
 from src.domain.training.registries import ExecutorRegistry, ModelRegistry
@@ -97,6 +98,8 @@ class TrainingJobService:
         submission_payload = (
             submission.__dict__ if hasattr(submission, "__dict__") else submission
         )
+        # Ensure we have a dict for payload access
+        submission_payload = cast(dict, submission_payload)
         job.executor_type = submission_payload.get("executor_type")
         job.executor_run_id = submission_payload.get("executor_run_id")
         job.status = submission_payload.get("status", job.status)
@@ -138,7 +141,7 @@ class TrainingJobService:
     def list_jobs(self, *, limit: int = 50) -> list[TrainingJob]:
         return self.job_repository.list_recent(limit=limit)
 
-    def list_events(self, job_id: str):
+    def list_events(self, job_id: str) -> list[TrainingJobEvent]:
         return self.event_repository.list_for_job(job_id)
 
     # --- Validation helpers (reduce _validate_payload complexity) ---
