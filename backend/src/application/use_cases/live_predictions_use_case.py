@@ -441,6 +441,7 @@ class GetLivePredictionsUseCase:
 
         # Pre-fetch pre-calculated predictions in bulk to avoid N+1 DB calls
         pre_calculated_map: dict = {}
+        active_predictions_by_name: dict = {}
         # Use async mongo adapter when available to prefetch pre-calculated predictions
         try:
             from src.infrastructure.repositories.async_mongo_adapter import (
@@ -450,6 +451,21 @@ class GetLivePredictionsUseCase:
             async_repo = get_async_mongo_repository()
             match_ids = [m.id for m in live_matches]
             pre_calculated_map = await async_repo.get_match_predictions_bulk(match_ids)
+            
+            # Phase 1: Build name-based map for fallback matching (when IDs mismatch, e.g. ESPN vs FDO)
+            all_active = await async_repo.get_all_active_predictions()
+            for doc in all_active:
+                p_data = doc.get("prediction", {})
+                if not p_data:
+                    continue
+                m_data = p_data.get("match", {})
+                h_name = m_data.get("home_team", {}).get("name", "")
+                a_name = m_data.get("away_team", {}).get("name", "")
+                if h_name and a_name:
+                    h_norm = self.statistics_service._normalize_name(h_name)
+                    a_norm = self.statistics_service._normalize_name(a_name)
+                    key = f"{h_norm}_vs_{a_norm}"
+                    active_predictions_by_name[key] = p_data
         except Exception as e:
             # Fallback to sync persistence repository if async adapter fails
             logger.warning("Bulk prefetch predictions (async) failed: %s", e)
@@ -478,8 +494,9 @@ class GetLivePredictionsUseCase:
                 match,
                 bulk_history,
                 start_time,
-                pre_calculated_map,
-                context_bundle_cache,
+                pre_calculated_map=pre_calculated_map,
+                context_bundle_cache=context_bundle_cache,
+                active_predictions_by_name=active_predictions_by_name,
             )
             results.append(processed)
 
@@ -646,6 +663,7 @@ class GetLivePredictionsUseCase:
         context_bundle_cache: Optional[
             Dict[str, Optional[TrainingDataContextBundle]]
         ] = None,
+        active_predictions_by_name: Optional[Dict[str, Any]] = None,
     ) -> MatchPredictionDTO:
         """Process a single live match: try DB lookup, otherwise run realtime inference.
 
@@ -666,6 +684,15 @@ class GetLivePredictionsUseCase:
                     )
                 except Exception as e:
                     logger.warning("Single pre-calculated lookup failed: %s", e)
+                    
+            # 1.5. FALLBACK: Name-based matching if ID didn't work (for ESPN matches)
+            if not pre_calculated_data and active_predictions_by_name:
+                h_norm = self.statistics_service._normalize_name(match.home_team.name)
+                a_norm = self.statistics_service._normalize_name(match.away_team.name)
+                name_key = f"{h_norm}_vs_{a_norm}"
+                if name_key in active_predictions_by_name:
+                    pre_calculated_data = active_predictions_by_name[name_key]
+                    logger.info("Found pre-calculated prediction via name fallback for %s vs %s", match.home_team.name, match.away_team.name)
 
             if pre_calculated_data:
                 try:
