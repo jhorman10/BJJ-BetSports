@@ -245,7 +245,11 @@ export const usePredictionStore = create<PredictionState>()(
           const status = await predictionsApi.getTrainingStatus();
           const { lastTrainingUpdate } = get();
 
-          if (status.last_update && status.last_update !== lastTrainingUpdate) {
+          if (
+            status.available &&
+            status.last_update &&
+            status.last_update !== lastTrainingUpdate
+          ) {
             // New update detected
             set({ lastTrainingUpdate: status.last_update });
 

@@ -99,10 +99,8 @@ export const predictionsApi = {
    * Get current training status
    */
   async getTrainingStatus(): Promise<{
-    status: string;
-    message: string;
+    available: boolean;
     last_update?: string;
-    has_result: boolean;
   }> {
     const response = await apiClient.get(API_ENDPOINTS.TRAINING_STATUS);
     return response.data;
