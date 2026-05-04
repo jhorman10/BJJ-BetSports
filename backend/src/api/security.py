@@ -43,11 +43,12 @@ def _is_local_dev_request(request: Request) -> bool:
     host = _get_request_host(request)
     if host in _LOCAL_DEV_HOSTS:
         return True
-    
-    # Allow Docker and private network IPs (172.16.x.x - 172.31.x.x, 192.168.x.x, 10.x.x.x)
+
+    # Allow Docker and private network IPs (172.16.x.x - 172.31.x.x,
+    # 192.168.x.x, 10.x.x.x)
     if host.startswith("172.") or host.startswith("192.168.") or host.startswith("10."):
         return True
-        
+
     return False
 
 

@@ -11,6 +11,7 @@ from functools import lru_cache
 from typing import Any
 
 from src.application.services.ml_training_orchestrator import MLTrainingOrchestrator
+from src.application.services.training_data_service import TrainingDataService
 from src.application.training.catalog import (
     ModelRegistryService,
     TrainingCapabilityService,
@@ -19,7 +20,6 @@ from src.application.training.catalog import (
 from src.application.training.executors import PassiveTrainingExecutor
 from src.application.training.job_service import TrainingJobService
 from src.application.training.result_reader import TrainingResultReader
-from src.application.services.training_data_service import TrainingDataService
 from src.application.use_cases.use_cases import DataSources
 from src.domain.services.ai_picks_service import AIPicksService
 from src.domain.services.audit_service import AuditService
@@ -208,9 +208,7 @@ def get_training_job_service() -> TrainingJobService:
     persistence_repo = get_persistence_repository()
     return TrainingJobService(
         job_repository=TrainingJobRepository(persistence_repo=persistence_repo),
-        event_repository=TrainingJobEventRepository(
-            persistence_repo=persistence_repo
-        ),
+        event_repository=TrainingJobEventRepository(persistence_repo=persistence_repo),
         executor=PassiveTrainingExecutor(),
         model_registry=get_training_model_registry(),
         executor_registry=get_training_executor_registry(),

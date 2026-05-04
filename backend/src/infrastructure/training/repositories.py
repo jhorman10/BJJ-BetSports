@@ -137,9 +137,7 @@ class TrainingJobRepository:
             ),
             executor_target=recipe_snapshot.get("executor_target", "default"),
             publish_strategy=PublishStrategy(
-                recipe_snapshot.get(
-                    "publish_strategy", PublishStrategy.MANUAL.value
-                )
+                recipe_snapshot.get("publish_strategy", PublishStrategy.MANUAL.value)
             ),
             requested_by=recipe_snapshot.get("requested_by"),
             requested_at=_parse_datetime(recipe_snapshot.get("requested_at"))
@@ -267,7 +265,9 @@ class ModelArtifactRepository:
                 artifact_id=doc["artifact_id"],
                 job_id=doc["job_id"],
                 model_key=doc["model_key"],
-                status=ArtifactStatus(doc.get("status", ArtifactStatus.CANDIDATE.value)),
+                status=ArtifactStatus(
+                    doc.get("status", ArtifactStatus.CANDIDATE.value)
+                ),
                 metrics=doc.get("metrics", {}),
                 feature_contract_version=doc.get("feature_contract_version", "v1"),
                 training_data_fingerprint=doc.get("training_data_fingerprint"),

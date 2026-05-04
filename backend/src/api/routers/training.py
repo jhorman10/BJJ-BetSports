@@ -3,13 +3,12 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-
 from src.api.schemas.training import (
     TrainingCapabilitiesPayload,
     TrainingExecutorOptionModel,
     TrainingJobCreatePayload,
-    TrainingJobEventsPayload,
     TrainingJobEventPayload,
+    TrainingJobEventsPayload,
     TrainingJobListPayload,
     TrainingJobPayload,
     TrainingLatestResultPayload,
@@ -138,7 +137,9 @@ def _capabilities_payload(
         ],
         days_back_options=snapshot.days_back_options,
         reasons=[
-            TrainingUnavailableReasonModel(code=reason["code"], message=reason["message"])
+            TrainingUnavailableReasonModel(
+                code=reason["code"], message=reason["message"]
+            )
             for reason in snapshot.reasons
         ],
     )
@@ -164,7 +165,9 @@ def get_training_models(
 ) -> TrainingModelsPayload:
     del admin_key
     snapshot = capability_service.snapshot()
-    return TrainingModelsPayload(models=[_model_payload(model) for model in snapshot.models])
+    return TrainingModelsPayload(
+        models=[_model_payload(model) for model in snapshot.models]
+    )
 
 
 @router.get("/results/latest", response_model=TrainingLatestResultPayload)
@@ -181,7 +184,9 @@ def get_latest_training_result(
     )
 
 
-@router.post("/jobs", response_model=TrainingJobPayload, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/jobs", response_model=TrainingJobPayload, status_code=status.HTTP_201_CREATED
+)
 def create_training_job(
     payload: TrainingJobCreatePayload,
     admin_key: str = Depends(require_training_write),

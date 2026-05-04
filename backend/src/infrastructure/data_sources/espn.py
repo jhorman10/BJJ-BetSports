@@ -746,7 +746,8 @@ class ESPNSource:
         B1, B2, SP2, D2, I2, F2, N2, P2, UECL, LIB, SUD, COL1, ARG1, BRA1, E2, E3.
 
         Args:
-            league_codes: Internal league codes to check. Defaults to all ESPN-mapped leagues.
+            league_codes: Internal league codes to check. Defaults to all
+            ESPN-mapped leagues.
 
         Returns:
             List of Match objects with live status.
@@ -760,7 +761,9 @@ class ESPNSource:
             if not slug:
                 return []
             async with semaphore:
-                data = await self._make_request(f"{self.BASE_URL}/{slug}/scoreboard", {})
+                data = await self._make_request(
+                    f"{self.BASE_URL}/{slug}/scoreboard", {}
+                )
             if not data or "events" not in data:
                 return []
 
@@ -783,7 +786,11 @@ class ESPNSource:
                     if m:
                         live_matches.append(m)
 
-        logger.info("ESPN: found %d live matches in %d leagues", len(live_matches), len(leagues_to_check))
+        logger.info(
+            "ESPN: found %d live matches in %d leagues",
+            len(live_matches),
+            len(leagues_to_check),
+        )
         return live_matches
 
     async def _parse_live_match(self, event: dict, league_code: str) -> Optional[Match]:
@@ -810,12 +817,14 @@ class ESPNSource:
             home_team = Team(
                 id=f"espn_{home_comp['team']['id']}",
                 name=home_name,
-                logo_url=TeamService.get_team_logo(home_name) or home_comp["team"].get("logo"),
+                logo_url=TeamService.get_team_logo(home_name)
+                or home_comp["team"].get("logo"),
             )
             away_team = Team(
                 id=f"espn_{away_comp['team']['id']}",
                 name=away_name,
-                logo_url=TeamService.get_team_logo(away_name) or away_comp["team"].get("logo"),
+                logo_url=TeamService.get_team_logo(away_name)
+                or away_comp["team"].get("logo"),
             )
 
             # Scores

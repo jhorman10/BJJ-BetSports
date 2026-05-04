@@ -1,13 +1,13 @@
 from .repositories import (
-	ActiveModelPointerRepository,
-	ModelArtifactRepository,
-	TrainingJobEventRepository,
-	TrainingJobRepository,
+    ActiveModelPointerRepository,
+    ModelArtifactRepository,
+    TrainingJobEventRepository,
+    TrainingJobRepository,
 )
 
 __all__ = [
-	"TrainingJobRepository",
-	"TrainingJobEventRepository",
-	"ModelArtifactRepository",
-	"ActiveModelPointerRepository",
+    "TrainingJobRepository",
+    "TrainingJobEventRepository",
+    "ModelArtifactRepository",
+    "ActiveModelPointerRepository",
 ]
