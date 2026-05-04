@@ -40,7 +40,7 @@ class ModelRegistryService(ModelRegistry):
                 label="Baseline Model",
                 description="Modelo base alineado con el pipeline historico actual.",
                 supported_feature_profiles=["default", "aggressive"],
-                supported_dataset_profiles=["default", "extended"],
+                supported_dataset_profiles=["default", "extended", "legacy-manual"],
                 supported_executor_targets=["default", "local-worker"],
                 supported_league_ids=league_ids,
                 supported_days_back=supported_days_back,
@@ -50,7 +50,10 @@ class ModelRegistryService(ModelRegistry):
             ModelAdapterDefinition(
                 key="xgboost-model",
                 label="XGBoost Model",
-                description="Adaptador alternativo para corridas comparativas y recipes nuevas.",
+                description=(
+                    "Adaptador alternativo para corridas comparativas"
+                    " y recipes nuevas."
+                ),
                 supported_feature_profiles=["default"],
                 supported_dataset_profiles=["default", "experimental"],
                 supported_executor_targets=["default", "local-worker"],
@@ -81,7 +84,10 @@ class TrainingExecutorRegistry(ExecutorRegistry):
             ExecutorDefinition(
                 key="default",
                 label="Control Plane Queue",
-                description="Acepta el job en el control plane y delega la ejecucion fuera del request web.",
+                description=(
+                    "Acepta el job en el control plane y delega la ejecucion"
+                    " fuera del request web."
+                ),
                 is_available=True,
                 supports_cancel=False,
                 supports_logs=True,
@@ -89,10 +95,16 @@ class TrainingExecutorRegistry(ExecutorRegistry):
             ExecutorDefinition(
                 key="local-worker",
                 label="Local Worker",
-                description="Ejecutor local para entornos donde el worker comparte runtime con el backend.",
+                description=(
+                    "Ejecutor local para entornos donde el worker comparte runtime"
+                    " con el backend."
+                ),
                 is_available=not api_only_mode,
                 unavailable_reasons=(
-                    ["API_ONLY_MODE activo: el worker local no esta expuesto desde el API web."]
+                    [
+                        "API_ONLY_MODE activo: el worker local no esta expuesto"
+                        " desde el API web."
+                    ]
                     if api_only_mode
                     else []
                 ),
@@ -126,7 +138,9 @@ class TrainingCapabilityService:
         models = self.model_registry.list_models()
         executors = self.executor_registry.list_executors()
         reasons: list[dict[str, str]] = []
-        available_executors = [executor for executor in executors if executor.is_available]
+        available_executors = [
+            executor for executor in executors if executor.is_available
+        ]
         if not models:
             reasons.append(
                 {
