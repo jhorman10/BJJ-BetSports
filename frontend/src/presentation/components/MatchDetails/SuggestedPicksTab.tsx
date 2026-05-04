@@ -246,30 +246,32 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
 }) => {
   const { match } = matchPrediction;
 
-  // Use Cache Store
+  // Priority 1: Inline picks already in the prediction (from backend merge)
+  const inlinePicks = matchPrediction.prediction?.suggested_picks;
+  const hasInlinePicks = inlinePicks && inlinePicks.length > 0;
+
+  // Priority 2: JIT cache fetch (fallback for daily matches with backend IDs)
   const { getPicks, prefetchMatch, isFetching } = useCacheStore();
+  const cachedPicks = hasInlinePicks ? null : getPicks(match.id);
+  const isLoading = hasInlinePicks ? false : isFetching(match.id);
+  const hasPicks = hasInlinePicks || (cachedPicks && cachedPicks.length > 0);
 
-  // Get picks directly from synchronous local cache
-  const cachedPicks = getPicks(match.id);
-  const isLoading = isFetching(match.id);
-  const hasPicks = cachedPicks && cachedPicks.length > 0;
-
-  // Manual fallback fetching if needed (JIT)
-  // This handles the edge case where prefetch hasn't happened yet
+  // Only trigger JIT fetch if we don't have inline picks AND cache is empty
   useEffect(() => {
-    if (!hasPicks && !isLoading) {
+    if (!hasInlinePicks && !hasPicks && !isLoading) {
       prefetchMatch(match.id);
     }
-  }, [match.id, hasPicks, isLoading, prefetchMatch]);
+  }, [match.id, hasInlinePicks, hasPicks, isLoading, prefetchMatch]);
 
   const [currentTab, setCurrentTab] = useState("");
   const [initialized, setInitialized] = useState(false);
 
   const loading = isLoading && !hasPicks;
   const error = !hasPicks && !isLoading ? "No suggested picks available" : null;
+  const resolvedPicks = hasInlinePicks ? inlinePicks : cachedPicks;
   const apiPicks = useMemo(
-    () => (cachedPicks ? { suggested_picks: cachedPicks } : null),
-    [cachedPicks],
+    () => (resolvedPicks ? { suggested_picks: resolvedPicks } : null),
+    [resolvedPicks],
   );
 
   // Sort picks by probability (highest first)
