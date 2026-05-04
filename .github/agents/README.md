@@ -22,9 +22,11 @@ All agents default to caveman full: terse, direct, and compact. Keep this as the
 These agents are designed to work with Spec Kit prompts under `.github/prompts/`:
 
 1. `/speckit.constitution`
-2. `/speckit.specify` — generates `spec.md`, `plan.md`, and `tasks.md` in one continuous flow
-3. implementation delegated to specialist agent
-4. `/speckit.implement`
+2. `/speckit.specify`
+3. `/speckit.clarify` (optional)
+4. `/speckit.plan`
+5. `/speckit.tasks`
+6. implementation delegated to specialist agent or `/speckit.implement`
 
 ## Mapping to Existing Claude Setup
 

@@ -20,7 +20,7 @@ For any prompt that requires code changes, follow a specs-first flow before impl
 ### Hard Gate (Mandatory)
 
 - No code edits are allowed before a feature specification exists for the intervention.
-- Minimum required artifact before coding: `spec.md` generated via `/speckit.specify`.
+- Minimum required artifacts before coding: `spec.md`, `plan.md`, and `tasks.md`.
 - For any code intervention, the expected path is:
 	`orchestrator` → `/speckit.specify` → `/speckit.plan` → `/speckit.tasks` → implementation.
 - If a request arrives directly to a specialist with no spec context, the specialist must stop and redirect to `orchestrator`.

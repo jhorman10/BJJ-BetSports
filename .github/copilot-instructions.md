@@ -29,15 +29,18 @@ These instructions apply to the whole workspace.
 For any feature, bug fix with code edits, or refactor, follow this sequence before implementation:
 
 1. `/speckit.constitution` (when principles are missing/outdated)
-2. `/speckit.specify` — generates `spec.md`, `plan.md`, and `tasks.md` in one continuous flow
-3. implement from generated tasks (`/speckit.implement` or equivalent)
+2. `/speckit.specify` — creates or updates `spec.md`
+3. `/speckit.clarify` (optional, when the spec still has ambiguities)
+4. `/speckit.plan` — creates `plan.md`
+5. `/speckit.tasks` — creates `tasks.md`
+6. implement from generated tasks (`/speckit.implement` or equivalent)
 
 ### Hard Gate (Mandatory)
 
 - No code edits are allowed before the full spec pipeline has run for the intervention.
-- Minimum required artifacts before coding: `spec.md`, `plan.md`, and `tasks.md` — all generated via `/speckit.specify`.
+- Minimum required artifacts before coding: `spec.md`, `plan.md`, and `tasks.md`.
 - For any code intervention, the expected path is:
-  `Orchestrator` → `/speckit.specify` (produces spec + plan + tasks) → implementation.
+  `Orchestrator` → `/speckit.specify` → `/speckit.plan` → `/speckit.tasks` → implementation.
 - If a request arrives directly to a specialist with no spec context, the specialist must stop and redirect to `Orchestrator`.
 
 For read-only questions or explanations with no code changes, answer directly.

@@ -90,4 +90,4 @@ Before writing ANY code, analyze the project to determine:
 ### Hard Gate
 
 - If this agent is invoked directly without spec context for a code-changing task, **STOP** and redirect to the Orchestrator.
-- Minimum required artifacts before coding: `spec.md`, `plan.md`, and `tasks.md` — all generated via `/speckit.specify`.
+- Minimum required artifacts before coding: `spec.md`, `plan.md`, and `tasks.md`.
