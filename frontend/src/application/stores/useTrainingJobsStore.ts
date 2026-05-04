@@ -94,7 +94,7 @@ const normalizeJob = (
     phase: job.phase,
     executor_type: job.executor_type ?? null,
     executor_run_id: job.executor_run_id ?? null,
-    recipe_snapshot: recipe as TrainingJobRecipeSnapshot | undefined,
+    recipe_snapshot: recipe,
     result_summary: job.result_summary ?? {},
     artifact_ids: job.artifact_ids ?? [],
     audit_trail: job.audit_trail ?? [],

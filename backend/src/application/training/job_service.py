@@ -118,7 +118,7 @@ class TrainingJobService:
             )
         except ValueError:
             _logger.warning(
-                "Executor returned unrecognised status value %r; keeping default %s",
+                "Executor returned unrecognised status value %r; keeping existing %s",
                 raw_status,
                 job.status,
             )
@@ -130,7 +130,7 @@ class TrainingJobService:
             )
         except ValueError:
             _logger.warning(
-                "Executor returned unrecognised phase value %r; keeping default %s",
+                "Executor returned unrecognised phase value %r; keeping existing %s",
                 raw_phase,
                 job.phase,
             )

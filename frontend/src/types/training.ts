@@ -60,7 +60,7 @@ export interface TrainingJobSummary {
   phase?: TrainingJobPhase;
   executor_type?: string | null;
   executor_run_id?: string | null;
-  recipe_snapshot?: TrainingJobRecipeSnapshot;
+  recipe_snapshot?: Partial<TrainingJobRecipeSnapshot>;
   result_summary?: Record<string, unknown>;
   artifact_ids?: string[];
   audit_trail?: Record<string, unknown>[];
