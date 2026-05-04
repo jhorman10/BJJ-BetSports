@@ -3,6 +3,7 @@ import {
   TrainingCapabilities,
   TrainingJobCreateRequest,
   TrainingJobEvent,
+  TrainingJobRecipeSnapshot,
   TrainingJobSummary,
 } from "../../types";
 import { api } from "../../services/api";
@@ -70,29 +71,41 @@ const initialState = {
 
 const normalizeJob = (
   job: TrainingJobSummary | TrainingJobDetailsResponse
-): TrainingJobSummary => ({
-  job_id: job.job_id,
-  status: job.status,
-  status_message: job.status_message,
-  progress_percent: job.progress_percent,
-  model_key: job.model_key ?? job.recipe_snapshot?.model_key ?? null,
-  executor_target:
-    job.executor_target ?? job.recipe_snapshot?.executor_target ?? null,
-  created_at: job.created_at ?? job.queued_at ?? null,
-  updated_at: job.updated_at ?? job.finished_at ?? job.started_at ?? null,
-  phase: job.phase,
-  executor_type: job.executor_type ?? null,
-  executor_run_id: job.executor_run_id ?? null,
-  recipe_snapshot: job.recipe_snapshot,
-  result_summary: job.result_summary ?? {},
-  artifact_ids: job.artifact_ids ?? [],
-  audit_trail: job.audit_trail ?? [],
-  started_at: job.started_at ?? null,
-  finished_at: job.finished_at ?? null,
-  cancel_requested_at: job.cancel_requested_at ?? null,
-  error_code: job.error_code ?? null,
-  error_message: job.error_message ?? null,
-});
+): TrainingJobSummary => {
+  // recipe_snapshot may be partial in Details, cast to any for safe access
+  const recipe = job.recipe_snapshot as any;
+
+  // Determine created_at: Summary has it, Details has queued_at
+  const created_at = "created_at" in job ? job.created_at : job.queued_at ?? null;
+
+  // Determine updated_at: Summary has updated_at, Details has finished_at/started_at
+  const updated_at = "updated_at" in job
+    ? job.updated_at
+    : job.finished_at ?? job.started_at ?? null;
+
+  return {
+    job_id: job.job_id,
+    status: job.status,
+    status_message: job.status_message,
+    progress_percent: job.progress_percent,
+    model_key: recipe?.model_key ?? null,
+    executor_target: recipe?.executor_target ?? null,
+    created_at,
+    updated_at,
+    phase: job.phase,
+    executor_type: job.executor_type ?? null,
+    executor_run_id: job.executor_run_id ?? null,
+    recipe_snapshot: recipe as TrainingJobRecipeSnapshot,
+    result_summary: job.result_summary ?? {},
+    artifact_ids: job.artifact_ids ?? [],
+    audit_trail: job.audit_trail ?? [],
+    started_at: job.started_at ?? null,
+    finished_at: job.finished_at ?? null,
+    cancel_requested_at: job.cancel_requested_at ?? null,
+    error_code: job.error_code ?? null,
+    error_message: job.error_message ?? null,
+  };
+};
 
 const upsertJobs = (
   jobs: TrainingJobSummary[],
