@@ -82,6 +82,7 @@ const LiveMatchDetailsModal: React.FC = () => {
         <PreMatchPrediction
           prediction={prediction}
           isAvailable={isPredictionAvailable}
+          match={match}
         />
       </DialogContent>
       <DialogActions sx={{ p: 2 }}>

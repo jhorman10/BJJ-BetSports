@@ -2,15 +2,20 @@ import React from "react";
 import { Box, Typography, Paper, Divider, Chip } from "@mui/material";
 import Grid from "@mui/material/Grid";
 import { Prediction } from "../../../../domain/entities/prediction";
+import { Match } from "../../../../domain/entities/match";
+import { evaluatePickLive } from "../../../../utils/pickValidationUtils";
+import { CheckCircle, Cancel, HourglassEmpty } from "@mui/icons-material";
 
 interface PreMatchPredictionProps {
   prediction: Prediction;
   isAvailable: boolean;
+  match?: Match;
 }
 
 export const PreMatchPrediction: React.FC<PreMatchPredictionProps> = ({
   prediction,
   isAvailable,
+  match,
 }) => {
   if (!isAvailable) {
     return (
@@ -153,10 +158,19 @@ export const PreMatchPrediction: React.FC<PreMatchPredictionProps> = ({
                       justifyContent="space-between"
                       alignItems="center"
                     >
-                      <Typography variant="body2" fontWeight="bold">
-                        {pick.market_label}
-                      </Typography>
-                      {pick.suggested_stake && (
+                      <Box display="flex" alignItems="center" gap={1}>
+                        <Typography variant="body2" fontWeight="bold">
+                          {pick.market_label}
+                        </Typography>
+                        {(() => {
+                          const status = evaluatePickLive(pick, match);
+                          if (status === 'WON') return <CheckCircle color="success" fontSize="small" />;
+                          if (status === 'LOST') return <Cancel color="error" fontSize="small" />;
+                          if (status === 'PENDING') return <HourglassEmpty color="warning" fontSize="small" />;
+                          return null;
+                        })()}
+                      </Box>
+                      {pick.suggested_stake ? (
                         <Box
                           component="span"
                           sx={{
@@ -170,7 +184,7 @@ export const PreMatchPrediction: React.FC<PreMatchPredictionProps> = ({
                         >
                           Stake: {pick.suggested_stake}u
                         </Box>
-                      )}
+                      ) : null}
                     </Box>
                     <Box
                       display="flex"
@@ -179,7 +193,7 @@ export const PreMatchPrediction: React.FC<PreMatchPredictionProps> = ({
                       sx={{ fontSize: "0.75rem", color: "text.secondary" }}
                     >
                       <span>Prob: {(pick.probability * 100).toFixed(0)}%</span>
-                      {pick.expected_value && (
+                      {typeof pick.expected_value === 'number' && pick.expected_value !== 0 ? (
                         <span
                           style={{
                             color:
@@ -190,8 +204,8 @@ export const PreMatchPrediction: React.FC<PreMatchPredictionProps> = ({
                         >
                           EV: +{(pick.expected_value * 100).toFixed(1)}%
                         </span>
-                      )}
-                      {pick.odds && <span>Odds: {pick.odds.toFixed(2)}</span>}
+                      ) : null}
+                      {pick.odds ? <span>Odds: {pick.odds.toFixed(2)}</span> : null}
                     </Box>
                   </Box>
                 ))}

@@ -15,7 +15,10 @@ import {
   getMarketIcon,
   getUniquePicks,
 } from "../../../utils/marketUtils";
+import { evaluatePickLive } from "../../../utils/pickValidationUtils";
+import { CheckCircle, Cancel, HourglassEmpty } from "@mui/icons-material";
 import { useCacheStore } from "../../../application/stores/useCacheStore";
+import { Match } from "../../../domain/entities/match";
 
 interface SuggestedPicksTabProps {
   matchPrediction: MatchPrediction;
@@ -25,7 +28,7 @@ interface SuggestedPicksTabProps {
 /**
  * Single row pick item - compact design
  */
-const PickRow: React.FC<{ pick: SuggestedPick }> = memo(({ pick }) => {
+const PickRow: React.FC<{ pick: SuggestedPick; match?: Match }> = memo(({ pick, match }) => {
   const color = getPickColor(pick.probability);
 
   return (
@@ -64,6 +67,14 @@ const PickRow: React.FC<{ pick: SuggestedPick }> = memo(({ pick }) => {
           >
             {pick.market_label}
           </Typography>
+          {(() => {
+            if (!match) return null;
+            const status = evaluatePickLive(pick, match);
+            if (status === 'WON') return <CheckCircle color="success" sx={{ fontSize: "1rem", ml: 0.5 }} />;
+            if (status === 'LOST') return <Cancel color="error" sx={{ fontSize: "1rem", ml: 0.5 }} />;
+            if (status === 'PENDING') return <HourglassEmpty color="warning" sx={{ fontSize: "1rem", ml: 0.5 }} />;
+            return null;
+          })()}
 
           {/* INLINE IA CONFIRMED BADGE */}
           {pick.is_ia_confirmed && (
@@ -509,7 +520,7 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
       >
         {filteredPicks.length > 0 ? (
           filteredPicks.map((pick, index) => (
-            <PickRow key={`pick-${currentTab}-${index}`} pick={pick} />
+            <PickRow key={`pick-${currentTab}-${index}`} pick={pick} match={match} />
           ))
         ) : (
           <Box py={4} textAlign="center">
