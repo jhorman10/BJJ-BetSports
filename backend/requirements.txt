@@ -50,6 +50,8 @@ pytest-cov==4.1.0
 pytest-asyncio==0.23.3
 
 # Linting
+ruff==0.4.4
+isort==5.13.2
 black==26.3.1
 flake8==7.0.0
 mypy==1.8.0
