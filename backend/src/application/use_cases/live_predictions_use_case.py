@@ -301,6 +301,28 @@ class GetLivePredictionsUseCase:
             except Exception as e:
                 logger.error("Football-Data.org live fetch failed: %s", e)
 
+        # Phase 4: ESPN secondary source for leagues not covered by FDO
+        # FDO Free Tier only covers ~12 leagues. ESPN covers 30+.
+        try:
+            fdo_covered = set(COMPETITION_CODE_MAPPING.keys())
+            from src.domain.constants import DEFAULT_LEAGUES
+
+            espn_only_leagues = [
+                lid for lid in DEFAULT_LEAGUES if lid not in fdo_covered
+            ]
+            if espn_only_leagues and hasattr(self.data_sources, "espn") and self.data_sources.espn:
+                espn_live = await self.data_sources.espn.get_live_matches(espn_only_leagues)
+                if espn_live:
+                    matches.extend(espn_live)
+                    source_used = f"{source_used}+ESPN" if source_used != "None" else "ESPN"
+                    logger.info(
+                        "ESPN fallback: added %d live matches from %d uncovered leagues",
+                        len(espn_live),
+                        len(espn_only_leagues),
+                    )
+        except Exception as e:
+            logger.warning("ESPN live fallback failed: %s", e)
+
         if not matches:
             # Cache empty result for short period to avoid hammering API
             await self.cache_service.aset_live_matches([], cache_key)
