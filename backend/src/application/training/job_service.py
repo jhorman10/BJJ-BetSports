@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Any, cast
 from uuid import uuid4
 
@@ -14,6 +15,8 @@ from src.domain.training.models import (
     ModelAdapterDefinition,
     TrainingJob,
     TrainingJobEvent,
+    TrainingJobPhase,
+    TrainingJobStatus,
     TrainingRecipe,
 )
 from src.domain.training.registries import ExecutorRegistry, ModelRegistry
@@ -21,6 +24,8 @@ from src.infrastructure.training.repositories import (
     TrainingJobEventRepository,
     TrainingJobRepository,
 )
+
+_logger = logging.getLogger(__name__)
 
 
 class TrainingJobService:
@@ -102,8 +107,33 @@ class TrainingJobService:
         submission_payload = cast(dict, submission_payload)
         job.executor_type = submission_payload.get("executor_type")
         job.executor_run_id = submission_payload.get("executor_run_id")
-        job.status = submission_payload.get("status", job.status)
-        job.phase = submission_payload.get("phase", job.phase)
+        raw_status = submission_payload.get("status", job.status)
+        raw_phase = submission_payload.get("phase", job.phase)
+        # Coerce to enum types so repository serialisation (.value) never crashes
+        try:
+            job.status = (
+                raw_status
+                if isinstance(raw_status, TrainingJobStatus)
+                else TrainingJobStatus(raw_status)
+            )
+        except ValueError:
+            _logger.warning(
+                "Executor returned unrecognised status value %r; keeping default %s",
+                raw_status,
+                job.status,
+            )
+        try:
+            job.phase = (
+                raw_phase
+                if isinstance(raw_phase, TrainingJobPhase)
+                else TrainingJobPhase(raw_phase)
+            )
+        except ValueError:
+            _logger.warning(
+                "Executor returned unrecognised phase value %r; keeping default %s",
+                raw_phase,
+                job.phase,
+            )
         job.status_message = submission_payload.get(
             "status_message", job.status_message
         )
