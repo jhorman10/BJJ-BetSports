@@ -48,6 +48,7 @@ backend/app_persistence.db-journal
 # Cache
 .cache/
 *.cache
+*.tsbuildinfo
 
 # Misc
 *.bak
