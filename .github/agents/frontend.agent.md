@@ -29,6 +29,18 @@ Before writing ANY code, analyze the project to determine:
 
 > Do NOT assume a tech stack. ALWAYS verify from the project files.
 
+## Skills to Activate
+
+| Skill | When |
+|---|---|
+| `code-quality` | **Always** — every code write or modification |
+| `linting` | **Always** — ESLint, Prettier, TypeScript strict mode |
+| `accessibility` | Any a11y audit, WCAG compliance, keyboard nav, ARIA |
+| `frontend-design` | Polished UI, landing pages, visual components, design systems |
+| `seo` | Meta tags, structured data, Open Graph, search ranking |
+
+> Co-activate by reading `.claude/skills/<skill>/SKILL.md` for each relevant skill before writing code.
+
 ## Core Responsibilities
 
 - UI Component architecture and implementation

@@ -28,6 +28,16 @@ Before making ANY architectural decision, analyze the project to determine:
 
 > Do NOT propose architectural changes without understanding the current architecture first.
 
+## Skills to Activate
+
+| Skill | When |
+|---|---|
+| `code-quality` | **Always** — any code contracts, schemas, or shared types written |
+| `devops` | Docker, CI/CD pipelines, GitHub Actions, environment config, infrastructure |
+| `conventional-commits` | Architectural commits, migration PRs, breaking-change changelogs |
+
+> Co-activate by reading `.claude/skills/<skill>/SKILL.md` for each relevant skill before writing code.
+
 ## Core Responsibilities
 
 - System design and architectural documentation
