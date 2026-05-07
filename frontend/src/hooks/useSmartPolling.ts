@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useRef, useCallback } from "react";
 
 interface UseSmartPollingOptions {
   /** Polling interval in milliseconds */
@@ -27,32 +27,16 @@ export function useSmartPolling({
   maxBackoffMultiplier = 4,
 }: UseSmartPollingOptions) {
   const intervalRef = useRef<number | null>(null);
-  const [backoff, setBackoff] = useState(1);
+  const backoffRef = useRef(1);
   const isVisibleRef = useRef(!document.hidden);
   const lastPollTimeRef = useRef<number>(0);
+  const isPollingRef = useRef(false);
 
-  const poll = useCallback(async () => {
-    if (!isVisibleRef.current || !enabled) return;
-
-    try {
-      await onPoll();
-      setBackoff(1); // Reset backoff on success
-      lastPollTimeRef.current = Date.now();
-    } catch {
-      // Increase backoff on error (max 4x)
-      setBackoff((prev: number) => Math.min(prev * 2, maxBackoffMultiplier));
-    }
-  }, [onPoll, enabled, maxBackoffMultiplier]);
-
-  const startPolling = useCallback(() => {
-    if (intervalRef.current) return;
-
-    const effectiveInterval = intervalMs * backoff;
-
-    intervalRef.current = window.setInterval(() => {
-      poll();
-    }, effectiveInterval);
-  }, [intervalMs, poll, backoff]);
+  // Keep onPoll in a ref so the interval doesn't restart when the callback changes
+  const onPollRef = useRef(onPoll);
+  useEffect(() => {
+    onPollRef.current = onPoll;
+  }, [onPoll]);
 
   const stopPolling = useCallback(() => {
     if (intervalRef.current) {
@@ -61,24 +45,44 @@ export function useSmartPolling({
     }
   }, []);
 
+  const poll = useCallback(async () => {
+    if (!isVisibleRef.current || !enabled || isPollingRef.current) return;
+
+    isPollingRef.current = true;
+    try {
+      await onPollRef.current();
+      backoffRef.current = 1;
+      lastPollTimeRef.current = Date.now();
+    } catch {
+      backoffRef.current = Math.min(backoffRef.current * 2, maxBackoffMultiplier);
+    } finally {
+      isPollingRef.current = false;
+    }
+  }, [enabled, maxBackoffMultiplier]);
+
+  const startPolling = useCallback(() => {
+    if (intervalRef.current) return;
+
+    const effectiveInterval = intervalMs * backoffRef.current;
+    intervalRef.current = window.setInterval(() => {
+      void poll();
+    }, effectiveInterval);
+  }, [intervalMs, poll]);
+
   // Handle visibility change
   useEffect(() => {
     const handleVisibilityChange = () => {
       isVisibleRef.current = !document.hidden;
 
       if (document.hidden) {
-        // Tab is hidden - stop polling to save resources
         stopPolling();
       } else {
-        // Tab is visible again
         const timeSinceLastPoll = Date.now() - lastPollTimeRef.current;
 
-        // If it's been longer than the interval, poll immediately
         if (timeSinceLastPoll > intervalMs) {
-          poll();
+          void poll();
         }
 
-        // Resume polling
         if (enabled) {
           startPolling();
         }
@@ -86,7 +90,6 @@ export function useSmartPolling({
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
-
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
@@ -95,13 +98,9 @@ export function useSmartPolling({
   // Start/stop polling based on enabled state
   useEffect(() => {
     if (enabled && isVisibleRef.current) {
-      // Initial poll - wrap in setTimeout to avoid synchronous setState warning in effect
-      const timer = setTimeout(() => {
-        poll();
-        startPolling();
-      }, 0);
+      void poll();
+      startPolling();
       return () => {
-        clearTimeout(timer);
         stopPolling();
       };
     } else {
@@ -116,7 +115,5 @@ export function useSmartPolling({
   return {
     /** Force an immediate poll */
     pollNow: poll,
-    /** Current backoff multiplier (for debugging) */
-    backoffMultiplier: backoff,
   };
 }
