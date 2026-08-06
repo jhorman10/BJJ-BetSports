@@ -26,9 +26,8 @@ def test_load_backend_env_reads_admin_key_from_dotenv(tmp_path, monkeypatch) -> 
 
 
 def test_trigger_training_allows_local_dev_browser_without_api_key(monkeypatch) -> None:
-    from src.dependencies import get_training_job_service
-
     import src.api.main as main_mod
+    from src.dependencies import get_training_job_service
 
     monkeypatch.delenv("ADMIN_API_KEY", raising=False)
     monkeypatch.setenv("API_ONLY_MODE", "false")
