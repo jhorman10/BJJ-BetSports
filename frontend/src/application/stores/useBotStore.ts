@@ -7,6 +7,7 @@ import {
   TrainingJobSummary,
 } from "../../types";
 import { api } from "../../services/api";
+import { isNetworkError } from "../../utils/apiErrors";
 import { useOfflineStore } from "./useOfflineStore";
 import { localStorageObserver } from "../../infrastructure/storage/LocalStorageObserver";
 import { indexedDBStorage } from "../../infrastructure/storage/indexedDBStorage";
@@ -194,25 +195,22 @@ export const useBotStore = create<BotState>()(
             err instanceof Error ? err : new Error("Error desconocido");
           const statusCode = (err as { response?: { status?: number } })?.response
             ?.status;
-          const isNetworkError =
-            error.message === "Network Error" ||
-            (err as { code?: string })?.code === "ERR_NETWORK" ||
-            (err as { code?: string })?.code === "ECONNABORTED";
+          const isNetworkErr = isNetworkError(err);
           const isTrainingServiceUnavailable = statusCode === 503;
 
-          if (isNetworkError) {
+          if (isNetworkErr) {
             useOfflineStore.getState().setBackendAvailable(false);
           }
 
           set({
-            error: isNetworkError
+            error: isNetworkErr
               ? null
               : isTrainingServiceUnavailable
               ? "El servicio de entrenamiento no esta disponible en este momento. Intenta de nuevo en unos minutos."
               : error.message || "Error al cargar los datos de entrenamiento",
             trainingStatus:
-              isNetworkError || isTrainingServiceUnavailable ? "IDLE" : "ERROR",
-            trainingMessage: isNetworkError
+              isNetworkErr || isTrainingServiceUnavailable ? "IDLE" : "ERROR",
+            trainingMessage: isNetworkErr
               ? "Buscando servidor..."
               : isTrainingServiceUnavailable
               ? "Servicio de entrenamiento temporalmente no disponible"
