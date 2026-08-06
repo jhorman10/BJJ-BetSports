@@ -2,9 +2,12 @@
  * API Service
  *
  * Handles all HTTP communication with the backend API.
+ * Transport is the single canonical client from infrastructure/api/client.ts;
+ * endpoint paths come exclusively from API_ENDPOINTS (config/constants.ts).
  */
 
-import axios, { AxiosInstance } from "axios";
+import { apiClient } from "../infrastructure/api/client";
+import { API_ENDPOINTS, APP_CONFIG } from "../config/constants";
 import {
   LeaguesResponse,
   PredictionsResponse,
@@ -19,34 +22,13 @@ import {
   LearningStatsResponse,
 } from "../types";
 
-// API base URL from environment or default
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-
 /**
- * Create configured Axios instance
+ * Per-endpoint timeout overrides for the generic post().
+ * Training runs once per day and can take several minutes.
  */
-const createApiClient = (): AxiosInstance => {
-  const client = axios.create({
-    baseURL: API_BASE_URL,
-    timeout: 60000, // 60s timeout (increased from 30s for slow pick generation)
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
-
-  // Response interceptor for error handling
-  client.interceptors.response.use(
-    (response) => response,
-    (error) => {
-      // Don't log 404s as errors globally - they are often expected "no data" states
-      throw error;
-    }
-  );
-
-  return client;
+const POST_TIMEOUTS: Record<string, number> = {
+  "/train/run-now": APP_CONFIG.TRAINING_TIMEOUT,
 };
-
-const apiClient = createApiClient();
 
 /**
  * API Service object with all endpoints
@@ -56,7 +38,7 @@ export const api = {
    * Health check
    */
   async healthCheck(): Promise<HealthResponse> {
-    const response = await apiClient.get<HealthResponse>("/health");
+    const response = await apiClient.get<HealthResponse>(API_ENDPOINTS.HEALTH);
     return response.data;
   },
 
@@ -64,7 +46,7 @@ export const api = {
    * Get all available leagues grouped by country
    */
   async getLeagues(): Promise<LeaguesResponse> {
-    const response = await apiClient.get<LeaguesResponse>("/api/v1/leagues");
+    const response = await apiClient.get<LeaguesResponse>(API_ENDPOINTS.LEAGUES);
     return response.data;
   },
 
@@ -72,7 +54,9 @@ export const api = {
    * Get a specific league by ID
    */
   async getLeague(leagueId: string): Promise<League> {
-    const response = await apiClient.get<League>(`/api/v1/leagues/${leagueId}`);
+    const response = await apiClient.get<League>(
+      API_ENDPOINTS.LEAGUE_BY_ID(leagueId)
+    );
     return response.data;
   },
 
@@ -81,7 +65,7 @@ export const api = {
    */
   async getPredictions(
     leagueId: string,
-    limit: number = 30,
+    limit: number = APP_CONFIG.DEFAULT_PREDICTIONS_LIMIT,
     sortBy:
       | "date"
       | "confidence"
@@ -90,7 +74,7 @@ export const api = {
     sortDesc: boolean = true
   ): Promise<PredictionsResponse> {
     const response = await apiClient.get<PredictionsResponse>(
-      `/api/v1/predictions/league/${leagueId}`,
+      API_ENDPOINTS.PREDICTIONS_BY_LEAGUE(leagueId),
       { params: { limit, sort_by: sortBy, sort_desc: sortDesc } }
     );
     return response.data;
@@ -101,7 +85,7 @@ export const api = {
    */
   async getMatchDetails(matchId: string): Promise<MatchPrediction> {
     const response = await apiClient.get<MatchPrediction>(
-      `/api/v1/predictions/match/${matchId}`
+      API_ENDPOINTS.PREDICTION_BY_MATCH(matchId)
     );
     return response.data;
   },
@@ -110,7 +94,7 @@ export const api = {
    * Get all live matches globally
    */
   async getLiveMatches(): Promise<Match[]> {
-    const response = await apiClient.get<Match[]>("/api/v1/matches/live");
+    const response = await apiClient.get<Match[]>(API_ENDPOINTS.MATCHES_LIVE);
     return response.data;
   },
 
@@ -122,10 +106,10 @@ export const api = {
     filterTargetLeagues: boolean = true
   ): Promise<LiveMatchPrediction[]> {
     const response = await apiClient.get<MatchPrediction[]>(
-      "/api/v1/matches/live/with-predictions",
+      API_ENDPOINTS.MATCHES_LIVE_WITH_PREDICTIONS,
       {
         params: { filter_target_leagues: filterTargetLeagues },
-        timeout: 30000, // 30s timeout for live matches (increased from 10s)
+        timeout: APP_CONFIG.LIVE_API_TIMEOUT, // 30s timeout for live matches
       }
     );
     return response.data;
@@ -135,7 +119,7 @@ export const api = {
    * Get all matches for today globally
    */
   async getDailyMatches(): Promise<Match[]> {
-    const response = await apiClient.get<Match[]>("/api/v1/matches/daily");
+    const response = await apiClient.get<Match[]>(API_ENDPOINTS.MATCHES_DAILY);
     return response.data;
   },
 
@@ -144,7 +128,7 @@ export const api = {
    */
   async getTeamMatches(teamName: string): Promise<Match[]> {
     const response = await apiClient.get<Match[]>(
-      `/api/v1/matches/team/${teamName}`
+      API_ENDPOINTS.MATCHES_BY_TEAM(teamName)
     );
     return response.data;
   },
@@ -154,9 +138,9 @@ export const api = {
    */
   async getSuggestedPicks(matchId: string): Promise<MatchSuggestedPicks> {
     const response = await apiClient.get<MatchSuggestedPicks>(
-      `/api/v1/suggested-picks/match/${matchId}`,
+      API_ENDPOINTS.SUGGESTED_PICKS_BY_MATCH(matchId),
       {
-        timeout: 90000, // 90s timeout for slow pick generation
+        timeout: APP_CONFIG.SUGGESTED_PICKS_TIMEOUT, // 90s for slow pick generation
       }
     );
     return response.data;
@@ -169,7 +153,7 @@ export const api = {
     feedback: BettingFeedbackRequest
   ): Promise<BettingFeedbackResponse> {
     const response = await apiClient.post<BettingFeedbackResponse>(
-      `/api/v1/suggested-picks/feedback`,
+      API_ENDPOINTS.SUGGESTED_PICKS_FEEDBACK,
       feedback
     );
     return response.data;
@@ -180,20 +164,20 @@ export const api = {
    */
   async getLearningStats(): Promise<LearningStatsResponse> {
     const response = await apiClient.get<LearningStatsResponse>(
-      `/api/v1/suggested-picks/learning-stats`
+      API_ENDPOINTS.LEARNING_STATS
     );
     return response.data;
   },
 
   /**
    * Generic POST method for flexibility
-   * Automatically increases timeout for /train endpoint (5 minutes)
+   * Long-running endpoints get extended timeouts via POST_TIMEOUTS.
    */
   async post<T>(endpoint: string, data?: unknown): Promise<T> {
-    // Use extended timeout for training endpoint (only runs once per day)
-    const config = endpoint === "/train" ? { timeout: 300000 } : {}; // 5 minutes for /train
+    const timeout = POST_TIMEOUTS[endpoint];
+    const config = timeout ? { timeout } : {};
     const response = await apiClient.post<T>(
-      `/api/v1${endpoint}`,
+      `${API_ENDPOINTS.API_V1_PREFIX}${endpoint}`,
       data,
       config
     );
@@ -204,7 +188,9 @@ export const api = {
    * Generic GET method for flexibility
    */
   async get<T>(endpoint: string): Promise<T> {
-    const response = await apiClient.get<T>(`/api/v1${endpoint}`);
+    const response = await apiClient.get<T>(
+      `${API_ENDPOINTS.API_V1_PREFIX}${endpoint}`
+    );
     return response.data;
   },
 };
