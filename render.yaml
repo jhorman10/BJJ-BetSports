@@ -44,6 +44,8 @@ services:
     envVars:
       - key: VITE_API_URL
         value: "https://football-prediction-api-x4pm.onrender.com"
+      - key: VITE_ADMIN_API_KEY
+        sync: false
     headers:
       - path: /*
         name: Cache-Control
