@@ -4,6 +4,9 @@
  */
 
 export const API_ENDPOINTS = {
+  // Generic version prefix used by the flexible services layer
+  API_V1_PREFIX: "/api/v1",
+
   // Leagues
   LEAGUES: "/api/v1/leagues",
   LEAGUE_BY_ID: (id: string) => `/api/v1/leagues/${id}`,
@@ -25,13 +28,9 @@ export const API_ENDPOINTS = {
     `/api/v1/suggested-picks/match/${matchId}`,
   SUGGESTED_PICKS_FEEDBACK: "/api/v1/suggested-picks/feedback",
   LEARNING_STATS: "/api/v1/suggested-picks/learning-stats",
-  TOP_ML_PICKS: "/api/v1/top-ml-picks",
-
-  // Parleys
-  PARLEYS: "/api/v1/parleys/",
 
   // Training
-  TRAIN: "/api/v1/train",
+  TRAIN: "/api/v1/train/run-now",
   TRAINING_STATUS: "/api/v1/training/results/latest",
 
   // Health
@@ -78,6 +77,13 @@ export const UI_TEXT = {
 export const APP_CONFIG = {
   MAX_PARLEY_PICKS: 10,
   LIVE_POLLING_INTERVAL: 30000, // 30 seconds
-  API_TIMEOUT: 10000, // 10 seconds
-  TRAINING_TIMEOUT: 300000, // 5 minutes
+  // Default timeout for the canonical axios instance (client.ts)
+  API_DEFAULT_TIMEOUT: 60000, // 60 seconds
+  // Live-with-predictions requests time out at 30s on every path
+  LIVE_API_TIMEOUT: 30000, // 30 seconds
+  // Suggested-picks generation is slow (AI pick synthesis) — keep 90s
+  SUGGESTED_PICKS_TIMEOUT: 90000, // 90 seconds
+  TRAINING_TIMEOUT: 300000, // 5 minutes (training runs only once per day)
+  // Predictions list default page size (legacy value preserved)
+  DEFAULT_PREDICTIONS_LIMIT: 30,
 } as const;

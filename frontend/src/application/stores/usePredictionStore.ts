@@ -8,6 +8,7 @@ import {
 } from "../../domain/entities";
 import { predictionsApi } from "../../infrastructure/api/predictions";
 import { leaguesApi } from "../../infrastructure/api/leagues";
+import { isNetworkError } from "../../utils/apiErrors";
 import { useOfflineStore } from "./useOfflineStore";
 import { indexedDBStorage } from "../../infrastructure/storage/indexedDBStorage";
 
@@ -119,18 +120,15 @@ export const usePredictionStore = create<PredictionState>()(
           const error =
             err instanceof Error ? err : new Error("Error desconocido");
           // Check for network error / unreachable backend
-          const isNetworkError =
-            error.message === "Network Error" ||
-            (err as { code?: string })?.code === "ERR_NETWORK" ||
-            (err as { code?: string })?.code === "ECONNABORTED";
-          if (isNetworkError) {
+          const isNetworkErr = isNetworkError(err);
+          if (isNetworkErr) {
             useOfflineStore.getState().setBackendAvailable(false);
           }
 
           // If we have a network error, we don't set leaguesError to avoid showing the red alert box.
           // The global OfflineIndicator will show the orange "Limited Connection" bar.
           set({
-            leaguesError: isNetworkError
+            leaguesError: isNetworkErr
               ? null
               : error.message || "Error al cargar las ligas",
           });
@@ -190,16 +188,14 @@ export const usePredictionStore = create<PredictionState>()(
         } catch (err: unknown) {
           const error =
             err instanceof Error ? err : new Error("Error desconocido");
-          const isNetworkError =
-            error.message === "Network Error" ||
-            (err as { code?: string })?.code === "ERR_NETWORK";
-          if (isNetworkError) {
+          const isNetworkErr = isNetworkError(err);
+          if (isNetworkErr) {
             useOfflineStore.getState().setBackendAvailable(false);
           }
 
           // If we have a network error, we don't set predictionsError to avoid technical alerts.
           set({
-            predictionsError: isNetworkError
+            predictionsError: isNetworkErr
               ? null
               : error.message || "Error al cargar las predicciones",
           });
@@ -226,12 +222,8 @@ export const usePredictionStore = create<PredictionState>()(
           set({ searchMatches: matchPredictions });
           useOfflineStore.getState().setBackendAvailable(true);
         } catch (err: unknown) {
-          const error =
-            err instanceof Error ? err : new Error("Error desconocido");
-          const isNetworkError =
-            error.message === "Network Error" ||
-            (err as { code?: string })?.code === "ERR_NETWORK";
-          if (isNetworkError) {
+          const isNetworkErr = isNetworkError(err);
+          if (isNetworkErr) {
             useOfflineStore.getState().setBackendAvailable(false);
           }
           set({ searchMatches: [] });

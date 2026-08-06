@@ -15,7 +15,7 @@ export const predictionsApi = {
    */
   async getPredictions(
     leagueId: string,
-    limit: number = 10,
+    limit: number = APP_CONFIG.DEFAULT_PREDICTIONS_LIMIT,
     sortBy:
       | "date"
       | "confidence"
@@ -45,7 +45,8 @@ export const predictionsApi = {
    */
   async getSuggestedPicks(matchId: string): Promise<MatchSuggestedPicks> {
     const response = await apiClient.get<MatchSuggestedPicks>(
-      API_ENDPOINTS.SUGGESTED_PICKS_BY_MATCH(matchId)
+      API_ENDPOINTS.SUGGESTED_PICKS_BY_MATCH(matchId),
+      { timeout: APP_CONFIG.SUGGESTED_PICKS_TIMEOUT }
     );
     return response.data;
   },

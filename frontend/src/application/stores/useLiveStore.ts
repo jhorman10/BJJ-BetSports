@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { LiveMatchPrediction } from "../../domain/entities";
 import { liveApi } from "../../infrastructure/api/live";
+import { isNetworkError } from "../../utils/apiErrors";
 import { indexedDBStorage } from "../../infrastructure/storage/indexedDBStorage";
 import { useOfflineStore } from "./useOfflineStore";
 
@@ -53,17 +54,14 @@ export const useLiveStore = create<LiveState>()(
         } catch (err: unknown) {
           const error =
             err instanceof Error ? err : new Error("Error desconocido");
-          const isNetworkError =
-            error.message === "Network Error" ||
-            (err as { code?: string })?.code === "ERR_NETWORK" ||
-            (err as { code?: string })?.code === "ECONNABORTED";
-          if (isNetworkError) {
+          const isNetworkErr = isNetworkError(err);
+          if (isNetworkErr) {
             useOfflineStore.getState().setBackendAvailable(false);
           }
 
           // Suppress technical error string if it's a network issue
           set({
-            error: isNetworkError
+            error: isNetworkErr
               ? null
               : error.message || "Error al cargar partidos en vivo",
           });
