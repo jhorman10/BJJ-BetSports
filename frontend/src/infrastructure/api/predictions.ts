@@ -7,7 +7,7 @@ import {
   BettingFeedbackResponse,
   LearningStatsResponse,
 } from "../../domain/entities";
-import { API_ENDPOINTS } from "../../config/constants";
+import { API_ENDPOINTS, APP_CONFIG } from "../../config/constants";
 
 export const predictionsApi = {
   /**
