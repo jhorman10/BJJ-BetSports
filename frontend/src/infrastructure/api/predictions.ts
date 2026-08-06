@@ -7,7 +7,7 @@ import {
   BettingFeedbackResponse,
   LearningStatsResponse,
 } from "../../domain/entities";
-import { API_ENDPOINTS, APP_CONFIG } from "../../config/constants";
+import { API_ENDPOINTS } from "../../config/constants";
 
 export const predictionsApi = {
   /**
@@ -71,18 +71,6 @@ export const predictionsApi = {
     const response = await apiClient.get<LearningStatsResponse>(
       API_ENDPOINTS.LEARNING_STATS
     );
-    return response.data;
-  },
-
-  /**
-   * Generic Post used for Training
-   */
-  async train(
-    data: Record<string, unknown>
-  ): Promise<{ status: string; message: string }> {
-    const response = await apiClient.post(API_ENDPOINTS.TRAIN, data, {
-      timeout: APP_CONFIG.TRAINING_TIMEOUT,
-    });
     return response.data;
   },
 
