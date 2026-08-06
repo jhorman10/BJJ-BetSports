@@ -15,6 +15,19 @@ from .predictions import (
     PredictionsResponse,
     TeamModel,
 )
+from .training import (
+    ActiveModelPointerPayload,
+    ModelArtifactPayload,
+    PromotionPayload,
+    TrainingCapabilitiesPayload,
+    TrainingJobCreatePayload,
+    TrainingJobEventPayload,
+    TrainingJobEventsPayload,
+    TrainingJobListPayload,
+    TrainingJobPayload,
+    TrainingOptionModel,
+    TrainingUnavailableReasonModel,
+)
 
 __all__ = [
     "HealthResponse",
@@ -32,4 +45,15 @@ __all__ = [
     "LearningStatsResponse",
     "TrainingStatusPayload",
     "TrainingCachedPayload",
+    "TrainingOptionModel",
+    "TrainingUnavailableReasonModel",
+    "TrainingCapabilitiesPayload",
+    "TrainingJobCreatePayload",
+    "TrainingJobPayload",
+    "TrainingJobListPayload",
+    "TrainingJobEventPayload",
+    "TrainingJobEventsPayload",
+    "ModelArtifactPayload",
+    "ActiveModelPointerPayload",
+    "PromotionPayload",
 ]

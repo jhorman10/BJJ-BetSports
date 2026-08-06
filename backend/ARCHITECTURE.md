@@ -71,6 +71,13 @@ API_ONLY_MODE=true uvicorn src.api.main:app
 
 ```
 backend/
+├── src/
+│   ├── application/
+│   │   └── training/         # Training control-plane services and executor adapters
+│   ├── domain/
+│   │   └── training/         # Canonical job, artifact, registry and state contracts
+│   └── infrastructure/
+│       └── training/         # Persistence and execution backends for training jobs
 ├── scripts/
 │   ├── run_predictions.py      # Main worker script
 │   └── worker_config.py        # Worker configuration
@@ -82,6 +89,17 @@ backend/
 └── workflows/
     └── update_predictions.yml  # GitHub Actions workflow
 ```
+
+## Training Control Plane Entry Points
+
+The on-demand training feature is being introduced as a separate control plane
+so the API can orchestrate work without owning the heavy runtime.
+
+- `src.domain.training`: domain contracts for recipes, jobs, artifacts and registries.
+- `src.application.training`: orchestration services, audit hooks and executor adapters.
+- `src.infrastructure.training`: repositories and executor-specific integrations.
+- `src.api.main`: legacy trigger surface que ahora deriva el entrenamiento al
+   nuevo control plane en vez de lanzar trabajo pesado dentro del proceso web.
 
 ## 🔧 Configuration
 

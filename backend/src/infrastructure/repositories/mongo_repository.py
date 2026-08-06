@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
 from pymongo import MongoClient
+from pymongo.errors import OperationFailure
 from src.utils.time_utils import get_current_time, is_future_time
 
 logger = logging.getLogger(__name__)
@@ -40,6 +41,25 @@ def _to_prediction_result(doc: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _is_index_options_conflict(exc: Exception) -> bool:
+    """True when a Mongo error is an IndexOptionsConflict (codes 85/86/67)."""
+    if not isinstance(exc, OperationFailure):
+        return False
+    if exc.code in (85, 86, 67):
+        return True
+    message = str(exc)
+    return "IndexOptionsConflict" in message or (
+        "index already exists with different options" in message
+    )
+
+
+def _is_index_not_found(exc: Exception) -> bool:
+    """True when a Mongo error is an IndexNotFound (code 27)."""
+    if not isinstance(exc, OperationFailure):
+        return False
+    return exc.code == 27 or "IndexNotFound" in str(exc)
+
+
 class MongoRepository:
     """Drop-in replacement for PostgreSQL PersistenceRepository using MongoDB."""
 
@@ -69,10 +89,64 @@ class MongoRepository:
             self.app_state.create_index("key", unique=True)
             self.binary_artifacts.create_index("key", unique=True)
 
+            # TTL indexes: expired docs are physically purged by MongoDB.
+            # expireAfterSeconds=0 purges at expires_at (see design D2).
+            # match_predictions uses a PARTIAL TTL index: only unlabeled docs
+            # are purged at expires_at — labeled docs survive for the
+            # auto-labeler and analytics (metrics_baseline) (C1).
+            self._ensure_ttl_index(
+                self.match_predictions, partial_filter={"labeled": {"$ne": True}}
+            )
+            self._ensure_ttl_index(self.api_cache)
+
             logger.info(f"✅ Successfully connected to MongoDB database: {db_name}")
         except Exception as e:
             logger.error(f"❌ Failed to connect to MongoDB: {e}")
             raise e
+
+    def _ensure_ttl_index(
+        self,
+        collection: Any,
+        field: str = "expires_at",
+        seconds: int = 0,
+        partial_filter: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Create a TTL index idempotently, optionally partial (C1).
+
+        A pre-existing index with conflicting options raises
+        ``OperationFailure`` (Mongo IndexOptionsConflict, codes 85/86/67);
+        in that case the old index is dropped and the TTL index is recreated
+        so initialization never crashes on drift. Failures inside the
+        drop/recreate path are logged, never raised — the repository must
+        boot even when the index cannot be reconciled (W1).
+        """
+        index_options: Dict[str, Any] = {"expireAfterSeconds": seconds}
+        if partial_filter is not None:
+            index_options["partialFilterExpression"] = partial_filter
+
+        try:
+            collection.create_index([(field, 1)], **index_options)
+            return
+        except OperationFailure as exc:
+            if not _is_index_options_conflict(exc):
+                raise
+            logger.warning(
+                "TTL index %s_1 conflicts with an existing index; rebuilding.",
+                field,
+            )
+
+        try:
+            collection.drop_index(f"{field}_1")
+        except OperationFailure as exc:
+            # The index may have been dropped concurrently; the recreate below
+            # still converges. Log and continue — the app must keep booting.
+            if not _is_index_not_found(exc):
+                logger.warning("Failed to drop index %s_1: %s", field, exc)
+
+        try:
+            collection.create_index([(field, 1)], **index_options)
+        except Exception as exc:
+            logger.warning("Failed to recreate TTL index %s_1: %s", field, exc)
 
     def create_tables(self) -> None:
         """No-op for MongoDB, collections are created implicitly."""

@@ -22,8 +22,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const { trainingStatus } = useBotStore();
   const location = useLocation();
 
-  // Only show the bot icon if training is fully completed
-  const showBotIcon = trainingStatus === "COMPLETED";
+  const showBotIcon = trainingStatus !== "IDLE";
 
   return (
     <>

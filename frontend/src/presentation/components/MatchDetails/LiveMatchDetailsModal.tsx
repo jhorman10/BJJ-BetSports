@@ -17,6 +17,7 @@ import { useUIStore } from "../../../application/stores/useUIStore";
 import { LiveScoreBoard } from "./components/LiveScoreBoard";
 import { LiveMatchStats } from "./components/LiveMatchStats";
 import { PreMatchPrediction } from "./components/PreMatchPrediction";
+import SuggestedPicksTab from "./SuggestedPicksTab";
 
 const LiveMatchDetailsModal: React.FC = () => {
   const { liveModalOpen, selectedLiveMatch, closeLiveMatchModal } =
@@ -25,11 +26,24 @@ const LiveMatchDetailsModal: React.FC = () => {
 
   if (!liveModalOpen || !selectedLiveMatch) return null;
 
-  // Find the latest version of the match from the live store for real-time updates
-  const latestMatch =
-    liveMatches.find((m) => m.match.id === selectedLiveMatch.match.id) ||
-    selectedLiveMatch;
-  const { match, prediction } = latestMatch;
+  // Find the latest version of the match from the live store for real-time score updates
+  const liveMatchUpdate = liveMatches.find(
+    (m) => m.match.id === selectedLiveMatch.match.id
+  );
+
+  // Always prefer live match stats (score, minute, corners) if available
+  const match = liveMatchUpdate ? liveMatchUpdate.match : selectedLiveMatch.match;
+
+  // Preserve the original prediction if the live update is just an ESPN stub (confidence = 0)
+  const isLivePredictionValid =
+    liveMatchUpdate &&
+    (liveMatchUpdate.prediction.home_win_probability > 0 ||
+      liveMatchUpdate.prediction.confidence > 0);
+
+  const prediction = isLivePredictionValid
+    ? liveMatchUpdate.prediction
+    : selectedLiveMatch.prediction;
+
   const isPredictionAvailable =
     prediction.home_win_probability > 0 || prediction.confidence > 0;
 
@@ -82,7 +96,18 @@ const LiveMatchDetailsModal: React.FC = () => {
         <PreMatchPrediction
           prediction={prediction}
           isAvailable={isPredictionAvailable}
+          match={match}
         />
+
+        {/* Suggested Picks with Live Validation */}
+        {isPredictionAvailable && (
+          <Box mt={3} pt={2} borderTop="1px solid rgba(255,255,255,0.1)">
+            <Typography variant="subtitle1" fontWeight="bold" mb={2}>
+              Picks y Resolución en Vivo
+            </Typography>
+            <SuggestedPicksTab matchPrediction={{ match, prediction }} />
+          </Box>
+        )}
       </DialogContent>
       <DialogActions sx={{ p: 2 }}>
         <Button

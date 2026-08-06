@@ -92,6 +92,14 @@ docker compose -f docker-compose.dev.yml --profile mlops run --rm mlops-pipeline
 ```
 *(Tip: Puedes usar `python3 -m scripts.orchestrator_cli run-all` dentro del bash local de la carpeta de backend)*
 
+### 5. Reclamar Espacio en Disco (Docker Prunes)
+Tras múltiples ciclos de entrenamiento MLOps, los artefactos de build y las imágenes intermedias acumulan varios GB. Para reclamar espacio de forma segura (no afecta volúmenes ni bases de datos):
+```bash
+docker builder prune -a      # ~9GB de capas de build intermedias
+docker image prune -a        # ~3.4GB de imágenes huérfanas
+```
+*(Aplica a builds locales; en CI el cache de Docker se gestiona aparte.)*
+
 ---
 
 ## 📡 Mapa de Servicios Local

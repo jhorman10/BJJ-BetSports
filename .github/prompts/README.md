@@ -16,16 +16,21 @@ This folder exposes Spec Kit workflows as Copilot slash prompts.
 
 ## Compatibility Strategy
 
-Each `.prompt.md` delegates to the corresponding command definition in
-`.claude/commands/` to avoid behavior drift and keep a single source of truth.
+Each `.prompt.md` is a thin Copilot shim that routes to the corresponding
+Spec Kit agent under `.github/agents/`. Claude-specific command files live under
+`.claude/commands/` and are maintained separately by the official Spec Kit
+integration.
 
 ## Mandatory Policy for Code Interventions
 
 Any activity that implies code modification must follow this mandatory path:
 
 1. The **Orchestrator** handles intake and routing.
-2. `/speckit.specify` generates the intervention specification, plan, and tasks in one continuous flow.
-3. Implementation starts only after the previous steps are completed.
+2. `/speckit.specify` creates or updates `spec.md`.
+3. `/speckit.clarify` runs when the specification still has open ambiguities.
+4. `/speckit.plan` creates `plan.md`.
+5. `/speckit.tasks` creates `tasks.md`.
+6. Implementation starts only after the previous steps are completed.
 
 ### Hard Gate
 

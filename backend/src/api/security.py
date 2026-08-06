@@ -5,8 +5,10 @@ Provee dependencia para endpoints administrativos.
 
 from __future__ import annotations
 
+import ipaddress
 import os
-from typing import Optional
+from enum import Enum
+from typing import Any, Optional
 
 from fastapi import HTTPException, Request, Security
 from fastapi.security import APIKeyHeader
@@ -16,6 +18,12 @@ load_backend_env()
 
 API_KEY_HEADER = APIKeyHeader(name="X-API-Key", auto_error=False)
 _LOCAL_DEV_HOSTS = {"127.0.0.1", "::1", "localhost", "testclient"}
+
+
+class TrainingPermission(str, Enum):
+    READ = "training:read"
+    WRITE = "training:write"
+    PROMOTE = "training:promote"
 
 
 def _get_admin_api_key() -> str:
@@ -32,12 +40,51 @@ def _get_request_host(request: Request) -> str:
     return ""
 
 
+def _is_local_dev_bypass_enabled() -> bool:
+    return os.getenv("LOCAL_DEV_BYPASS_ENABLED", "false").strip().lower() == "true"
+
+
 def _is_local_dev_request(request: Request) -> bool:
-    return _get_request_host(request) in _LOCAL_DEV_HOSTS
+    host = _get_request_host(request)
+    if host in _LOCAL_DEV_HOSTS:
+        return True
+
+    try:
+        addr = ipaddress.ip_address(host)
+        return addr.is_private or addr.is_loopback
+    except ValueError:
+        return False
 
 
 def _allow_local_dev_bypass(request: Request) -> bool:
-    return not _is_api_only_mode() and _is_local_dev_request(request)
+    return (
+        _is_local_dev_bypass_enabled()
+        and not _is_api_only_mode()
+        and _is_local_dev_request(request)
+    )
+
+
+def _get_training_permissions() -> set[TrainingPermission]:
+    raw_permissions = os.getenv(
+        "TRAINING_ADMIN_PERMISSIONS",
+        ",".join(
+            [
+                TrainingPermission.READ.value,
+                TrainingPermission.WRITE.value,
+                TrainingPermission.PROMOTE.value,
+            ]
+        ),
+    )
+    permissions: set[TrainingPermission] = set()
+    for raw_permission in raw_permissions.split(","):
+        normalized = raw_permission.strip()
+        if not normalized:
+            continue
+        try:
+            permissions.add(TrainingPermission(normalized))
+        except ValueError:
+            continue
+    return permissions
 
 
 async def require_admin_key(
@@ -69,3 +116,24 @@ async def require_admin_key(
         raise HTTPException(status_code=403, detail="Forbidden")
 
     return api_key
+
+
+def require_training_permission(permission: TrainingPermission) -> Any:
+    async def _dependency(
+        request: Request,
+        api_key: Optional[str] = Security(API_KEY_HEADER),
+    ) -> str:
+        resolved_api_key = await require_admin_key(request, api_key)
+        if permission not in _get_training_permissions():
+            raise HTTPException(
+                status_code=403,
+                detail=f"Missing required permission: {permission.value}",
+            )
+        return resolved_api_key
+
+    return _dependency
+
+
+require_training_read = require_training_permission(TrainingPermission.READ)
+require_training_write = require_training_permission(TrainingPermission.WRITE)
+require_training_promote = require_training_permission(TrainingPermission.PROMOTE)

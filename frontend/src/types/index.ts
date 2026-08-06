@@ -2,6 +2,8 @@
  * TypeScript interfaces for the Football Prediction API
  */
 
+export * from "./training";
+
 export interface Team {
   id: string;
   name: string;

@@ -20,6 +20,19 @@ Before writing any code, analyze the project to determine:
 
 > Do NOT assume a tech stack. ALWAYS verify from the project files.
 
+## Skills to Activate
+
+| Skill | When |
+|---|---|
+| `code-quality` | **Always** — every code write or modification |
+| `linting` | **Always** — type checking, import ordering, formatting |
+| `conventional-commits` | Commits, PRs, changelogs, git history |
+| `bash-defensive-patterns` | Production shell scripts, CI/CD utilities, cron jobs |
+| `python-executor` | Python scripts, data analysis, automation, web scraping |
+| `python-testing-patterns` | pytest suites, fixtures, mocking, TDD |
+
+> Read the matching skill's `SKILL.md` before writing code for that context.
+
 ## Core Responsibilities
 
 - API Development (REST, GraphQL, gRPC, WebSockets)

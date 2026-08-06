@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import logging
 import os
-import subprocess
-import threading
 from pathlib import Path
 from typing import Any, Dict
 
@@ -18,18 +16,19 @@ from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
 from src.api.schemas.auxiliary import TrainingCachedPayload, TrainingStatusPayload
 from src.api.schemas.health import HealthResponse
+from src.api.schemas.training import TrainingJobCreatePayload
 from src.api.security import require_admin_key
 from src.api.utils.helpers import _load_training_result
 from src.api.utils.serializers import _utc_now_iso
+from src.application.training.job_service import TrainingJobService
 from src.core.env import load_backend_env
+from src.dependencies import get_training_job_service
 
 load_backend_env()
 
 # Logger and runtime globals
 _logger = logging.getLogger(__name__)
 _BACKEND_DIR = Path(__file__).parent.parent.parent
-_training_lock = threading.Lock()
-_training_running = False
 app = FastAPI(
     title="BJJ-BetSports API",
     version="1.0.0",
@@ -78,6 +77,7 @@ from src.api.routers.metrics import router as metrics_router  # noqa: E402
 from src.api.routers.monitor import router as monitor_router  # noqa: E402
 from src.api.routers.picks import router as picks_router  # noqa: E402
 from src.api.routers.predictions import router as predictions_router  # noqa: E402
+from src.api.routers.training import router as training_router  # noqa: E402
 
 app.include_router(leagues_router)
 app.include_router(predictions_router)
@@ -86,6 +86,7 @@ app.include_router(picks_router)
 app.include_router(metrics_router)
 app.include_router(labeler_router)
 app.include_router(monitor_router)
+app.include_router(training_router)
 
 
 @app.get("/_ready")
@@ -122,14 +123,6 @@ def readiness_check() -> Dict[str, Any]:
 
 @app.get("/api/v1/train/status", response_model=TrainingStatusPayload)
 def get_training_status() -> TrainingStatusPayload:
-    if _training_running:
-        return TrainingStatusPayload(
-            status="IN_PROGRESS",
-            message="Entrenamiento en progreso...",
-            has_result=False,
-            result=None,
-            last_update=None,
-        )
     result, last_update = _load_training_result()
     if result is None:
         return TrainingStatusPayload(
@@ -159,62 +152,46 @@ def get_training_cached() -> TrainingCachedPayload:
 @app.post("/api/v1/train/run-now")
 @limiter.limit("1/hour")
 def trigger_training(
-    request: Request, admin_key: str = Depends(require_admin_key)
+    request: Request,
+    admin_key: str = Depends(require_admin_key),
+    training_job_service: TrainingJobService = Depends(get_training_job_service),
 ) -> dict[str, str]:
-    global _training_running
-    with _training_lock:
-        if _training_running:
-            return {
-                "status": "already_running",
-                "message": "El entrenamiento ya está en progreso.",
-            }
-        _training_running = True
+    del request
 
-    n_jobs = os.getenv("N_JOBS", "2")
     train_days = os.getenv("TRAIN_DAYS", "550")
     predict_leagues = os.getenv("PREDICT_LEAGUES", "E0")
+    n_jobs = os.getenv("N_JOBS", "2")
+    league_ids = [
+        league.strip() for league in predict_leagues.split(",") if league.strip()
+    ]
 
-    def _run() -> None:
-        global _training_running
-        try:
-            _logger.info(
-                "Iniciando entrenamiento: days=%s leagues=%s",
-                train_days,
-                predict_leagues,
-            )
-            subprocess.run(
-                ["python3", "scripts/orchestrator_cli.py", "cleanup"],
-                cwd=str(_BACKEND_DIR),
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            subprocess.run(
-                [
-                    "python3",
-                    "scripts/orchestrator_cli.py",
-                    "train",
-                    "--days",
-                    train_days,
-                    "--n-jobs",
-                    n_jobs,
-                    "--leagues",
-                    predict_leagues,
-                ],
-                cwd=str(_BACKEND_DIR),
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            _logger.info("Entrenamiento finalizado.")
-        except Exception as exc:
-            _logger.error("Error en entrenamiento: %s", exc)
-        finally:
-            with _training_lock:
-                _training_running = False
+    job = training_job_service.create_job(
+        TrainingJobCreatePayload(
+            recipe_id="legacy-run-now",
+            name="Legacy manual training",
+            model_key=os.getenv("TRAIN_MODEL_KEY", "baseline-model"),
+            dataset_profile="legacy-manual",
+            league_ids=league_ids,
+            days_back=int(train_days),
+            feature_profile="default",
+            hyperparameter_profile=f"n-jobs:{n_jobs}",
+            executor_target=os.getenv("TRAIN_EXECUTOR_TARGET", "default"),
+            description=(
+                "Bridge from /api/v1/train/run-now to the training control plane."
+            ),
+        ),
+        requested_by=admin_key or None,
+    )
 
-    threading.Thread(target=_run, daemon=True).start()
+    _logger.info(
+        "Legacy run-now bridged to training job %s: days=%s leagues=%s",
+        job.job_id,
+        train_days,
+        predict_leagues,
+    )
+
     return {
         "status": "started",
-        "message": "Entrenamiento iniciado dentro del contenedor.",
+        "message": "Entrenamiento derivado al training control plane.",
+        "job_id": job.job_id,
     }

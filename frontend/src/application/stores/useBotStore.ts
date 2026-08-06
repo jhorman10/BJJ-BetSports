@@ -3,7 +3,8 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import {
   TrainingStatus,
   TrainingProcessStatus,
-  TrainingProgressStatus,
+  TrainingLatestResult,
+  TrainingJobSummary,
 } from "../../types";
 import { api } from "../../services/api";
 import { useOfflineStore } from "./useOfflineStore";
@@ -34,11 +35,66 @@ interface BotState {
     daysBack?: number;
     startDate?: string;
   }) => Promise<void>;
-  pollTrainingStatus: () => Promise<void>;
+  pollTrainingStatus: (jobId?: string) => Promise<void>;
   updateStats: (stats: TrainingStatus) => void;
   clearCache: () => void;
   reconcile: () => Promise<void>;
 }
+
+const ACTIVE_JOB_STATUSES = new Set([
+  "QUEUED",
+  "VALIDATING",
+  "PREPARING_DATA",
+  "RUNNING",
+]);
+
+const DEFAULT_TRAINING_REQUEST = {
+  recipe_id: "bootstrap-baseline-model",
+  name: "Bootstrap manual training",
+  model_key: "baseline-model",
+  dataset_profile: "default",
+  league_ids: ["E0"],
+  days_back: 550,
+  feature_profile: "default",
+  executor_target: "default",
+};
+
+const mapJobStatus = (
+  job: TrainingJobSummary | null
+): Pick<BotState, "trainingStatus" | "trainingMessage" | "hasResult"> => {
+  if (!job) {
+    return {
+      trainingStatus: "IDLE",
+      trainingMessage: "El bot está listo",
+      hasResult: false,
+    };
+  }
+
+  if (ACTIVE_JOB_STATUSES.has(job.status)) {
+    return {
+      trainingStatus: "IN_PROGRESS",
+      trainingMessage: job.status_message || "Entrenamiento en progreso",
+      hasResult: false,
+    };
+  }
+
+  if (job.status === "FAILED" || job.status === "CANCELED") {
+    return {
+      trainingStatus: "ERROR",
+      trainingMessage: job.status_message || "El entrenamiento falló",
+      hasResult: false,
+    };
+  }
+
+  return {
+    trainingStatus: "COMPLETED",
+    trainingMessage: job.status_message || "Entrenamiento completado",
+    hasResult: true,
+  };
+};
+
+const getActiveJob = (jobs: TrainingJobSummary[]): TrainingJobSummary | null =>
+  jobs.find((job) => ACTIVE_JOB_STATUSES.has(job.status)) ?? null;
 
 // Clean up old localStorage to prevent quota errors during migration
 try {
@@ -79,51 +135,59 @@ export const useBotStore = create<BotState>()(
         set({ loading: true, error: null });
 
         try {
-          // 1. First check current status and if a result exists on server
-          const statusRes = await api.get<TrainingProgressStatus>(
-            "/train/status"
-          );
+          const [latestResult, jobsResponse] = await Promise.all([
+            api.get<TrainingLatestResult>("/training/results/latest"),
+            api.get<{ jobs: TrainingJobSummary[] }>("/training/jobs"),
+          ]);
+          const activeJob = getActiveJob(jobsResponse.jobs);
 
-          set({
-            trainingStatus: statusRes.status,
-            trainingMessage: statusRes.message,
-            hasResult: statusRes.has_result,
-            isTrainingServiceUnavailable: false,
-          });
-
-          // 2. If we have a result and it's what we need, use it immediately
-          if (statusRes.has_result && statusRes.result && !forceRecalculate) {
-            const updateDate = statusRes.last_update
-              ? new Date(statusRes.last_update)
+          if (latestResult.available && latestResult.data) {
+            const updateDate = latestResult.last_update
+              ? new Date(latestResult.last_update)
               : new Date();
-
             set({
-              stats: statusRes.result,
+              stats: latestResult.data,
               lastUpdate: updateDate,
               lastFetchTimestamp: Date.now(),
-              loading: false,
               error: null,
               isTrainingServiceUnavailable: false,
             });
+          }
 
-            useOfflineStore.getState().setBackendAvailable(true);
+          set({
+            ...mapJobStatus(activeJob),
+            hasResult: latestResult.available,
+            isTrainingServiceUnavailable: false,
+          });
+
+          useOfflineStore.getState().setBackendAvailable(true);
+          useOfflineStore.getState().updateLastSync();
+
+          if (activeJob) {
+            await get().pollTrainingStatus(activeJob.job_id);
             return;
           }
 
-          // 3. If training is already IN_PROGRESS, we just poll
-          if (statusRes.status === "IN_PROGRESS") {
-            await get().pollTrainingStatus();
-            return;
-          }
-
-          // 4. Only trigger a new training run when the user explicitly requests it.
           if (forceRecalculate) {
             set({
               trainingStatus: "IN_PROGRESS",
               trainingMessage: "Iniciando entrenamiento...",
             });
-            await api.post("/train/run-now");
-            await get().pollTrainingStatus();
+
+            const createdJob = await api.post<{ job_id: string }>(
+              "/training/jobs",
+              DEFAULT_TRAINING_REQUEST
+            );
+            await get().pollTrainingStatus(createdJob.job_id);
+            return;
+          }
+
+          if (latestResult.available) {
+            set({
+              trainingStatus: "COMPLETED",
+              trainingMessage: "Último entrenamiento disponible",
+              hasResult: true,
+            });
           }
         } catch (err: unknown) {
           const error =
@@ -161,41 +225,61 @@ export const useBotStore = create<BotState>()(
       },
 
       // Separate polling function to avoid nesting
-      pollTrainingStatus: async () => {
+      pollTrainingStatus: async (jobId?: string) => {
         let attempts = 0;
         const maxAttempts = 120; // 10 minutes (5s * 120)
         const pollInterval = 5000;
+        let resolvedJobId = jobId;
+
+        if (!resolvedJobId) {
+          const jobsResponse = await api.get<{ jobs: TrainingJobSummary[] }>(
+            "/training/jobs"
+          );
+          resolvedJobId = getActiveJob(jobsResponse.jobs)?.job_id;
+        }
+
+        if (!resolvedJobId) {
+          return;
+        }
 
         while (attempts < maxAttempts) {
           try {
-            const statusRes = await api.get<TrainingProgressStatus>(
-              "/train/status"
+            const statusRes = await api.get<TrainingJobSummary>(
+              `/training/jobs/${resolvedJobId}`
             );
+            const mappedStatus = mapJobStatus(statusRes);
 
             set({
-              trainingStatus: statusRes.status,
-              trainingMessage: statusRes.message,
-              hasResult: statusRes.has_result,
+              trainingStatus: mappedStatus.trainingStatus,
+              trainingMessage: mappedStatus.trainingMessage,
+              hasResult: mappedStatus.hasResult,
             });
 
-            if (statusRes.status === "COMPLETED" && statusRes.result) {
-              const updateDate = statusRes.last_update
-                ? new Date(statusRes.last_update)
+            if (statusRes.status === "COMPLETED") {
+              const latestResult = await api.get<TrainingLatestResult>(
+                "/training/results/latest"
+              );
+              const updateDate = latestResult.last_update
+                ? new Date(latestResult.last_update)
                 : new Date();
-              set({
-                stats: statusRes.result,
-                lastUpdate: updateDate,
-                lastFetchTimestamp: Date.now(),
-                error: null,
-                isTrainingServiceUnavailable: false,
-              });
+
+              if (latestResult.data) {
+                set({
+                  stats: latestResult.data,
+                  lastUpdate: updateDate,
+                  lastFetchTimestamp: Date.now(),
+                  error: null,
+                  isTrainingServiceUnavailable: false,
+                  hasResult: latestResult.available,
+                });
+              }
 
               return;
             }
 
-            if (statusRes.status === "ERROR") {
+            if (statusRes.status === "FAILED" || statusRes.status === "CANCELED") {
               throw new Error(
-                statusRes.message || "El entrenamiento falló en el servidor"
+                statusRes.status_message || "El entrenamiento falló en el servidor"
               );
             }
           } catch {
@@ -248,16 +332,13 @@ export const useBotStore = create<BotState>()(
         set({ isReconciling: true });
 
         try {
-          // Fetch fresh data
-          const cachedResponse = await api.get<{
-            cached: boolean;
-            data: TrainingStatus | null;
-            last_update: string | null;
-          }>("/train/cached");
+          const latestResult = await api.get<TrainingLatestResult>(
+            "/training/results/latest"
+          );
 
-          if (cachedResponse.data) {
-            const serverUpdateTime = cachedResponse.last_update
-              ? new Date(cachedResponse.last_update).getTime()
+          if (latestResult.data) {
+            const serverUpdateTime = latestResult.last_update
+              ? new Date(latestResult.last_update).getTime()
               : 0;
 
             const localUpdateTime = state.lastUpdate?.getTime() || 0;
@@ -265,8 +346,8 @@ export const useBotStore = create<BotState>()(
             // If server data is newer, update
             if (serverUpdateTime > localUpdateTime) {
               set({
-                stats: cachedResponse.data,
-                lastUpdate: new Date(cachedResponse.last_update!),
+                stats: latestResult.data,
+                lastUpdate: new Date(latestResult.last_update!),
                 lastFetchTimestamp: Date.now(),
               });
             }

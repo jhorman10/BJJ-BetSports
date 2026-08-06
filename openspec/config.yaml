@@ -1,0 +1,34 @@
+# openspec/config.yaml — SDD project configuration
+schema: spec-driven
+
+context: |
+  Tech stack: FastAPI / Python 3.11 (backend) + React 19 (frontend) + MongoDB 6.0 (local daemon, TTL support)
+  Architecture: backend (scheduler, domain services, infrastructure repositories) / frontend (100% API, no direct Mongo)
+  Testing: pytest (backend, venv .venv, `tests/` from backend/) + Vitest (frontend)
+  Style: SDD artifacts in English by default; change-scoped operational notes may be annotated
+
+rules:
+  proposal:
+    - Include rollback plan for risky changes
+    - Include success criteria (checkable)
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+  design:
+    - Document architecture decisions with rationale (options + tradeoffs)
+    - Record accepted spec deviations as Open Questions for verify
+  tasks:
+    - Group by phase, use hierarchical numbering
+    - Keep tasks completable in one session
+    - Annotate each task with Done + Verify evidence
+  apply:
+    - Follow existing code patterns
+    tdd: false
+    test_command: ".venv/bin/pytest tests/ -q"
+  verify:
+    test_command: ".venv/bin/pytest tests/ -q"
+    build_command: "bash -n backend/scripts/local_mlops_pipeline.sh"
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas
+    - Preserve change-scoped operational requirements (do not merge into capability specs)

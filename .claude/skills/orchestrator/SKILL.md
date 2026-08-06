@@ -38,16 +38,22 @@ Exception: pure questions, read-only analysis, or documentation explanations wit
 
 ## Available Specialist Skills
 
-| Skill                  | Path                                           | When to Activate                                               |
-| ---------------------- | ---------------------------------------------- | -------------------------------------------------------------- |
-| `frontend`             | `.claude/skills/frontend/SKILL.md`             | UI components, pages, styles, client integrations              |
-| `backend`              | `.claude/skills/backend/SKILL.md`              | Services, APIs, database, server logic                         |
-| `general`              | `.claude/skills/general/SKILL.md`              | CLI tools, libraries, ML, scripts, data pipelines              |
-| `architecture`         | `.claude/skills/architecture/SKILL.md`         | System design, service boundaries, DDD, CQRS, full-stack      |
-| `code-quality`         | `.claude/skills/code-quality/SKILL.md`         | ALWAYS co-activate when writing or modifying code              |
-| `linting`              | `.claude/skills/linting/SKILL.md`              | ESLint, Prettier, TypeScript strict mode, import ordering      |
-| `devops`               | `.claude/skills/devops/SKILL.md`               | Docker, CI/CD, environment config, GitHub Actions              |
-| `conventional-commits` | `.claude/skills/conventional-commits/SKILL.md` | Commit messages, changelogs, PR descriptions, git history      |
+| Skill                       | Path                                                | When to Activate                                                                  |
+| --------------------------- | --------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `frontend`                  | `.claude/skills/frontend/SKILL.md`                  | UI components, pages, styles, client integrations                                 |
+| `backend`                   | `.claude/skills/backend/SKILL.md`                   | Services, APIs, database, server logic                                            |
+| `general`                   | `.claude/skills/general/SKILL.md`                   | CLI tools, libraries, ML, scripts, data pipelines                                 |
+| `architecture`              | `.claude/skills/architecture/SKILL.md`              | System design, service boundaries, DDD, CQRS, full-stack                          |
+| `code-quality`              | `.claude/skills/code-quality/SKILL.md`              | ALWAYS co-activate when writing or modifying code                                 |
+| `linting`                   | `.claude/skills/linting/SKILL.md`                   | ESLint, Prettier, TypeScript strict mode, import ordering                         |
+| `devops`                    | `.claude/skills/devops/SKILL.md`                    | Docker, CI/CD, environment config, GitHub Actions                                 |
+| `conventional-commits`      | `.claude/skills/conventional-commits/SKILL.md`      | Commit messages, changelogs, PR descriptions, git history                         |
+| `accessibility`             | `.claude/skills/accessibility/SKILL.md`             | WCAG 2.2 auditing, a11y improvements, screen reader support, keyboard navigation  |
+| `bash-defensive-patterns`   | `.claude/skills/bash-defensive-patterns/SKILL.md`   | Production shell scripts, CI/CD pipelines, fault-tolerant Bash utilities          |
+| `frontend-design`           | `.claude/skills/frontend-design/SKILL.md`           | High-quality UI design, polished components, landing pages, visual interfaces     |
+| `python-executor`           | `.claude/skills/python-executor/SKILL.md`           | Python execution, data analysis, web scraping, image/video/3D processing          |
+| `python-testing-patterns`   | `.claude/skills/python-testing-patterns/SKILL.md`   | pytest, fixtures, mocking, TDD, Python test suites                                |
+| `seo`                       | `.claude/skills/seo/SKILL.md`                       | SEO optimization, meta tags, structured data, search engine visibility            |
 
 > **Rule**: `code-quality` and `linting` must be co-activated alongside any skill that produces or modifies code. They are only omitted when the task is purely a question or a review with no code changes.
 
@@ -86,6 +92,26 @@ Task classification:
 ├── Non-web project (CLI, library, ML, script, DevOps)
 │   → Activate: general + code-quality
 │   → Example: "Add a --verbose flag to the CLI", "Create a data pipeline"
+│
+├── Python project (scripts, tests, data analysis, automation)
+│   → Activate: general + python-executor (execution) + python-testing-patterns (tests) + code-quality
+│   → Example: "Run data analysis", "Write pytest suite for the scraper"
+│
+├── Accessibility audit or improvement
+│   → Activate: frontend + accessibility + code-quality
+│   → Example: "Improve keyboard navigation", "WCAG 2.2 compliance check"
+│
+├── SEO optimization
+│   → Activate: frontend + seo + code-quality
+│   → Example: "Add structured data", "Fix meta tags", "Improve search ranking"
+│
+├── High-quality UI / visual design
+│   → Activate: frontend + frontend-design + code-quality
+│   → Example: "Design a polished landing page", "Build a dashboard component"
+│
+├── Shell scripting / CI automation
+│   → Activate: devops + bash-defensive-patterns + code-quality
+│   → Example: "Write a production deploy script", "Make CI pipeline fault-tolerant"
 │
 └── General question (no code changes)
     → Activate: no specialist needed, answer directly

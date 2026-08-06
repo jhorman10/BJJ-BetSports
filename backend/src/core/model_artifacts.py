@@ -2,9 +2,13 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from src.core.constants import ML_MODEL_FILENAME
-from src.core.paths import BACKEND_ROOT
+from src.core.paths import BACKEND_ROOT, DATA_DIR
+
+if TYPE_CHECKING:
+    from src.infrastructure.cache.cache_service import CacheService
 
 
 def get_model_artifact_paths() -> list[Path]:
@@ -17,15 +21,41 @@ def get_model_artifact_paths() -> list[Path]:
     model_paths.extend(sorted(BACKEND_ROOT.glob("*.joblib")))
     model_paths.extend(sorted(BACKEND_ROOT.glob("*.csv")))
     model_paths.extend(sorted((BACKEND_ROOT / "ml_models").glob("*.joblib")))
+    # Expanded coverage: baseline JSON in output/, benchmark artifacts in
+    # tmp/ (files only). Runtime JSON assets (data/team_logos.json,
+    # data/team_short_names.json) are intentionally NOT matched (they are not
+    # *.joblib).
+    # data/*.joblib: safety net only — the trained model is currently
+    # persisted to MongoDB (binary_artifacts), NOT to data/, but keep the glob
+    # in case a local joblib ever appears (older runs, manual fallbacks).
+    model_paths.extend(sorted(DATA_DIR.glob("*.joblib")))
+    model_paths.extend(sorted((BACKEND_ROOT / "output").glob("*.json")))
+    model_paths.extend(
+        p for p in sorted((BACKEND_ROOT / "tmp").glob("*")) if p.is_file()
+    )
 
     # Deduplicate paths
     return list(set(model_paths))
 
 
-def cleanup_model_artifacts(logger: logging.Logger) -> None:
-    """Remove persisted ML artifacts without interrupting the caller."""
+def cleanup_model_artifacts(
+    logger: logging.Logger, cache: "CacheService | None" = None
+) -> None:
+    """Remove persisted ML artifacts without interrupting the caller.
+
+    When a cache provider is passed, its ``clear()`` is invoked to purge the
+    disk cache (``.cache_data``). Failures are logged, never raised.
+    """
     removed_count = 0
     failed_count = 0
+
+    if cache is not None:
+        try:
+            cache.clear()
+            logger.info("Cache cleared via cleanup_model_artifacts.")
+        except Exception as exc:
+            failed_count += 1
+            logger.warning("Failed to clear cache during cleanup: %s", exc)
 
     for artifact_path in get_model_artifact_paths():
         if not artifact_path.exists():

@@ -28,6 +28,19 @@ Before writing ANY code, analyze the project to determine:
 
 > Do NOT assume a tech stack. ALWAYS verify from the project files.
 
+## Skills to Activate
+
+| Skill | When |
+|---|---|
+| `code-quality` | **Always** — every code write or modification |
+| `linting` | **Always** — type checking, import ordering, formatting |
+| `conventional-commits` | Commits, PRs, changelogs, git history |
+| `bash-defensive-patterns` | Production shell scripts, CI/CD utilities, cron jobs |
+| `python-executor` | Python scripts, data analysis, automation, web scraping |
+| `python-testing-patterns` | pytest suites, fixtures, mocking, TDD |
+
+> Co-activate by reading `.claude/skills/<skill>/SKILL.md` for each relevant skill before writing code.
+
 ## Core Responsibilities
 
 - API Development (REST, GraphQL, gRPC, WebSockets, RPC)
@@ -95,4 +108,4 @@ Before writing ANY code, analyze the project to determine:
 ### Hard Gate
 
 - If this agent is invoked directly without spec context for a code-changing task, **STOP** and redirect to the Orchestrator.
-- Minimum required artifacts before coding: `spec.md`, `plan.md`, and `tasks.md` — all generated via `/speckit.specify`.
+- Minimum required artifacts before coding: `spec.md`, `plan.md`, and `tasks.md`.

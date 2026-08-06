@@ -56,33 +56,9 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 1. **Setup**: Run `.specify/scripts/bash/setup-plan.sh --json` from repo root and parse JSON for FEATURE_SPEC, IMPL_PLAN, SPECS_DIR, BRANCH. For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
 
-2. **Project Context Discovery** (MANDATORY — do this BEFORE planning):
+2. **Load context**: Read FEATURE_SPEC and `.specify/memory/constitution.md`. Load IMPL_PLAN template (already copied).
 
-   The agent MUST build a mental model of the project to produce a plan grounded in the real codebase. Read in this order, skip files that don't exist:
-
-   a. **Project identity** (read ALL that exist):
-      - `CLAUDE.md` or `AGENTS.md` at repo root → project overview, structure, conventions, tech stack
-      - `.github/copilot-instructions.md` → workspace-level rules and boundaries
-      - `README.md` at repo root → project description, setup, and domain context
-
-   b. **Tech stack detection** (read the first match found per category):
-      - Package manifests: `package.json`, `pnpm-workspace.yaml`, `Cargo.toml`, `go.mod`, `pyproject.toml`, `composer.json`
-      - Framework configs: `tsconfig.json`, `next.config.*`, `vite.config.*`, `angular.json`, `nest-cli.json`
-      - Monorepo indicators: `turbo.json`, `lerna.json`, `nx.json`
-
-   c. **Directory structure**: List the top-level directories and up to 2 levels deep for the areas relevant to the feature. This reveals naming conventions, module organization, and existing patterns.
-
-   d. **Existing code in the target area**: If the feature touches an existing domain, read 1-2 existing files in that area to understand current architecture, patterns, and conventions.
-
-   **This context is NOT written to a file**. It is held in memory and used to:
-   - Select appropriate technical approaches that match the existing stack
-   - Propose a data model consistent with existing entities
-   - Design contracts that follow established patterns
-   - Avoid recommending technologies or patterns foreign to the project
-
-3. **Load context**: Read FEATURE_SPEC and `.specify/memory/constitution.md`. Load IMPL_PLAN template (already copied).
-
-4. **Execute plan workflow**: Follow the structure in IMPL_PLAN template to:
+3. **Execute plan workflow**: Follow the structure in IMPL_PLAN template to:
    - Fill Technical Context (mark unknowns as "NEEDS CLARIFICATION")
    - Fill Constitution Check section from constitution
    - Evaluate gates (ERROR if violations unjustified)
@@ -91,9 +67,9 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Phase 1: Update agent context by running the agent script
    - Re-evaluate Constitution Check post-design
 
-5. **Stop and report**: Command ends after Phase 2 planning. Report branch, IMPL_PLAN path, and generated artifacts.
+4. **Stop and report**: Command ends after Phase 2 planning. Report branch, IMPL_PLAN path, and generated artifacts.
 
-6. **Check for extension hooks**: After reporting, check if `.specify/extensions.yml` exists in the project root.
+5. **Check for extension hooks**: After reporting, check if `.specify/extensions.yml` exists in the project root.
    - If it exists, read it and look for entries under the `hooks.after_plan` key
    - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
    - Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.

@@ -28,6 +28,16 @@ Before making ANY architectural decision, analyze the project to determine:
 
 > Do NOT propose architectural changes without understanding the current architecture first.
 
+## Skills to Activate
+
+| Skill | When |
+|---|---|
+| `code-quality` | **Always** — any code contracts, schemas, or shared types written |
+| `devops` | Docker, CI/CD pipelines, GitHub Actions, environment config, infrastructure |
+| `conventional-commits` | Architectural commits, migration PRs, breaking-change changelogs |
+
+> Co-activate by reading `.claude/skills/<skill>/SKILL.md` for each relevant skill before writing code.
+
 ## Core Responsibilities
 
 - System design and architectural documentation
@@ -132,10 +142,10 @@ Does the new capability:
 
 ## Spec Kit Compatibility
 
-- Enforce `/speckit.specify` (which generates spec + plan + tasks in one flow) before implementation.
+- Enforce the official Spec Kit sequence before implementation: `/speckit.specify` → optional `/speckit.clarify` → `/speckit.plan` → `/speckit.tasks`.
 - Align cross-domain implementation with generated tasks and dependency order.
 
 ### Hard Gate
 
 - If this agent is invoked directly without spec context for a code-changing task, **STOP** and redirect to the Orchestrator.
-- Minimum required artifacts before coding: `spec.md`, `plan.md`, and `tasks.md` — all generated via `/speckit.specify`.
+- Minimum required artifacts before coding: `spec.md`, `plan.md`, and `tasks.md`.

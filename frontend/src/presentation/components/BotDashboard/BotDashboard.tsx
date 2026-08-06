@@ -27,9 +27,14 @@ import {
 import { SmartToy, History, CheckCircle, Cancel } from "@mui/icons-material";
 import { MatchPredictionHistory } from "../../../types";
 import { useBotStore } from "../../../application/stores/useBotStore";
+import { useTrainingJobsStore } from "../../../application/stores/useTrainingJobsStore";
 import { useSmartPolling } from "../../../hooks/useSmartPolling";
 import MatchHistoryTable from "./MatchHistoryTable";
 import StatCard from "./StatCard";
+import {
+  TrainingArtifactsPanel,
+  TrainingControlPanel,
+} from "../Training";
 
 // Helper to calculate stats by market type
 interface MarketStats {
@@ -144,11 +149,53 @@ const BotDashboard: React.FC = () => {
     fetchTrainingData,
     reconcile,
   } = useBotStore();
+  const {
+    jobs,
+    capabilities,
+    selectedJobId,
+    selectedJobEvents,
+    isLoading: trainingJobsLoading,
+    error: trainingJobsError,
+    createJob,
+    loadCapabilities,
+    loadJobs,
+    refreshSelectedJob,
+  } = useTrainingJobsStore();
+
+  const selectedJob = useMemo(
+    () => jobs.find((job) => job.job_id === selectedJobId) ?? null,
+    [jobs, selectedJobId]
+  );
+  const hasActiveTrainingJob =
+    selectedJob?.status === "QUEUED" ||
+    selectedJob?.status === "VALIDATING" ||
+    selectedJob?.status === "PREPARING_DATA" ||
+    selectedJob?.status === "RUNNING";
+  const capabilityReasons = capabilities?.reasons ?? [];
+
+  React.useEffect(() => {
+    void loadCapabilities().catch(() => undefined);
+  }, [loadCapabilities]);
 
   useSmartPolling({
     intervalMs: 30000,
     onPoll: reconcile,
     enabled: !loading,
+  });
+
+  useSmartPolling({
+    intervalMs: 5000,
+    onPoll: async () => {
+      await refreshSelectedJob();
+      const refreshedJob = useTrainingJobsStore
+        .getState()
+        .jobs.find((job) => job.job_id === useTrainingJobsStore.getState().selectedJobId);
+
+      if (refreshedJob?.status === "COMPLETED") {
+        await fetchTrainingData();
+      }
+    },
+    enabled: hasActiveTrainingJob,
   });
 
   const [displayStartDate, setDisplayStartDate] = React.useState<string>(() => {
@@ -217,33 +264,68 @@ const BotDashboard: React.FC = () => {
     };
   }, [stats, displayStartDate]);
 
-  // Run training on mount
-  const runTraining = React.useCallback(
-    async (forceRecalculate = false) => {
-      const now = new Date();
-      const start = new Date(displayStartDate);
-      const diffTime = Math.max(0, now.getTime() - start.getTime());
-      const daysBack = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-
-      await fetchTrainingData({
-        forceRecalculate,
-        daysBack,
-        startDate: displayStartDate,
-      });
-    },
-    [displayStartDate, fetchTrainingData]
-  );
-
-  React.useEffect(() => {
-    runTraining();
-  }, [runTraining]);
-
   // Notification state
   const [notification, setNotification] = React.useState<{
     open: boolean;
     message: string;
     severity: "success" | "error" | "info";
   }>({ open: false, message: "", severity: "info" });
+
+  // Run training on mount
+  const runTraining = React.useCallback(
+    async (forceRecalculate = false) => {
+      try {
+        const now = new Date();
+        const start = new Date(displayStartDate);
+        const diffTime = Math.max(0, now.getTime() - start.getTime());
+        const daysBack = Math.max(
+          1,
+          Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+        );
+
+        if (forceRecalculate) {
+          await createJob({
+            recipe_id: `dashboard-${displayStartDate}`,
+            name: "Manual dashboard training",
+            model_key: "baseline-model",
+            dataset_profile: "dashboard-manual",
+            league_ids: ["E0"],
+            days_back: daysBack,
+            description: `Manual training requested from dashboard since ${displayStartDate}`,
+          });
+          setNotification({
+            open: true,
+            message: "Job de entrenamiento creado. Monitoreando progreso...",
+            severity: "info",
+          });
+          return;
+        }
+
+        await Promise.all([
+          fetchTrainingData({
+            forceRecalculate,
+            daysBack,
+            startDate: displayStartDate,
+          }),
+          loadJobs().catch(() => undefined),
+        ]);
+      } catch (trainingError) {
+        setNotification({
+          open: true,
+          message:
+            trainingError instanceof Error
+              ? trainingError.message
+              : "No se pudo iniciar el entrenamiento.",
+          severity: "error",
+        });
+      }
+    },
+    [createJob, displayStartDate, fetchTrainingData, loadJobs]
+  );
+
+  React.useEffect(() => {
+    runTraining();
+  }, [runTraining]);
 
   const handleCloseNotification = () => {
     setNotification((prev) => ({ ...prev, open: false }));
@@ -334,12 +416,43 @@ const BotDashboard: React.FC = () => {
           </Box>
         </Box>
 
-        {trainingStatus === "IN_PROGRESS" && (
+        {(trainingStatus === "IN_PROGRESS" || hasActiveTrainingJob) && (
           <Alert severity="info" sx={{ mb: 3 }}>
             <Typography variant="body2">
-              ⏳ {trainingMessage || "Cargando datos..."}
+              ⏳ {hasActiveTrainingJob
+                ? `${selectedJob?.status_message || "Entrenamiento en progreso"} (${selectedJob?.progress_percent ?? 0}%)`
+                : trainingMessage || "Cargando datos..."}
             </Typography>
             <LinearProgress sx={{ mt: 1, borderRadius: 2 }} />
+          </Alert>
+        )}
+
+        <Grid container spacing={3} sx={{ mb: 3 }}>
+          <Grid size={{ xs: 12, md: 7 }}>
+            <TrainingControlPanel />
+          </Grid>
+          <Grid size={{ xs: 12, md: 5 }}>
+            <TrainingArtifactsPanel />
+          </Grid>
+        </Grid>
+
+        {selectedJob && (
+          <Alert severity={selectedJob.status === "FAILED" ? "error" : "info"} sx={{ mb: 3 }}>
+            <Typography variant="body2" fontWeight={700}>
+              Job activo: {selectedJob.job_id}
+            </Typography>
+            <Typography variant="body2">
+              Estado: {selectedJob.status} · Fase: {selectedJob.phase ?? "REQUESTED"} · Eventos: {selectedJobEvents.length}
+            </Typography>
+            <Typography variant="body2">
+              {selectedJob.status_message}
+            </Typography>
+          </Alert>
+        )}
+
+        {trainingJobsError && !selectedJob && (
+          <Alert severity="warning" sx={{ mb: 3 }}>
+            {trainingJobsError}
           </Alert>
         )}
 
@@ -591,6 +704,21 @@ const BotDashboard: React.FC = () => {
                 </Typography>
               </Alert>
             )}
+            {!capabilities?.available && capabilityReasons.length > 0 && (
+              <Alert
+                severity="warning"
+                sx={{ mb: 3, width: "100%", maxWidth: 560, textAlign: "left" }}
+              >
+                <Typography variant="body2" fontWeight={700} sx={{ mb: 0.5 }}>
+                  Entrenamiento no disponible
+                </Typography>
+                {capabilityReasons.map((reason) => (
+                  <Typography key={reason.code} variant="body2">
+                    {reason.message}
+                  </Typography>
+                ))}
+              </Alert>
+            )}
             <Typography variant="h6" color="white" gutterBottom>
               No hay datos disponibles
             </Typography>
@@ -607,7 +735,7 @@ const BotDashboard: React.FC = () => {
               variant="contained"
               onClick={() => runTraining(true)}
               startIcon={<SmartToy />}
-              disabled={loading}
+              disabled={loading || trainingJobsLoading || hasActiveTrainingJob}
               sx={{
                 background: "linear-gradient(135deg, #fbbf24 0%, #d97706 100%)",
                 color: "#fff",
@@ -616,7 +744,11 @@ const BotDashboard: React.FC = () => {
                 py: 1.5,
               }}
             >
-              {isTrainingServiceUnavailable ? "Reintentar entrenamiento" : "Cargar Datos"}
+              {hasActiveTrainingJob
+                ? "Entrenamiento en progreso"
+                : isTrainingServiceUnavailable
+                ? "Reintentar entrenamiento"
+                : "Cargar Datos"}
             </Button>
           </Box>
         )}

@@ -46,6 +46,11 @@ Then proceed to delegate or execute with the activated agents.
 | General / Non-web (CLI, library, script, pipeline) | Direct execution + code-quality | "Add --verbose flag to CLI" |
 | Cross-service backend (multiple modules/services) | `Architecture` + `Backend` + code-quality | "Add audit logging across services" |
 | Refactoring | `Frontend` / `Backend` (whichever applies) + code-quality | "Clean up the auth controller" |
+| Python (scripts, data analysis, automation) | general + python-executor + python-testing-patterns (if tests) + code-quality | "Run data analysis", "Write pytest suite" |
+| Accessibility audit / improvement | `Frontend` + accessibility + code-quality | "Improve keyboard navigation", "WCAG compliance" |
+| SEO optimization | `Frontend` + seo + code-quality | "Add structured data", "Fix meta tags" |
+| High-quality UI / visual design | `Frontend` + frontend-design + code-quality | "Design a polished landing page" |
+| Shell scripting / CI automation | devops + bash-defensive-patterns + code-quality | "Write a production deploy script" |
 | Question (no code changes) | Answer directly — no specialist needed | "Explain how the auth flow works" |
 
 > **Rule**: When the task involves writing or modifying code, ALWAYS co-activate code-quality concerns (strict typing, clean code, linting, formatting). This is non-negotiable.
@@ -55,16 +60,19 @@ Then proceed to delegate or execute with the activated agents.
 For any task that creates or modifies code, the orchestrator MUST enforce the Spec Kit pipeline before implementation:
 
 1. `/speckit.constitution` (if principles are missing or outdated)
-2. `/speckit.specify` — generates `spec.md`, `plan.md`, and `tasks.md` in one continuous flow
-3. Execute implementation (`/speckit.implement` or equivalent task execution)
+2. `/speckit.specify` — creates or updates `spec.md`
+3. `/speckit.clarify` (optional, when ambiguities remain)
+4. `/speckit.plan` — creates `plan.md`
+5. `/speckit.tasks` — creates `tasks.md`
+6. Execute implementation (`/speckit.implement` or equivalent task execution)
 
 **Exception**: Pure questions, read-only analysis, or documentation explanations with no code edits.
 
 ### Hard Gate (Mandatory)
 
 - **No code edits are allowed before the full spec pipeline has run** for the intervention.
-- Minimum required artifacts before coding: `spec.md`, `plan.md`, and `tasks.md` — all generated via `/speckit.specify`.
-- For any code intervention, the expected path is: `Orchestrator` → `/speckit.specify` (produces spec + plan + tasks) → implementation.
+- Minimum required artifacts before coding: `spec.md`, `plan.md`, and `tasks.md`.
+- For any code intervention, the expected path is: `Orchestrator` → `/speckit.specify` → `/speckit.plan` → `/speckit.tasks` → implementation.
 - If a request arrives directly to a specialist with no spec context, the specialist MUST stop and redirect to `Orchestrator`.
 
 ## Available Specialist Agents
@@ -74,6 +82,21 @@ For any task that creates or modifies code, the orchestrator MUST enforce the Sp
 | `Frontend` | `.github/agents/frontend.agent.md` | UI components, pages, styles, API consumption, i18n, accessibility |
 | `Backend` | `.github/agents/backend.agent.md` | Services, APIs, database, business logic, auth, background jobs |
 | `Architecture` | `.github/agents/architecture.agent.md` | System design, service boundaries, contracts, infrastructure, cross-domain |
+
+## Available Specialist Skills
+
+| Skill | Path | When to Activate |
+|---|---|---|
+| `code-quality` | `.claude/skills/code-quality/SKILL.md` | ALWAYS co-activate when writing or modifying code |
+| `linting` | `.claude/skills/linting/SKILL.md` | ESLint, Prettier, TypeScript strict mode, import ordering |
+| `devops` | `.claude/skills/devops/SKILL.md` | Docker, CI/CD, environment config, GitHub Actions |
+| `conventional-commits` | `.claude/skills/conventional-commits/SKILL.md` | Commit messages, changelogs, PR descriptions, git history |
+| `accessibility` | `.claude/skills/accessibility/SKILL.md` | WCAG 2.2 auditing, a11y improvements, screen reader support, keyboard navigation |
+| `bash-defensive-patterns` | `.claude/skills/bash-defensive-patterns/SKILL.md` | Production shell scripts, CI/CD pipelines, fault-tolerant Bash utilities |
+| `frontend-design` | `.claude/skills/frontend-design/SKILL.md` | High-quality UI design, polished components, landing pages, visual interfaces |
+| `python-executor` | `.claude/skills/python-executor/SKILL.md` | Python execution, data analysis, web scraping, image/video/3D processing |
+| `python-testing-patterns` | `.claude/skills/python-testing-patterns/SKILL.md` | pytest, fixtures, mocking, TDD, Python test suites |
+| `seo` | `.claude/skills/seo/SKILL.md` | SEO optimization, meta tags, structured data, search engine visibility |
 
 ## Orchestration Workflow
 

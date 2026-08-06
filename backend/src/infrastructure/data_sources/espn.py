@@ -735,3 +735,136 @@ class ESPNSource:
         except Exception as e:
             logger.debug(f"Error parsing upcoming ESPN match: {e}")
             return None
+
+    async def get_live_matches(
+        self, league_codes: Optional[List[str]] = None
+    ) -> List[Match]:
+        """
+        Get currently live matches from ESPN scoreboard API.
+
+        Designed as a fallback for leagues not covered by Football-Data.org:
+        B1, B2, SP2, D2, I2, F2, N2, P2, UECL, LIB, SUD, COL1, ARG1, BRA1, E2, E3.
+
+        Args:
+            league_codes: Internal league codes to check. Defaults to all
+            ESPN-mapped leagues.
+
+        Returns:
+            List of Match objects with live status.
+        """
+        leagues_to_check = league_codes or list(ESPN_LEAGUE_MAPPING.keys())
+        semaphore = asyncio.Semaphore(8)
+        live_matches: List[Match] = []
+
+        async def fetch_league_live(code: str) -> List[Optional[Match]]:
+            slug = ESPN_LEAGUE_MAPPING.get(code)
+            if not slug:
+                return []
+            async with semaphore:
+                data = await self._make_request(
+                    f"{self.BASE_URL}/{slug}/scoreboard", {}
+                )
+            if not data or "events" not in data:
+                return []
+
+            tasks = []
+            for event in data["events"]:
+                state = event.get("status", {}).get("type", {}).get("state")
+                if state == "in":  # ESPN uses "in" for in-progress matches
+                    tasks.append(self._parse_live_match(event, code))
+
+            return list(await asyncio.gather(*tasks))
+
+        results = await asyncio.gather(
+            *[fetch_league_live(code) for code in leagues_to_check],
+            return_exceptions=True,
+        )
+
+        for result in results:
+            if isinstance(result, list):
+                for m in result:
+                    if m:
+                        live_matches.append(m)
+
+        logger.info(
+            "ESPN: found %d live matches in %d leagues",
+            len(live_matches),
+            len(leagues_to_check),
+        )
+        return live_matches
+
+    async def _parse_live_match(self, event: dict, league_code: str) -> Optional[Match]:
+        """Parse an in-progress ESPN event into a Match domain object."""
+        try:
+            competition = event["competitions"][0]
+            competitors = competition["competitors"]
+            home_comp = competitors[0]
+            away_comp = competitors[1]
+
+            if home_comp["homeAway"] != "home":
+                home_comp, away_comp = away_comp, home_comp
+
+            date_str = event.get("date")
+            if not isinstance(date_str, str):
+                return None
+            match_date = datetime.strptime(date_str, "%Y-%m-%dT%H:%MZ").replace(
+                tzinfo=timezone.utc
+            )
+
+            home_name = home_comp["team"]["displayName"]
+            away_name = away_comp["team"]["displayName"]
+
+            home_team = Team(
+                id=f"espn_{home_comp['team']['id']}",
+                name=home_name,
+                logo_url=TeamService.get_team_logo(home_name)
+                or home_comp["team"].get("logo"),
+            )
+            away_team = Team(
+                id=f"espn_{away_comp['team']['id']}",
+                name=away_name,
+                logo_url=TeamService.get_team_logo(away_name)
+                or away_comp["team"].get("logo"),
+            )
+
+            # Scores
+            home_goals = None
+            away_goals = None
+            try:
+                home_goals = int(home_comp.get("score", 0))
+                away_goals = int(away_comp.get("score", 0))
+            except (ValueError, TypeError):
+                pass
+
+            # Live status mapping
+            detail = event.get("status", {}).get("type", {}).get("detail", "")
+            period = event.get("status", {}).get("period", 1)
+            espn_status = event.get("status", {}).get("type", {}).get("shortDetail", "")
+            if "Halftime" in detail or "HT" in espn_status:
+                status = "HT"
+            elif period == 2 or "2nd" in detail:
+                status = "2H"
+            else:
+                status = "1H"
+
+            minute = event.get("status", {}).get("displayClock", None)
+
+            slug = ESPN_LEAGUE_MAPPING.get(league_code, league_code)
+            return Match(
+                id=f"espn_{event['id']}",
+                home_team=home_team,
+                away_team=away_team,
+                league=League(
+                    id=league_code,
+                    name=slug,
+                    country="Unknown",
+                ),
+                match_date=match_date,
+                status=status,
+                minute=minute,
+                home_goals=home_goals,
+                away_goals=away_goals,
+            )
+        except Exception as e:
+            logger.debug("Error parsing live ESPN match: %s", e)
+            return None

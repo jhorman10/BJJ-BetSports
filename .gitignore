@@ -48,6 +48,18 @@ backend/app_persistence.db-journal
 # Cache
 .cache/
 *.cache
+*.tsbuildinfo
+
+# Python tooling caches
+.mypy_cache/
+.ruff_cache/
+.venv-black/
+
+# Stale frontend PWA build output
+frontend/dev-dist/
+
+# Agent tooling
+.atl/
 
 # Misc
 *.bak
@@ -57,9 +69,11 @@ backend/app_persistence.db-journal
 # ML Models
 
 # Agent files
-.claude/
+.claude/*
+!.claude/skills/
 
 
 
 # Diagnostic output
 backend/tmp/
+backend/output/

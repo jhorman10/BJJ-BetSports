@@ -20,6 +20,11 @@ from typing import Any, Dict, List, Optional, Tuple, cast
 
 from bson.binary import Binary
 from pymongo import UpdateOne
+from pymongo.errors import OperationFailure
+from src.infrastructure.repositories.mongo_repository import (
+    _is_index_not_found,
+    _is_index_options_conflict,
+)
 from src.utils.time_utils import get_current_time, is_future_time
 
 _mongo_to_bson_friendly: Any
@@ -141,7 +146,60 @@ class AsyncMongoRepository:
             await self._await_if_needed(
                 self.binary_artifacts.create_index("key", unique=True)
             )
+            # TTL indexes (expireAfterSeconds=0 — design D2): expired docs are
+            # physically purged by MongoDB exactly at expires_at.
+            # match_predictions uses a PARTIAL TTL index: only unlabeled docs
+            # are purged — labeled docs survive for analytics (C1).
+            await self._ensure_ttl_index(
+                self.match_predictions, partial_filter={"labeled": {"$ne": True}}
+            )
+            await self._ensure_ttl_index(self.api_cache)
             self._indexes_ready = True
+
+    async def _ensure_ttl_index(
+        self,
+        collection: Any,
+        field: str = "expires_at",
+        seconds: int = 0,
+        partial_filter: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Create a TTL index idempotently, optionally partial (C1).
+
+        Async mirror of the sync helper: only a genuine IndexOptionsConflict
+        (codes 85/86/67) triggers drop+recreate; IndexNotFound during the
+        drop and any recreate failure are logged, never raised (W1).
+        """
+        index_options: Dict[str, Any] = {"expireAfterSeconds": seconds}
+        if partial_filter is not None:
+            index_options["partialFilterExpression"] = partial_filter
+
+        try:
+            await self._await_if_needed(
+                collection.create_index([(field, 1)], **index_options)
+            )
+            return
+        except OperationFailure as exc:
+            if not _is_index_options_conflict(exc):
+                raise
+            logger.warning(
+                "TTL index %s_1 conflicts with an existing index; rebuilding.",
+                field,
+            )
+
+        try:
+            await self._await_if_needed(collection.drop_index(f"{field}_1"))
+        except OperationFailure as exc:
+            # Index may have been dropped concurrently; recreate below still
+            # converges. Log and continue — the app must keep booting.
+            if not _is_index_not_found(exc):
+                logger.warning("Failed to drop index %s_1: %s", field, exc)
+
+        try:
+            await self._await_if_needed(
+                collection.create_index([(field, 1)], **index_options)
+            )
+        except Exception as exc:
+            logger.warning("Failed to recreate TTL index %s_1: %s", field, exc)
 
     async def _ensure_ready(self) -> None:
         if self._indexes_ready:

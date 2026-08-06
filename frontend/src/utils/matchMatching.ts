@@ -167,9 +167,14 @@ export const matchLiveWithPrediction = (
     );
   });
 
+  const isLivePredictionValid =
+    liveMatch.prediction &&
+    ((liveMatch.prediction.confidence ?? 0) > 0 ||
+      (liveMatch.prediction.home_win_probability ?? 0) > 0);
+
   const prediction = buildPrediction(liveMatch, {
     ...(matchedPrediction?.prediction ?? {}),
-    ...(liveMatch.prediction ?? {}),
+    ...(isLivePredictionValid ? liveMatch.prediction : {}),
   });
 
   // Convert LiveMatch to MatchPrediction structure

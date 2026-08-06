@@ -1,5 +1,20 @@
 # Arquitectura del Frontend - BJJ-BetSports
 
+## Entry Points de Training On-Demand
+
+El flujo de entrenamiento manual queda dividido en dos entry points mientras se
+completa la migracion del dashboard actual:
+
+- `/src/application/stores/useBotStore.ts`: store puente para bootstrap del
+   dashboard y carga del ultimo resultado persistido desde el namespace nuevo de
+   training.
+- `/src/application/stores/useTrainingJobsStore.ts`: store nuevo para jobs,
+   capacidades y seleccion de entrenamiento on-demand.
+- `/src/presentation/components/BotDashboard/`: superficie actual donde se
+   muestran estado resumido, jobs activos y reasons accionables del entrenamiento.
+- `/src/presentation/components/Training/`: componentes nuevos para control,
+   historial, artefactos y promotion flow.
+
 ## Estructura de Tipos e Interfaces
 
 ### Ubicación de Tipos
