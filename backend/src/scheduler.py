@@ -107,46 +107,9 @@ class BotScheduler:
                 # Update Unified Cache if we actually trained
                 try:
                     orchestrator = get_ml_training_orchestrator()
-                    history_limit = 500
-                    display_history = (
-                        training_result.match_history[-history_limit:]
-                        if len(training_result.match_history) > history_limit
-                        else training_result.match_history
-                    )
-
-                    training_data = {
-                        "matches_processed": training_result.matches_processed,
-                        "correct_predictions": training_result.correct_predictions,
-                        "accuracy": training_result.accuracy,
-                        "total_bets": training_result.total_bets,
-                        "roi": training_result.roi,
-                        "profit_units": training_result.profit_units,
-                        "market_stats": training_result.market_stats,
-                        "match_history": [
-                            h.model_dump() if hasattr(h, "model_dump") else h
-                            for h in display_history
-                        ],
-                        "roi_evolution": training_result.roi_evolution,
-                        "pick_efficiency": training_result.pick_efficiency,
-                        "team_stats": training_result.team_stats,
-                        "context_summary": getattr(
-                            training_result, "context_summary", {}
-                        ),
-                        "global_averages": getattr(
-                            training_result, "global_averages", {}
-                        ),
-                    }
-                    cache.set(
-                        "ml_training_result",
-                        training_data,
-                        ttl_seconds=cache.TTL_TRAINING,
-                    )
-                    cache.set(
-                        orchestrator.CACHE_KEY_RESULT,
-                        training_data,
-                        ttl_seconds=cache.TTL_TRAINING,
-                    )
-
+                    # Lightweight training result — same dict posted to MongoDB.
+                    # Deliberately excludes the heavy per-match history and
+                    # team stats (~120MB payload must not hit the disk cache).
                     lightweight_training_result = {
                         "matches_processed": training_result.matches_processed,
                         "correct_predictions": training_result.correct_predictions,
@@ -161,6 +124,16 @@ class BotScheduler:
                             training_result, "context_summary", {}
                         ),
                     }
+                    cache.set(
+                        "ml_training_result",
+                        lightweight_training_result,
+                        ttl_seconds=cache.TTL_TRAINING,
+                    )
+                    cache.set(
+                        orchestrator.CACHE_KEY_RESULT,
+                        lightweight_training_result,
+                        ttl_seconds=cache.TTL_TRAINING,
+                    )
                     persistence_repo.save_training_result(
                         "latest_daily",
                         lightweight_training_result,
@@ -250,6 +223,19 @@ class BotScheduler:
                 await audit_service.audit_and_fix(fix_missing=True)
             except Exception as e:
                 logger.error(f"Audit failed: {e}")
+
+            # 5. ARTIFACT CLEANUP (non-fatal, no cache.clear)
+            # Remove local ML artifacts after the run. The cache is intentionally
+            # NOT cleared: step-3 forecasts (TTL 86400) keep serving the API
+            # between runs. cleanup_model_artifacts also accepts the cache
+            # provider, but the scheduler must not wipe it.
+            try:
+                from src.core.model_artifacts import cleanup_model_artifacts
+
+                cleanup_model_artifacts(logger)
+                logger.info("Step 5/5: Local ML artifact cleanup completed.")
+            except Exception as e:
+                logger.error(f"Local ML artifact cleanup failed (non-fatal): {e}")
 
         except Exception as e:
             logger.error(

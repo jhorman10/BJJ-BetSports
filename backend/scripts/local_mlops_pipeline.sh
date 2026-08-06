@@ -15,4 +15,23 @@ python3 scripts/orchestrator_cli.py train --days "${TRAIN_DAYS}" --n-jobs "${N_J
 python3 scripts/orchestrator_cli.py predict --leagues "${PREDICT_LEAGUES}" --parallel
 python3 scripts/orchestrator_cli.py top-picks --limit "${TOP_PICKS_LIMIT}" --leagues "${PREDICT_LEAGUES}"
 
+echo "🧹 Paso final: limpiando artefactos ML (cache + disco)..."
+# Non-fatal: `|| true` keeps `set -e` from aborting the pipeline when there is
+# nothing to clean or cleanup raises (spec: cleanup failure is non-fatal).
+PYTHONPATH="$(pwd)" python3 - <<'PY' || true
+import logging
+
+from src.core.model_artifacts import cleanup_model_artifacts
+from src.infrastructure.cache import get_cache_service
+
+logger = logging.getLogger("pipeline-cleanup")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+
+cache = get_cache_service()
+# No explicit cache.clear() here: cleanup_model_artifacts(..., cache=cache)
+# already purges the disk cache internally (avoids the duplicate clear, N3).
+cleanup_model_artifacts(logger, cache=cache)
+print("✅ Cleanup ML completado (artifact cleanup incluye cache.clear)")
+PY
+
 echo "✅ Pipeline MLOps local completado"
