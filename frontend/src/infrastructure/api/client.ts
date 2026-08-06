@@ -1,4 +1,5 @@
 import axios, { AxiosInstance } from "axios";
+import { APP_CONFIG } from "../../config/constants";
 
 // API base URL from environment or default
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -9,7 +10,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 const createApiClient = (): AxiosInstance => {
   const client = axios.create({
     baseURL: API_BASE_URL,
-    timeout: 60000,
+    timeout: APP_CONFIG.API_DEFAULT_TIMEOUT,
     headers: {
       "Content-Type": "application/json",
     },
