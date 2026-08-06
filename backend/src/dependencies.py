@@ -35,6 +35,7 @@ from src.infrastructure.cache.cache_service import get_cache_service
 from src.infrastructure.data_sources.espn import ESPNSource
 from src.infrastructure.data_sources.football_data_org import FootballDataOrgSource
 from src.infrastructure.data_sources.football_data_uk import FootballDataUKSource
+from src.infrastructure.data_sources.github_dataset import LocalGithubDataSource
 from src.infrastructure.data_sources.openfootball import OpenFootballSource
 from src.infrastructure.data_sources.thesportsdb import TheSportsDBClient
 from src.infrastructure.repositories.async_mongo_adapter import (
@@ -81,6 +82,12 @@ def get_espn_source() -> ESPNSource:
     return ESPNSource()
 
 
+@lru_cache()
+def get_local_github() -> LocalGithubDataSource:
+    """Get local GitHub dataset data source (cached)."""
+    return LocalGithubDataSource()
+
+
 def get_data_sources() -> DataSources:
     """Get all data sources container."""
     return DataSources(
@@ -104,6 +111,7 @@ def get_match_aggregator_service() -> MatchAggregatorService:
         openfootball=get_openfootball(),
         thesportsdb=get_thesportsdb(),
         espn=get_espn_source(),
+        local_github=get_local_github(),
     )
 
 

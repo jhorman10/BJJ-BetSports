@@ -2,30 +2,25 @@
 pandas==2.2.2
 numpy==1.26.4
 scikit-learn==1.5.0
-scipy==1.13.1
 joblib==1.4.2
 
 # Base de datos y utilidades
-pymongo==4.7.0
-python-dotenv==1.0.1
+pymongo==4.9.1
+python-dotenv==1.0.0
 
 # HTTP clients for data fetching
-httpx==0.27.0
-aiohttp==3.9.5
+httpx==0.26.0
+aiohttp==3.13.2
 
 # Core FastAPI (for shared DTOs and entities)
-pydantic==2.7.4
-pydantic-settings==2.3.4
+pydantic==2.12.5
+pydantic-settings==2.12.0
 
 # Timezone handling
 pytz==2024.1
-types-pytz==2026.1.1.20260408
 
 # Caching (for ephemeral cache layer)
 diskcache==5.6.3
-
-# JSON serialization (faster than standard json)
-orjson
 
 # Task scheduling (for worker script)
 apscheduler==3.10.4

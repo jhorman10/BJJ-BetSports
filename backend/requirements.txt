@@ -20,8 +20,8 @@ aiohttp==3.13.2
 # Database (lightweight ORM for reading data)
 sqlalchemy==2.0.45
 psycopg2-binary==2.9.9  # PostgreSQL driver (required for DATABASE_URL connection)
-pymongo==4.7.0  # MongoDB driver (required by tests)
-motor>=3.2.0  # Async MongoDB driver (Motor) for async repository
+pymongo==4.9.1  # MongoDB driver (required by tests)
+motor==3.6.0  # Async MongoDB driver (Motor) for async repository
 
 # Environment management
 python-dotenv==1.0.0
@@ -30,7 +30,7 @@ python-dotenv==1.0.0
 pytz==2024.1
 
 # JSON serialization (faster than standard json)
-orjson
+# orjson removed — not used in codebase
 
 # Caching (for ephemeral cache layer)
 diskcache==5.6.3
@@ -59,9 +59,6 @@ types-pytz==2026.1.1.20260408
 
 # =============================================================================
 # NOTES:
-# - pandas, numpy, scikit-learn, scipy removed (saves ~300-400MB RAM)
-# - joblib removed (only needed for ML model loading)
-# - apscheduler removed (worker runs in GitHub Actions)
 # - For local development with ML, use: pip install -r requirements-worker.txt
 # =============================================================================
 

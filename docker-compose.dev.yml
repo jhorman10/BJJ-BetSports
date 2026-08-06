@@ -52,6 +52,9 @@ services:
       interval: 15s
       timeout: 5s
       retries: 5
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     restart: unless-stopped
     volumes:
       - ./backend:/workspace/backend:rw
@@ -91,6 +94,9 @@ services:
       mongodb:
         condition: service_healthy
     profiles: ["automation"]
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     restart: unless-stopped
     volumes:
       - ./backend:/workspace/backend:rw
@@ -107,13 +113,18 @@ services:
       MONGO_DB_NAME: "bjj_betsports"
       N_JOBS: ${N_JOBS:-4}
       TRAIN_DAYS: ${TRAIN_DAYS:-550}
-      PREDICT_LEAGUES: ${PREDICT_LEAGUES:-E0,SP1,D1,I1,F1,P1,B1,UCL}
+      PREDICT_LEAGUES: ${PREDICT_LEAGUES:-E0,SP1,D1,I1,F1,P1,B1,UCL,COL1,ARG1,BRA1}
       TOP_PICKS_LIMIT: ${TOP_PICKS_LIMIT:-50}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     depends_on:
       mongodb:
         condition: service_healthy
     profiles: ["mlops"]
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    volumes:
+      - ./backend:/workspace/backend:rw
 
   labeler:
     <<: *project-image
@@ -136,6 +147,9 @@ services:
       mongodb:
         condition: service_healthy
     profiles: ["automation"]
+    dns:
+      - 8.8.8.8
+      - 1.1.4.4
     restart: unless-stopped
     volumes:
       - ./backend:/workspace/backend:rw
@@ -159,6 +173,9 @@ services:
       mongodb:
         condition: service_healthy
     profiles: ["automation"]
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     restart: unless-stopped
     volumes:
       - ./backend:/workspace/backend:rw

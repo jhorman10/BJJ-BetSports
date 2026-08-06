@@ -5,8 +5,8 @@ This module integrates with ESPN's hidden public API for soccer scores and stats
 Provides free access to real-time and historical match data with detailed stats.
 
 Endpoints:
-- Scoreboard: http://site.api.espn.com/apis/site/v2/sports/soccer/{league}/scoreboard
-- Summary: http://site.api.espn.com/apis/site/v2/sports/soccer/{league}/summary
+- Scoreboard: https://site.api.espn.com/apis/site/v2/sports/soccer/{league}/scoreboard
+- Summary: https://site.api.espn.com/apis/site/v2/sports/soccer/{league}/summary
 """
 
 import asyncio
@@ -126,7 +126,7 @@ class ESPNSource:
     """
 
     SOURCE_NAME = "ESPN"
-    BASE_URL = "http://site.api.espn.com/apis/site/v2/sports/soccer"
+    BASE_URL = "https://site.api.espn.com/apis/site/v2/sports/soccer"
 
     def __init__(self) -> None:
         self._client = httpx.AsyncClient(timeout=30.0)
@@ -134,15 +134,36 @@ class ESPNSource:
     async def _make_request(
         self, url: str, params: Optional[dict[str, Any]] = None
     ) -> Optional[dict[str, Any]]:
-        """Make HTTP request to ESPN."""
-        try:
-            response = await self._client.get(url, params=params)
-            response.raise_for_status()
-            data = response.json()
-            return data if isinstance(data, dict) else None
-        except Exception as e:
-            logger.error(f"ESPN request failed: {e}")
-            return None
+        """Make HTTP request to ESPN with retry on transient failures."""
+        max_retries = 3
+        retry_delay = 1.0
+        for attempt in range(max_retries):
+            try:
+                response = await self._client.get(url, params=params)
+                response.raise_for_status()
+                data = response.json()
+                return data if isinstance(data, dict) else None
+            except (httpx.RequestError, httpx.RemoteProtocolError) as e:
+                if attempt < max_retries - 1:
+                    logger.warning(
+                        "ESPN request failed (attempt %s/%s): %s. "
+                        "Retrying in %ss...",
+                        attempt + 1,
+                        max_retries,
+                        e,
+                        retry_delay,
+                    )
+                    await asyncio.sleep(retry_delay)
+                    retry_delay *= 2
+                else:
+                    logger.error(
+                        f"ESPN request failed after {max_retries} retries: {e}"
+                    )
+                    return None
+            except Exception as e:
+                logger.error(f"ESPN request failed (non-retriable): {e}")
+                return None
+        return None  # All retries exhausted
 
     async def get_match_summary(
         self, league_code: str, event_id: str
