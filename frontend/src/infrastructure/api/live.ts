@@ -29,7 +29,7 @@ export const liveApi = {
         apiClient
           .get<MatchPrediction[]>(API_ENDPOINTS.MATCHES_LIVE_WITH_PREDICTIONS, {
             params: { filter_target_leagues: filterTargetLeagues },
-            timeout: APP_CONFIG.API_TIMEOUT,
+            timeout: APP_CONFIG.LIVE_API_TIMEOUT,
           })
           .catch(() => ({ data: [] as MatchPrediction[] })), // Soft fail on backend
         fetchESPNLiveMatches(),
