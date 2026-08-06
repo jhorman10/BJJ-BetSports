@@ -496,7 +496,12 @@ def test_prepare_datasets_uses_contextual_bundle_for_international_leagues():
     ]
 
 
-def test_run_training_pipeline_exposes_context_summary_for_international_leagues():
+def test_run_training_pipeline_exposes_context_summary_for_international_leagues(
+    monkeypatch,
+):
+    # Never run the REAL artifact cleanup against the working tree from a test:
+    # with the expanded D4 globs it removes tracked files (output/*.json).
+    monkeypatch.setattr(orchestrator, "cleanup_model_artifacts", lambda logger: None)
     target_match = _make_match(1, league_id="LIB")
     support_matches = [
         _make_match(2, league_id="BRA1", home_team_name="A", away_team_name="C"),

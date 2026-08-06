@@ -1,19 +1,48 @@
+import asyncio
 import logging
 import random
 from datetime import datetime, timedelta
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from src.application.services.ml_training_orchestrator import MLTrainingOrchestrator
 from src.core.constants import DEFAULT_LEAGUES
-from src.infrastructure.cache import get_cache_service
 
 logger = logging.getLogger(__name__)
+
+# Minimum fields a pick must expose to be considered structurally sound.
+# Adapted from the original audit's (`market_label`, `probability`,
+# `confidence`, `result`): the real SuggestedPickDTO shape has no `result`
+# field — confidence is exposed as `confidence_level` / `ml_confidence`.
+_PICK_REQUIRED_KEYS = ("market_label", "probability")
+_PICK_CONFIDENCE_KEYS = ("confidence_level", "ml_confidence", "confidence")
+
+
+def _extract_picks(doc: Dict[str, Any]) -> List[Any]:
+    """Extract the picks list from an active prediction doc.
+
+    ``match_predictions.data`` is a ``MatchPredictionDTO.model_dump()`` whose
+    pick lists live in ``top_ml_picks`` (preferred) or
+    ``prediction.suggested_picks`` (use_cases.py:860 persists exactly this
+    shape). Defensive: any unexpected payload shape yields an empty list.
+    """
+    data = doc.get("prediction") or {}
+    if not isinstance(data, dict):
+        return []
+
+    top_ml_picks = data.get("top_ml_picks") or []
+    if top_ml_picks:
+        return top_ml_picks
+
+    prediction = data.get("prediction") or {}
+    if isinstance(prediction, dict):
+        return prediction.get("suggested_picks") or []
+    return []
 
 
 class AuditService:
     """
     Service responsible for auditing the integrity, coverage, and freshness
-    of the ML prediction cache. Can automatically trigger repairs.
+    of the ML prediction data. Can automatically trigger repairs.
     """
 
     def __init__(self, training_orchestrator: MLTrainingOrchestrator):
@@ -35,18 +64,24 @@ class AuditService:
             "actions_taken": [],
         }
 
-        # 1. Load Cache
-        cache = get_cache_service()
-        results = cache.get(self.orchestrator.CACHE_KEY_RESULT) or {}
+        # 1. Load active predictions from Mongo (D1: the training cache no
+        # longer holds match_history — coverage/integrity re-source from the
+        # persistence repository's active predictions, which carry a 7d TTL).
+        try:
+            repo = getattr(self.orchestrator, "persistence_repo", None)
+            if repo:
+                # pymongo is synchronous: run the scan off the event loop so
+                # it never blocks other coroutines (W2).
+                predictions = await asyncio.to_thread(repo.get_all_active_predictions)
+            else:
+                predictions = []
+        except Exception as exc:
+            logger.warning("AUDIT: failed to load active predictions: %s", exc)
+            predictions = []
 
-        if not results:
-            logger.warning("AUDIT: Cache is empty (ml_training_result_data).")
+        if not predictions:
+            logger.warning("AUDIT: No active predictions in MongoDB.")
             report["status"] = "critical"
-        else:
-            # We have data
-            pass
-
-        match_history = results.get("match_history", [])
 
         # 2. Analyze League Coverage
         league_stats = {
@@ -57,21 +92,38 @@ class AuditService:
         now = datetime.now()
         cutoff_30d = now - timedelta(days=30)
 
-        for match in match_history:
+        for prediction in predictions:
             try:
-                # Extract league ID from match ID (format: LEAGUE_DATE_HOME_AWAY)
-                league_id = match["match_id"].split("_")[0]
+                data = prediction.get("prediction") or {}
+                match = data.get("match") if isinstance(data, dict) else None
+                match = match or {}
+
+                league_id = prediction.get("league_id")
+                if not league_id and isinstance(match, dict):
+                    league_id = (match.get("league") or {}).get("id")
+                # Fallback: match IDs follow LEAGUE_DATE_HOME_AWAY format.
+                if not league_id:
+                    league_id = prediction["match_id"].split("_")[0]
+
                 if league_id in league_stats:
                     league_stats[league_id]["total"] += 1
 
-                    # Check date
-                    m_date = datetime.fromisoformat(
-                        match["match_date"].replace("Z", "+00:00")
-                    ).replace(tzinfo=None)
-                    if m_date >= cutoff_30d:
+                    raw_date = (
+                        match.get("match_date") if isinstance(match, dict) else None
+                    )
+                    if isinstance(raw_date, str):
+                        m_date = datetime.fromisoformat(
+                            raw_date.replace("Z", "+00:00")
+                        ).replace(tzinfo=None)
+                    elif isinstance(raw_date, datetime):
+                        m_date = raw_date.replace(tzinfo=None)
+                    else:
+                        m_date = None
+
+                    if m_date is not None and m_date >= cutoff_30d:
                         league_stats[league_id]["recent"] += 1
             except Exception as e:
-                logger.debug(f"Error processing match in audit: {e}")
+                logger.debug(f"Error processing prediction in audit: {e}")
                 continue
 
         # 3. Detect Missing/Stale Leagues
@@ -87,21 +139,25 @@ class AuditService:
         report["missing_leagues"] = missing_leagues
 
         # 4. Data Integrity Check (Sample)
-        if match_history:
-            sample_size = min(30, len(match_history))
-            sample = random.sample(match_history, sample_size)
+        if predictions:
+            sample_size = min(30, len(predictions))
+            sample = random.sample(predictions, sample_size)
             integrity_issues = 0
 
-            for m in sample:
-                if not m.get("picks"):
+            for p in sample:
+                picks = _extract_picks(p)
+                if not picks:
                     integrity_issues += 1
                     continue
-                p = m["picks"][0]
-                if not all(
-                    k in p
-                    for k in ["market_label", "probability", "confidence", "result"]
-                ):
-                    integrity_issues += 1
+                for pick in picks:
+                    if not isinstance(pick, dict):
+                        integrity_issues += 1
+                        continue
+                    if not all(k in pick for k in _PICK_REQUIRED_KEYS):
+                        integrity_issues += 1
+                        continue
+                    if not any(k in pick for k in _PICK_CONFIDENCE_KEYS):
+                        integrity_issues += 1
 
             report["integrity_issues"] = integrity_issues
             if integrity_issues > 0:

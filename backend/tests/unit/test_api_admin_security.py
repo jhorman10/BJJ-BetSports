@@ -11,16 +11,6 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 
-class ImmediateThread:
-    def __init__(self, target=None, daemon=None):
-        self._target = target
-        self._daemon = daemon
-
-    def start(self) -> None:
-        if self._target is not None:
-            self._target()
-
-
 def test_load_backend_env_reads_admin_key_from_dotenv(tmp_path, monkeypatch) -> None:
     from src.core.env import load_backend_env
 
@@ -37,21 +27,30 @@ def test_load_backend_env_reads_admin_key_from_dotenv(tmp_path, monkeypatch) -> 
 
 def test_trigger_training_allows_local_dev_browser_without_api_key(monkeypatch) -> None:
     import src.api.main as main_mod
+    from src.dependencies import get_training_job_service
 
     monkeypatch.delenv("ADMIN_API_KEY", raising=False)
     monkeypatch.setenv("API_ONLY_MODE", "false")
-    monkeypatch.setattr(main_mod, "_training_running", False)
+    # Local dev bypass requires this flag (see security._allow_local_dev_bypass)
+    monkeypatch.setenv("LOCAL_DEV_BYPASS_ENABLED", "true")
     # Disable rate limiting for this test
     monkeypatch.setattr(main_mod.limiter, "enabled", False)
-    monkeypatch.setattr(
-        main_mod.subprocess,
-        "run",
-        lambda *args, **kwargs: SimpleNamespace(returncode=0),
+
+    fake_job = SimpleNamespace(
+        job_id="job-123",
+        status="queued",
+        executor_type="thread",
+        executor_run_id="run-1",
     )
-    monkeypatch.setattr(
-        main_mod,
-        "threading",
-        SimpleNamespace(Thread=ImmediateThread),
+
+    class FakeTrainingJobService:
+        def create_job(self, payload, *, requested_by=None):
+            return fake_job
+
+    monkeypatch.setitem(
+        main_mod.app.dependency_overrides,
+        get_training_job_service,
+        lambda: FakeTrainingJobService(),
     )
 
     client = TestClient(main_mod.app)
