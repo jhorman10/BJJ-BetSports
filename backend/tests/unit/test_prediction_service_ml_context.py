@@ -177,3 +177,191 @@ def test_generate_prediction_passes_context_to_winner_model(monkeypatch):
         ("Generic", match.id, home_stats.team_id, away_stats.team_id)
     ]
     assert prediction.home_win_probability > prediction.draw_probability
+
+
+def test_score_probabilities_basic():
+    service = PredictionService()
+    scores = service.calculate_score_probabilities(1.5, 1.2, max_goals=5, top_n=5)
+
+    assert len(scores) == 5
+    assert all(
+        "home_goals" in s and "away_goals" in s and "probability" in s for s in scores
+    )
+    assert scores[0]["probability"] >= scores[-1]["probability"]
+    total = sum(s["probability"] for s in scores)
+    assert total > 0
+
+
+def test_score_probabilities_most_probable_first():
+    service = PredictionService()
+    scores = service.calculate_score_probabilities(2.0, 0.8, max_goals=5, top_n=3)
+
+    for i in range(len(scores) - 1):
+        assert scores[i]["probability"] >= scores[i + 1]["probability"]
+
+
+def test_score_probabilities_symmetric():
+    service = PredictionService()
+    scores = service.calculate_score_probabilities(1.5, 1.5, max_goals=4, top_n=10)
+
+    # When λ are equal, P(h:a) should be approximately P(a:h)
+    score_map = {(s["home_goals"], s["away_goals"]): s["probability"] for s in scores}
+    for h in range(5):
+        for a in range(5):
+            if (h, a) in score_map and (a, h) in score_map:
+                assert abs(score_map[(h, a)] - score_map[(a, h)]) < 1e-4
+
+
+def test_score_confidence_tier_alta(monkeypatch):
+    service = PredictionService()
+    # Mock low entropy scores to force Alta tier
+    low_entropy_scores = [
+        {"home_goals": 2, "away_goals": 0, "probability": 0.5},
+        {"home_goals": 1, "away_goals": 0, "probability": 0.2},
+        {"home_goals": 3, "away_goals": 0, "probability": 0.15},
+    ]
+    monkeypatch.setattr(
+        service,
+        "calculate_score_probabilities",
+        lambda *args, **kwargs: low_entropy_scores,
+    )
+    tier = service.calculate_score_confidence_tier(
+        home_expected=2.5,
+        away_expected=0.5,
+        base_confidence=0.85,
+    )
+    assert tier == "Alta"
+
+
+def test_score_confidence_tier_baja():
+    service = PredictionService()
+    tier = service.calculate_score_confidence_tier(
+        home_expected=1.5,
+        away_expected=1.5,
+        base_confidence=0.25,
+    )
+    assert tier == "Baja"
+
+
+def test_score_probabilities_no_xg():
+    service = PredictionService()
+    tier = service.calculate_score_confidence_tier(
+        home_expected=None,
+        away_expected=1.2,
+        base_confidence=0.7,
+    )
+    assert tier == "N/A"
+
+    scores = service.calculate_score_probabilities(None, 1.2)
+    assert scores == []
+
+
+def test_generate_prediction_includes_score_probabilities(monkeypatch):
+    match = _build_match()
+    home_stats = _build_stats("palmeiras")
+    away_stats = _build_stats("river")
+    league_averages = _build_league_averages()
+
+    service = PredictionService()
+    prediction = service.generate_prediction(
+        match=match,
+        home_stats=home_stats,
+        away_stats=away_stats,
+        league_averages=league_averages,
+        data_sources=[],
+        min_matches=6,
+    )
+
+    assert prediction.score_probabilities is not None
+    assert len(prediction.score_probabilities) >= 3
+    assert prediction.score_confidence_tier in {"Alta", "Media", "Baja", "N/A"}
+
+
+def test_score_matrix_basic():
+    service = PredictionService()
+    matrix = service.calculate_score_matrix(1.5, 1.2, max_goals=5)
+
+    assert len(matrix) == 6
+    assert all(len(row) == 6 for row in matrix)
+    # Sum of all probabilities should be ~1
+    total = sum(cell["probability"] for row in matrix for cell in row)
+    assert 0.95 < total < 1.05
+
+
+def test_score_matrix_xg_contributions():
+    service = PredictionService()
+    matrix = service.calculate_score_matrix(2.0, 1.0, max_goals=3)
+
+    for row in matrix:
+        for cell in row:
+            assert "home_xg_contribution" in cell
+            assert "away_xg_contribution" in cell
+            total_contrib = cell["home_xg_contribution"] + cell["away_xg_contribution"]
+            assert abs(total_contrib - 1.0) < 1e-3
+            # Home xG > away xG => home contribution > 0.5
+            assert cell["home_xg_contribution"] > 0.5
+
+
+def test_score_matrix_no_xg():
+    service = PredictionService()
+    matrix = service.calculate_score_matrix(None, 1.2)
+    assert matrix == []
+
+
+def test_score_accuracy_history_calculation():
+    service = PredictionService()
+    history = service.calculate_score_accuracy_history(
+        [
+            {
+                "prediction": {
+                    "score_probabilities": [
+                        {"home_goals": 2, "away_goals": 1, "probability": 0.15},
+                        {"home_goals": 1, "away_goals": 1, "probability": 0.12},
+                    ],
+                    "match": {"home_goals": 2, "away_goals": 1},
+                }
+            },
+            {
+                "prediction": {
+                    "score_probabilities": [
+                        {"home_goals": 1, "away_goals": 0, "probability": 0.20},
+                    ],
+                    "match": {"home_goals": 1, "away_goals": 2},
+                }
+            },
+        ]
+    )
+    assert history["total_predictions"] == 2
+    assert history["exact_score_hits"] == 1
+    assert abs(history["accuracy_percentage"] - 0.5) < 1e-4
+
+
+def test_score_accuracy_history_no_data():
+    service = PredictionService()
+    history = service.calculate_score_accuracy_history([])
+    assert history["total_predictions"] == 0
+    assert history["exact_score_hits"] == 0
+    assert history["accuracy_percentage"] == 0.0
+
+
+def test_generate_prediction_includes_matrix():
+    match = _build_match()
+    home_stats = _build_stats("palmeiras")
+    away_stats = _build_stats("river")
+    league_averages = _build_league_averages()
+
+    service = PredictionService()
+    prediction = service.generate_prediction(
+        match=match,
+        home_stats=home_stats,
+        away_stats=away_stats,
+        league_averages=league_averages,
+        data_sources=[],
+        min_matches=6,
+    )
+
+    assert prediction.score_matrix is not None
+    assert len(prediction.score_matrix) == 6
+    assert all(len(row) == 6 for row in prediction.score_matrix)
+    assert "home_xg_contribution" in prediction.score_matrix[0][0]
+    assert "away_xg_contribution" in prediction.score_matrix[0][0]

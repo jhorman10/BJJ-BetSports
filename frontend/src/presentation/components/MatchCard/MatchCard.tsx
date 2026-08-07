@@ -5,7 +5,7 @@
  * Optimized with React.memo to prevent unnecessary re-renders.
  */
 
-import React, { memo } from "react";
+import React, { memo, useState } from "react";
 import {
   Card,
   CardContent,
@@ -37,6 +37,7 @@ import {
 import { useCacheStore } from "../../../application/stores/useCacheStore";
 import { getTeamLogo, getTeamDisplayName } from "../../../utils/teamUtils";
 import { TeamLogo } from "../common/TeamLogo";
+import { ScoreMatrixModal } from "../MatchDetails/components/ScoreMatrixModal";
 
 interface MatchCardProps {
   matchPrediction: MatchPrediction;
@@ -45,6 +46,7 @@ interface MatchCardProps {
   isSelected?: boolean;
   isLoading?: boolean;
   onToggleSelection?: () => void;
+  match?: MatchPrediction["match"];
 }
 
 // Styled probability bar with custom colors
@@ -133,6 +135,8 @@ const MatchCard: React.FC<MatchCardProps> = memo(
     onToggleSelection,
   }) => {
     const { match, prediction } = matchPrediction;
+    const [matrixOpen, setMatrixOpen] = useState(false);
+
     // OPTIMIZACIÓN 2: Selector atómico para evitar re-renders innecesarios
     const prefetchMatch = useCacheStore((state) => state.prefetchMatch);
 
@@ -561,13 +565,80 @@ const MatchCard: React.FC<MatchCardProps> = memo(
                   variant="caption"
                   sx={{ color: "rgba(255,255,255,0.7)" }}
                 >
-                  Goles esperados
-                </Typography>
-              </Box>
-            </Box>
-          </Box>
+                   Goles esperados
+                 </Typography>
+               </Box>
+             </Box>
+           </Box>
 
-          <Divider sx={{ mb: 2 }} />
+           {/* Marcador Tentativo */}
+           {prediction.score_probabilities &&
+             prediction.score_probabilities.length > 0 && (
+               <Box
+                 mt={2}
+                 p={1.5}
+                 sx={{
+                   bgcolor: "rgba(59, 130, 246, 0.08)",
+                   border: "1px solid rgba(59, 130, 246, 0.25)",
+                   borderRadius: 1,
+                   cursor: "pointer",
+                 }}
+                 onClick={() => setMatrixOpen(true)}
+               >
+                 <Box display="flex" alignItems="center" gap={1} mb={1}>
+                   <Typography variant="caption" color="primary.main" fontWeight={700}>
+                     🎲 Marcador Tentativo
+                   </Typography>
+                   {prediction.score_confidence_tier && (
+                     <Chip
+                       label={prediction.score_confidence_tier}
+                       size="small"
+                       color={
+                         prediction.score_confidence_tier === "Alta"
+                           ? "success"
+                           : prediction.score_confidence_tier === "Media"
+                             ? "warning"
+                             : prediction.score_confidence_tier === "Baja"
+                               ? "error"
+                               : "default"
+                       }
+                       sx={{ fontSize: "0.65rem", height: 20 }}
+                     />
+                   )}
+                   <Typography
+                     variant="caption"
+                     sx={{ ml: "auto", color: "text.secondary", fontSize: "0.65rem" }}
+                   >
+                     Ver matriz →
+                   </Typography>
+                 </Box>
+                 <Box display="flex" flexWrap="wrap" gap={0.8}>
+                   {prediction.score_probabilities
+                     .slice(0, 5)
+                     .map((score, index) => (
+                       <Chip
+                         key={index}
+                         label={`${score.home_goals}-${score.away_goals} ${(score.probability * 100).toFixed(1)}%`}
+                         variant={index === 0 ? "filled" : "outlined"}
+                         size="small"
+                         sx={{
+                           borderColor: "rgba(59, 130, 246, 0.3)",
+                           color: index === 0 ? "#ffffff" : "text.primary",
+                           fontWeight: index === 0 ? 700 : 400,
+                           bgcolor: index === 0 ? "primary.main" : "transparent",
+                           fontSize: "0.7rem",
+                           height: 24,
+                           ...(index === 0 && {
+                             boxShadow: "0 0 8px rgba(59, 130, 246, 0.4)",
+                           }),
+                         }}
+                       />
+                     ))}
+                 </Box>
+               </Box>
+             )}
+
+           <Divider sx={{ mb: 2 }} />
 
           {/* Probabilities - CORRECCIÓN: Usar colores memoizados */}
           <Box mb={3}>
@@ -775,7 +846,14 @@ const MatchCard: React.FC<MatchCardProps> = memo(
               </Tooltip>
             </Box>
           </Box>
+
+          <Divider sx={{ mb: 2 }} />
         </CardContent>
+        <ScoreMatrixModal
+          open={matrixOpen}
+          onClose={() => setMatrixOpen(false)}
+          prediction={prediction}
+        />
       </Card>
     );
   }

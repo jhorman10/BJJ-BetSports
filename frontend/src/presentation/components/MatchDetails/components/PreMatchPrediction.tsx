@@ -1,10 +1,11 @@
-import React from "react";
-import { Box, Typography, Paper, Divider, Chip } from "@mui/material";
+import React, { useState } from "react";
+import { Box, Typography, Paper, Divider, Chip, Button } from "@mui/material";
 import Grid from "@mui/material/Grid";
 import { Prediction } from "../../../../domain/entities/prediction";
 import { Match } from "../../../../domain/entities/match";
 import { evaluatePickLive } from "../../../../utils/pickValidationUtils";
 import { CheckCircle, Cancel, HourglassEmpty } from "@mui/icons-material";
+import { ScoreMatrixModal } from "./ScoreMatrixModal";
 
 interface PreMatchPredictionProps {
   prediction: Prediction;
@@ -17,6 +18,8 @@ export const PreMatchPrediction: React.FC<PreMatchPredictionProps> = ({
   isAvailable,
   match,
 }) => {
+  const [matrixOpen, setMatrixOpen] = useState(false);
+
   if (!isAvailable) {
     return (
       <Box textAlign="center" py={2}>
@@ -134,6 +137,75 @@ export const PreMatchPrediction: React.FC<PreMatchPredictionProps> = ({
             </Typography>
           </Box>
         </Box>
+
+        {/* Marcador Tentativo */}
+        {prediction.score_probabilities &&
+          prediction.score_probabilities.length > 0 && (
+            <>
+              <Divider sx={{ my: 2, borderColor: "rgba(255,255,255,0.1)" }} />
+              <Box
+                display="flex"
+                alignItems="center"
+                gap={1}
+                sx={{ cursor: "pointer" }}
+                onClick={() => setMatrixOpen(true)}
+              >
+                <Typography variant="subtitle2" color="info.main">
+                  🎲 Marcador Tentativo
+                </Typography>
+                {prediction.score_confidence_tier && (
+                  <Chip
+                    label={prediction.score_confidence_tier}
+                    size="small"
+                    color={
+                      prediction.score_confidence_tier === "Alta"
+                        ? "success"
+                        : prediction.score_confidence_tier === "Media"
+                          ? "warning"
+                          : prediction.score_confidence_tier === "Baja"
+                            ? "error"
+                            : "default"
+                    }
+                    sx={{ ml: 1 }}
+                  />
+                )}
+                <Button
+                  size="small"
+                  variant="text"
+                  sx={{ ml: "auto", fontSize: "0.7rem" }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMatrixOpen(true);
+                  }}
+                >
+                  Ver matriz completa
+                </Button>
+              </Box>
+              <Box display="flex" flexWrap="wrap" gap={1} mt={1}>
+                {prediction.score_probabilities
+                  .slice(0, 5)
+                  .map((score, index) => (
+                    <Chip
+                      key={index}
+                      label={`${score.home_goals}-${score.away_goals} ${(score.probability * 100).toFixed(1)}%`}
+                      variant="outlined"
+                      sx={{
+                        borderColor: "rgba(255,255,255,0.2)",
+                        color: "text.primary",
+                        fontWeight: index === 0 ? 700 : 400,
+                        bgcolor: index === 0 ? "rgba(255,255,255,0.08)" : "transparent",
+                      }}
+                    />
+                  ))}
+              </Box>
+            </>
+          )}
+
+        <ScoreMatrixModal
+          open={matrixOpen}
+          onClose={() => setMatrixOpen(false)}
+          prediction={prediction}
+        />
 
         {prediction.suggested_picks &&
           prediction.suggested_picks.length > 0 && (

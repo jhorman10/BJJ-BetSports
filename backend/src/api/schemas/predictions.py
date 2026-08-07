@@ -66,6 +66,10 @@ class PredictionModel(BaseModel):
     suggested_picks: list[dict[str, Any]] = Field(default_factory=list)
     # Model traceability metadata
     model_metadata: dict[str, Any] | None = None
+    score_probabilities: list[dict[str, Any]] | None = None
+    score_confidence_tier: str | None = None
+    score_matrix: list[list[dict[str, Any]]] | None = None
+    score_accuracy_history: dict[str, Any] | None = None
 
 
 class MatchPredictionModel(BaseModel):
