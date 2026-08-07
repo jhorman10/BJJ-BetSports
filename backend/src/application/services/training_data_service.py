@@ -147,12 +147,19 @@ class TrainingDataService:
     async def _fetch_openfootball_matches(self, leagues: List[str]) -> List[Match]:
         open_football_matches: List[Match] = []
         try:
+            from src.infrastructure.data_sources.football_data_uk import (
+                LEAGUES_METADATA,
+            )
             from src.infrastructure.data_sources.openfootball import OpenFootballSource
 
             open_fb = OpenFootballSource()
             for league_code in leagues:
+                # Use correct country from LEAGUES_METADATA
+                country = "Europe"
+                if league_code in LEAGUES_METADATA:
+                    country = LEAGUES_METADATA[league_code].get("country", "Europe")
                 league_entity = League(
-                    id=league_code, name=league_code, country="Europe"
+                    id=league_code, name=league_code, country=country
                 )
                 of_matches = await open_fb.get_matches(league_entity)
                 open_football_matches.extend(of_matches)
@@ -355,15 +362,11 @@ class TrainingDataService:
         # Buckets for different sources
         gh_matches = await self._fetch_github_matches(leagues, start_date, days_back)
 
-        # CSV source (parallelized per-league)
-        import asyncio
-
-        results = await asyncio.gather(
-            *(
-                self._fetch_csv_for_league(lid, force_refresh, days_back)
-                for lid in leagues
-            )
-        )
+        # CSV source (sequential per-league to respect rate limits during backfill)
+        results = []
+        for lid in leagues:
+            res = await self._fetch_csv_for_league(lid, force_refresh, days_back)
+            results.append(res)
         csv_matches = []
         for res in results:
             csv_matches.extend(res or [])
@@ -456,6 +459,12 @@ class TrainingDataService:
                     logger.info(
                         f"No matches found in Football-Data.org for {league_code} gap."
                     )
+            else:
+                logger.info(
+                    "Skipping Football-Data.org backfill for %s: "
+                    "API key not configured.",
+                    league_code,
+                )
         except Exception as e:
             logger.warning(
                 f"Backfill source Football-Data.org failed for {league_code}: {e}"

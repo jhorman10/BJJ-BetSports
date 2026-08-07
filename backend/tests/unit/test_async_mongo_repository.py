@@ -181,7 +181,7 @@ def test_async_mongo_repository_creates_same_indexes_as_sync_repo(monkeypatch):
     assert repository.training_results.create_index_calls == [_plain_call("key")]
     assert repository.match_predictions.create_index_calls == [
         _plain_call("match_id"),
-        _ttl_call({"labeled": {"$ne": True}}),
+        _ttl_call({"labeled": {"$eq": False}}),
     ]
     assert repository.api_cache.create_index_calls == [_plain_call("key"), _ttl_call()]
     assert repository.app_state.create_index_calls == [_plain_call("key")]
@@ -205,7 +205,7 @@ async def test_async_mongo_repository_waits_for_index_init_inside_event_loop(
     assert repository.training_results.create_index_calls == [_plain_call("key")]
     assert repository.match_predictions.create_index_calls == [
         _plain_call("match_id"),
-        _ttl_call({"labeled": {"$ne": True}}),
+        _ttl_call({"labeled": {"$eq": False}}),
     ]
 
 
@@ -263,7 +263,7 @@ async def test_async_mongo_repository_ttl_indexes_created_with_expire_after_seco
     await repository._ensure_ready()
 
     # match_predictions keeps the partial filter; api_cache stays simple.
-    assert _ttl_call({"labeled": {"$ne": True}}) in (
+    assert _ttl_call({"labeled": {"$eq": False}}) in (
         repository.match_predictions.create_index_calls
     )
     assert _ttl_call() in repository.api_cache.create_index_calls
@@ -283,7 +283,7 @@ async def test_async_mongo_repo_match_preds_ttl_partial_api_cache_simple(
     )
     await repository._ensure_ready()
 
-    match_ttl = _ttl_call({"labeled": {"$ne": True}})
+    match_ttl = _ttl_call({"labeled": {"$eq": False}})
     cache_ttl = _ttl_call()
 
     assert match_ttl in repository.match_predictions.create_index_calls

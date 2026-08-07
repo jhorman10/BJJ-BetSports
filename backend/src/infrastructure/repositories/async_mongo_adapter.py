@@ -194,7 +194,10 @@ class AsyncMongoAdapter:
                         "data": data,
                         "expires_at": expires_at,
                         "last_updated": get_current_time(),
-                    }
+                    },
+                    "$setOnInsert": {
+                        "labeled": False,
+                    },
                 },
                 upsert=True,
             )
@@ -226,7 +229,10 @@ class AsyncMongoAdapter:
                             "data": data_payload,
                             "expires_at": expires_at,
                             "last_updated": get_current_time(),
-                        }
+                        },
+                        "$setOnInsert": {
+                            "labeled": False,
+                        },
                     },
                     upsert=True,
                 )

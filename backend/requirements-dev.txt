@@ -1,0 +1,8 @@
+# Development tooling — NOT installed in production
+pytest>=8.0.0
+ruff>=0.1.0
+black>=23.0.0
+isort>=5.12.0
+flake8>=6.0.0
+mypy>=1.8.0
+types-pytz>=2023.3

@@ -23,14 +23,6 @@ import {
 } from "../types";
 
 /**
- * Per-endpoint timeout overrides for the generic post().
- * Training runs once per day and can take several minutes.
- */
-const POST_TIMEOUTS: Record<string, number> = {
-  "/train/run-now": APP_CONFIG.TRAINING_TIMEOUT,
-};
-
-/**
  * API Service object with all endpoints
  */
 export const api = {
@@ -171,15 +163,11 @@ export const api = {
 
   /**
    * Generic POST method for flexibility
-   * Long-running endpoints get extended timeouts via POST_TIMEOUTS.
    */
   async post<T>(endpoint: string, data?: unknown): Promise<T> {
-    const timeout = POST_TIMEOUTS[endpoint];
-    const config = timeout ? { timeout } : {};
     const response = await apiClient.post<T>(
       `${API_ENDPOINTS.API_V1_PREFIX}${endpoint}`,
-      data,
-      config
+      data
     );
     return response.data;
   },

@@ -13,13 +13,14 @@ This domain service is responsible for:
 import asyncio
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Coroutine, List
+from typing import Any, Coroutine, List, Optional
 
 from src.domain.constants import ALL_INTERNATIONAL_TOURNAMENTS
 from src.domain.entities.entities import League, Match
 from src.infrastructure.data_sources.espn import ESPNSource
 from src.infrastructure.data_sources.football_data_org import FootballDataOrgSource
 from src.infrastructure.data_sources.football_data_uk import FootballDataUKSource
+from src.infrastructure.data_sources.github_dataset import LocalGithubDataSource
 from src.infrastructure.data_sources.openfootball import OpenFootballSource
 from src.infrastructure.data_sources.thesportsdb import TheSportsDBClient
 from src.utils.time_utils import get_current_time
@@ -34,13 +35,15 @@ class MatchAggregatorService:
         football_data_org: FootballDataOrgSource,
         openfootball: OpenFootballSource,
         thesportsdb: TheSportsDBClient,
-        espn: ESPNSource,
+        espn: Optional[ESPNSource] = None,
+        local_github: Optional[LocalGithubDataSource] = None,
     ):
         self.football_data_uk = football_data_uk
         self.football_data_org = football_data_org
         self.openfootball = openfootball
         self.thesportsdb = thesportsdb
         self.espn = espn
+        self.local_github = local_github
 
     async def get_aggregated_history(
         self, league_id: str, seasons: List[str]
@@ -100,6 +103,19 @@ class MatchAggregatorService:
         else:
             tasks.append(asyncio.sleep(0))
 
+        # 5. Local GitHub Dataset (fast, no API calls — primary fallback for history)
+        if self.local_github:
+            gh_days_back = 550
+            gh_start = get_current_time() - timedelta(days=gh_days_back)
+            tasks.append(
+                self.local_github.get_finished_matches(
+                    league_codes=[league_id],
+                    date_from=gh_start,
+                )
+            )
+        else:
+            tasks.append(asyncio.sleep(0))
+
         # Execute
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -107,6 +123,7 @@ class MatchAggregatorService:
         org_matches: List[Match] = results[1] if isinstance(results[1], list) else []
         espn_matches: List[Match] = results[2] if isinstance(results[2], list) else []
         open_matches: List[Match] = results[3] if isinstance(results[3], list) else []
+        gh_matches: List[Match] = results[4] if isinstance(results[4], list) else []
 
         if isinstance(results[0], Exception):
             logger.warning("UK Source Error: %s", results[0])
@@ -115,7 +132,7 @@ class MatchAggregatorService:
 
         # Merge
         merged_matches = self._merge_matches(
-            uk_matches, org_matches, open_matches, espn_matches
+            uk_matches, org_matches, open_matches, espn_matches, gh_matches
         )
 
         # Validate Sanity (Rule 13)
@@ -163,9 +180,10 @@ class MatchAggregatorService:
         org: List[Match],
         open_src: List[Match],
         espn_src: List[Match],
+        gh_src: Optional[List[Match]] = None,
     ) -> List[Match]:
         """
-        Merge strategy: UK > Org > ESPN > Open.
+        Merge strategy: UK > Org > ESPN > Open > GitHub CSV.
         CRITICAL REFACTOR: Performs Deep Merge (Enrichment) instead of
         simple deduplication.
         If a match exists, we fill in missing fields (Corners, Cards,
@@ -237,17 +255,21 @@ class MatchAggregatorService:
             return count
 
         # Process in order of priority (Primary creates the base, Secondary fills gaps)
+        # Priority: UK > Org > ESPN > Open > GitHub CSV
         c_uk = process_list(uk or [], "UK")
         c_org = process_list(org or [], "Org")
         c_espn = process_list(espn_src or [], "ESPN")
         c_open = process_list(open_src or [], "Open")
+        c_gh = process_list(gh_src or [], "GitHub")
 
         logger.info(
-            "Merged History: UK=%s, Org=%s, ESPN=%s, Open=%s. Unique Total=%s",
+            "Merged History: UK=%s, Org=%s, ESPN=%s, "
+            "Open=%s, GitHub=%s. Unique Total=%s",
             c_uk,
             c_org,
             c_espn,
             c_open,
+            c_gh,
             len(merged),
         )
         return list(merged.values())
@@ -263,11 +285,12 @@ class MatchAggregatorService:
 
         # 1. Try ESPN (Primary - Has Odds)
         try:
-            matches = await self.espn.get_upcoming_matches(
-                league_id, days_ahead=days_ahead
-            )
-            if matches:
-                return self._sort_and_limit(matches, limit)
+            if self.espn:
+                matches = await self.espn.get_upcoming_matches(
+                    league_id, days_ahead=days_ahead
+                )
+                if matches:
+                    return self._sort_and_limit(matches, limit)
         except Exception as e:
             logger.warning(f"ESPN upcoming fetch failed for {league_id}: {e}")
 

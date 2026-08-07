@@ -94,8 +94,13 @@ class MongoRepository:
             # match_predictions uses a PARTIAL TTL index: only unlabeled docs
             # are purged at expires_at — labeled docs survive for the
             # auto-labeler and analytics (metrics_baseline) (C1).
+            # MongoDB partial indexes do NOT support $ne, $not, or $exists:False
+            # in partialFilterExpression — only $eq, $exists:True, $type, $in, $and.
+            # {"labeled": {"$eq": False}} matches unlabeled docs (save_match_prediction
+            # and bulk_save_predictions set "labeled": False via $setOnInsert on
+            # insert; the auto-labeler overwrites to True afterward).  See D2 / C1.
             self._ensure_ttl_index(
-                self.match_predictions, partial_filter={"labeled": {"$ne": True}}
+                self.match_predictions, partial_filter={"labeled": {"$eq": False}}
             )
             self._ensure_ttl_index(self.api_cache)
 
@@ -209,7 +214,10 @@ class MongoRepository:
                     "data": data,
                     "expires_at": expires_at,
                     "last_updated": get_current_time(),
-                }
+                },
+                "$setOnInsert": {
+                    "labeled": False,
+                },
             },
             upsert=True,
         )
@@ -272,7 +280,10 @@ class MongoRepository:
                             "data": data_payload,
                             "expires_at": expires_at,
                             "last_updated": get_current_time(),
-                        }
+                        },
+                        "$setOnInsert": {
+                            "labeled": False,
+                        },
                     },
                     upsert=True,
                 )

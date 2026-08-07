@@ -191,10 +191,14 @@ class FootballDataUKSource:
 
         try:
             if client:
-                response = await client.get(url, timeout=self.config.timeout)
+                response = await client.get(
+                    url, timeout=self.config.timeout, follow_redirects=True
+                )
             else:
-                async with httpx.AsyncClient() as new_client:
-                    response = await new_client.get(url, timeout=self.config.timeout)
+                async with httpx.AsyncClient(follow_redirects=True) as new_client:
+                    response = await new_client.get(
+                        url, timeout=self.config.timeout, follow_redirects=True
+                    )
 
             response.raise_for_status()
 
