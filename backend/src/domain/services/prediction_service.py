@@ -352,6 +352,233 @@ class PredictionService:
 
         return probs
 
+    @staticmethod
+    def calculate_score_probabilities(
+        home_expected: float,
+        away_expected: float,
+        max_goals: int = 8,
+        top_n: int = 5,
+        include_xg_contribution: bool = False,
+    ) -> list[dict]:
+        """
+        Calculate exact score probabilities using Poisson distribution.
+
+        P(score = h:a) = Poisson(h, λ_home) * Poisson(a, λ_away)
+
+        Args:
+            home_expected: Expected goals for home team (xG)
+            away_expected: Expected goals for away team (xG)
+            max_goals: Maximum goals to consider per team
+            top_n: Number of top scores to return
+            include_xg_contribution: If True, include home/away
+            xG contribution per score
+
+        Returns:
+            List of dicts with home_goals, away_goals, probability (sorted desc)
+            If include_xg_contribution=True, also includes home_xg_contribution
+            and away_xg_contribution
+        """
+        if home_expected is None or away_expected is None:
+            return []
+
+        if home_expected <= 0 and away_expected <= 0:
+            return [{"home_goals": 0, "away_goals": 0, "probability": 1.0}]
+
+        scores = []
+        total_xg = home_expected + away_expected
+        for h in range(max_goals + 1):
+            for a in range(max_goals + 1):
+                p = PredictionService.poisson_probability(
+                    home_expected, h
+                ) * PredictionService.poisson_probability(away_expected, a)
+                if p > 0:
+                    score_entry = {
+                        "home_goals": h,
+                        "away_goals": a,
+                        "probability": round(p, 6),
+                    }
+                    if include_xg_contribution and total_xg > 0:
+                        score_entry["home_xg_contribution"] = round(
+                            home_expected / total_xg, 3
+                        )
+                        score_entry["away_xg_contribution"] = round(
+                            away_expected / total_xg, 3
+                        )
+                    scores.append(score_entry)
+
+        scores.sort(key=lambda x: x["probability"], reverse=True)
+        return scores[:top_n]
+
+    def calculate_score_matrix(
+        self,
+        home_expected: float,
+        away_expected: float,
+        max_goals: int = 5,
+    ) -> list[list[dict]]:
+        """
+        Calculate complete score matrix (0..max_goals x 0..max_goals)
+        with xG contributions.
+
+        Returns a 2D array where matrix[h][a] contains the score data
+        for home_goals=h, away_goals=a.
+
+        Args:
+            home_expected: Expected goals for home team (xG)
+            away_expected: Expected goals for away team (xG)
+            max_goals: Maximum goals per team (default 5 -> 6x6 matrix)
+
+        Returns:
+            2D list of dicts with score data, or empty list if xG unavailable
+        """
+        if (
+            home_expected is None
+            or away_expected is None
+            or home_expected <= 0
+            and away_expected <= 0
+        ):
+            return []
+
+        total_xg = home_expected + away_expected
+        matrix: list[list[dict]] = []
+        for h in range(max_goals + 1):
+            row: list[dict] = []
+            for a in range(max_goals + 1):
+                p = PredictionService.poisson_probability(
+                    home_expected, h
+                ) * PredictionService.poisson_probability(away_expected, a)
+                row.append(
+                    {
+                        "home_goals": h,
+                        "away_goals": a,
+                        "probability": round(p, 6),
+                        "home_xg_contribution": (
+                            round(home_expected / total_xg, 3) if total_xg > 0 else 0.5
+                        ),
+                        "away_xg_contribution": (
+                            round(away_expected / total_xg, 3) if total_xg > 0 else 0.5
+                        ),
+                    }
+                )
+            matrix.append(row)
+        return matrix
+
+    @staticmethod
+    def calculate_score_accuracy_history(
+        historical_predictions: list[dict],
+    ) -> dict:
+        """
+        Calculate exact score prediction accuracy from historical predictions.
+
+        Args:
+            historical_predictions: List of prediction documents from MongoDB,
+                each containing at least:
+                - 'score_probabilities': list of {home_goals, away_goals, probability}
+                - 'match': dict with 'home_goals' and 'away_goals' (actual result)
+
+        Returns:
+            Dict with total_predictions, exact_score_hits, accuracy_percentage
+        """
+        total = 0
+        hits = 0
+        for doc in historical_predictions:
+            prediction_data = doc.get("prediction") or doc.get("data") or doc
+            if not isinstance(prediction_data, dict):
+                continue
+            score_probs = prediction_data.get("score_probabilities") or []
+            if not score_probs:
+                continue
+            match_data = prediction_data.get("match") or doc.get("match")
+            if not isinstance(match_data, dict):
+                continue
+            actual_home = match_data.get("home_goals")
+            actual_away = match_data.get("away_goals")
+            if actual_home is None or actual_away is None:
+                continue
+            total += 1
+            # Check if the most probable predicted score matches the actual score
+            top_score = max(score_probs, key=lambda s: s.get("probability", 0))
+            if (
+                top_score.get("home_goals") == actual_home
+                and top_score.get("away_goals") == actual_away
+            ):
+                hits += 1
+
+        if total == 0:
+            return {
+                "total_predictions": 0,
+                "exact_score_hits": 0,
+                "accuracy_percentage": 0.0,
+            }
+
+        return {
+            "total_predictions": total,
+            "exact_score_hits": hits,
+            "accuracy_percentage": round(hits / total, 4),
+        }
+
+    def calculate_score_confidence_tier(
+        self,
+        home_expected: Optional[float],
+        away_expected: Optional[float],
+        base_confidence: float,
+        score_probabilities: Optional[list[dict]] = None,
+    ) -> str:
+        """
+        Calculate confidence tier for exact score prediction.
+
+        Combines:
+        - Entropy of full score distribution (lower entropy = higher confidence)
+        - Base confidence from data quality and model certainty
+
+        Args:
+            home_expected: Expected goals for home team
+            away_expected: Expected goals for away team
+            base_confidence: Base confidence score (0-1)
+            score_probabilities: Pre-calculated score probabilities
+
+        Returns:
+            "Alta", "Media", "Baja" or "N/A"
+        """
+        if home_expected is None or away_expected is None or base_confidence <= 0:
+            return "N/A"
+
+        # Calculate full score distribution entropy (not just top-N)
+        # This gives a true measure of uncertainty in the exact score
+        max_goals = 8
+        full_scores = self.calculate_score_probabilities(
+            home_expected,
+            away_expected,
+            max_goals=max_goals,
+            top_n=max_goals * max_goals,
+        )
+
+        if not full_scores:
+            return "N/A"
+
+        total_prob = sum(s["probability"] for s in full_scores)
+        if total_prob <= 0:
+            return "N/A"
+
+        entropy = 0.0
+        for s in full_scores:
+            p = s["probability"] / total_prob
+            if p > 0:
+                entropy -= p * math.log2(p)
+
+        # Normalize entropy: 0 = one score dominates, 1 = all equal
+        max_entropy = math.log2(max_goals * max_goals)
+        normalized_entropy = entropy / max_entropy if max_entropy > 0 else 0.0
+
+        # Decision matrix (calibrated for football xG ranges 0.5-3.5)
+        # Alta: very low entropy (one score clearly dominates) AND good base confidence
+        if normalized_entropy < 0.45 and base_confidence > 0.65:
+            return "Alta"
+        # Baja: high entropy (scores are very uncertain) OR poor base confidence
+        if normalized_entropy >= 0.75 or base_confidence <= 0.35:
+            return "Baja"
+        # Media: everything else
+        return "Media"
+
     def calculate_expected_goals(
         self,
         home_strength: TeamStrength,
@@ -1426,4 +1653,12 @@ class PredictionService:
                 "model_version": os.getenv("MODEL_VERSION", "unknown"),
                 "generated_by": os.getenv("MODEL_GENERATED_BY", "prediction-service"),
             },
+            # Marcador Tentativo
+            score_probabilities=self.calculate_score_probabilities(
+                home_expected, away_expected
+            ),
+            score_confidence_tier=self.calculate_score_confidence_tier(
+                home_expected, away_expected, confidence
+            ),
+            score_matrix=self.calculate_score_matrix(home_expected, away_expected),
         )
