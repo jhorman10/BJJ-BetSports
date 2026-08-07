@@ -253,6 +253,12 @@ class Prediction:
     # Traceability metadata for the model that generated this prediction
     model_metadata: dict[str, Any] = field(default_factory=dict)
 
+    # Marcador Tentativo
+    score_probabilities: Optional[list[dict]] = field(default=None)
+    score_confidence_tier: Optional[str] = None
+    score_matrix: Optional[list[list[dict]]] = field(default=None)
+    score_accuracy_history: Optional[dict] = field(default=None)
+
     def __post_init__(self) -> None:
         """Validate probability values."""
         probs = [

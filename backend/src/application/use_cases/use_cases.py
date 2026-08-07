@@ -1235,6 +1235,10 @@ class GetPredictionsUseCase:
             top_ml_picks=top_ml_picks,
             model_metadata=getattr(prediction, "model_metadata", {}),
             created_at=prediction.created_at,
+            score_probabilities=getattr(prediction, "score_probabilities", None),
+            score_confidence_tier=getattr(prediction, "score_confidence_tier", None),
+            score_matrix=getattr(prediction, "score_matrix", None),
+            score_accuracy_history=getattr(prediction, "score_accuracy_history", None),
         )
 
     def _filter_future_matches(

@@ -185,6 +185,12 @@ class PredictionDTO(BaseModel):
     # Model traceability metadata (version, training info, commit, etc.)
     model_metadata: dict[str, Any] = Field(default_factory=dict)
 
+    # Marcador Tentativo
+    score_probabilities: Optional[list[dict[str, Any]]] = Field(default=None)
+    score_confidence_tier: Optional[str] = None
+    score_matrix: Optional[list[list[dict[str, Any]]]] = Field(default=None)
+    score_accuracy_history: Optional[dict[str, Any]] = Field(default=None)
+
     model_config = ConfigDict(from_attributes=True)
 
 

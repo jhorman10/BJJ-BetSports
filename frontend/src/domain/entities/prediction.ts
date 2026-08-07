@@ -44,6 +44,33 @@ export interface Prediction {
   real_time_odds?: Record<string, number>;
   fundamental_analysis?: Record<string, boolean>;
   suggested_picks?: SuggestedPick[];
+
+  // Marcador Tentativo
+  score_probabilities?: ScoreProbability[];
+  score_confidence_tier?: "Alta" | "Media" | "Baja" | "N/A";
+  score_matrix?: ScoreCell[][];
+  score_accuracy_history?: ScoreAccuracyHistory;
+}
+
+export interface ScoreProbability {
+  home_goals: number;
+  away_goals: number;
+  probability: number;
+}
+
+export interface ScoreCell {
+  home_goals: number;
+  away_goals: number;
+  probability: number;
+  home_xg_contribution: number;
+  away_xg_contribution: number;
+}
+
+export interface ScoreAccuracyHistory {
+  league_id: string;
+  total_predictions: number;
+  exact_score_hits: number;
+  accuracy_percentage: number;
 }
 
 export interface MatchPrediction {
