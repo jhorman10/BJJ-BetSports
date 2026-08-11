@@ -7,7 +7,7 @@ const colorCache: Record<string, string> = {};
  * Extracts the dominant color from an image URL.
  * Prioritizes high saturation pixels to find the "brand" color.
  */
-export const useImageColor = (imageUrl: string | undefined) => {
+export const useImageColor = (imageUrl: string | undefined): string | null => {
   const [color, setColor] = useState<string | null>(() => {
     if (imageUrl && colorCache[imageUrl]) {
       return colorCache[imageUrl];

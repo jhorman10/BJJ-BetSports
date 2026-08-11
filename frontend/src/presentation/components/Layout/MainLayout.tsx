@@ -9,6 +9,7 @@ import {
   Button,
 } from "@mui/material";
 import { SportsSoccer, GetApp, SmartToy, Calculate } from "@mui/icons-material";
+
 import OfflineIndicator from "../../components/common/OfflineIndicator";
 import { usePWAInstall } from "../../../hooks/usePWAInstall";
 import { useBotStore } from "../../../application/stores/useBotStore";

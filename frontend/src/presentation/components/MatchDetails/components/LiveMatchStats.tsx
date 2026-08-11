@@ -1,6 +1,7 @@
 import { Box, Typography, Paper, styled } from "@mui/material";
 import Grid from "@mui/material/Grid";
 import { Flag, QueryStats } from "@mui/icons-material";
+
 import { Match } from "../../../../domain/entities/match";
 
 // --- Estilos Compartidos con LiveMatchCard ---

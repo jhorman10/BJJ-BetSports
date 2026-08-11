@@ -25,7 +25,7 @@ export function useSmartPolling({
   onPoll,
   enabled = true,
   maxBackoffMultiplier = 4,
-}: UseSmartPollingOptions) {
+}: UseSmartPollingOptions): { pollNow: () => Promise<void> } {
   const intervalRef = useRef<number | null>(null);
   const backoffRef = useRef(1);
   const isVisibleRef = useRef(!document.hidden);
@@ -71,7 +71,7 @@ export function useSmartPolling({
 
   // Handle visibility change
   useEffect(() => {
-    const handleVisibilityChange = () => {
+    const handleVisibilityChange = (): void => {
       isVisibleRef.current = !document.hidden;
 
       if (document.hidden) {

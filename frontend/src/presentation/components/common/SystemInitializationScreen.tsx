@@ -7,6 +7,7 @@ import {
   keyframes,
 } from "@mui/material";
 import { SmartToy, Memory, Psychology, CheckCircle } from "@mui/icons-material";
+
 import { useBotStore } from "../../../application/stores/useBotStore";
 
 // Pulse animation for the logo
@@ -121,7 +122,7 @@ export const SystemInitializationScreen: React.FC = () => {
       <Box sx={{ width: "100%", maxWidth: 400 }}>
         {steps.map((step, idx) => (
           <Box
-            key={idx}
+            key={`step-${idx}`}
             sx={{
               display: "flex",
               alignItems: "center",

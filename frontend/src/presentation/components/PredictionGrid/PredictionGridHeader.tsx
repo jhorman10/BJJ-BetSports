@@ -9,6 +9,7 @@ import {
   SelectChangeEvent,
 } from "@mui/material";
 import { Sort } from "@mui/icons-material";
+
 import { League } from "../../../types";
 import { getLeagueName } from "../LeagueSelector/constants";
 import TeamSearch from "../TeamSearch/TeamSearch";
@@ -43,7 +44,7 @@ const PredictionGridHeader: React.FC<PredictionGridHeaderProps> = ({
   searchQuery,
   onSearchChange,
 }) => {
-  const handleSortChange = (event: SelectChangeEvent<SortOption>) => {
+  const handleSortChange = (event: SelectChangeEvent<SortOption>): void => {
     onSortChange(event.target.value as SortOption);
   };
 

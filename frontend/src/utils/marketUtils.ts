@@ -2,6 +2,43 @@
  * Shared utilities for market visualization and logic
  */
 
+import { SuggestedPick } from "../types";
+
+/**
+ * Returns the uppercase category for a given market type.
+ * Consolidates categorization logic used across BotDashboard,
+ * SuggestedPicksTab, and MatchHistoryTable into a single source of truth.
+ */
+export const getMarketCategory = (marketType: string): string => {
+  const type = marketType.toUpperCase();
+  if (type.includes("CORNER")) return "CORNERS";
+  if (type.includes("CARD") || type.includes("TARJETA")) return "CARDS";
+  if (type.includes("HANDICAP")) return "HANDICAPS";
+  if (type.includes("BTTS") || type.includes("AMBOS")) return "BTTS";
+  if (
+    type.includes("DOUBLE") ||
+    type.includes("CHANCE") ||
+    type.includes("DOBLE")
+  )
+    return "DOUBLE_CHANCE";
+  if (
+    type.includes("WIN") ||
+    type.includes("DRAW") ||
+    type.includes("RESULT") ||
+    type.includes("1X2")
+  )
+    return "WINNER";
+  if (
+    type.includes("GOAL") ||
+    type.includes("GOL") ||
+    type.includes("OVER") ||
+    type.includes("UNDER")
+  ) {
+    return "GOALS";
+  }
+  return "OTHER";
+};
+
 export const getPickColor = (probability: number): string => {
   if (probability > 0.7) return "#22c55e";
   if (probability > 0.5) return "#f59e0b";
@@ -58,9 +95,7 @@ export const getMarketIcon = (marketType: string): string => {
   }
 };
 
-import { SuggestedPick } from "../types";
-
-export const getUniquePicks = (picks: SuggestedPick[] = []) => {
+export const getUniquePicks = (picks: SuggestedPick[] = []): SuggestedPick[] => {
   if (!picks) return [];
 
   // First sort by confidence/probability descending to ensure we keep the best version
@@ -70,7 +105,7 @@ export const getUniquePicks = (picks: SuggestedPick[] = []) => {
       (a.confidence || a.probability || 0)
   );
 
-  const seen = new Set();
+  const seen = new Set<string>();
   const unique = sortedPicks.filter((pick) => {
     const key = `${pick.market_type}-${pick.market_label}`;
     if (seen.has(key)) return false;

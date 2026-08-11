@@ -1,10 +1,11 @@
 import { useEffect } from "react";
+
 import { usePredictionStore } from "../application/stores/usePredictionStore";
 import { useBotStore } from "../application/stores/useBotStore";
 import { useLiveStore } from "../application/stores/useLiveStore";
 import { useOfflineStore } from "../application/stores/useOfflineStore";
 
-export const useInitialization = () => {
+export const useInitialization = (): void => {
   const fetchLeagues = usePredictionStore((s) => s.fetchLeagues);
   const checkTrainingStatus = usePredictionStore((s) => s.checkTrainingStatus);
   const { fetchTrainingData } = useBotStore();

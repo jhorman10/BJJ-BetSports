@@ -1,4 +1,3 @@
-import { apiClient } from "./client";
 import {
   LiveMatchPrediction,
   MatchPrediction,
@@ -6,6 +5,8 @@ import {
 } from "../../domain/entities";
 import { fetchESPNLiveMatches } from "../external/espn";
 import { API_ENDPOINTS, APP_CONFIG } from "../../config/constants";
+
+import { apiClient } from "./client";
 
 export const liveApi = {
   /**
@@ -38,7 +39,7 @@ export const liveApi = {
       const backendMatches = backendResponse.data || [];
 
       // 2. Map ESPN matches for O(1) lookup (Normalization: lowercase, alphanumeric only)
-      const normalize = (name: string) =>
+      const normalize = (name: string): string =>
         name.toLowerCase().replace(/[^a-z0-9]/g, "");
 
       const espnMap = new Map<string, LiveMatchPrediction>();

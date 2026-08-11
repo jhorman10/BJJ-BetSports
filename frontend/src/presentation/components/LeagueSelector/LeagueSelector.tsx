@@ -17,6 +17,11 @@ import {
   ToggleButton,
 } from "@mui/material";
 import { SportsScore, LiveTv } from "@mui/icons-material";
+
+import { usePredictionStore } from "../../../application/stores/usePredictionStore";
+import { useUIStore } from "../../../application/stores/useUIStore";
+import { useLiveStore } from "../../../application/stores/useLiveStore";
+
 import CountrySelect from "./CountrySelect";
 import LeagueSelect from "./LeagueSelect";
 import {
@@ -25,9 +30,6 @@ import {
   SELECT_STYLES,
   getLeagueName,
 } from "./constants";
-import { usePredictionStore } from "../../../application/stores/usePredictionStore";
-import { useUIStore } from "../../../application/stores/useUIStore";
-import { useLiveStore } from "../../../application/stores/useLiveStore";
 
 const LeagueSelector: React.FC = () => {
   // Stores
@@ -46,7 +48,7 @@ const LeagueSelector: React.FC = () => {
   const countries = leaguesData?.countries || [];
   const hasLiveMatches = liveMatches.length > 0;
 
-  const handleCountryChange = (event: SelectChangeEvent<string>) => {
+  const handleCountryChange = (event: SelectChangeEvent<string>): void => {
     const countryName = event.target.value;
 
     if (!countryName) {
@@ -57,7 +59,7 @@ const LeagueSelector: React.FC = () => {
     selectCountry(country);
   };
 
-  const handleLeagueChange = (event: SelectChangeEvent<string>) => {
+  const handleLeagueChange = (event: SelectChangeEvent<string>): void => {
     const leagueId = event.target.value;
     if (!leagueId || !selectedCountry) {
       selectLeague(null);

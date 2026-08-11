@@ -10,6 +10,7 @@ vi.mock("../../../services/api", () => ({
 
 import { api } from "../../../services/api";
 import { useTrainingJobsStore } from "../../../application/stores/useTrainingJobsStore";
+
 import TrainingControlPanel from "./TrainingControlPanel";
 
 const mockedGet = vi.mocked(api.get);

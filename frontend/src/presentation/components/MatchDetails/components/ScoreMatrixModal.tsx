@@ -13,6 +13,7 @@ import {
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import SportsSoccer from "@mui/icons-material/SportsSoccer";
+
 import { Prediction } from "../../../../domain/entities/prediction";
 
 interface ScoreMatrixModalProps {
@@ -29,7 +30,7 @@ const LEVEL_COLORS = [
   "rgba(255,255,255,0.55)",
 ];
 
-const getLevel = (probability: number, maxProb: number) => {
+const getLevel = (probability: number, maxProb: number): number => {
   if (maxProb <= 0) return 0;
   const ratio = probability / maxProb;
   if (ratio < 0.05) return 0;

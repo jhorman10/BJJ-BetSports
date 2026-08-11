@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+
 import api from "../services/api";
 import { Match, MatchPrediction, Prediction } from "../types";
 import { LiveMatchPrediction } from "../domain/entities";
@@ -93,7 +94,12 @@ const mapBackendMatch = (item: unknown): LiveMatch => {
   };
 };
 
-export const useLiveMatches = () => {
+export const useLiveMatches = (): {
+  matches: LiveMatch[];
+  loading: boolean;
+  error: string | null;
+  refresh: () => Promise<void>;
+} => {
   const [matches, setMatches] = useState<LiveMatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

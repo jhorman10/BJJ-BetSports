@@ -11,6 +11,7 @@ import {
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
 import { LocalActivity, TrendingUp } from "@mui/icons-material";
+
 import { MatchPrediction } from "../../../types";
 import { getTeamDisplayName } from "../../../utils/teamUtils";
 

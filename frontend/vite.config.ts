@@ -1,7 +1,8 @@
 /// <reference types="vitest" />
+import { fileURLToPath, URL } from "node:url";
+
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react-swc";
-import { fileURLToPath, URL } from "node:url";
 import compression from "vite-plugin-compression";
 import { VitePWA } from "vite-plugin-pwa";
 
@@ -98,6 +99,10 @@ export default defineConfig({
         target: process.env.VITE_API_PROXY_TARGET ?? "http://localhost:8000",
         changeOrigin: true,
       },
+      "/health": {
+        target: process.env.VITE_API_PROXY_TARGET ?? "http://localhost:8000",
+        changeOrigin: true,
+      },
     },
   },
   preview: {
@@ -105,6 +110,10 @@ export default defineConfig({
     port: 4173,
     proxy: {
       "/api": {
+        target: process.env.VITE_API_PROXY_TARGET ?? "http://localhost:8000",
+        changeOrigin: true,
+      },
+      "/health": {
         target: process.env.VITE_API_PROXY_TARGET ?? "http://localhost:8000",
         changeOrigin: true,
       },

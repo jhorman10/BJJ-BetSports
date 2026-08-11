@@ -1,4 +1,5 @@
 import { useState, useMemo, ChangeEvent } from "react";
+
 import { MatchPredictionHistory, MatchHistoryTableProps } from "../../types";
 
 export type SortColumn = "date" | "result" | "default";
@@ -36,7 +37,7 @@ export const useMatchHistoryTable = ({
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const handleSort = (column: SortColumn) => {
+  const handleSort = (column: SortColumn): void => {
     if (sortColumn === column) {
       setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
     } else {
@@ -45,21 +46,21 @@ export const useMatchHistoryTable = ({
     }
   };
 
-  const handleChangePage = (_event: unknown, newPage: number) => {
+  const handleChangePage = (_event: unknown, newPage: number): void => {
     setPage(newPage);
   };
 
-  const handleChangeRowsPerPage = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleChangeRowsPerPage = (event: ChangeEvent<HTMLInputElement>): void => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
 
-  const handleSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleSearchChange = (event: ChangeEvent<HTMLInputElement>): void => {
     setSearchQuery(event.target.value);
     setPage(0);
   };
 
-  const handleToggleExpand = (matchId: string) => {
+  const handleToggleExpand = (matchId: string): void => {
     setExpandedRow((prev) => (prev === matchId ? null : matchId));
   };
 
@@ -78,7 +79,7 @@ export const useMatchHistoryTable = ({
     if (!filteredMatches || filteredMatches.length === 0) return [];
     const sorted = [...filteredMatches];
 
-    const getTime = (m: MatchPredictionHistory) =>
+    const getTime = (m: MatchPredictionHistory): number =>
       new Date(m.match_date).getTime();
 
     if (sortColumn === "date") {
@@ -89,7 +90,7 @@ export const useMatchHistoryTable = ({
       });
     } else if (sortColumn === "result") {
       sorted.sort((a, b) => {
-        const getCorrectness = (m: MatchPredictionHistory) =>
+        const getCorrectness = (m: MatchPredictionHistory): number =>
           m.was_correct ? 1 : 0;
         const valA = getCorrectness(a);
         const valB = getCorrectness(b);

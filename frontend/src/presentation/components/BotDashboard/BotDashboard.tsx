@@ -25,16 +25,19 @@ import {
   Grid,
 } from "@mui/material";
 import { SmartToy, History, CheckCircle, Cancel } from "@mui/icons-material";
+
 import { MatchPredictionHistory } from "../../../types";
 import { useBotStore } from "../../../application/stores/useBotStore";
 import { useTrainingJobsStore } from "../../../application/stores/useTrainingJobsStore";
 import { useSmartPolling } from "../../../hooks/useSmartPolling";
-import MatchHistoryTable from "./MatchHistoryTable";
-import StatCard from "./StatCard";
+import { getMarketCategory } from "../../../utils/marketUtils";
 import {
   TrainingArtifactsPanel,
   TrainingControlPanel,
 } from "../Training";
+
+import MatchHistoryTable from "./MatchHistoryTable";
+import StatCard from "./StatCard";
 
 // Helper to calculate stats by market type
 interface MarketStats {
@@ -54,48 +57,13 @@ const calculateMarketStats = (
     string,
     { total: number; won: number; lost: number; label: string }
   > = {
-    winner: { total: 0, won: 0, lost: 0, label: "Ganador del Partido (1X2)" },
-    double_chance: { total: 0, won: 0, lost: 0, label: "Doble Oportunidad" },
-    goals: { total: 0, won: 0, lost: 0, label: "Goles (Más/Menos)" },
-    btts: { total: 0, won: 0, lost: 0, label: "Ambos Marcan" },
-    corners: { total: 0, won: 0, lost: 0, label: "Córners" },
-    cards: { total: 0, won: 0, lost: 0, label: "Tarjetas" },
-    handicap: { total: 0, won: 0, lost: 0, label: "Hándicap" },
-  };
-
-  const getCategory = (marketType: string): string => {
-    const type = marketType.toLowerCase();
-
-    if (type.includes("corner")) return "corners";
-    if (type.includes("card") || type.includes("tarjeta")) return "cards";
-    if (type.includes("handicap")) return "handicap";
-    if (type.includes("btts") || type.includes("ambos")) return "btts";
-
-    // Explicitly check for Double Chance BEFORE winner
-    if (
-      type.includes("double") ||
-      type.includes("chance") ||
-      type.includes("doble")
-    )
-      return "double_chance";
-
-    if (
-      type.includes("winner") ||
-      type.includes("result") ||
-      type.includes("1x2")
-    )
-      return "winner";
-
-    if (
-      type.includes("goal") ||
-      type.includes("gol") ||
-      type.includes("over") ||
-      type.includes("under")
-    ) {
-      return "goals";
-    }
-
-    return "other";
+    WINNER: { total: 0, won: 0, lost: 0, label: "Ganador del Partido (1X2)" },
+    DOUBLE_CHANCE: { total: 0, won: 0, lost: 0, label: "Doble Oportunidad" },
+    GOALS: { total: 0, won: 0, lost: 0, label: "Goles (Más/Menos)" },
+    BTTS: { total: 0, won: 0, lost: 0, label: "Ambos Marcan" },
+    CORNERS: { total: 0, won: 0, lost: 0, label: "Córners" },
+    CARDS: { total: 0, won: 0, lost: 0, label: "Tarjetas" },
+    HANDICAPS: { total: 0, won: 0, lost: 0, label: "Hándicap" },
   };
 
   for (const match of matches) {
@@ -103,7 +71,7 @@ const calculateMarketStats = (
       for (const pick of match.picks) {
         if (pick.was_correct === undefined) continue;
 
-        const categoryKey = getCategory(pick.market_type || "");
+        const categoryKey = getMarketCategory(pick.market_type || "");
         if (categories[categoryKey]) {
           categories[categoryKey].total++;
           if (pick.was_correct) {
@@ -210,14 +178,14 @@ const BotDashboard: React.FC = () => {
     return new Date().getMonth() === 0 ? "previous" : "current";
   });
 
-  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number): void => {
     setActiveTab(newValue);
   };
 
   const handleYearToggle = (
     _event: React.MouseEvent<HTMLElement>,
     newMode: "current" | "previous" | null
-  ) => {
+  ): void => {
     if (newMode !== null) {
       setYearMode(newMode);
       const currentYear = new Date().getFullYear();
@@ -327,7 +295,7 @@ const BotDashboard: React.FC = () => {
     runTraining();
   }, [runTraining]);
 
-  const handleCloseNotification = () => {
+  const handleCloseNotification = (): void => {
     setNotification((prev) => ({ ...prev, open: false }));
   };
 

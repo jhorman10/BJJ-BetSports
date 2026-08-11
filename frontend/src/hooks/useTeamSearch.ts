@@ -1,8 +1,15 @@
 import { useState, useEffect } from "react";
+
 import api from "../services/api";
 import { MatchPrediction } from "../types";
 
-export function useTeamSearch() {
+export function useTeamSearch(): {
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  searchMatches: MatchPrediction[];
+  loading: boolean;
+  resetSearch: () => void;
+} {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [searchMatches, setSearchMatches] = useState<MatchPrediction[]>([]);
   const [loading, setLoading] = useState(false);
@@ -48,7 +55,7 @@ export function useTeamSearch() {
     return () => clearTimeout(delayDebounceFn);
   }, [searchQuery]);
 
-  const resetSearch = () => {
+  const resetSearch = (): void => {
     setSearchQuery("");
     setSearchMatches([]);
     setLoading(false);

@@ -1,7 +1,8 @@
 import React from "react";
 import { Typography, Box } from "@mui/material";
-import { useOfflineStore } from "../../../application/stores/useOfflineStore";
 import { WifiOff, CloudOff } from "@mui/icons-material";
+
+import { useOfflineStore } from "../../../application/stores/useOfflineStore";
 
 const OfflineIndicator: React.FC = () => {
   const { isOnline, isBackendAvailable } = useOfflineStore();
