@@ -17,7 +17,7 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: adminpassword
       MONGO_INITDB_DATABASE: bjj_betsports
     ports:
-      - "27017:27017"
+      - "127.0.0.1:27017:27017"
     volumes:
       - mongodb_data:/data/db
     healthcheck:
@@ -25,6 +25,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   backend-api:
     <<: *project-image
@@ -76,6 +77,11 @@ services:
     volumes:
       - ./frontend:/workspace/frontend:rw
       - /workspace/frontend/node_modules
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5173/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
 
   ml-worker:
     <<: *project-image
@@ -94,12 +100,14 @@ services:
       mongodb:
         condition: service_healthy
     profiles: ["automation"]
-    dns:
-      - 8.8.8.8
-      - 1.1.1.1
     restart: unless-stopped
     volumes:
       - ./backend:/workspace/backend:rw
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   mlops-pipeline:
     <<: *project-image
@@ -120,11 +128,14 @@ services:
       mongodb:
         condition: service_healthy
     profiles: ["mlops"]
-    dns:
-      - 8.8.8.8
-      - 1.1.1.1
+    restart: unless-stopped
     volumes:
       - ./backend:/workspace/backend:rw
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   labeler:
     <<: *project-image
@@ -147,12 +158,14 @@ services:
       mongodb:
         condition: service_healthy
     profiles: ["automation"]
-    dns:
-      - 8.8.8.8
-      - 1.1.4.4
     restart: unless-stopped
     volumes:
       - ./backend:/workspace/backend:rw
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   updater:
     <<: *project-image
@@ -173,12 +186,24 @@ services:
       mongodb:
         condition: service_healthy
     profiles: ["automation"]
-    dns:
-      - 8.8.8.8
-      - 1.1.1.1
     restart: unless-stopped
     volumes:
       - ./backend:/workspace/backend:rw
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
   mongodb_data:
+
+# Perfiles disponibles:
+# - default: mongodb, backend-api, frontend
+# - automation: ml-worker, labeler, updater
+# - mlops: mlops-pipeline
+#
+# Uso:
+#   docker compose -f docker-compose.dev.yml up -d
+#   docker compose -f docker-compose.dev.yml --profile automation up -d
+#   docker compose -f docker-compose.dev.yml --profile mlops run --rm mlops-pipeline

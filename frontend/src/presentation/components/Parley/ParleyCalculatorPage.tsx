@@ -16,10 +16,12 @@ import {
   Divider,
 } from "@mui/material";
 import { Calculate, Close, LocalActivity, Info } from "@mui/icons-material";
+
 import { usePredictionStore } from "../../../application/stores/usePredictionStore";
 import { useParleyStore } from "../../../application/stores/useParleyStore";
 import { getTeamDisplayName } from "../../../utils/teamUtils";
 import { MatchPrediction } from "../../../domain/entities";
+
 import { ParleySuggestions } from "./ParleySuggestions";
 
 const ParleyCalculatorPage: React.FC = () => {
@@ -40,16 +42,16 @@ const ParleyCalculatorPage: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleSearchChange = (_event: React.SyntheticEvent, value: string) => {
+  const handleSearchChange = (_event: React.SyntheticEvent, value: string): void => {
     setSearchQuery(value);
   };
 
-  const handleMatchSelect = (_event: React.SyntheticEvent, value: MatchPrediction | null) => {
+  const handleMatchSelect = (_event: React.SyntheticEvent, value: MatchPrediction | null): void => {
     setSelectedMatch(value);
   };
 
   // Helper to add manual picks from default probabilities
-  const handleAddManualPick = (match: MatchPrediction, pick: string, label: string, probability: number) => {
+  const handleAddManualPick = (match: MatchPrediction, pick: string, label: string, probability: number): void => {
     addPick(match.match.id, {
       match,
       pick,

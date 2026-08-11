@@ -1,4 +1,4 @@
-import React from "react";
+import React, { memo } from "react";
 import {
   Box,
   Typography,
@@ -21,6 +21,7 @@ import {
   TrendingUp,
   AccessTime,
 } from "@mui/icons-material";
+
 import { useLiveMatches, LiveMatch } from "../../../hooks/useLiveMatches";
 import { LiveMatchPrediction } from "../../../types";
 import { translateMatchStatus } from "../../../utils/translationUtils";
@@ -142,7 +143,7 @@ const normalizeMatch = (
   }
 };
 
-const LiveMatchCard: React.FC<MatchCardProps> = ({ matchData }) => {
+const LiveMatchCard: React.FC<MatchCardProps> = memo(({ matchData }) => {
   // Adaptation: The new hook returns flattened match objects (LiveMatch),
   // but this component expects { match, prediction } structure (LiveMatchPrediction).
 
@@ -160,7 +161,7 @@ const LiveMatchCard: React.FC<MatchCardProps> = ({ matchData }) => {
   );
 
   // Determine the recommended result
-  const getRecommendation = () => {
+  const getRecommendation = (): { label: string; value: number } | null => {
     if (!prediction || prediction.confidence === 0) return null;
 
     const probs = [
@@ -493,7 +494,7 @@ const LiveMatchCard: React.FC<MatchCardProps> = ({ matchData }) => {
       </CardContent>
     </Card>
   );
-};
+});
 
 /**
  * Main LiveMatches Component
@@ -539,7 +540,7 @@ const LiveMatches: React.FC = () => {
         {/* Skeleton Grid */}
         <Grid container spacing={2}>
           {[...Array(3)].map((_, i) => (
-            <Grid size={{ xs: 12, md: 6, lg: 4 }} key={i}>
+            <Grid size={{ xs: 12, md: 6, lg: 4 }} key={`skeleton-${i}`}>
               <MatchCardSkeleton />
             </Grid>
           ))}

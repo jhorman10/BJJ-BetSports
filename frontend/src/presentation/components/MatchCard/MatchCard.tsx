@@ -29,6 +29,7 @@ import PlayCircleOutline from "@mui/icons-material/PlayCircleOutline";
 import AutoGraph from "@mui/icons-material/AutoGraph";
 import Psychology from "@mui/icons-material/Psychology";
 import { styled } from "@mui/material/styles";
+
 import type { MatchPrediction } from "../../../types";
 import {
   translateRecommendedBet,
@@ -88,7 +89,7 @@ const getProbabilityColor = (value: number): string => {
   return "#ef4444"; // Rojo para probabilidad baja (<35%)
 };
 
-const getCardSx = (highlight?: boolean, clickable?: boolean) => ({
+const getCardSx = (highlight?: boolean, clickable?: boolean): Record<string, unknown> => ({
   height: "100%",
   position: "relative" as const,
   cursor: clickable ? "pointer" : "default",
@@ -143,7 +144,7 @@ const MatchCard: React.FC<MatchCardProps> = memo(
     const prefetchTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 
     // Optimized Prefetch (Debounced)
-    const handleMouseEnter = () => {
+    const handleMouseEnter = (): void => {
       if (prefetchTimerRef.current) clearTimeout(prefetchTimerRef.current);
 
       prefetchTimerRef.current = setTimeout(() => {
@@ -151,7 +152,7 @@ const MatchCard: React.FC<MatchCardProps> = memo(
       }, 300); // 300ms delay to verify intent
     };
 
-    const handleMouseLeave = () => {
+    const handleMouseLeave = (): void => {
       if (prefetchTimerRef.current) {
         clearTimeout(prefetchTimerRef.current);
         prefetchTimerRef.current = null;
@@ -286,8 +287,9 @@ const MatchCard: React.FC<MatchCardProps> = memo(
                 label="Highlights"
                 clickable
                 component="a"
-                href={prediction.highlights_url}
-                target="_blank"
+                 href={prediction.highlights_url}
+                 target="_blank"
+                 rel="noopener noreferrer"
                 size="small"
                 sx={{
                   bgcolor: "rgba(59, 130, 246, 0.3)",
@@ -449,7 +451,7 @@ const MatchCard: React.FC<MatchCardProps> = memo(
               >
                 <TeamLogo
                   src={getTeamLogo(match.home_team)}
-                  alt={getTeamDisplayName(match.home_team)}
+                alt={getTeamDisplayName(match.home_team)}
                   width={{ xs: 36, sm: 44, md: 48 }}
                   height={{ xs: 36, sm: 44, md: 48 }}
                   sx={{ mb: 0.5 }}
@@ -464,7 +466,7 @@ const MatchCard: React.FC<MatchCardProps> = memo(
                     wordBreak: "break-word",
                   }}
                 >
-                  {getTeamDisplayName(match.home_team)}
+                   {getTeamDisplayName(match.home_team)}
                 </Typography>
                 {match.home_spi && (
                   <Tooltip title="Soccer Power Index (SPI)">
@@ -495,7 +497,7 @@ const MatchCard: React.FC<MatchCardProps> = memo(
               >
                 <TeamLogo
                   src={getTeamLogo(match.away_team)}
-                  alt={getTeamDisplayName(match.away_team)}
+                alt={getTeamDisplayName(match.away_team)}
                   width={{ xs: 36, sm: 44, md: 48 }}
                   height={{ xs: 36, sm: 44, md: 48 }}
                   sx={{ mb: 0.5 }}
@@ -510,7 +512,7 @@ const MatchCard: React.FC<MatchCardProps> = memo(
                     wordBreak: "break-word",
                   }}
                 >
-                  {getTeamDisplayName(match.away_team)}
+                   {getTeamDisplayName(match.away_team)}
                 </Typography>
                 {match.away_spi && (
                   <Tooltip title="Soccer Power Index (SPI)">
@@ -615,9 +617,9 @@ const MatchCard: React.FC<MatchCardProps> = memo(
                  <Box display="flex" flexWrap="wrap" gap={0.8}>
                    {prediction.score_probabilities
                      .slice(0, 5)
-                     .map((score, index) => (
-                       <Chip
-                         key={index}
+                      .map((score, index) => (
+                        <Chip
+                          key={`${score.home_goals}-${score.away_goals}`}
                          label={`${score.home_goals}-${score.away_goals} ${(score.probability * 100).toFixed(1)}%`}
                          variant={index === 0 ? "filled" : "outlined"}
                          size="small"
@@ -797,7 +799,7 @@ const MatchCard: React.FC<MatchCardProps> = memo(
                 if (recPick?.suggested_stake) {
                   return (
                     <Chip
-                      label={`Stake: ${recPick.suggested_stake}u`}
+                      label={`Stake: ${recPick.suggested_stake.toFixed(2)}u`}
                       color="warning"
                       variant="filled"
                       size="small"

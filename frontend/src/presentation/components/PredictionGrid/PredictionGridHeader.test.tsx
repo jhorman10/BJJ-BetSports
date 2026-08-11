@@ -1,7 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import PredictionGridHeader from "./PredictionGridHeader";
+
 import { League } from "../../../types";
+
+import PredictionGridHeader from "./PredictionGridHeader";
 
 const mockLeague: League = {
   id: "1",

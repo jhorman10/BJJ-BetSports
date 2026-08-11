@@ -10,7 +10,6 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { Box, Typography, Alert, Button, Snackbar } from "@mui/material";
 import { SportsSoccer, SmartToy } from "@mui/icons-material";
 
-// Presentation Components
 import LeagueSelector from "./presentation/components/LeagueSelector";
 import PredictionGrid from "./presentation/components/PredictionGrid";
 import LiveMatchesList from "./presentation/components/MatchDetails/LiveMatchesList";
@@ -18,16 +17,12 @@ import ParleySlip from "./presentation/components/Parley/ParleySlip";
 import BotDashboard from "./presentation/components/BotDashboard/BotDashboard";
 import LiveMatchDetailsModal from "./presentation/components/MatchDetails/LiveMatchDetailsModal";
 import MainLayout from "./presentation/components/Layout/MainLayout";
-import ErrorBoundary from "./presentation/components/ErrorBoundary/ErrorBoundary";
+import ErrorBoundary from "./presentation/components/common/ErrorBoundary";
 import ParleyCalculatorPage from "./presentation/components/Parley/ParleyCalculatorPage";
-
-// Zustand Stores
 import { useUIStore } from "./application/stores/useUIStore";
 import { usePredictionStore } from "./application/stores/usePredictionStore";
 import { useLiveStore } from "./application/stores/useLiveStore";
 import { useOfflineStore } from "./application/stores/useOfflineStore";
-
-// Custom Hooks (Clean Arch)
 import { useGoalDetection } from "./hooks/useGoalDetection";
 import { useAppVisibility } from "./hooks/useAppVisibility";
 import { useInitialization } from "./hooks/useInitialization";

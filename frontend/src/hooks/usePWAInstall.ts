@@ -13,7 +13,11 @@ declare global {
   }
 }
 
-export const usePWAInstall = () => {
+export const usePWAInstall = (): {
+  installPrompt: BeforeInstallPromptEvent | null;
+  isInstalled: boolean;
+  handleInstallClick: () => Promise<void>;
+} => {
   const [installPrompt, setInstallPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(() =>
@@ -23,7 +27,7 @@ export const usePWAInstall = () => {
   );
 
   useEffect(() => {
-    const handler = (e: BeforeInstallPromptEvent) => {
+    const handler = (e: BeforeInstallPromptEvent): void => {
       e.preventDefault();
       setInstallPrompt(e);
     };
@@ -32,7 +36,7 @@ export const usePWAInstall = () => {
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
-  const handleInstallClick = async () => {
+  const handleInstallClick = async (): Promise<void> => {
     if (!installPrompt) return;
     await installPrompt.prompt();
     const { outcome } = await installPrompt.userChoice;

@@ -1,6 +1,7 @@
 import React from "react";
 import { Box } from "@mui/material";
 import { SxProps, Theme, ResponsiveStyleValue } from "@mui/system";
+
 import { useImageColor } from "../../../hooks/useImageColor";
 
 interface TeamLogoProps {

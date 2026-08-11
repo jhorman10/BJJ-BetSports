@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+
 import {
   LeaguesResponse,
   MatchPrediction,
@@ -9,8 +10,9 @@ import {
 import { predictionsApi } from "../../infrastructure/api/predictions";
 import { leaguesApi } from "../../infrastructure/api/leagues";
 import { isNetworkError } from "../../utils/apiErrors";
-import { useOfflineStore } from "./useOfflineStore";
 import { indexedDBStorage } from "../../infrastructure/storage/indexedDBStorage";
+
+import { useOfflineStore } from "./useOfflineStore";
 
 export type SortOption =
   | "confidence"

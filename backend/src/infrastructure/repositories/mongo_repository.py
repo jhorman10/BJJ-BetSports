@@ -103,6 +103,9 @@ class MongoRepository:
                 self.match_predictions, partial_filter={"labeled": {"$eq": False}}
             )
             self._ensure_ttl_index(self.api_cache)
+            self.match_predictions.create_index(
+                [("league_id", 1), ("expires_at", 1)], unique=False
+            )
 
             logger.info(f"✅ Successfully connected to MongoDB database: {db_name}")
         except Exception as e:
@@ -290,16 +293,30 @@ class MongoRepository:
             )
         self.match_predictions.bulk_write(operations)
 
-    def get_all_active_predictions(self) -> List[dict]:
-        docs = self.match_predictions.find({"expires_at": {"$gt": get_current_time()}})
+    def get_all_active_predictions(
+        self,
+        skip: int = 0,
+        limit: int = 100,
+        league_id: str | None = None,
+    ) -> List[dict]:
+        query: Dict[str, Any] = {"expires_at": {"$gt": get_current_time()}}
+        if league_id is not None:
+            query["league_id"] = league_id
+        docs = self.match_predictions.find(query).skip(skip).limit(limit)
         return [_to_prediction_result(doc) for doc in docs]
 
-    def get_league_predictions(self, league_id: str) -> List[dict]:
-        docs = self.match_predictions.find(
-            {
-                "league_id": league_id,
-                "expires_at": {"$gt": get_current_time()},
-            }
+    def get_league_predictions(
+        self, league_id: str, skip: int = 0, limit: int = 100
+    ) -> List[dict]:
+        docs = (
+            self.match_predictions.find(
+                {
+                    "league_id": league_id,
+                    "expires_at": {"$gt": get_current_time()},
+                }
+            )
+            .skip(skip)
+            .limit(limit)
         )
         return [_to_prediction_result(doc) for doc in docs]
 

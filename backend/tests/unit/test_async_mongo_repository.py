@@ -182,6 +182,12 @@ def test_async_mongo_repository_creates_same_indexes_as_sync_repo(monkeypatch):
     assert repository.match_predictions.create_index_calls == [
         _plain_call("match_id"),
         _ttl_call({"labeled": {"$eq": False}}),
+        {
+            "expireAfterSeconds": None,
+            "key": [("league_id", 1), ("expires_at", 1)],
+            "partialFilterExpression": None,
+            "unique": False,
+        },
     ]
     assert repository.api_cache.create_index_calls == [_plain_call("key"), _ttl_call()]
     assert repository.app_state.create_index_calls == [_plain_call("key")]
@@ -206,6 +212,12 @@ async def test_async_mongo_repository_waits_for_index_init_inside_event_loop(
     assert repository.match_predictions.create_index_calls == [
         _plain_call("match_id"),
         _ttl_call({"labeled": {"$eq": False}}),
+        {
+            "expireAfterSeconds": None,
+            "key": [("league_id", 1), ("expires_at", 1)],
+            "partialFilterExpression": None,
+            "unique": False,
+        },
     ]
 
 

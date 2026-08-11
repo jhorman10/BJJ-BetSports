@@ -8,6 +8,7 @@ import {
   useMediaQuery,
   styled,
 } from "@mui/material";
+
 import { Match, MatchEvent } from "../../../../domain/entities/match";
 import { getTeamLogo, getTeamDisplayName } from "../../../../utils/teamUtils";
 
@@ -34,7 +35,7 @@ export const LiveScoreBoard: React.FC<LiveScoreBoardProps> = ({ match }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
-  const getGoalEvents = (teamId: string) =>
+  const getGoalEvents = (teamId: string): React.ReactElement[] | undefined =>
     match.events
       ?.filter(
         (e: MatchEvent) =>
@@ -44,7 +45,7 @@ export const LiveScoreBoard: React.FC<LiveScoreBoardProps> = ({ match }) => {
       )
       .map((e: MatchEvent, i: number) => (
         <Typography
-          key={i}
+          key={`goal-${i}`}
           variant="caption"
           display="block"
           color="text.secondary"

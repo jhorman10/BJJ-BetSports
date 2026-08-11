@@ -1,4 +1,5 @@
 import { MatchPrediction, Prediction } from "../types";
+
 import { normalizeName } from "./searchUtils";
 
 export interface LiveMatchRaw {

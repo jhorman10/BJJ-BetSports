@@ -7,6 +7,7 @@ vi.mock("../../services/api", () => ({
 }));
 
 import { api } from "../../services/api";
+
 import { useOfflineStore } from "./useOfflineStore";
 
 const mockedHealthCheck = vi.mocked(api.healthCheck);

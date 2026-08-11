@@ -18,7 +18,7 @@ export const evaluatePickLive = (pick: SuggestedPick, match?: Match): PickStatus
   const isFinished = ['FT', 'FINISHED', 'ENDED', 'AET', 'PEN'].includes((match.status || '').toUpperCase());
   
   // Parse threshold from pick_code (e.g., O2.5 -> 2.5) or market_label ("Más de 2.5 tarjetas")
-  const extractThreshold = (str: string) => {
+  const extractThreshold = (str: string): number => {
     const regexMatch = str.match(/(\d+\.\d+)/);
     return regexMatch ? parseFloat(regexMatch[1]) : 0;
   };

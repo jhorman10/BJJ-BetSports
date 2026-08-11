@@ -1,4 +1,3 @@
-import { apiClient } from "./client";
 import {
   PredictionsResponse,
   MatchPrediction,
@@ -8,6 +7,8 @@ import {
   LearningStatsResponse,
 } from "../../domain/entities";
 import { API_ENDPOINTS, APP_CONFIG } from "../../config/constants";
+
+import { apiClient } from "./client";
 
 export const predictionsApi = {
   /**

@@ -873,6 +873,18 @@ class GetPredictionsUseCase:
                         cache_key, response.model_dump()
                     )
                     await async_repo.bulk_save_predictions(prediction_batch)
+                    try:
+                        from src.infrastructure.cache.cache_service import (
+                            get_cache_service,
+                        )
+
+                        await get_cache_service().ainvalidate_accuracy_history(
+                            league_id
+                        )
+                    except Exception as cache_exc:
+                        logger.debug(
+                            "Accuracy history cache invalidation failed: %s", cache_exc
+                        )
                     logger.info(
                         (
                             "✓ Massively saved %s pre-calculated predictions "
@@ -895,6 +907,18 @@ class GetPredictionsUseCase:
                         self.persistence_repository.bulk_save_predictions,
                         prediction_batch,
                     )
+                    try:
+                        from src.infrastructure.cache.cache_service import (
+                            get_cache_service,
+                        )
+
+                        await get_cache_service().ainvalidate_accuracy_history(
+                            league_id
+                        )
+                    except Exception as cache_exc:
+                        logger.debug(
+                            "Accuracy history cache invalidation failed: %s", cache_exc
+                        )
                     logger.info(
                         (
                             "✓ Massively saved %s pre-calculated predictions "
