@@ -2,12 +2,6 @@
 # Uso base: docker compose -f docker-compose.dev.yml up -d
 # Pipeline MLOps local: docker compose -f docker-compose.dev.yml --profile mlops run --rm mlops-pipeline
 
-x-project-image: &project-image
-  build:
-    context: .
-    dockerfile: Dockerfile.portable
-  image: bjj-betsports-app:local
-
 services:
   mongodb:
     image: mongo:6.0
@@ -28,16 +22,19 @@ services:
     restart: unless-stopped
 
   backend-api:
-    <<: *project-image
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    image: bjj-betsports-backend:local
     container_name: bjj-backend-api-dev
-    working_dir: /workspace/backend
-    command: ["python3", "-m", "uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    working_dir: /app/backend
+    command: ["python", "-m", "uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     env_file:
       - ./backend/.env
     environment:
       MONGO_URI: "mongodb://admin:adminpassword@mongodb:27017/"
       MONGO_DB_NAME: "bjj_betsports"
-      MONGO_ASYNC_MODE: ${MONGO_ASYNC_MODE:-}  # empty=auto, on=Motor, off=sync
+      MONGO_ASYNC_MODE: ${MONGO_ASYNC_MODE:-}
       DISABLE_ML_TRAINING: ${DISABLE_ML_TRAINING:-false}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       N_JOBS: ${N_JOBS:-2}
@@ -58,36 +55,31 @@ services:
       - 1.1.1.1
     restart: unless-stopped
     volumes:
-      - ./backend:/workspace/backend:rw
+      - ./backend:/app/backend:rw
 
   frontend:
-    <<: *project-image
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://backend-api:8000}
+    image: bjj-betsports-frontend:local
     container_name: bjj-frontend-dev
-    working_dir: /workspace/frontend
-    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
-    environment:
-      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
-      VITE_API_PROXY_TARGET: http://backend-api:8000
     ports:
-      - "5173:5173"
+      - "5173:80"
     depends_on:
       backend-api:
         condition: service_healthy
     restart: unless-stopped
-    volumes:
-      - ./frontend:/workspace/frontend:rw
-      - /workspace/frontend/node_modules
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5173/"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
 
   ml-worker:
-    <<: *project-image
+    build:
+      context: .
+      dockerfile: Dockerfile.ml
+    image: bjj-betsports-ml:local
     container_name: bjj-ml-worker-dev
-    working_dir: /workspace/backend
-    command: ["python3", "src/worker.py"]
+    working_dir: /app/backend
+    command: ["python", "src/worker.py"]
     env_file:
       - ./backend/.env
     environment:
@@ -102,17 +94,20 @@ services:
     profiles: ["automation"]
     restart: unless-stopped
     volumes:
-      - ./backend:/workspace/backend:rw
+      - ./backend:/app/backend:rw
     healthcheck:
-      test: ["CMD", "python3", "-c", "import sys; sys.exit(0)"]
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
       interval: 30s
       timeout: 10s
       retries: 3
 
   mlops-pipeline:
-    <<: *project-image
+    build:
+      context: .
+      dockerfile: Dockerfile.ml
+    image: bjj-betsports-ml:local
     container_name: bjj-mlops-pipeline-dev
-    working_dir: /workspace/backend
+    working_dir: /app/backend
     command: ["bash", "-lc", "./scripts/local_mlops_pipeline.sh"]
     env_file:
       - ./backend/.env
@@ -130,25 +125,28 @@ services:
     profiles: ["mlops"]
     restart: unless-stopped
     volumes:
-      - ./backend:/workspace/backend:rw
+      - ./backend:/app/backend:rw
     healthcheck:
-      test: ["CMD", "python3", "-c", "import sys; sys.exit(0)"]
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
       interval: 30s
       timeout: 10s
       retries: 3
 
   labeler:
-    <<: *project-image
+    build:
+      context: .
+      dockerfile: Dockerfile.ml
+    image: bjj-betsports-ml:local
     container_name: bjj-labeler-dev
-    working_dir: /workspace/backend
-    command: ["python3", "/workspace/backend/scripts/labeler_service_safe.py"]
+    working_dir: /app/backend
+    command: ["python", "/app/backend/scripts/labeler_service_safe.py"]
     env_file:
       - ./backend/.env
     environment:
       MONGO_URI: "mongodb://admin:adminpassword@mongodb:27017/"
       MONGO_DB_NAME: "bjj_betsports"
       LABELER_INTERVAL_SEC: ${LABELER_INTERVAL_SEC:-600}
-      LABELER_SCRIPT_PATH: /workspace/backend/scripts/label_finished_matches.py
+      LABELER_SCRIPT_PATH: /app/backend/scripts/label_finished_matches.py
       LABELER_LIMIT: ${LABELER_LIMIT:-200}
       LABELER_RETRIES: ${LABELER_RETRIES:-3}
       LABELER_DRY_RUN: ${LABELER_DRY_RUN:-false}
@@ -160,25 +158,28 @@ services:
     profiles: ["automation"]
     restart: unless-stopped
     volumes:
-      - ./backend:/workspace/backend:rw
+      - ./backend:/app/backend:rw
     healthcheck:
-      test: ["CMD", "python3", "-c", "import sys; sys.exit(0)"]
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
       interval: 30s
       timeout: 10s
       retries: 3
 
   updater:
-    <<: *project-image
+    build:
+      context: .
+      dockerfile: Dockerfile.ml
+    image: bjj-betsports-ml:local
     container_name: bjj-updater-dev
-    working_dir: /workspace/backend
-    command: ["python3", "/workspace/backend/scripts/updater_service.py"]
+    working_dir: /app/backend
+    command: ["python", "/app/backend/scripts/updater_service.py"]
     env_file:
       - ./backend/.env
     environment:
       MONGO_URI: "mongodb://admin:adminpassword@mongodb:27017/"
       MONGO_DB_NAME: "bjj_betsports"
       UPDATER_INTERVAL_SEC: ${UPDATER_INTERVAL_SEC:-600}
-      UPDATER_SCRIPT_PATH: /workspace/backend/scripts/update_predictions_with_results.py
+      UPDATER_SCRIPT_PATH: /app/backend/scripts/update_predictions_with_results.py
       UPDATER_DAYS_BACK: ${UPDATER_DAYS_BACK:-3}
       UPDATER_DRY_RUN: ${UPDATER_DRY_RUN:-true}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
@@ -188,9 +189,9 @@ services:
     profiles: ["automation"]
     restart: unless-stopped
     volumes:
-      - ./backend:/workspace/backend:rw
+      - ./backend:/app/backend:rw
     healthcheck:
-      test: ["CMD", "python3", "-c", "import sys; sys.exit(0)"]
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
       interval: 30s
       timeout: 10s
       retries: 3
