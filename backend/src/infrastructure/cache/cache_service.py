@@ -227,6 +227,29 @@ class CacheService:
     async def aset_predictions(self, match_id: str, data: Any) -> None:
         await self.aset(f"predictions:{match_id}", data, self.TTL_PREDICTIONS)
 
+    def get_accuracy_history(self, league_id: str) -> Optional[Any]:
+        return self.get(f"accuracy_history:{league_id}")
+
+    def set_accuracy_history(self, league_id: str, data: Any) -> None:
+        self.set(f"accuracy_history:{league_id}", data, 3600)
+
+    def invalidate_accuracy_history(self, league_id: str) -> bool:
+        return self.invalidate(f"accuracy_history:{league_id}")
+
+    async def aget_accuracy_history(self, league_id: str) -> Optional[Any]:
+        return await self.aget(f"accuracy_history:{league_id}")
+
+    async def aset_accuracy_history(self, league_id: str, data: Any) -> None:
+        await self.aset(f"accuracy_history:{league_id}", data, 3600)
+
+    async def ainvalidate_accuracy_history(self, league_id: str) -> bool:
+        return await asyncio.to_thread(self.invalidate_accuracy_history, league_id)
+
+    # Key pattern reference:
+    #   accuracy_history:{league_id} -> dict with total_predictions,
+    #   exact_score_hits, accuracy_percentage
+    #   TTL: 3600 seconds (1 hour). Use aget/aset directly.
+
 
 # Singleton instance
 _cache_instance: Optional[CacheService] = None

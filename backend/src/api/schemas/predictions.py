@@ -82,3 +82,6 @@ class PredictionsResponse(BaseModel):
     league: LeagueModel
     predictions: list[MatchPredictionModel]
     generated_at: str
+    page: int | None = None
+    page_size: int | None = None
+    total: int | None = None
