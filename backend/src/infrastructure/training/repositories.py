@@ -122,6 +122,22 @@ class TrainingJobRepository:
         )
         return [self._to_domain(doc) for doc in docs]
 
+    def delete_completed(self, logger: Any = None) -> int:
+        terminal_statuses = [
+            TrainingJobStatus.COMPLETED.value,
+            TrainingJobStatus.FAILED.value,
+            TrainingJobStatus.CANCELED.value,
+        ]
+        result = self.collections.training_jobs.delete_many(
+            {"status": {"$in": terminal_statuses}}
+        )
+        if logger:
+            logger.info(
+                "Deleted %d terminal training jobs from MongoDB.", result.deleted_count
+            )
+        deleted_count: int = int(result.deleted_count)
+        return deleted_count
+
     def _to_domain(self, doc: dict[str, Any]) -> TrainingJob:
         recipe_snapshot = doc.get("recipe_snapshot", {})
         recipe = TrainingRecipe(
@@ -207,6 +223,28 @@ class TrainingJobEventRepository:
             )
             for doc in docs
         ]
+
+    def delete_for_removed_jobs(self, logger: Any = None) -> int:
+        remaining_job_ids = list(
+            self.collections.training_job_events.distinct("job_id")
+        )
+        jobs_collection = self.collections.training_jobs
+        existing_job_ids = [
+            doc["job_id"]
+            for doc in jobs_collection.find(
+                {"job_id": {"$in": remaining_job_ids}}, {"job_id": 1}
+            )
+        ]
+        result = self.collections.training_job_events.delete_many(
+            {"job_id": {"$nin": existing_job_ids}}
+        )
+        if logger:
+            logger.info(
+                "Deleted %d orphaned training job events from MongoDB.",
+                result.deleted_count,
+            )
+        deleted_count: int = int(result.deleted_count)
+        return deleted_count
 
 
 class ModelArtifactRepository:
