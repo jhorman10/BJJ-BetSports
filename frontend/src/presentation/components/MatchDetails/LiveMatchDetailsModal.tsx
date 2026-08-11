@@ -46,8 +46,12 @@ const LiveMatchDetailsModal: React.FC = () => {
     ? liveMatchUpdate.prediction
     : selectedLiveMatch.prediction;
 
+  // Fabricated fallback predictions (matchMatching stamps
+  // ["live_match_fallback"]) must never render as a real pre-match
+  // prediction — show the unavailable state instead.
   const isPredictionAvailable =
-    prediction.home_win_probability > 0 || prediction.confidence > 0;
+    (prediction.home_win_probability > 0 || prediction.confidence > 0) &&
+    !prediction.data_sources?.includes("live_match_fallback");
 
   return (
     <Dialog

@@ -20,7 +20,12 @@ from src.application.use_cases.live_predictions_use_case import (
     _normalize_and_apply_probs,
     _persist_and_cache_response,
 )
-from src.domain.entities.entities import TrainingDataContextBundle
+from src.domain.entities.entities import (
+    League as DomainLeague,
+    Match as DomainMatch,
+    Team as DomainTeam,
+    TrainingDataContextBundle,
+)
 
 
 def test_normalize_and_apply_probs_module():
@@ -310,3 +315,109 @@ def test_get_context_bundle_from_cache_skips_domestic_leagues():
 
     assert result is None
     assert context_bundle_cache == {}
+
+
+# ---------------------------------------------------------------------------
+# Name fallback date guard (_try_get_precalculated_dto)
+# ---------------------------------------------------------------------------
+
+
+class DummyStatsNormalize:
+    @staticmethod
+    def _normalize_name(name):
+        return name.lower().replace(" ", "")
+
+
+def _build_domain_match(match_id="espn-1", match_date=datetime(2026, 8, 11, 20, 0)):
+    return DomainMatch(
+        id=match_id,
+        home_team=DomainTeam(id="h1", name="Real Madrid"),
+        away_team=DomainTeam(id="a1", name="Barcelona"),
+        league=DomainLeague(id="L1", name="La Liga", country="Spain"),
+        match_date=match_date,
+        status="1H",
+        minute="12",
+    )
+
+
+def _doc_payload(match_id, match_date_iso):
+    return {
+        "match": {
+            "id": match_id,
+            "home_team": {"id": "h1", "name": "Real Madrid"},
+            "away_team": {"id": "a1", "name": "Barcelona"},
+            "league": {"id": "L1", "name": "La Liga", "country": "Spain"},
+            "match_date": match_date_iso,
+            "status": "1H",
+            "home_goals": 0,
+            "away_goals": 0,
+        },
+        "prediction": {
+            "match_id": match_id,
+            "home_win_probability": 0.5,
+            "draw_probability": 0.3,
+            "away_win_probability": 0.2,
+            "over_25_probability": 0.4,
+            "under_25_probability": 0.6,
+            "predicted_home_goals": 1.0,
+            "predicted_away_goals": 0.5,
+            "confidence": 0.5,
+            "data_sources": ["Rigorous ML"],
+            "recommended_bet": "N/A",
+            "over_under_recommendation": "N/A",
+            "created_at": "2026-08-11T10:00:00+00:00",
+        },
+    }
+
+
+def _build_precalc_instance():
+    inst = object.__new__(GetLivePredictionsUseCase)
+    inst.statistics_service = DummyStatsNormalize()
+    inst.persistence_repository = None
+    return inst
+
+
+def test_name_fallback_rejects_same_name_different_match_date():
+    inst = _build_precalc_instance()
+    match = _build_domain_match()
+    # Same normalized names but next week's fixture — must NOT bind
+    by_name = {"realmadrid_vs_barcelona": _doc_payload("backend-1", "2026-08-18T19:00:00+00:00")}
+
+    result = asyncio.run(inst._try_get_precalculated_dto(match, None, by_name))
+
+    assert result is None
+
+
+def test_name_fallback_binds_same_fixture_date():
+    inst = _build_precalc_instance()
+    match = _build_domain_match()
+    by_name = {"realmadrid_vs_barcelona": _doc_payload("backend-1", "2026-08-11T19:00:00+00:00")}
+
+    result = asyncio.run(inst._try_get_precalculated_dto(match, None, by_name))
+
+    assert result is not None
+    assert result.match.id == "backend-1"
+    assert result.prediction.data_sources == ["Rigorous ML"]
+
+
+def test_name_fallback_tolerates_z_suffix_on_doc_match_date():
+    inst = _build_precalc_instance()
+    match = _build_domain_match()
+    by_name = {"realmadrid_vs_barcelona": _doc_payload("backend-1", "2026-08-11T19:00:00Z")}
+
+    result = asyncio.run(inst._try_get_precalculated_dto(match, None, by_name))
+
+    assert result is not None
+    assert result.match.id == "backend-1"
+
+
+def test_id_lookup_binds_without_date_check():
+    inst = _build_precalc_instance()
+    # Doc found by exact match id, even with a different match_date — binds
+    match = _build_domain_match(match_id="espn-1")
+    pre_map = {"espn-1": _doc_payload("espn-1", "2026-08-18T19:00:00+00:00")}
+
+    result = asyncio.run(inst._try_get_precalculated_dto(match, pre_map, None))
+
+    assert result is not None
+    assert result.match.id == "espn-1"

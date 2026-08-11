@@ -66,7 +66,6 @@ export const liveApi = {
       }
 
       const mergedMatches: LiveMatchPrediction[] = [];
-      const usedBackendIds = new Set<string>();
 
       // Iterate ESPN matches (The Truth)
       espnMatches.forEach((espnMatch) => {
@@ -86,23 +85,45 @@ export const liveApi = {
         });
 
         if (matchingPrediction) {
-          usedBackendIds.add(matchingPrediction.match.id);
-          // Merge: Use Backend Prediction + ESPN Live Stats (usually fresher minute/score)
-          // But Backend might have FotMob stats (corners!)
-          // Let's keep Backend Match Data but override status/minute from ESPN
+          // ESPN-first merge: ESPN is the verified live source (a defined
+          // value, incl. genuine 0, wins). Backend fills only stats ESPN
+          // does not provide (undefined = gap). Minute/status come from
+          // ESPN via the base spread; backend-only fields (odds, spi,
+          // events) survive it.
+          const espn = espnMatch.match;
+          const backend = matchingPrediction.match;
+          const stat = <K extends keyof Match>(key: K): Match[K] =>
+            espn[key] !== undefined ? espn[key] : backend[key];
+
           mergedMatches.push({
             ...matchingPrediction,
             match: {
-              ...matchingPrediction.match,
-              minute: espnMatch.match.minute, // Trust ESPN time
-              status: espnMatch.match.status, // Trust ESPN status
-              // Keep FotMob stats from backend if available, else use ESPN
-              home_corners:
-                matchingPrediction.match.home_corners ??
-                espnMatch.match.home_corners,
-              away_corners:
-                matchingPrediction.match.away_corners ??
-                espnMatch.match.away_corners,
+              ...espn,
+              home_goals: stat("home_goals"),
+              away_goals: stat("away_goals"),
+              home_corners: stat("home_corners"),
+              away_corners: stat("away_corners"),
+              home_yellow_cards: stat("home_yellow_cards"),
+              away_yellow_cards: stat("away_yellow_cards"),
+              home_red_cards: stat("home_red_cards"),
+              away_red_cards: stat("away_red_cards"),
+              home_total_shots: stat("home_total_shots"),
+              away_total_shots: stat("away_total_shots"),
+              home_shots_on_target: stat("home_shots_on_target"),
+              away_shots_on_target: stat("away_shots_on_target"),
+              home_fouls: stat("home_fouls"),
+              away_fouls: stat("away_fouls"),
+              home_offsides: stat("home_offsides"),
+              away_offsides: stat("away_offsides"),
+              home_possession: stat("home_possession"),
+              away_possession: stat("away_possession"),
+              home_odds: backend.home_odds,
+              draw_odds: backend.draw_odds,
+              away_odds: backend.away_odds,
+              home_spi: backend.home_spi,
+              away_spi: backend.away_spi,
+              events: backend.events,
+              match_date: backend.match_date,
             },
             isProcessing: false,
           });
