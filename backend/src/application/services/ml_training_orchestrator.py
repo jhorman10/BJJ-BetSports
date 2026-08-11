@@ -799,6 +799,21 @@ class MLTrainingOrchestrator:
             )
         finally:
             cleanup_model_artifacts(logger)
+            if self.persistence_repo is not None:
+                try:
+                    from src.infrastructure.training.repositories import (
+                        TrainingJobEventRepository,
+                        TrainingJobRepository,
+                    )
+
+                    TrainingJobRepository(
+                        persistence_repo=self.persistence_repo
+                    ).delete_completed(logger)
+                    TrainingJobEventRepository(
+                        persistence_repo=self.persistence_repo
+                    ).delete_for_removed_jobs(logger)
+                except Exception as exc:
+                    logger.warning("Failed to cleanup training jobs: %s", exc)
 
     def _get_predicted_winner(self, prediction: Any) -> str:
         if (
