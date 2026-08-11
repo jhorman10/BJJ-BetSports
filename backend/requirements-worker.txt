@@ -1,7 +1,7 @@
 # Dependencias pesadas para calculos (GitHub Actions)
-pandas==2.2.2
+pandas==2.2.3
 numpy==1.26.4
-scikit-learn==1.5.0
+scikit-learn==1.5.2
 joblib==1.4.2
 
 # Base de datos y utilidades
