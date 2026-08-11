@@ -7,18 +7,19 @@ import {
   Snackbar,
 } from "@mui/material";
 import { SportsSoccer } from "@mui/icons-material";
+
 import type { MatchPrediction } from "../../../types";
-import PredictionGridHeader from "./PredictionGridHeader";
 import MatchDetailsModal from "../MatchDetails/MatchDetailsModal";
-import PredictionGridList, { MatchCardSkeleton } from "./PredictionGridList";
 import { getBestPick } from "../../../utils/predictionUtils";
 import { isSearchMatch } from "../../../utils/searchUtils";
 import { ParleyPickItem } from "../../../application/stores/useParleyStore";
-
 import { usePredictionStore } from "../../../application/stores/usePredictionStore";
 import { useParleyStore } from "../../../application/stores/useParleyStore";
 import { useOfflineStore } from "../../../application/stores/useOfflineStore";
 import { useCacheStore } from "../../../application/stores/useCacheStore";
+
+import PredictionGridList, { MatchCardSkeleton } from "./PredictionGridList";
+import PredictionGridHeader from "./PredictionGridHeader";
 
 const emptyStateStyles = {
   border: "2px dashed rgba(148, 163, 184, 0.2)",
@@ -57,7 +58,7 @@ const PredictionGrid: React.FC = memo(() => {
   const handleCloseSnackbar = (
     _event?: React.SyntheticEvent | Event,
     reason?: string
-  ) => {
+  ): void => {
     if (reason === "clickaway") {
       return;
     }
@@ -203,7 +204,7 @@ const PredictionGrid: React.FC = memo(() => {
       // Prefetch the first 15 matches from the sorted list (most relevant to user)
       const matchesToPrefetch = sortedPredictions.slice(0, 15);
 
-      const prefetchBatch = async () => {
+      const prefetchBatch = async (): Promise<void> => {
         // Fire them in small groups to be polite to the backend but fast
         for (let i = 0; i < matchesToPrefetch.length; i += 3) {
           const batch = matchesToPrefetch.slice(i, i + 3);
@@ -249,7 +250,7 @@ const PredictionGrid: React.FC = memo(() => {
             }}
           >
             {[...Array(6)].map((_, index) => (
-              <Box key={index}>
+              <Box key={`skeleton-${index}`}>
                 <MatchCardSkeleton />
               </Box>
             ))}

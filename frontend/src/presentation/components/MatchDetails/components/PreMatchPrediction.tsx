@@ -1,10 +1,12 @@
 import React, { useState } from "react";
 import { Box, Typography, Paper, Divider, Chip, Button } from "@mui/material";
 import Grid from "@mui/material/Grid";
+import { CheckCircle, Cancel, HourglassEmpty } from "@mui/icons-material";
+
 import { Prediction } from "../../../../domain/entities/prediction";
 import { Match } from "../../../../domain/entities/match";
 import { evaluatePickLive } from "../../../../utils/pickValidationUtils";
-import { CheckCircle, Cancel, HourglassEmpty } from "@mui/icons-material";
+
 import { ScoreMatrixModal } from "./ScoreMatrixModal";
 
 interface PreMatchPredictionProps {
@@ -186,7 +188,7 @@ export const PreMatchPrediction: React.FC<PreMatchPredictionProps> = ({
                   .slice(0, 5)
                   .map((score, index) => (
                     <Chip
-                      key={index}
+                      key={`${score.home_goals}-${score.away_goals}`}
                       label={`${score.home_goals}-${score.away_goals} ${(score.probability * 100).toFixed(1)}%`}
                       variant="outlined"
                       sx={{
@@ -215,9 +217,9 @@ export const PreMatchPrediction: React.FC<PreMatchPredictionProps> = ({
                 🚀 Picks Sugeridos
               </Typography>
               <Box display="flex" flexDirection="column" gap={1}>
-                {prediction.suggested_picks.map((pick, index) => (
+                {prediction.suggested_picks.map((pick) => (
                   <Box
-                    key={index}
+                    key={pick.market_type}
                     sx={{
                       p: 1.5,
                       borderRadius: 1,
@@ -294,7 +296,8 @@ export const PreMatchPrediction: React.FC<PreMatchPredictionProps> = ({
             variant="body2"
             component="a"
             href={prediction.highlights_url}
-            target="_blank"
+             target="_blank"
+             rel="noopener noreferrer"
             sx={{
               color: "primary.light",
               textDecoration: "none",

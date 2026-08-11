@@ -159,6 +159,11 @@ class AsyncMongoRepository:
                 self.match_predictions, partial_filter={"labeled": {"$eq": False}}
             )
             await self._ensure_ttl_index(self.api_cache)
+            await self._ensure_index(
+                self.match_predictions,
+                [("league_id", 1), ("expires_at", 1)],
+                unique=False,
+            )
             self._indexes_ready = True
 
     async def _ensure_ttl_index(
@@ -205,6 +210,24 @@ class AsyncMongoRepository:
             )
         except Exception as exc:
             logger.warning("Failed to recreate TTL index %s_1: %s", field, exc)
+
+    async def _ensure_index(
+        self,
+        collection: Any,
+        keys: List[Tuple[str, int]],
+        unique: bool,
+    ) -> None:
+        try:
+            await self._await_if_needed(collection.create_index(keys, unique=unique))
+        except OperationFailure as exc:
+            if not _is_index_options_conflict(exc):
+                raise
+            logger.warning(
+                "Index %s conflicts with an existing index; rebuilding.",
+                keys,
+            )
+        except Exception as exc:
+            logger.warning("Failed to create index %s: %s", keys, exc)
 
     async def _ensure_ready(self) -> None:
         if self._indexes_ready:
@@ -354,23 +377,35 @@ class AsyncMongoRepository:
         if operations:
             await self.match_predictions.bulk_write(operations)
 
-    async def get_all_active_predictions(self) -> List[dict]:
+    async def get_all_active_predictions(
+        self,
+        skip: int = 0,
+        limit: int = 100,
+        league_id: str | None = None,
+    ) -> List[dict]:
         await self._ensure_ready()
-        cursor = self.match_predictions.find(
-            {"expires_at": {"$gt": get_current_time()}}
-        )
+        query: Dict[str, Any] = {"expires_at": {"$gt": get_current_time()}}
+        if league_id is not None:
+            query["league_id"] = league_id
+        cursor = self.match_predictions.find(query).skip(skip).limit(limit)
         out = []
         async for doc in cursor:
             out.append(_to_prediction_result(doc))
         return out
 
-    async def get_league_predictions(self, league_id: str) -> List[dict]:
+    async def get_league_predictions(
+        self, league_id: str, skip: int = 0, limit: int = 100
+    ) -> List[dict]:
         await self._ensure_ready()
-        cursor = self.match_predictions.find(
-            {
-                "league_id": league_id,
-                "expires_at": {"$gt": get_current_time()},
-            }
+        cursor = (
+            self.match_predictions.find(
+                {
+                    "league_id": league_id,
+                    "expires_at": {"$gt": get_current_time()},
+                }
+            )
+            .skip(skip)
+            .limit(limit)
         )
         out = []
         async for doc in cursor:

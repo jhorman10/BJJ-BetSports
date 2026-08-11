@@ -15,8 +15,9 @@ import {
   useMediaQuery,
 } from "@mui/material";
 import { TransitionProps } from "@mui/material/transitions";
+import { PlayArrow } from "@mui/icons-material";
+
 import { MatchPrediction } from "../../../types";
-import SuggestedPicksTab from "./SuggestedPicksTab";
 import {
   translateMatchStatus,
   translateRecommendedBet,
@@ -24,7 +25,8 @@ import {
 } from "../../../utils/translationUtils";
 import { getTeamLogo, getTeamDisplayName } from "../../../utils/teamUtils";
 import { TeamLogo } from "../common/TeamLogo";
-import { PlayArrow } from "@mui/icons-material";
+
+import SuggestedPicksTab from "./SuggestedPicksTab";
 
 interface MatchDetailsModalProps {
   open: boolean;

@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import localforage from "localforage";
+
 import {
   TrainingStatus,
   TrainingProcessStatus,
@@ -8,10 +10,10 @@ import {
 } from "../../types";
 import { api } from "../../services/api";
 import { isNetworkError } from "../../utils/apiErrors";
-import { useOfflineStore } from "./useOfflineStore";
 import { localStorageObserver } from "../../infrastructure/storage/LocalStorageObserver";
 import { indexedDBStorage } from "../../infrastructure/storage/indexedDBStorage";
-import localforage from "localforage";
+
+import { useOfflineStore } from "./useOfflineStore";
 
 interface BotState {
   // Data

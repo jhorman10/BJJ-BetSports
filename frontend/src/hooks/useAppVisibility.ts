@@ -1,9 +1,10 @@
 import { useEffect } from "react";
+
 import { useOfflineStore } from "../application/stores/useOfflineStore";
 import { dataReconciliationService } from "../application/services/DataReconciliationService";
 import { usePredictionStore } from "../application/stores/usePredictionStore";
 
-export const useAppVisibility = () => {
+export const useAppVisibility = (): void => {
   const { isOnline, isBackendAvailable } = useOfflineStore();
   const checkTrainingStatus = usePredictionStore((s) => s.checkTrainingStatus);
 
@@ -16,7 +17,7 @@ export const useAppVisibility = () => {
 
   // Auto-sync when tab becomes visible (user returns to page)
   useEffect(() => {
-    const handleVisibilityChange = () => {
+    const handleVisibilityChange = (): void => {
       if (!document.hidden && isOnline && isBackendAvailable) {
         // Reconcile all stores when user returns to tab
         dataReconciliationService.reconcileAll();

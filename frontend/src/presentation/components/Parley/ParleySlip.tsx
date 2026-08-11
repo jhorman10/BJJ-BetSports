@@ -23,12 +23,13 @@ import {
   Style,
   EmojiEvents,
 } from "@mui/icons-material";
+
 import { useParleyStore } from "../../../application/stores/useParleyStore";
 import { useUIStore } from "../../../application/stores/useUIStore";
 import { getTeamDisplayName } from "../../../utils/teamUtils";
 
 // Helper to map pick codes to icons
-const getPickIcon = (pick: string, label: string) => {
+const getPickIcon = (pick: string, label: string): React.ReactElement => {
   const p = pick.toUpperCase();
   const l = label.toUpperCase();
 

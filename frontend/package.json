@@ -35,6 +35,7 @@
     "@typescript-eslint/parser": "^8.50.1",
     "@vitejs/plugin-react-swc": "^4.2.2",
     "eslint": "^9.22.0",
+    "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.19",
     "jsdom": "^27.3.0",

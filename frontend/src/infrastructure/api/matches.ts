@@ -1,6 +1,7 @@
-import { apiClient } from "./client";
 import { Match } from "../../domain/entities";
 import { API_ENDPOINTS } from "../../config/constants";
+
+import { apiClient } from "./client";
 
 export const matchesApi = {
   /**

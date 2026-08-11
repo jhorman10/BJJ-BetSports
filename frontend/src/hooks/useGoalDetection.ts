@@ -1,8 +1,12 @@
 import { useEffect, useRef } from "react";
+
 import { useUIStore } from "../application/stores/useUIStore";
 import { useLiveStore } from "../application/stores/useLiveStore";
 
-export const useGoalDetection = () => {
+export const useGoalDetection = (): {
+  goalToast: { open: boolean; message: string };
+  closeGoalToast: () => void;
+} => {
   const { showGoalToast, closeGoalToast, goalToast } = useUIStore();
   const { matches: liveMatches, loading: liveLoading } = useLiveStore();
 

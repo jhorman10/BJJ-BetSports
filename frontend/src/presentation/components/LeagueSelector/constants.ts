@@ -116,7 +116,7 @@ export const LEAGUE_TRANSLATIONS: Record<string, string> = {
   "Primera Division": "Primera División (Arg)",
 };
 
-export const getLeagueName = (name: string) => {
+export const getLeagueName = (name: string): string => {
   if (!name) return "";
   return LEAGUE_TRANSLATIONS[name] || name;
 };

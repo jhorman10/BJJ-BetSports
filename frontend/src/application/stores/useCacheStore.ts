@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+
 import { SuggestedPick } from "../../types";
 import api from "../../services/api";
 import { indexedDBStorage } from "../../infrastructure/storage/indexedDBStorage";

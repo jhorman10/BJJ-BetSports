@@ -1,7 +1,9 @@
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
-import LiveMatches from "./LiveMatches";
+
 import { useLiveMatches, LiveMatch } from "../../../hooks/useLiveMatches";
+
+import LiveMatches from "./LiveMatches";
 
 // Mock the hook
 vi.mock("../../../hooks/useLiveMatches", () => ({

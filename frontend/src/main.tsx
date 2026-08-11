@@ -5,14 +5,11 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { ThemeProvider, CssBaseline } from "@mui/material";
-import App from "./App";
-import theme from "./theme";
-
 import { BrowserRouter as Router } from "react-router-dom";
 
-// Global styles
+import App from "./App";
 import "./index.css";
-
+import theme from "./theme";
 import ErrorBoundary from "./presentation/components/common/ErrorBoundary";
 
 const clearDevelopmentPwaState = async (): Promise<void> => {

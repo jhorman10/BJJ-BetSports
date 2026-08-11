@@ -9,6 +9,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+
 import { useTrainingJobsStore } from "../../../application/stores/useTrainingJobsStore";
 
 const TrainingControlPanel: React.FC = () => {
@@ -131,7 +132,7 @@ const TrainingControlPanel: React.FC = () => {
     selectedModel,
   ]);
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (): Promise<void> => {
     if (!selectedModel || !leagueId || !datasetProfile || !featureProfile) {
       return;
     }

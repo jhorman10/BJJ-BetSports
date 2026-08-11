@@ -28,6 +28,7 @@ import {
   Search,
   SmartToy,
 } from "@mui/icons-material";
+
 import {
   MatchHistoryTableProps,
   MatchPredictionHistory,
@@ -122,7 +123,7 @@ const PickChip = ({
     | "info"
     | "warning";
   sx?: import("@mui/system").SxProps<import("@mui/material").Theme>;
-}) => (
+}): React.ReactElement => (
   <Chip
     icon={icon}
     label={label}
@@ -133,7 +134,7 @@ const PickChip = ({
   />
 );
 
-const PickCard = ({ pick }: { pick: SuggestedPick }) => {
+const PickCard = ({ pick }: { pick: SuggestedPick }): React.ReactElement => {
   const confColor = getPickColor(pick.probability || pick.confidence || 0);
   const isCorrect = pick.was_correct;
 
@@ -355,7 +356,7 @@ const isAiPick = (pick: SuggestedPick): boolean => {
   );
 };
 
-const ExpandedMatchDetails = ({ match }: { match: MatchPredictionHistory }) => {
+const ExpandedMatchDetails = ({ match }: { match: MatchPredictionHistory }): React.ReactElement => {
   const uniquePicks = getUniquePicks(match.picks || []);
   const correctCount = uniquePicks.filter((p) => p.was_correct).length;
   const wrongCount = uniquePicks.filter((p) => !p.was_correct).length;
@@ -429,8 +430,8 @@ const ExpandedMatchDetails = ({ match }: { match: MatchPredictionHistory }) => {
               (a.probability || a.confidence || 0)
             );
           })
-          .map((pick, index) => (
-            <Grid size={{ xs: 12, sm: 6, md: 4 }} key={index}>
+          .map((pick) => (
+            <Grid size={{ xs: 12, sm: 6, md: 4 }} key={pick.market_type}>
               <PickCard pick={pick} />
             </Grid>
           ))}
@@ -448,7 +449,7 @@ const DesktopMatchRow = ({
   match: MatchPredictionHistory;
   isExpanded: boolean;
   onToggleExpand: (id: string) => void;
-}) => (
+}): React.ReactElement => (
   <>
     <TableRow
       sx={{
@@ -543,7 +544,7 @@ const MobileMatchCard = ({
   match: MatchPredictionHistory;
   isExpanded: boolean;
   onToggleExpand: (id: string) => void;
-}) => {
+}): React.ReactElement => {
   const uniquePicks = getUniquePicks(match.picks || []);
   const correctCount = uniquePicks.filter((p) => p.was_correct).length;
   const wrongCount = uniquePicks.filter((p) => !p.was_correct).length;
@@ -774,8 +775,8 @@ const MobileMatchCard = ({
                       (b.probability || b.confidence || 0) -
                       (a.probability || a.confidence || 0)
                   )
-                  .map((pick, index) => (
-                    <PickCard key={index} pick={pick} />
+                  .map((pick) => (
+                    <PickCard key={pick.market_type} pick={pick} />
                   ))}
               </Box>
             </Collapse>

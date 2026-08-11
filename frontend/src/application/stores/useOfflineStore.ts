@@ -1,4 +1,5 @@
 import { create } from "zustand";
+
 import { api } from "../../services/api";
 
 const CONNECTIVITY_CHECK_TIMEOUT_MS = 3000;
@@ -65,7 +66,7 @@ export const useOfflineStore = create<OfflineState>((set) => ({
 
 // Setup global listeners
 if (typeof window !== "undefined") {
-  const recheckConnectivity = () => {
+  const recheckConnectivity = (): void => {
     void useOfflineStore.getState().checkConnectivity();
   };
 

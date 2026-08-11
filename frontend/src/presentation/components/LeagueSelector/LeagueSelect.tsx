@@ -9,7 +9,9 @@ import {
   SelectChangeEvent,
 } from "@mui/material";
 import { KeyboardArrowDown } from "@mui/icons-material";
+
 import { League, Country } from "../../../types";
+
 import { getLeagueName } from "./constants";
 
 interface LeagueSelectProps {

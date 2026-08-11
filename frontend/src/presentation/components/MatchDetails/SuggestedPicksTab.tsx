@@ -7,16 +7,17 @@ import {
   Tabs,
   Tab,
 } from "@mui/material";
-import { TipsAndUpdates } from "@mui/icons-material";
+import { TipsAndUpdates, CheckCircle, Cancel, HourglassEmpty } from "@mui/icons-material";
+
 import { MatchPrediction, SuggestedPick } from "../../../types";
 import { generateFallbackPicks } from "../../../utils/predictionUtils";
 import {
   getPickColor,
   getMarketIcon,
   getUniquePicks,
+  getMarketCategory,
 } from "../../../utils/marketUtils";
 import { evaluatePickLive } from "../../../utils/pickValidationUtils";
-import { CheckCircle, Cancel, HourglassEmpty } from "@mui/icons-material";
 import { useCacheStore } from "../../../application/stores/useCacheStore";
 import { Match } from "../../../domain/entities/match";
 
@@ -200,42 +201,6 @@ const PickRow: React.FC<{ pick: SuggestedPick; match?: Match }> = memo(({ pick, 
   );
 });
 
-// Helper to determine tab category
-const getPickCategory = (marketType: string): string => {
-  const type = marketType.toUpperCase();
-  if (type.includes("CORNER")) return "CORNERS";
-  if (type.includes("CARD")) return "CARDS";
-  if (type.includes("HANDICAP") || type.includes("VA_HANDICAP"))
-    return "HANDICAPS";
-  if (type.includes("BTTS")) return "BTTS";
-
-  // Explicitly check for Double Chance BEFORE winner
-  if (
-    type.includes("DOUBLE") ||
-    type.includes("CHANCE") ||
-    type.includes("DOBLE")
-  )
-    return "DOUBLE_CHANCE";
-
-  if (
-    type.includes("WIN") ||
-    type.includes("DRAW") ||
-    type.includes("RESULT")
-  ) {
-    return "WINNER";
-  }
-
-  if (
-    type.includes("GOAL") ||
-    type.includes("OVER") ||
-    type.includes("UNDER")
-  ) {
-    return "GOALS";
-  }
-
-  return "OTHER";
-};
-
 /**
  * Suggested Picks Tab Component
  * Separated by tabs: Top ML, Winner, Goals, Corners, Cards, Others
@@ -330,7 +295,7 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
         return;
       }
 
-      const cat = getPickCategory(p.market_type);
+      const cat = getMarketCategory(p.market_type);
       if (cat in counts) {
         counts[cat as keyof typeof counts]++;
       } else {
@@ -360,24 +325,31 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
     return "";
   }, [loading, sortedPicks.length, categoryCounts]);
 
-  // Adjust state during render if not initialized
-  if (!initialized && defaultTab && !currentTab) {
-    setCurrentTab(defaultTab);
-    setInitialized(true);
-  } else if (!initialized && !loading && sortedPicks.length === 0) {
-    // If we finished loading and there are no picks, just mark as initialized
-    setInitialized(true);
-  }
+  // Initialize tab selection after first render to avoid state-update-during-render
+  useEffect(() => {
+    if (!initialized) {
+      if (defaultTab && !currentTab) {
+        queueMicrotask(() => {
+          setCurrentTab(defaultTab);
+          setInitialized(true);
+        });
+      } else if (!loading && sortedPicks.length === 0) {
+        queueMicrotask(() => setInitialized(true));
+      }
+    }
+  }, [defaultTab, loading, sortedPicks.length, initialized, currentTab]);
 
   // Filtered picks based on tab
   const filteredPicks = useMemo(() => {
     // Helper to check if a pick is considered "Top ML"
-    const isTopML = (p: SuggestedPick) =>
-      p.is_ia_confirmed ||
-      p.is_ml_confirmed ||
-      (p.ml_confidence !== undefined && p.ml_confidence >= 0.85) ||
-      (p.reasoning && p.reasoning.includes("ML Confianza Alta")) ||
-      (p.reasoning && p.reasoning.includes("IA CONFIRMED"));
+    const isTopML = (p: SuggestedPick): boolean =>
+      Boolean(
+        p.is_ia_confirmed ||
+        p.is_ml_confirmed ||
+        (p.ml_confidence !== undefined && p.ml_confidence >= 0.85) ||
+        (p.reasoning && p.reasoning.includes("ML Confianza Alta")) ||
+        (p.reasoning && p.reasoning.includes("IA CONFIRMED"))
+      );
 
     if (currentTab === "TOP_ML") {
       // Filter strictly for ML High Confidence picks
@@ -386,11 +358,11 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
 
     // For other tabs, EXCLUDE Top ML picks
     return sortedPicks.filter(
-      (p) => getPickCategory(p.market_type) === currentTab && !isTopML(p)
+      (p) => getMarketCategory(p.market_type) === currentTab && !isTopML(p)
     );
   }, [sortedPicks, currentTab]);
 
-  const handleTabChange = (_event: React.SyntheticEvent, newValue: string) => {
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: string): void => {
     setCurrentTab(newValue);
   };
 
@@ -521,8 +493,8 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
         }}
       >
         {filteredPicks.length > 0 ? (
-          filteredPicks.map((pick, index) => (
-            <PickRow key={`pick-${currentTab}-${index}`} pick={pick} match={match} />
+           filteredPicks.map((pick) => (
+            <PickRow key={pick.market_type} pick={pick} match={match} />
           ))
         ) : (
           <Box py={4} textAlign="center">

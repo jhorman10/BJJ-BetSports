@@ -40,12 +40,16 @@ cors_origins = [
     for origin in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
     if origin.strip()
 ]
+
+if not cors_origins:
+    cors_origins = ["http://localhost:5173"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins or ["*"],
+    allow_origins=cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-API-Key"],
 )
 
 # Configure rate limiter for selective endpoint protection
@@ -89,6 +93,13 @@ app.include_router(monitor_router)
 app.include_router(training_router)
 
 
+@app.on_event("startup")
+async def _validate_env_on_startup() -> None:
+    from src.core.env import validate_required_env
+
+    validate_required_env()
+
+
 @app.get("/_ready")
 def readiness_check() -> Dict[str, Any]:
     """Readiness check that attempts to validate critical dependencies.
@@ -111,11 +122,11 @@ def readiness_check() -> Dict[str, Any]:
                 get_database_service,
             )
 
-            # get_database_service will raise if cannot connect
             get_database_service()
             checks["database"] = "ok"
-        except Exception as exc:  # pragma: no cover - runtime environment dependent
-            checks["database"] = f"error: {exc}"
+        except Exception:  # pragma: no cover - runtime environment dependent
+            _logger.exception("Readiness check failed for database")
+            checks["database"] = "error"
             ready = False
 
     return {"ready": ready, "checks": checks}

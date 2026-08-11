@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+
 import { MatchPrediction } from "../../domain/entities";
 
 export interface ParleyPickItem {

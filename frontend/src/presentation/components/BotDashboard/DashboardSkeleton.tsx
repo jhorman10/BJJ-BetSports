@@ -67,7 +67,7 @@ const DashboardSkeleton: React.FC = () => {
       {/* Stats Grid Skeleton */}
       <Grid container spacing={3} mb={4}>
         {[1, 2, 3, 4].map((i) => (
-          <Grid size={{ xs: 12, md: 3 }} key={i}>
+          <Grid size={{ xs: 12, md: 3 }} key={`skeleton-${i}`}>
             <Card
               sx={{
                 height: "100%",
@@ -180,7 +180,7 @@ const DashboardSkeleton: React.FC = () => {
         >
           <CardContent sx={{ p: 3 }}>
             {[1, 2, 3, 4, 5].map((i) => (
-              <Box key={i} mb={2}>
+              <Box key={`skeleton-${i}`} mb={2}>
                 <Skeleton
                   variant="rectangular"
                   width="100%"

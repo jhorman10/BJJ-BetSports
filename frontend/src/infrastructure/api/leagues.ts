@@ -1,6 +1,7 @@
-import { apiClient } from "./client";
 import { LeaguesResponse, League } from "../../domain/entities";
 import { API_ENDPOINTS } from "../../config/constants";
+
+import { apiClient } from "./client";
 
 export const leaguesApi = {
   /**

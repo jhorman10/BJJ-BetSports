@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { toLiveMatch } from "./useLiveMatches";
+
 import { LiveMatchPrediction } from "../domain/entities";
+
+import { toLiveMatch } from "./useLiveMatches";
 
 /** Builds a full ESPN LiveMatchPrediction with overridable match fields. */
 const makeEspnMatch = (

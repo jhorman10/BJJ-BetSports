@@ -1,6 +1,7 @@
 import React, { lazy, Suspense } from "react";
 import { Box, Skeleton } from "@mui/material";
 import Grid from "@mui/material/Grid";
+
 import { MatchPrediction } from "../../../types";
 
 const MatchCard = lazy(() => import("../MatchCard"));

@@ -1,5 +1,6 @@
 import React from "react";
 import { Paper, Stack, Typography } from "@mui/material";
+
 import { useTrainingJobsStore } from "../../../application/stores/useTrainingJobsStore";
 
 const TrainingArtifactsPanel: React.FC = () => {

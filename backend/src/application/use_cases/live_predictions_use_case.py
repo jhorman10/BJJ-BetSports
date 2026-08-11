@@ -214,6 +214,15 @@ def _persist_and_cache_response(
                 for p_dto in filtered_results
             ]
             use_case.persistence_repository.bulk_save_predictions(prediction_batch)
+            try:
+                for item in prediction_batch:
+                    use_case.cache_service.invalidate_accuracy_history(
+                        item["league_id"]
+                    )
+            except Exception as cache_exc:
+                logger.debug(
+                    "Accuracy history cache invalidation failed: %s", cache_exc
+                )
             logger.info(
                 "Indexed %d live prediction matches in Explorer DB",
                 len(filtered_results),

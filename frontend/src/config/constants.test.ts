@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { API_ENDPOINTS, APP_CONFIG } from "./constants";
 
 describe("API_ENDPOINTS", () => {

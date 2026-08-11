@@ -6,19 +6,28 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+
 import { api } from "../services/api";
 import {
   LeaguesResponse,
   PredictionsResponse,
   Country,
   League,
+  MatchPrediction,
 } from "../types";
 
 /**
  * Hook for fetching available leagues
  * Uses memoization to prevent unnecessary re-renders
  */
-export function useLeagues() {
+export function useLeagues(): {
+  data: LeaguesResponse | null;
+  loading: boolean;
+  error: Error | null;
+  refetch: () => Promise<void>;
+  countries: Country[];
+  totalLeagues: number;
+} {
   const [data, setData] = useState<LeaguesResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -72,7 +81,14 @@ export function usePredictions(
   sortBy: SortOption = "confidence",
   sortDesc: boolean = true,
   pollingInterval: number | null = null
-) {
+): {
+  data: PredictionsResponse | null;
+  loading: boolean;
+  error: Error | null;
+  refetch: () => Promise<void>;
+  predictions: MatchPrediction[];
+  league: League | null;
+} {
   const [data, setData] = useState<PredictionsResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -156,7 +172,13 @@ export function usePredictions(
  * Hook for selected league state
  * Uses useCallback for stable function references
  */
-export function useLeagueSelection() {
+export function useLeagueSelection(): {
+  selectedCountry: Country | null;
+  selectedLeague: League | null;
+  selectCountry: (country: Country | null) => void;
+  selectLeague: (league: League | null) => void;
+  reset: () => void;
+} {
   const [selectedCountry, setSelectedCountry] = useState<Country | null>(null);
   const [selectedLeague, setSelectedLeague] = useState<League | null>(null);
 

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+
 import { MatchPrediction } from "../../domain/entities";
 
 interface UIState {

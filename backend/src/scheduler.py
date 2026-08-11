@@ -139,6 +139,22 @@ class BotScheduler:
                         lightweight_training_result,
                     )
                     logger.info("Unified Cache updated with training results.")
+
+                    if persistence_repo is not None:
+                        try:
+                            from src.infrastructure.training.repositories import (
+                                TrainingJobEventRepository,
+                                TrainingJobRepository,
+                            )
+
+                            TrainingJobRepository(
+                                persistence_repo=persistence_repo
+                            ).delete_completed(logger)
+                            TrainingJobEventRepository(
+                                persistence_repo=persistence_repo
+                            ).delete_for_removed_jobs(logger)
+                        except Exception as exc:
+                            logger.warning("Failed to cleanup training jobs: %s", exc)
                 except Exception as e:
                     logger.error(f"Failed to update unified cache: {e}")
 
