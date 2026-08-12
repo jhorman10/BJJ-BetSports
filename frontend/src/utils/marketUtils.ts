@@ -53,27 +53,27 @@ export const getMarketIcon = (marketType: string): string => {
     case "home_corners_under":
     case "away_corners_over":
     case "away_corners_under":
-      return "⛳";
+      return "#268506";
     case "cards_over":
     case "cards_under":
     case "home_cards_over":
     case "home_cards_under":
     case "away_cards_over":
     case "away_cards_under":
-      return "🟨";
+      return "#eab308";
     case "red_cards":
-      return "🟥";
+      return "#ef4444";
     case "va_handicap":
-      return "⚖️";
+      return "#f59e0b";
     case "winner":
-      return "🏆";
+      return "#10b981";
     case "double_chance":
     case "double_chance_1x":
     case "double_chance_x2":
     case "double_chance_12":
-      return "🛡️";
+      return "#6b7280";
     case "draw":
-      return "🤝";
+      return "#6b7280";
     case "goals_over":
     case "goals_under":
     case "team_goals_over":
@@ -86,12 +86,12 @@ export const getMarketIcon = (marketType: string): string => {
     case "goals_under_1_5":
     case "goals_under_2_5":
     case "goals_under_3_5":
-      return "⚽";
+      return "#ef4444";
     case "btts_yes":
     case "btts_no":
-      return "🥅";
+      return "#f87171";
     default:
-      return "📊";
+      return "#6b7280";
   }
 };
 

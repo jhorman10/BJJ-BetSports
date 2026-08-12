@@ -821,6 +821,25 @@ const MatchCard: React.FC<MatchCardProps> = memo(
             </Stack>
           </Box>
 
+{/* Picks Tabs Summary */}
+          <div style={{ marginBottom: 8, fontSize: "0.8rem", color: "text.secondary" }}>
+            <strong>Picks Available:</strong> {prediction?.suggested_picks?.length || 0} picks
+          </div>
+
+          {/* Market Type Labels */}
+          {prediction?.suggested_picks && prediction.suggested_picks.length > 0 && (
+            <div style={{ marginTop: 4, fontSize: "0.7rem", color: "text.secondary" }}>
+              {(() => {
+                const picks = prediction.suggested_picks;
+                return Array.from({ length: Math.min(picks.length, 3) }, (_, i) => (
+                  <span key={i} style={{ marginRight: 8 }}>
+                    {picks[i].market_type}
+                  </span>
+                ));
+              })()}
+            </div>
+          )}
+
           {/* Confidence & Sources */}
           <Box
             display="flex"

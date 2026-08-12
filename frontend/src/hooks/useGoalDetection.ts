@@ -27,10 +27,10 @@ export const useGoalDetection = (): {
       if (prev) {
         if ((match.home_goals ?? 0) > prev.home) {
           goalDetected = true;
-          message = `⚽ ¡GOL de ${match.home_team.name}! (${match.home_goals}-${match.away_goals})`;
+          message = `¡GOL de ${match.home_team.name}! (${match.home_goals}-${match.away_goals})`;
         } else if ((match.away_goals ?? 0) > prev.away) {
           goalDetected = true;
-          message = `⚽ ¡GOL de ${match.away_team.name}! (${match.home_goals}-${match.away_goals})`;
+          message = `¡GOL de ${match.away_team.name}! (${match.home_goals}-${match.away_goals})`;
         }
       }
 

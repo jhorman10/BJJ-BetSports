@@ -311,7 +311,7 @@ class AIPicksService(PicksService):
             if context["defensive_struggle"]:
                 if market_type in self.DEFENSIVE_MARKETS:
                     pick.priority_score *= 1.25
-                    pick.reasoning += " 🛡️ Contexto Defensivo."
+                    pick.reasoning += " Contexto Defensivo."
                     pick.confidence_level = (
                         ConfidenceLevel.HIGH
                     )  # Boost confidence directly
@@ -323,13 +323,13 @@ class AIPicksService(PicksService):
             if context["one_sided"]:
                 if market_type in self.FAVORITE_MARKETS:
                     pick.priority_score *= 1.2
-                    pick.reasoning += " ⚔️ Desigualdad detectada."
+                    pick.reasoning += " Desigualdad detectada."
 
             # Rule: High Volatility -> Favor OVER / BTTS / Double Chance (12)
             if context["high_volatility"]:
                 if market_type in self.VOLATILITY_MARKETS:
                     pick.priority_score *= 1.15
-                    pick.reasoning += " ⚡ Partido Volátil."
+                    pick.reasoning += " Partido Volátil."
                 elif market_type in self.DEFENSIVE_MARKETS:
                     pick.priority_score *= 0.85  # Penalize defensive bets in chaos
 
@@ -529,13 +529,13 @@ class AIPicksService(PicksService):
             if over_signal:
                 if p.market_type in [MarketType.BTTS_YES, MarketType.TEAM_GOALS_OVER]:
                     p.priority_score *= 1.1
-                    p.reasoning += " 🔗 Sinergia Goles."
+                    p.reasoning += " Sinergia Goles."
 
             # Coherence: Under 2.5 -> BTTS NO / Under 3.5
             if under_signal:
                 if p.market_type in [MarketType.BTTS_NO, MarketType.GOALS_UNDER_3_5]:
                     p.priority_score *= 1.1
-                    p.reasoning += " 🔗 Sinergia Defensiva."
+                    p.reasoning += " Sinergia Defensiva."
 
     def _is_low_line_under_bet(self, pick: SuggestedPick) -> bool:
         """

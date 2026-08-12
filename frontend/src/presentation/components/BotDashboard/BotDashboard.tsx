@@ -441,8 +441,8 @@ const BotDashboard: React.FC = () => {
             },
           }}
         >
-          <Tab label="📊 Resumen" />
-          <Tab label="📝 Historial" />
+          <Tab label="Resumen" />
+          <Tab label="Historial" />
         </Tabs>
 
         {filteredData ? (

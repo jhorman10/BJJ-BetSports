@@ -51,7 +51,7 @@ export const LiveScoreBoard: React.FC<LiveScoreBoardProps> = ({ match }) => {
           color="text.secondary"
           sx={{ lineHeight: 1.2, fontSize: isMobile ? "0.7rem" : "0.75rem" }}
         >
-          ⚽ {e.player_name} ({e.time}')
+          {e.player_name} ({e.time}')
         </Typography>
       ));
 
