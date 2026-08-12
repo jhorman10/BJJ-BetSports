@@ -20,12 +20,10 @@ from src.application.use_cases.live_predictions_use_case import (
     _normalize_and_apply_probs,
     _persist_and_cache_response,
 )
-from src.domain.entities.entities import (
-    League as DomainLeague,
-    Match as DomainMatch,
-    Team as DomainTeam,
-    TrainingDataContextBundle,
-)
+from src.domain.entities.entities import League as DomainLeague
+from src.domain.entities.entities import Match as DomainMatch
+from src.domain.entities.entities import Team as DomainTeam
+from src.domain.entities.entities import TrainingDataContextBundle
 
 
 def test_normalize_and_apply_probs_module():
@@ -381,7 +379,11 @@ def test_name_fallback_rejects_same_name_different_match_date():
     inst = _build_precalc_instance()
     match = _build_domain_match()
     # Same normalized names but next week's fixture — must NOT bind
-    by_name = {"realmadrid_vs_barcelona": _doc_payload("backend-1", "2026-08-18T19:00:00+00:00")}
+    by_name = {
+        "realmadrid_vs_barcelona": _doc_payload(
+            "backend-1", "2026-08-18T19:00:00+00:00"
+        )
+    }
 
     result = asyncio.run(inst._try_get_precalculated_dto(match, None, by_name))
 
@@ -391,7 +393,11 @@ def test_name_fallback_rejects_same_name_different_match_date():
 def test_name_fallback_binds_same_fixture_date():
     inst = _build_precalc_instance()
     match = _build_domain_match()
-    by_name = {"realmadrid_vs_barcelona": _doc_payload("backend-1", "2026-08-11T19:00:00+00:00")}
+    by_name = {
+        "realmadrid_vs_barcelona": _doc_payload(
+            "backend-1", "2026-08-11T19:00:00+00:00"
+        )
+    }
 
     result = asyncio.run(inst._try_get_precalculated_dto(match, None, by_name))
 
@@ -403,7 +409,9 @@ def test_name_fallback_binds_same_fixture_date():
 def test_name_fallback_tolerates_z_suffix_on_doc_match_date():
     inst = _build_precalc_instance()
     match = _build_domain_match()
-    by_name = {"realmadrid_vs_barcelona": _doc_payload("backend-1", "2026-08-11T19:00:00Z")}
+    by_name = {
+        "realmadrid_vs_barcelona": _doc_payload("backend-1", "2026-08-11T19:00:00Z")
+    }
 
     result = asyncio.run(inst._try_get_precalculated_dto(match, None, by_name))
 

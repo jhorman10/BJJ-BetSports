@@ -3,9 +3,8 @@ from __future__ import annotations
 from datetime import timedelta
 
 import pytest
-from fastapi.testclient import TestClient
-
 import src.api.routers.matches as matches_module
+from fastapi.testclient import TestClient
 from src.api.main import app
 from src.utils.time_utils import get_current_time
 
