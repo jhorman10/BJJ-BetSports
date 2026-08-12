@@ -40,7 +40,7 @@ export const PreMatchPrediction: React.FC<PreMatchPredictionProps> = ({
         gutterBottom
         sx={{ display: "flex", alignItems: "center", gap: 1 }}
       >
-        🎯 Predicción Pre-Partido
+        Predicción Pre-Partido
         {prediction.data_sources.includes("Rigorous ML") && (
           <Chip
             label="Rigorous ML"
@@ -153,7 +153,7 @@ export const PreMatchPrediction: React.FC<PreMatchPredictionProps> = ({
                 onClick={() => setMatrixOpen(true)}
               >
                 <Typography variant="subtitle2" color="info.main">
-                  🎲 Marcador Tentativo
+                  Marcador Tentativo
                 </Typography>
                 {prediction.score_confidence_tier && (
                   <Chip
@@ -185,6 +185,7 @@ export const PreMatchPrediction: React.FC<PreMatchPredictionProps> = ({
               </Box>
               <Box display="flex" flexWrap="wrap" gap={1} mt={1}>
                 {prediction.score_probabilities
+                  .filter((score) => score.probability > 0)
                   .slice(0, 5)
                   .map((score, index) => (
                     <Chip
@@ -214,7 +215,7 @@ export const PreMatchPrediction: React.FC<PreMatchPredictionProps> = ({
             <>
               <Divider sx={{ my: 2, borderColor: "rgba(255,255,255,0.1)" }} />
               <Typography variant="subtitle2" color="warning.main" gutterBottom>
-                🚀 Picks Sugeridos
+                Picks Sugeridos
               </Typography>
               <Box display="flex" flexDirection="column" gap={1}>
                 {prediction.suggested_picks.map((pick) => (
@@ -307,7 +308,7 @@ export const PreMatchPrediction: React.FC<PreMatchPredictionProps> = ({
               "&:hover": { textDecoration: "underline" },
             }}
           >
-            📺 Ver Highlights del Partido
+            Ver Highlights del Partido
           </Typography>
         </Box>
       )}

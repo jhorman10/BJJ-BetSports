@@ -54,6 +54,8 @@ export const ScoreMatrixModal: React.FC<ScoreMatrixModalProps> = ({
     ? Math.max(...matrix.flatMap((row) => row.map((cell) => cell.probability)))
     : 0;
 
+  const filteredMatrix = matrix?.filter((row) => row.some((cell) => cell.probability > 0)) ?? [];
+
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -115,76 +117,81 @@ export const ScoreMatrixModal: React.FC<ScoreMatrixModalProps> = ({
                   </Grid>
                 ))}
                 {/* Matrix rows */}
-                {matrix.map((row, h) => (
-                  <React.Fragment key={`row-${h}`}>
-                    <Grid
-                      size={1}
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <Typography variant="caption" color="text.secondary">
-                        {h}
-                      </Typography>
-                    </Grid>
-                    {row.map((cell, a) => {
-                      const level = getLevel(cell.probability, maxProb);
-                      return (
-                        <Grid size={1} key={`cell-${h}-${a}`}>
-                          <Tooltip
-                            title={
-                              <Box>
-                                <Typography variant="body2">
-                                  {h}-{a}
-                                </Typography>
-                                <Typography variant="body2">
-                                  Prob: {(cell.probability * 100).toFixed(1)}%
-                                </Typography>
-                                <Typography variant="body2">
-                                  Local: {(cell.home_xg_contribution * 100).toFixed(0)}%
-                                </Typography>
-                                <Typography variant="body2">
-                                  Visitante:{" "}
-                                  {(cell.away_xg_contribution * 100).toFixed(0)}%
-                                </Typography>
-                              </Box>
-                            }
-                            arrow
-                          >
-                            <Box
-                              sx={{
-                                aspectRatio: "1",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                borderRadius: 1,
-                                bgcolor: LEVEL_COLORS[level],
-                                border: "1px solid rgba(255,255,255,0.08)",
-                                cursor: "pointer",
-                                "&:hover": {
-                                  border: "1px solid rgba(255,255,255,0.4)",
-                                },
-                              }}
+                {filteredMatrix.map((row, h) => {
+                  const filteredRow = row.filter((cell) => cell.probability > 0);
+                  if (filteredRow.length === 0) return null;
+                  return (
+                    <React.Fragment key={`row-${h}`}>
+                      <Grid
+                        size={1}
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <Typography variant="caption" color="text.secondary">
+                          {h}
+                        </Typography>
+                      </Grid>
+                      {filteredRow.map((cell) => {
+                        const level = getLevel(cell.probability, maxProb);
+                        const awayGoals = cell.away_goals;
+                        return (
+                          <Grid size={1} key={`cell-${h}-${awayGoals}`}>
+                            <Tooltip
+                              title={
+                                <Box>
+                                  <Typography variant="body2">
+                                    {h}-{awayGoals}
+                                  </Typography>
+                                  <Typography variant="body2">
+                                    Prob: {(cell.probability * 100).toFixed(1)}%
+                                  </Typography>
+                                  <Typography variant="body2">
+                                    Local: {(cell.home_xg_contribution * 100).toFixed(0)}%
+                                  </Typography>
+                                  <Typography variant="body2">
+                                    Visitante:{" "}
+                                    {(cell.away_xg_contribution * 100).toFixed(0)}%
+                                  </Typography>
+                                </Box>
+                              }
+                              arrow
                             >
-                              <Typography
-                                variant="caption"
+                              <Box
                                 sx={{
-                                  fontWeight: level >= 3 ? 700 : 400,
-                                  color: level >= 3 ? "text.primary" : "text.secondary",
-                                  fontSize: level >= 3 ? "0.75rem" : "0.65rem",
+                                  aspectRatio: "1",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  borderRadius: 1,
+                                  bgcolor: LEVEL_COLORS[level],
+                                  border: "1px solid rgba(255,255,255,0.08)",
+                                  cursor: "pointer",
+                                  "&:hover": {
+                                    border: "1px solid rgba(255,255,255,0.4)",
+                                  },
                                 }}
                               >
-                                {h}-{a}
-                              </Typography>
-                            </Box>
-                          </Tooltip>
-                        </Grid>
-                      );
-                    })}
-                  </React.Fragment>
-                ))}
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    fontWeight: level >= 3 ? 700 : 400,
+                                    color: level >= 3 ? "text.primary" : "text.secondary",
+                                    fontSize: level >= 3 ? "0.75rem" : "0.65rem",
+                                  }}
+                                >
+                                  {h}-{awayGoals}
+                                </Typography>
+                              </Box>
+                            </Tooltip>
+                          </Grid>
+                        );
+                      })}
+                    </React.Fragment>
+                  );
+                })}
               </Grid>
             </Box>
             <Box mt={2} display="flex" gap={2} flexWrap="wrap">
@@ -202,7 +209,7 @@ export const ScoreMatrixModal: React.FC<ScoreMatrixModalProps> = ({
         {accuracy && accuracy.total_predictions > 0 && (
           <Box mt={3} p={2} sx={{ bgcolor: "rgba(0,0,0,0.2)", borderRadius: 1 }}>
             <Typography variant="subtitle2" gutterBottom>
-              📊 Historial de Precisión del Modelo
+              Historial de Precisión del Modelo
             </Typography>
             <Box display="flex" gap={3} flexWrap="wrap">
               <Box>
@@ -234,7 +241,7 @@ export const ScoreMatrixModal: React.FC<ScoreMatrixModalProps> = ({
         {(!accuracy || accuracy.total_predictions === 0) && (
           <Box mt={3} p={2} sx={{ bgcolor: "rgba(0,0,0,0.2)", borderRadius: 1 }}>
             <Typography variant="subtitle2" gutterBottom>
-              📊 Historial de Precisión del Modelo
+              Historial de Precisión del Modelo
             </Typography>
             <Typography variant="body2" color="text.disabled">
               Datos insuficientes para mostrar precisión histórica.
