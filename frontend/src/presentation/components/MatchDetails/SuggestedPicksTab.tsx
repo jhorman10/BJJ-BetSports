@@ -296,12 +296,20 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
     });
   }, [apiPicks, matchPrediction]);
 
+  // Number of markets actually rendered: line variants sharing a market_type
+  // are deduped (first occurrence wins) before the UI renders them, so the
+  // reported count must match what the user sees, not the raw pick count.
+  const uniquePickCount = useMemo(
+    () => uniqueByMarket(sortedPicks).length,
+    [sortedPicks],
+  );
+
   // Report count
   useEffect(() => {
     if (onPicksCount) {
-      onPicksCount(sortedPicks.length);
+      onPicksCount(uniquePickCount);
     }
-  }, [sortedPicks.length, onPicksCount]);
+  }, [uniquePickCount, onPicksCount]);
 
   // Markets reserved for the TOP_ML tab: any market with at least one Top ML
   // pick is owned ENTIRELY by Top ML, so every line variant of that market
@@ -377,7 +385,17 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
   // Active tab = user's explicit choice, or the auto-selected default.
   // Derived synchronously (no async effect) so the view NEVER shows a stale
   // tab's picks: any render uses the value that matches the current state.
-  const activeTab = currentTab || defaultTab;
+  //
+  // S1 guard: if the persisted selection references a category that no longer
+  // has picks (count 0), fall back to the default tab instead of feeding MUI
+  // Tabs an invalid value (its "value provided to the Tabs component is
+  // invalid" warning + no selection). A vanished category now resolves to the
+  // first available tab instead of showing an empty state.
+  const safeTab =
+    currentTab && categoryCounts[currentTab as keyof typeof categoryCounts] > 0
+      ? currentTab
+      : "";
+  const activeTab = safeTab || defaultTab;
 
   // Filtered picks based on active tab: one pick per market (best variant) and
   // markets with a Top ML pick appear ONLY in the TOP_ML tab.

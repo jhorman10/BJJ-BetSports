@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { ReactElement } from "react";
+import { act, ReactElement } from "react";
 
 import {
   Match,
@@ -212,7 +212,7 @@ describe("SuggestedPicksTab", () => {
     expect(screen.queryByText("Over 2.5 goles")).not.toBeInTheDocument();
   });
 
-  it("shows the empty state when the active tab no longer has picks", async () => {
+  it("falls back to the first available tab when the persisted category disappears", async () => {
     const user = userEvent.setup();
     const { rerender } = render(buildSubject([goalsPick, cornersPick]));
 
@@ -221,28 +221,46 @@ describe("SuggestedPicksTab", () => {
     await user.click(screen.getByRole("tab", { name: "Córners" }));
 
     // Same match id, but the corners pick is now promoted to Top ML, so the
-    // CORNERS category is empty while the user's tab selection persists.
-    rerender(buildSubject([goalsPick, topMlCornersPick]));
+    // CORNERS category disappears while the user's tab selection persists.
+    // async act: React 19 flushes MUI Tabs' internal effects (scroll/selected
+    // tab state) outside a sync act scope, which would trip act() warnings.
+    await act(async () => {
+      rerender(buildSubject([goalsPick, topMlCornersPick]));
+    });
 
+    // S1 guard: the stale selection must not feed Tabs an invalid value. The
+    // component auto-selects the first available tab (Top ML, priority #1)
+    // and renders ITS picks; the vanished category is gone from the UI.
+    expect(screen.getByRole("tab", { name: /Top ML/ })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
     expect(
-      screen.getByText("No hay picks en esta categoría")
-    ).toBeInTheDocument();
-    expect(screen.queryByText("Más de 9.5 córners")).not.toBeInTheDocument();
-
-    // The empty state resolves once the user picks a tab that has content.
-    await user.click(screen.getByRole("tab", { name: "Goles" }));
-    expect(screen.getByText("Over 2.5 goles")).toBeInTheDocument();
-    expect(
-      screen.queryByText("No hay picks en esta categoría")
+      screen.queryByRole("tab", { name: "Córners" })
     ).not.toBeInTheDocument();
+    expect(screen.getByText("Más de 8.5 córners (ML)")).toBeInTheDocument();
+    expect(screen.queryByText("Más de 9.5 córners")).not.toBeInTheDocument();
   });
 
-  it("reports the total number of picks through onPicksCount", () => {
+  it("reports the number of rendered markets (one per market_type) through onPicksCount", () => {
     const onPicksCount = vi.fn();
     render(buildSubject([goalsPick, cornersPick, topMlGoalsPick], onPicksCount));
 
     expect(onPicksCount).toHaveBeenCalledTimes(1);
     expect(onPicksCount).toHaveBeenCalledWith(3);
+  });
+
+  it("reports the number of rendered markets, deduping line variants that share a market_type", () => {
+    const onPicksCount = vi.fn();
+    render(
+      buildSubject([goalsPick, goalsLowerVariantPick, cornersPick], onPicksCount)
+    );
+
+    // goalsPick and goalsLowerVariantPick share market_type goals_over_2_5
+    // (different labels, no ML flags): the UI renders one pick per market via
+    // uniqueByMarket, so only 2 markets are reported, not 3 raw picks.
+    expect(onPicksCount).toHaveBeenCalledTimes(1);
+    expect(onPicksCount).toHaveBeenCalledWith(2);
   });
 
   it("reserves an entire market for Top ML, hiding its non-ML line variants from regular tabs", async () => {
@@ -281,6 +299,23 @@ describe("SuggestedPicksTab", () => {
     expect(screen.getAllByText("Over 2.5 goles")).toHaveLength(1);
     expect(
       screen.queryByText("Over 2.5 goles (línea alternativa)")
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders fallback picks when no picks are provided and a prediction exists", () => {
+    render(buildSubject([]));
+
+    // With an empty pick list and a prediction present, generateFallbackPicks
+    // fills the tab with derived picks (goals_over is the auto-selected
+    // default here) — this is NOT the "no picks" empty state, which needs the
+    // pre-tabs guard to trigger.
+    expect(screen.getByRole("tab", { name: "Goles" })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
+    expect(screen.getByText("Más de 2.5 Goles")).toBeInTheDocument();
+    expect(
+      screen.queryByText("No hay picks en esta categoría")
     ).not.toBeInTheDocument();
   });
 });
