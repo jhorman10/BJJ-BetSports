@@ -150,7 +150,10 @@ export const PreMatchPrediction: React.FC<PreMatchPredictionProps> = ({
                 alignItems="center"
                 gap={1}
                 sx={{ cursor: "pointer" }}
-                onClick={() => setMatrixOpen(true)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMatrixOpen(true);
+                }}
               >
                 <Typography variant="subtitle2" color="info.main">
                   Marcador Tentativo

@@ -169,10 +169,10 @@ const PickCard = ({ pick }: { pick: SuggestedPick }): React.ReactElement => {
               flexWrap: "wrap",
             }}
           >
-            <span style={{ fontSize: "1.2em" }}>
-              {getMarketIcon(pick.market_type)}
-            </span>{" "}
-            {pick.market_label || getMarketLabel(pick.market_type)}
+              <Box sx={{ fontSize: "1.2em" }}>
+                {getMarketIcon(pick.market_type)}
+              </Box>{" "}
+              {pick.market_label || getMarketLabel(pick.market_type)}
             {
               /* Show Formatted Reasoning if available */
               pick.formatted_reasoning && (

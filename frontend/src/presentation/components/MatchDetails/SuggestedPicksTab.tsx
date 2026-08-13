@@ -27,6 +27,36 @@ interface SuggestedPicksTabProps {
 }
 
 /**
+ * Shared helper: determines whether a pick is "Top ML" (high-confidence AI/ML pick).
+ * Used consistently by category counts and tab filtering so Top ML picks NEVER
+ * leak into other tabs. Matches the real backend reasoning formats:
+ * "[⭐ ML ALTA CONFIANZA]", "[🎯 IA CONFIRMED]", "ML Confianza Alta", etc.
+ */
+const isTopMLPick = (p: SuggestedPick): boolean =>
+  Boolean(
+    p.is_ia_confirmed ||
+    p.is_ml_confirmed ||
+    (p.ml_confidence !== undefined && p.ml_confidence >= 0.85) ||
+    (p.reasoning && /ML (ALTA CONFIANZA|Confianza Alta)/i.test(p.reasoning)) ||
+    (p.reasoning && /IA CONFIRMED/i.test(p.reasoning))
+  );
+
+/**
+ * Shared helper: dedupes picks by market_type, keeping the FIRST occurrence.
+ * Callers must pass priority-sorted picks so the kept variant is the best one.
+ */
+const uniqueByMarket = (picks: SuggestedPick[]): SuggestedPick[] => {
+  const seen = new Set<string>();
+  const unique: SuggestedPick[] = [];
+  for (const pick of picks) {
+    if (seen.has(pick.market_type)) continue;
+    seen.add(pick.market_type);
+    unique.push(pick);
+  }
+  return unique;
+};
+
+/**
  * Single row pick item - compact design
  */
 const PickRow: React.FC<{ pick: SuggestedPick; match?: Match }> = memo(({ pick, match }) => {
@@ -228,8 +258,16 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
     }
   }, [match.id, hasInlinePicks, hasPicks, isLoading, prefetchMatch]);
 
-  const [currentTab, setCurrentTab] = useState("");
-  const [initialized, setInitialized] = useState(false);
+  // Track the user's tab selection together with the match it belongs to.
+  // Deriving the effective tab from both keeps stale selections from persisting
+  // across matches WITHOUT a reset effect (react-hooks/set-state-in-effect).
+  const [tabSelection, setTabSelection] = useState<{
+    matchId: string;
+    tab: string;
+  }>({ matchId: match.id, tab: "" });
+
+  // Effective tab: user's choice only while the match hasn't changed
+  const currentTab = tabSelection.matchId === match.id ? tabSelection.tab : "";
 
   const loading = isLoading && !hasPicks;
   const error = !hasPicks && !isLoading ? "No suggested picks available" : null;
@@ -265,7 +303,20 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
     }
   }, [sortedPicks.length, onPicksCount]);
 
-  // Calculate counts for each category to conditionally hide tabs
+  // Markets reserved for the TOP_ML tab: any market with at least one Top ML
+  // pick is owned ENTIRELY by Top ML, so every line variant of that market
+  // (including non-ML ones) is excluded from the regular tabs.
+  const topMLMarketTypes = useMemo(() => {
+    const marketTypes = new Set<string>();
+    sortedPicks.forEach((p) => {
+      if (isTopMLPick(p)) marketTypes.add(p.market_type);
+    });
+    return marketTypes;
+  }, [sortedPicks]);
+
+  // Calculate counts for each category to conditionally hide tabs.
+  // Counts UNIQUE markets per tab: a market with a Top ML pick belongs ONLY
+  // to TOP_ML (its non-ML variants are never counted in a regular category).
   const categoryCounts = useMemo(() => {
     const counts = {
       TOP_ML: 0,
@@ -279,19 +330,17 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
       OTHER: 0,
     };
 
+    const countedMarkets = new Set<string>();
     sortedPicks.forEach((p) => {
-      // Check Top ML condition
-      const isTopML =
-        p.is_ia_confirmed ||
-        p.is_ml_confirmed ||
-        (p.ml_confidence !== undefined && p.ml_confidence >= 0.85) ||
-        (p.reasoning && p.reasoning.includes("ML Confianza Alta")) ||
-        (p.reasoning && p.reasoning.includes("IA CONFIRMED"));
+      // Each market is assigned to exactly one tab: first occurrence wins
+      // (sortedPicks is priority-sorted, so it is the best variant).
+      if (countedMarkets.has(p.market_type)) return;
+      countedMarkets.add(p.market_type);
 
-      if (isTopML) {
+      // Markets with a Top ML pick are reserved for TOP_ML and excluded from
+      // standard tabs entirely - even their non-ML line variants.
+      if (topMLMarketTypes.has(p.market_type)) {
         counts.TOP_ML++;
-        // If it's a Top ML pick, specifically EXCLUDE it from standard categories
-        // per user request "Cuando un pick esta en el top ml, ya no debe aprecer en los demas tabs"
         return;
       }
 
@@ -303,7 +352,7 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
       }
     });
     return counts;
-  }, [sortedPicks]);
+  }, [sortedPicks, topMLMarketTypes]);
 
   // Auto-select first available tab in priority order
   const defaultTab = useMemo(() => {
@@ -325,45 +374,32 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
     return "";
   }, [loading, sortedPicks.length, categoryCounts]);
 
-  // Initialize tab selection after first render to avoid state-update-during-render
-  useEffect(() => {
-    if (!initialized) {
-      if (defaultTab && !currentTab) {
-        queueMicrotask(() => {
-          setCurrentTab(defaultTab);
-          setInitialized(true);
-        });
-      } else if (!loading && sortedPicks.length === 0) {
-        queueMicrotask(() => setInitialized(true));
-      }
-    }
-  }, [defaultTab, loading, sortedPicks.length, initialized, currentTab]);
+  // Active tab = user's explicit choice, or the auto-selected default.
+  // Derived synchronously (no async effect) so the view NEVER shows a stale
+  // tab's picks: any render uses the value that matches the current state.
+  const activeTab = currentTab || defaultTab;
 
-  // Filtered picks based on tab
+  // Filtered picks based on active tab: one pick per market (best variant) and
+  // markets with a Top ML pick appear ONLY in the TOP_ML tab.
   const filteredPicks = useMemo(() => {
-    // Helper to check if a pick is considered "Top ML"
-    const isTopML = (p: SuggestedPick): boolean =>
-      Boolean(
-        p.is_ia_confirmed ||
-        p.is_ml_confirmed ||
-        (p.ml_confidence !== undefined && p.ml_confidence >= 0.85) ||
-        (p.reasoning && p.reasoning.includes("ML Confianza Alta")) ||
-        (p.reasoning && p.reasoning.includes("IA CONFIRMED"))
-      );
-
-    if (currentTab === "TOP_ML") {
-      // Filter strictly for ML High Confidence picks
-      return sortedPicks.filter(isTopML);
+    if (activeTab === "TOP_ML") {
+      // Filter strictly for ML High Confidence picks, one per market.
+      return uniqueByMarket(sortedPicks.filter(isTopMLPick));
     }
 
-    // For other tabs, EXCLUDE Top ML picks
-    return sortedPicks.filter(
-      (p) => getMarketCategory(p.market_type) === currentTab && !isTopML(p)
+    // For other tabs, EXCLUDE every line variant of markets that have a Top ML
+    // pick, then keep one pick per remaining market.
+    return uniqueByMarket(
+      sortedPicks.filter(
+        (p) =>
+          getMarketCategory(p.market_type) === activeTab &&
+          !topMLMarketTypes.has(p.market_type)
+      )
     );
-  }, [sortedPicks, currentTab]);
+  }, [sortedPicks, activeTab, topMLMarketTypes]);
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: string): void => {
-    setCurrentTab(newValue);
+    setTabSelection({ matchId: match.id, tab: newValue });
   };
 
   if (loading) {
@@ -397,7 +433,7 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
   return (
     <Box>
       <Tabs
-        value={currentTab || false}
+        value={activeTab || false}
         onChange={handleTabChange}
         variant="scrollable"
         scrollButtons="auto"

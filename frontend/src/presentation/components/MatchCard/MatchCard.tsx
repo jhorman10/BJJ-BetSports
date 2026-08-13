@@ -191,12 +191,13 @@ const MatchCard: React.FC<MatchCardProps> = memo(
     );
 
     return (
-      <Card
-        sx={getCardSx(highlight, !!onClick)}
-        onClick={onClick}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-      >
+      <>
+        <Card
+          sx={getCardSx(highlight, !!onClick)}
+          onClick={onClick}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+        >
         {/* Selection Checkbox - Only if handler provided */}
         {onToggleSelection && (
           <Box
@@ -290,6 +291,7 @@ const MatchCard: React.FC<MatchCardProps> = memo(
                  href={prediction.highlights_url}
                  target="_blank"
                  rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
                 size="small"
                 sx={{
                   bgcolor: "rgba(59, 130, 246, 0.3)",
@@ -585,7 +587,10 @@ const MatchCard: React.FC<MatchCardProps> = memo(
                    borderRadius: 1,
                    cursor: "pointer",
                  }}
-                 onClick={() => setMatrixOpen(true)}
+                 onClick={(e) => {
+                   e.stopPropagation();
+                   setMatrixOpen(true);
+                 }}
                >
                  <Box display="flex" alignItems="center" gap={1} mb={1}>
                    <Typography variant="caption" color="primary.main" fontWeight={700}>
@@ -870,12 +875,20 @@ const MatchCard: React.FC<MatchCardProps> = memo(
 
           <Divider sx={{ mb: 2 }} />
         </CardContent>
+        </Card>
+        {/* ScoreMatrixModal lives OUTSIDE the Card on purpose: MUI Dialog
+            portals to document.body DOM-wise, but React synthetic events still
+            bubble through the React component tree. Rendering it inside the
+            Card made every click inside the dialog (close button, matrix,
+            backdrop) bubble to the Card's onClick, reopening the details
+            modal — the infinite open/close loop. As a Card sibling, dialog
+            clicks no longer reach the Card handler. */}
         <ScoreMatrixModal
           open={matrixOpen}
           onClose={() => setMatrixOpen(false)}
           prediction={prediction}
         />
-      </Card>
+      </>
     );
   }
 );
