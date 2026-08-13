@@ -221,7 +221,7 @@ def _persist_and_cache_response(
 
         # 2. Optional persistent storage (Explorer DB)
         if use_case.persistence_repository and filtered_results:
-            prediction_batch = [
+            prediction_batch: list[dict[str, Any]] = [
                 {
                     "match_id": p_dto.match.id,
                     "league_id": p_dto.match.league.id,

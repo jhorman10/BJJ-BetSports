@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Callable, Dict, cast
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -55,7 +55,15 @@ app.add_middleware(
 # Configure rate limiter for selective endpoint protection
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+# slowapi's handler is typed with the narrower RateLimitExceeded exception;
+# Starlette requires a generic Exception handler, so cast the variance away.
+app.add_exception_handler(
+    RateLimitExceeded,
+    cast(
+        Callable[[Request, Exception], JSONResponse],
+        _rate_limit_exceeded_handler,
+    ),
+)
 app.add_middleware(SlowAPIMiddleware)
 
 

@@ -24,7 +24,7 @@ from src.utils.time_utils import get_current_time
 
 
 def _mongo_value(value: Any) -> Any:
-    if is_dataclass(value):
+    if is_dataclass(value) and not isinstance(value, type):
         return _mongo_value(asdict(value))
     if isinstance(value, Enum):
         return value.value

@@ -160,7 +160,9 @@ class FootballDataOrgSource:
         await self._wait_strict()
 
         url = f"{self.config.base_url}{endpoint}"
-        headers = {"X-Auth-Token": self.config.api_key}
+        # is_configured (checked above) guarantees the API key is present.
+        assert self.config.api_key is not None
+        headers: dict[str, str] = {"X-Auth-Token": self.config.api_key}
 
         max_retries = 3
         backoff = 60
