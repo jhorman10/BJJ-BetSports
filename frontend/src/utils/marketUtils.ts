@@ -46,53 +46,48 @@ export const getPickColor = (probability: number): string => {
 };
 
 export const getMarketIcon = (marketType: string): string => {
-  switch (marketType) {
-    case "corners_over":
-    case "corners_under":
-    case "home_corners_over":
-    case "home_corners_under":
-    case "away_corners_over":
-    case "away_corners_under":
-      return "⛳";
-    case "cards_over":
-    case "cards_under":
-    case "home_cards_over":
-    case "home_cards_under":
-    case "away_cards_over":
-    case "away_cards_under":
-      return "🟨";
-    case "red_cards":
-      return "🟥";
-    case "va_handicap":
-      return "⚖️";
-    case "winner":
-      return "🏆";
-    case "double_chance":
-    case "double_chance_1x":
-    case "double_chance_x2":
-    case "double_chance_12":
-      return "🛡️";
-    case "draw":
-      return "🤝";
-    case "goals_over":
-    case "goals_under":
-    case "team_goals_over":
-    case "team_goals_under":
-    case "goals_over_0_5":
-    case "goals_over_1_5":
-    case "goals_over_2_5":
-    case "goals_over_3_5":
-    case "goals_under_0_5":
-    case "goals_under_1_5":
-    case "goals_under_2_5":
-    case "goals_under_3_5":
-      return "⚽";
-    case "btts_yes":
-    case "btts_no":
-      return "🥅";
-    default:
-      return "📊";
-  }
+  // Emojis displayed at the start of each pick to show its type
+  const emojiMap: Record<string, string> = {
+    "corners_over": "⚽",
+    "corners_under": "⚽",
+    "home_corners_over": "⚽",
+    "home_corners_under": "⚽",
+    "away_corners_over": "⚽",
+    "away_corners_under": "⚽",
+    "cards_over": "🟨",
+    "cards_under": "🟨",
+    "home_cards_over": "🟨",
+    "home_cards_under": "🟨",
+    "away_cards_over": "🟨",
+    "away_cards_under": "🟨",
+    "red_cards": "🟥",
+    "va_handicap": "⚖️",
+    "winner": "🏆",
+    "double_chance": "🎯",
+    "double_chance_1x": "🎯",
+    "double_chance_x2": "🎯",
+    "double_chance_12": "🎯",
+    "draw": "🟰",
+    "goals_over": "⚽",
+    "goals_under": "⚽",
+    "team_goals_over": "⚽",
+    "team_goals_under": "⚽",
+    "goals_over_0_5": "⚽",
+    "goals_over_1_5": "⚽",
+    "goals_over_2_5": "⚽",
+    "goals_over_3_5": "⚽",
+    "goals_under_0_5": "⚽",
+    "goals_under_1_5": "⚽",
+    "goals_under_2_5": "⚽",
+    "goals_under_3_5": "⚽",
+    "btts_yes": "⚽",
+    "btts_no": "❌",
+    default: "📊",
+  };
+
+  const normalized = marketType.toLowerCase();
+  if (emojiMap[normalized]) return emojiMap[normalized];
+  return emojiMap.default;
 };
 
 export const getUniquePicks = (picks: SuggestedPick[] = []): SuggestedPick[] => {

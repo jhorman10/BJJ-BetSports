@@ -31,14 +31,14 @@ def test_live_matches_with_doc():
 
     sample_doc = {
         "league_id": "E0",
-        "prediction": {
+        "data": {
             "match": {
                 "id": "m1",
                 "home_team": {"id": "t1", "name": "Team A"},
                 "away_team": {"id": "t2", "name": "Team B"},
                 "league": {"id": "E0", "name": "E0", "country": "X"},
                 "match_date": "2026-03-30T12:00:00Z",
-                "status": "scheduled",
+                "status": "1H",
             },
             "prediction": {"match_id": "m1", "home_win_probability": 0.6},
         },

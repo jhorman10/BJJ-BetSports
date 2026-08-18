@@ -71,19 +71,29 @@ let publicApiCache: { data: LiveMatchPrediction[]; timestamp: number } | null =
 const CACHE_DURATION = 10000; // 10 segundos de caché para mayor precisión
 
 // Helper para extraer estadísticas del boxscore (Summary API)
+// undefined = ESPN no provee la estadística; 0 = valor genuino de ESPN.
 const extractStat = (
   boxscore: ESPNBoxscore | undefined,
   teamId: string,
   statName: string | string[]
-): number => {
-  if (!boxscore || !boxscore.teams) return 0;
+): number | undefined => {
+  if (!boxscore || !boxscore.teams) return undefined;
   const teamStats = boxscore.teams.find(
     (t) => String(t.team?.id) === String(teamId)
   );
-  if (!teamStats || !teamStats.statistics) return 0;
+  if (!teamStats || !teamStats.statistics) return undefined;
   const names = Array.isArray(statName) ? statName : [statName];
   const stat = teamStats.statistics.find((s) => names.includes(s.name));
-  return stat ? parseInt(stat.displayValue) : 0;
+  return stat ? parseInt(stat.displayValue) : undefined;
+};
+
+// Possession se guarda como string ("55%") en la entidad; undefined si ESPN no la provee
+const extractPossession = (
+  boxscore: ESPNBoxscore | undefined,
+  teamId: string
+): string | undefined => {
+  const value = extractStat(boxscore, teamId, ["possessionPct", "possession"]);
+  return value !== undefined ? `${value}%` : undefined;
 };
 
 // --- API Pública de Respaldo (ESPN) ---
@@ -230,16 +240,8 @@ export const fetchESPNLiveMatches = async (): Promise<
             away_red_cards: extractStat(boxscore, away.team.id, "redCards"),
             minute: event.status.displayClock,
             // Extended Stats
-            home_possession:
-              extractStat(boxscore, home.team.id, [
-                "possessionPct",
-                "possession",
-              ]) + "%",
-            away_possession:
-              extractStat(boxscore, away.team.id, [
-                "possessionPct",
-                "possession",
-              ]) + "%",
+            home_possession: extractPossession(boxscore, home.team.id),
+            away_possession: extractPossession(boxscore, away.team.id),
             home_shots_on_target: extractStat(boxscore, home.team.id, [
               "shotsOnGoal",
               "ontargetScoringAttempts",

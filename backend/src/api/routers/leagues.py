@@ -7,7 +7,7 @@ from src.api.schemas.leagues import LeagueModel, LeaguesResponse
 router = APIRouter(prefix="/api/v1/leagues", tags=["leagues"])
 
 
-@router.get("/", response_model=LeaguesResponse)
+@router.get("", response_model=LeaguesResponse)
 def get_leagues() -> LeaguesResponse:
     return build_leagues_response()
 

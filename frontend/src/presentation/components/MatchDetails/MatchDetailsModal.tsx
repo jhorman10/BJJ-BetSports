@@ -217,7 +217,7 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                   fontWeight="bold"
                   sx={{ display: "flex", alignItems: "center", gap: 1 }}
                 >
-                  🎯 Picks Destacados
+                  Picks Destacados
                 </Typography>
                 {picksCount !== null && picksCount > 0 && (
                   <Chip
@@ -490,7 +490,6 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                   away:
                     details.prediction.predicted_away_corners ||
                     details.match.away_corners,
-                  icon: "⚑",
                 },
                 {
                   label: "Amarillas",
@@ -500,7 +499,6 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                   away:
                     details.prediction.predicted_away_yellow_cards ||
                     details.match.away_yellow_cards,
-                  icon: "🟨",
                 },
                 {
                   label: "Rojas",
@@ -510,7 +508,6 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                   away:
                     details.prediction.predicted_away_red_cards ||
                     details.match.away_red_cards,
-                  icon: "🟥",
                 },
               ].map((row, i) => (
                 <Box
@@ -532,7 +529,7 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                     alignItems="center"
                   >
                     <Typography variant="caption" color="text.secondary">
-                      {row.icon} {row.label}
+                      {row.label}
                     </Typography>
                   </Box>
                   <Box width={40} textAlign="center">
@@ -546,7 +543,7 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
             {details.prediction.highlights_url && (
               <Box mb={3}>
                 <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-                  📺 Video Highlights
+                  Video Highlights
                 </Typography>
                 <Box
                   sx={{

@@ -191,12 +191,13 @@ const MatchCard: React.FC<MatchCardProps> = memo(
     );
 
     return (
-      <Card
-        sx={getCardSx(highlight, !!onClick)}
-        onClick={onClick}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-      >
+      <>
+        <Card
+          sx={getCardSx(highlight, !!onClick)}
+          onClick={onClick}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+        >
         {/* Selection Checkbox - Only if handler provided */}
         {onToggleSelection && (
           <Box
@@ -290,6 +291,7 @@ const MatchCard: React.FC<MatchCardProps> = memo(
                  href={prediction.highlights_url}
                  target="_blank"
                  rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
                 size="small"
                 sx={{
                   bgcolor: "rgba(59, 130, 246, 0.3)",
@@ -585,7 +587,10 @@ const MatchCard: React.FC<MatchCardProps> = memo(
                    borderRadius: 1,
                    cursor: "pointer",
                  }}
-                 onClick={() => setMatrixOpen(true)}
+                 onClick={(e) => {
+                   e.stopPropagation();
+                   setMatrixOpen(true);
+                 }}
                >
                  <Box display="flex" alignItems="center" gap={1} mb={1}>
                    <Typography variant="caption" color="primary.main" fontWeight={700}>
@@ -821,6 +826,25 @@ const MatchCard: React.FC<MatchCardProps> = memo(
             </Stack>
           </Box>
 
+{/* Picks Tabs Summary */}
+          <div style={{ marginBottom: 8, fontSize: "0.8rem", color: "text.secondary" }}>
+            <strong>Picks Available:</strong> {prediction?.suggested_picks?.length || 0} picks
+          </div>
+
+          {/* Market Type Labels */}
+          {prediction?.suggested_picks && prediction.suggested_picks.length > 0 && (
+            <div style={{ marginTop: 4, fontSize: "0.7rem", color: "text.secondary" }}>
+              {(() => {
+                const picks = prediction.suggested_picks;
+                return Array.from({ length: Math.min(picks.length, 3) }, (_, i) => (
+                  <span key={i} style={{ marginRight: 8 }}>
+                    {picks[i].market_type}
+                  </span>
+                ));
+              })()}
+            </div>
+          )}
+
           {/* Confidence & Sources */}
           <Box
             display="flex"
@@ -851,12 +875,20 @@ const MatchCard: React.FC<MatchCardProps> = memo(
 
           <Divider sx={{ mb: 2 }} />
         </CardContent>
+        </Card>
+        {/* ScoreMatrixModal lives OUTSIDE the Card on purpose: MUI Dialog
+            portals to document.body DOM-wise, but React synthetic events still
+            bubble through the React component tree. Rendering it inside the
+            Card made every click inside the dialog (close button, matrix,
+            backdrop) bubble to the Card's onClick, reopening the details
+            modal — the infinite open/close loop. As a Card sibling, dialog
+            clicks no longer reach the Card handler. */}
         <ScoreMatrixModal
           open={matrixOpen}
           onClose={() => setMatrixOpen(false)}
           prediction={prediction}
         />
-      </Card>
+      </>
     );
   }
 );

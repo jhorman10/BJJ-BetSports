@@ -62,7 +62,7 @@ services:
       context: .
       dockerfile: Dockerfile.frontend
       args:
-        VITE_API_URL: ${VITE_API_URL:-http://backend-api:8000}
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
     image: bjj-betsports-frontend:local
     container_name: bjj-frontend-dev
     ports:

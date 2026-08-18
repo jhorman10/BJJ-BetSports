@@ -12,13 +12,23 @@ from src.utils.time_utils import get_current_time
 
 router = APIRouter(prefix="/api/v1/matches", tags=["matches"])
 
+# Statuses that prove a fixture is genuinely in progress. Docs that cannot
+# prove a live status (missing data.match.status, or finished/not-started)
+# are excluded even when expires_at is still in the future.
+LIVE_STATUSES = {"1H", "2H", "HT", "LIVE", "IN_PLAY", "PAUSED"}
+
 
 @router.get("/live", response_model=list[dict[str, Any]])
 def get_live_matches() -> list[dict[str, Any]]:
     try:
         repository = get_mongo_repository()
         now = get_current_time()
-        documents = repository.match_predictions.find({"expires_at": {"$gt": now}})
+        documents = repository.match_predictions.find(
+            {
+                "expires_at": {"$gt": now},
+                "data.match.status": {"$in": list(LIVE_STATUSES)},
+            }
+        )
         matches: list[dict[str, Any]] = []
         for doc in documents:
             try:
@@ -40,7 +50,12 @@ def get_live_matches_with_predictions(
     try:
         repository = get_mongo_repository()
         now = get_current_time()
-        documents = repository.match_predictions.find({"expires_at": {"$gt": now}})
+        documents = repository.match_predictions.find(
+            {
+                "expires_at": {"$gt": now},
+                "data.match.status": {"$in": list(LIVE_STATUSES)},
+            }
+        )
         results: list[dict[str, Any]] = []
         for doc in documents:
             try:

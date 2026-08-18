@@ -49,7 +49,7 @@ class AsyncMongoAdapter:
         db_name = db_name or os.getenv("MONGO_DB_NAME", "bjj_betsports")
 
         self._use_motor = HAS_MOTOR
-        self._motor_client = None
+        self._motor_client: Optional[MotorClient] = None
         self._db = None
         self._sync_repo = None
 

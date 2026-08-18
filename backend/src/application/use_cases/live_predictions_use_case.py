@@ -43,6 +43,23 @@ from src.utils.time_utils import get_current_time
 logger = logging.getLogger(__name__)
 
 
+def _is_same_fixture_date(live_match_date: datetime, doc_match_date: Any) -> bool:
+    """True when a stored doc belongs to the same fixture instance as the
+    live match (calendar-date equality). A same-name doc from another match
+    instance (e.g. next week's fixture) must not bind.
+
+    Stored dates are ISO strings that may carry a trailing 'Z' (UTC) —
+    normalize before parsing. Unparsable/absent dates never match.
+    """
+    if not doc_match_date:
+        return False
+    try:
+        doc_dt = datetime.fromisoformat(str(doc_match_date).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return False
+    return doc_dt.date() == live_match_date.date()
+
+
 def _determine_data_sources(
     cache_service: CacheService,
     statistics_service: StatisticsService,
@@ -204,7 +221,7 @@ def _persist_and_cache_response(
 
         # 2. Optional persistent storage (Explorer DB)
         if use_case.persistence_repository and filtered_results:
-            prediction_batch = [
+            prediction_batch: list[dict[str, Any]] = [
                 {
                     "match_id": p_dto.match.id,
                     "league_id": p_dto.match.league.id,
@@ -1065,8 +1082,14 @@ class GetLivePredictionsUseCase:
             h_norm = self.statistics_service._normalize_name(match.home_team.name)
             a_norm = self.statistics_service._normalize_name(match.away_team.name)
             key = f"{h_norm}_vs_{a_norm}"
-            if key in active_predictions_by_name:
-                pre_calculated_data = active_predictions_by_name[key]
+            candidate = active_predictions_by_name.get(key)
+            # D5/D6: bind only the same fixture instance (calendar-date
+            # equality); a same-name doc from another date must not bind and
+            # the flow falls through to real-time inference.
+            if candidate is not None and _is_same_fixture_date(
+                match.match_date, (candidate.get("match") or {}).get("match_date")
+            ):
+                pre_calculated_data = candidate
                 logger.info(
                     "Found pre-calculated prediction via name fallback for %s vs %s",
                     match.home_team.name,

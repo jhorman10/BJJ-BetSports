@@ -446,6 +446,8 @@ class PredictionService:
                 p = PredictionService.poisson_probability(
                     home_expected, h
                 ) * PredictionService.poisson_probability(away_expected, a)
+                if p <= 0:
+                    continue
                 row.append(
                     {
                         "home_goals": h,

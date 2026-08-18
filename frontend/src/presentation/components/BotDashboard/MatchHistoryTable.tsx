@@ -169,10 +169,10 @@ const PickCard = ({ pick }: { pick: SuggestedPick }): React.ReactElement => {
               flexWrap: "wrap",
             }}
           >
-            <span style={{ fontSize: "1.2em" }}>
-              {getMarketIcon(pick.market_type)}
-            </span>{" "}
-            {pick.market_label || getMarketLabel(pick.market_type)}
+              <Box sx={{ fontSize: "1.2em" }}>
+                {getMarketIcon(pick.market_type)}
+              </Box>{" "}
+              {pick.market_label || getMarketLabel(pick.market_type)}
             {
               /* Show Formatted Reasoning if available */
               pick.formatted_reasoning && (
@@ -251,7 +251,7 @@ const PickCard = ({ pick }: { pick: SuggestedPick }): React.ReactElement => {
                 return (
                   <Box component="span">
                     <PickChip
-                      label={isCorrect ? "ML ✅" : "ML ❌"}
+                      label={isCorrect ? "ML Ganado" : "ML Perdido"}
                       icon={
                         <SmartToy
                           sx={{ fontSize: "14px !important", color: "#38bdf8" }}
@@ -374,7 +374,7 @@ const ExpandedMatchDetails = ({ match }: { match: MatchPredictionHistory }): Rea
         mb={2}
       >
         <Typography variant="h6" fontWeight={700} color="white">
-          📊 Todos los Picks del Partido
+          Todos los Picks del Partido
         </Typography>
         <Box display="flex" gap={1}>
           {/* Total Stats */}

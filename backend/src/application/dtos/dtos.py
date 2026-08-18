@@ -171,6 +171,12 @@ class PredictionDTO(BaseModel):
     predicted_home_red_cards: float = Field(default=0.0, ge=0)
     predicted_away_red_cards: float = Field(default=0.0, ge=0)
 
+    # Standard probabilities mapped from the extended prediction entity
+    over_95_corners_probability: float = Field(default=0.0, ge=0, le=1)
+    under_95_corners_probability: float = Field(default=0.0, ge=0, le=1)
+    over_45_cards_probability: float = Field(default=0.0, ge=0, le=1)
+    under_45_cards_probability: float = Field(default=0.0, ge=0, le=1)
+
     confidence: float = Field(..., ge=0, le=1)
     data_sources: list[str] = Field(default_factory=list)
     recommended_bet: str

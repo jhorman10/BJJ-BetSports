@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 def _to_bson_friendly(value: Any) -> Any:
     """Convert nested Python/domain objects into BSON-friendly primitives."""
-    if is_dataclass(value):
+    if is_dataclass(value) and not isinstance(value, type):
         return _to_bson_friendly(asdict(value))
 
     if hasattr(value, "model_dump"):
