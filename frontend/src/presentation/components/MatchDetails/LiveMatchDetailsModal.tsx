@@ -63,10 +63,12 @@ const LiveMatchDetailsModal: React.FC = () => {
       TransitionProps={{ direction: "up" } as TransitionProps}
       PaperProps={{
         sx: {
-          width: { xs: "95%", sm: "100%" },
-          margin: { xs: 1, sm: 2 },
-          borderRadius: 2,
-          maxHeight: { xs: "90vh", sm: "calc(100% - 64px)" },
+          width: { xs: "100%", sm: "100%" },
+          maxWidth: { xs: "100%", sm: "600px" },
+          height: { xs: "100%", sm: "auto" },
+          maxHeight: { xs: "100%", sm: "calc(100% - 64px)" },
+          margin: { xs: 0, sm: 2 },
+          borderRadius: { xs: 0, sm: 2 },
           background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)",
           color: "white",
         },

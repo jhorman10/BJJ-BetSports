@@ -200,6 +200,16 @@ export const ScoreMatrixModal: React.FC<ScoreMatrixModalProps> = ({
       maxWidth="sm"
       fullWidth
       disableScrollLock
+      PaperProps={{
+        sx: {
+          width: { xs: "100%", sm: "100%" },
+          maxWidth: { xs: "100%", sm: "600px" },
+          height: { xs: "100%", sm: "auto" },
+          maxHeight: { xs: "100%", sm: "calc(100% - 64px)" },
+          margin: { xs: 0, sm: 2 },
+          borderRadius: { xs: 0, sm: 2 },
+        },
+      }}
     >
       <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <SportsSoccer fontSize="small" />
