@@ -513,7 +513,9 @@ class MongoRepository:
             artifact_key,
             version,
         )
-        return doc.get("data", pointer_data) if doc else pointer_data
+        if doc and "data" in doc:
+            return dict(doc["data"])
+        return pointer_data
 
 
 # Singleton accessor with old name alias to avoid changing dependencies everywhere
