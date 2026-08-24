@@ -129,31 +129,17 @@ const TrainingControlPanel: React.FC = () => {
       return;
     }
 
-    dispatch({ type: "SET_FIELD", field: "modelKey", value: modelKey || selectedModel.key });
-    dispatch({
-      type: "SET_FIELD",
-      field: "executorTarget",
-      value: executorTarget || selectedModel.default_executor_target || availableExecutors[0]?.key || "",
-    });
-    dispatch({
-      type: "SET_FIELD",
-      field: "datasetProfile",
-      value: datasetProfile || availableDatasetProfiles[0]?.key || "",
-    });
-    dispatch({
-      type: "SET_FIELD",
-      field: "featureProfile",
-      value: featureProfile || availableFeatureProfiles[0]?.key || "",
-    });
-    dispatch({
-      type: "SET_FIELD",
-      field: "leagueId",
-      value: leagueId || availableLeagues[0]?.key || "",
-    });
-    dispatch({
-      type: "SET_FIELD",
-      field: "daysBack",
-      value: daysBack || String(availableDaysBack[0] ?? 30),
+    const initialValues = {
+      modelKey: selectedModel.key,
+      executorTarget: selectedModel.default_executor_target || availableExecutors[0]?.key || "",
+      datasetProfile: availableDatasetProfiles[0]?.key || "",
+      featureProfile: availableFeatureProfiles[0]?.key || "",
+      leagueId: availableLeagues[0]?.key || "",
+      daysBack: String(availableDaysBack[0] ?? 30),
+    };
+
+    Object.entries(initialValues).forEach(([field, value]) => {
+      dispatch({ type: "SET_FIELD", field: field as keyof typeof initialValues, value });
     });
   }, [
     availableDatasetProfiles,
