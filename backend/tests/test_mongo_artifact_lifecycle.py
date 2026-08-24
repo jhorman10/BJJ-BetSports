@@ -4,10 +4,10 @@ atomic promotion old-or-new read guarantee, clear_all_data preserves
 pointer+artifact+legacy blob, pruning never deletes pointer/legacy.
 Proves: 'Failed training keeps prior model serving' (ml-artifact-lifecycle spec).
 """
-import pytest
-from unittest.mock import MagicMock, patch
-from bson.binary import Binary
+
 from datetime import datetime, timezone
+
+import pytest
 
 
 def _mock_repo():
@@ -26,7 +26,12 @@ def _mock_repo():
             full_key = self._versioned_doc_key(key, version)
             if full_key in artifacts:
                 raise ValueError(f"Artifact {key!r} version {version!r} already exists")
-            artifacts[full_key] = {"data": binary_data, "meta": meta, "artifact_key": key, "version": version}
+            artifacts[full_key] = {
+                "data": binary_data,
+                "meta": meta,
+                "artifact_key": key,
+                "version": version,
+            }
 
         def get_versioned_artifact(self, key, version):
             full_key = self._versioned_doc_key(key, version)
@@ -36,7 +41,11 @@ def _mock_repo():
             return doc["data"], doc["meta"]
 
         def list_versions(self, key_prefix):
-            return sorted(v["version"] for k, v in artifacts.items() if k.startswith(key_prefix + "/"))
+            return sorted(
+                v["version"]
+                for k, v in artifacts.items()
+                if k.startswith(key_prefix + "/")
+            )
 
         def delete_binary_artifact(self, key):
             if key in artifacts:
@@ -44,7 +53,9 @@ def _mock_repo():
                 return True
             return False
 
-        def promote_serving_pointer(self, pointer_key=None, artifact_key="", version="", metrics=None):
+        def promote_serving_pointer(
+            self, pointer_key=None, artifact_key="", version="", metrics=None
+        ):
             ptr_key = pointer_key or self.ML_SERVING_POINTER_KEY
             data = {
                 "artifact_key": artifact_key,
@@ -62,7 +73,9 @@ def _mock_repo():
             pointer = self.get_app_state(self.ML_SERVING_POINTER_KEY) or {}
             protected = {self.ML_LEGACY_BLOB_KEY}
             if pointer.get("artifact_key") and pointer.get("version"):
-                protected.add(self._versioned_doc_key(pointer["artifact_key"], pointer["version"]))
+                protected.add(
+                    self._versioned_doc_key(pointer["artifact_key"], pointer["version"])
+                )
             # Only delete non-protected
             for k in list(artifacts.keys()):
                 if k not in protected:
@@ -85,10 +98,14 @@ def test_versioned_save_immutability():
 
 def test_promotion_swaps_pointer_atomically():
     repo, _, app_state = _mock_repo()
-    repo.promote_serving_pointer(artifact_key="models/picks", version="v1", metrics={"acc": 0.7})
+    repo.promote_serving_pointer(
+        artifact_key="models/picks", version="v1", metrics={"acc": 0.7}
+    )
     assert app_state[repo.ML_SERVING_POINTER_KEY]["version"] == "v1"
     # Second promotion
-    repo.promote_serving_pointer(artifact_key="models/picks", version="v2", metrics={"acc": 0.8})
+    repo.promote_serving_pointer(
+        artifact_key="models/picks", version="v2", metrics={"acc": 0.8}
+    )
     assert app_state[repo.ML_SERVING_POINTER_KEY]["version"] == "v2"
     # No partial state possible in mock (single dict update)
 
@@ -97,7 +114,12 @@ def test_clear_all_data_preserves_serving_pointer_and_artifact():
     repo, artifacts, app_state = _mock_repo()
     # Setup: legacy blob + versioned v1 + promoted v1
     artifacts["ml_picks_classifier.joblib"] = {"data": b"legacy", "meta": {}}
-    artifacts["models/picks_classifier/v1"] = {"data": b"v1", "meta": {}, "artifact_key": "models/picks_classifier", "version": "v1"}
+    artifacts["models/picks_classifier/v1"] = {
+        "data": b"v1",
+        "meta": {},
+        "artifact_key": "models/picks_classifier",
+        "version": "v1",
+    }
     repo.promote_serving_pointer(artifact_key="models/picks_classifier", version="v1")
 
     repo.clear_all_data()
@@ -127,7 +149,12 @@ def test_pruning_never_deletes_pointer_target_or_legacy():
     repo, artifacts, _ = _mock_repo()
     artifacts["ml_picks_classifier.joblib"] = {"data": b"legacy", "meta": {}}
     for v in ["v1", "v2", "v3", "v4"]:
-        artifacts[f"models/picks_classifier/{v}"] = {"data": b"x", "meta": {}, "artifact_key": "models/picks_classifier", "version": v}
+        artifacts[f"models/picks_classifier/{v}"] = {
+            "data": b"x",
+            "meta": {},
+            "artifact_key": "models/picks_classifier",
+            "version": v,
+        }
     repo.promote_serving_pointer(artifact_key="models/picks_classifier", version="v4")
 
     # Simulate retention pruning (keep last 3 = v2,v3,v4)

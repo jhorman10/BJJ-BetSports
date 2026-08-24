@@ -90,7 +90,11 @@ def test_apply_ml_refinement_passes_context_to_feature_extractor(monkeypatch):
         return [0.1, 0.2, 0.3]
 
     class DummyOutcomeModel:
-        classes_ = ["draw", "home", "away"]  # Order: 0=Draw, 1=Home, 2=Away (legacy comment convention)
+        classes_ = [
+            "draw",
+            "home",
+            "away",
+        ]  # Order: 0=Draw, 1=Home, 2=Away (legacy comment convention)
 
         def predict_proba(self, features):
             return [[0.05, 0.9, 0.05]]

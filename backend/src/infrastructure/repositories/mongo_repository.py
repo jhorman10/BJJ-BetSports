@@ -475,9 +475,7 @@ class MongoRepository:
 
     def list_versions(self, key_prefix: str) -> List[str]:
         """List stored versions for an artifact key, oldest first."""
-        docs = self.binary_artifacts.find(
-            {"artifact_key": key_prefix}, {"version": 1}
-        )
+        docs = self.binary_artifacts.find({"artifact_key": key_prefix}, {"version": 1})
         return sorted(doc["version"] for doc in docs if "version" in doc)
 
     def delete_binary_artifact(self, key: str) -> bool:

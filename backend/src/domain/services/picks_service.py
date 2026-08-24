@@ -215,14 +215,17 @@ class PicksService:
                 if pointer and pointer.get("artifact_key") and pointer.get("version"):
                     artifact_key = pointer["artifact_key"]
                     version = pointer["version"]
-                    model_bytes, meta = self.repo.get_versioned_artifact(artifact_key, version)
+                    model_bytes, meta = self.repo.get_versioned_artifact(
+                        artifact_key, version
+                    )
                     if model_bytes:
                         self._validate_envelope(meta)
                         model = joblib.load(BytesIO(model_bytes))
                         self._mark_ml_serving()
                         logger.info(
                             "ML Model loaded from versioned artifact %s@%s",
-                            artifact_key, version,
+                            artifact_key,
+                            version,
                         )
                         return cast(object, model)
             except ValueError as ve:
@@ -286,6 +289,7 @@ class PicksService:
         runtime_sklearn = ""
         try:
             import sklearn
+
             runtime_sklearn = str(sklearn.__version__)
         except Exception:
             pass
@@ -301,6 +305,7 @@ class PicksService:
         runtime_schema = ""
         try:
             from src.domain.services.ml_feature_extractor import MLFeatureExtractor
+
             runtime_schema = MLFeatureExtractor.schema_signature()
         except Exception:
             pass
@@ -1041,6 +1046,7 @@ class PicksService:
                     from src.domain.services.ml_class_alignment import (
                         outcome_probability_map,
                     )
+
                     label_probs = outcome_probability_map(model_instance, ml_probs)
                     ml_home = label_probs["home"]
                     ml_draw = label_probs["draw"]

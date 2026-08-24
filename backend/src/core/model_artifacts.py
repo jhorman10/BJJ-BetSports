@@ -67,9 +67,7 @@ def cleanup_model_artifacts(
             continue
 
         if preserve_serving and artifact_path.name == ML_MODEL_FILENAME:
-            logger.info(
-                "Preserving serving artifact during cleanup: %s", artifact_path
-            )
+            logger.info("Preserving serving artifact during cleanup: %s", artifact_path)
             continue
 
         try:

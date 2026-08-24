@@ -631,8 +631,7 @@ async def prepare_datasets(
             getattr(match, "away_odds", None),
         )
         sample_meta.extend(
-            {"date": match.match_date, "odds_triple": odds_triple}
-            for _ in feats_add
+            {"date": match.match_date, "odds_triple": odds_triple} for _ in feats_add
         )
         total_bets += bets_inc
         total_staked += staked_inc
@@ -866,6 +865,7 @@ class MLTrainingOrchestrator:
         )
 
         try:
+
             def _train_model() -> Any:
                 return train_league_models(
                     [ml_features[i] for i in train_idx],

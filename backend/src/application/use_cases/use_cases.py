@@ -437,13 +437,16 @@ class GetPredictionsUseCase:
                         else:
                             # Binary pick-success classifier (Over/Under) —
                             # locate positive class via classes_
-                            ml_probs.append(positive_class_probability(self.ml_model, p))
+                            ml_probs.append(
+                                positive_class_probability(self.ml_model, p)
+                            )
                     except ValueError as ve:
                         # Unrecognized layout — treat as blend failure
                         logger.warning(
                             "ML Override classes_ alignment failed for %s (%s) — "
                             "using positional fallback for this outcome",
-                            label, ve,
+                            label,
+                            ve,
                         )
                         ml_probs.append(p[1] if len(p) > 1 else 0.0)
 

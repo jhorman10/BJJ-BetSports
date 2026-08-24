@@ -8,10 +8,11 @@ score) over a chronological holdout split.
 """
 
 import logging
-import numpy as np
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, List, Optional, Sequence, Tuple
+
+import numpy as np
 
 logger = logging.getLogger(__name__)
 

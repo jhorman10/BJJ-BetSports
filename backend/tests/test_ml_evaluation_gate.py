@@ -3,26 +3,27 @@ Unit tests for ml_evaluation_gate — chronological holdout + gate logic.
 Verifies: chronology invariant, log loss/Brier computation, PASS/FAIL vs baseline,
 insufficient_data FAIL, uniform baseline when odds absent.
 """
+
 import numpy as np
 import pytest
-
 from src.application.services.ml_evaluation_gate import (
-    chronological_split,
-    run_gate,
     GateReport,
     _multiclass_brier,
     build_baseline_probs,
+    chronological_split,
+    run_gate,
 )
 
 
 class _DummyModel:
     """Predictable model returning fixed proba rows for controlled tests."""
+
     def __init__(self, proba_rows):
         self._proba_rows = proba_rows
         self.classes_ = np.array(["home", "draw", "away"])
 
     def predict_proba(self, X):
-        return np.array(self._proba_rows[:len(X)])
+        return np.array(self._proba_rows[: len(X)])
 
 
 def test_chronological_split_orders_correctly():
@@ -56,6 +57,7 @@ def test_multiclass_brier_hand_computed():
 def _make_holdout(n=30):
     # Create n holdout samples with predictable outcomes
     import numpy as np
+
     proba = np.array([[0.7, 0.2, 0.1]] * n)
     y = ["home"] * n
     baseline = [[0.33, 0.34, 0.33]] * n
@@ -105,7 +107,7 @@ def test_uniform_baseline_when_odds_absent():
     classes = ["home", "draw", "away"]
     baseline = build_baseline_probs(odds, classes)
     # First row: uniform
-    assert all(abs(p - 1/3) < 1e-6 for p in baseline[0])
+    assert all(abs(p - 1 / 3) < 1e-6 for p in baseline[0])
     # Second row: normalized implied probs from odds
     assert sum(baseline[1]) == pytest.approx(1.0)
     # Overround removed → sum of implied < 1 originally, now normalized
