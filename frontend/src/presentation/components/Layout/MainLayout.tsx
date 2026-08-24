@@ -1,7 +1,6 @@
 import React, { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
-  Container,
   Box,
   Typography,
   AppBar,
@@ -130,9 +129,19 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         </AppBar>
 
         {/* Main Content */}
-        <Container maxWidth="xl" sx={{ py: { xs: 2, sm: 4 }, px: { xs: 1, sm: 2, md: 3 } }} className="page-transition">
+        <Box
+          component="main"
+          sx={{
+            maxWidth: "xl",
+            mx: "auto",
+            py: { xs: 2, sm: 4 },
+            px: { xs: 0, sm: 2, md: 3 },
+            width: "100%",
+          }}
+          className="page-transition"
+        >
           {children}
-        </Container>
+        </Box>
 
         {/* Footer */}
         <Box

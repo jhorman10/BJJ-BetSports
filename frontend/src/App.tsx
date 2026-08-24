@@ -143,7 +143,7 @@ const App: React.FC = () => {
                   />
                 </Box>
               ) : (
-                <Box sx={{ pb: { xs: 12, sm: 4 } }}>
+                <Box sx={{ pb: { xs: 8, sm: 4 } }}>
                   <ParleySlip />
                   <PredictionGrid />
                 </Box>
