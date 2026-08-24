@@ -47,6 +47,17 @@ const LiveMatchesList: React.FC<LiveMatchesListProps> = ({
       away_red_cards: m.match.away_red_cards ?? 0,
       home_logo_url: m.match.home_team.logo_url,
       away_logo_url: m.match.away_team.logo_url,
+      // Extended stats
+      home_possession: m.match.home_possession,
+      away_possession: m.match.away_possession,
+      home_total_shots: m.match.home_total_shots,
+      away_total_shots: m.match.away_total_shots,
+      home_shots_on_target: m.match.home_shots_on_target,
+      away_shots_on_target: m.match.away_shots_on_target,
+      home_fouls: m.match.home_fouls,
+      away_fouls: m.match.away_fouls,
+      home_offsides: m.match.home_offsides,
+      away_offsides: m.match.away_offsides,
       prediction: m.prediction,
     }));
   }, [matches]);

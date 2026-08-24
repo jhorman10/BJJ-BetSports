@@ -87,6 +87,8 @@ const LeagueSelector: React.FC = () => {
       sx={{
         mb: { xs: 2, sm: 4 },
         p: { xs: 2, sm: 3 },
+        position: "relative",
+        zIndex: 1,
         background:
           "linear-gradient(145deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%)",
         border: "1px solid rgba(99, 102, 241, 0.15)",

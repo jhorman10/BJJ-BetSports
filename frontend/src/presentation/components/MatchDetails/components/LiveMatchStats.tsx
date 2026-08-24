@@ -162,8 +162,26 @@ export const LiveMatchStats: React.FC<LiveMatchStatsProps> = ({ match }) => {
             </Typography>
           </Box>
 
-          {/* Fouls & Offsides In One Line */}
-          <Box display="flex" justifyContent="space-between" mt={1}>
+          {/* Fouls & Offsides — Section Header */}
+          <Box mt={1.5} mb={1}>
+            <Typography
+              variant="caption"
+              fontWeight={700}
+              color="rgba(255,255,255,0.5)"
+              sx={{
+                textTransform: "uppercase",
+                letterSpacing: "1px",
+                fontSize: "0.6rem",
+                display: "block",
+                textAlign: "center",
+                borderBottom: "1px solid rgba(255,255,255,0.05)",
+                pb: 0.5,
+              }}
+            >
+              Disciplina
+            </Typography>
+          </Box>
+          <Box display="flex" justifyContent="space-between">
             <Box textAlign="left">
               <Typography
                 variant="caption"
@@ -180,12 +198,6 @@ export const LiveMatchStats: React.FC<LiveMatchStatsProps> = ({ match }) => {
                 Offsides: <b>{match.home_offsides ?? 0}</b>
               </Typography>
             </Box>
-            <Typography
-              variant="caption"
-              sx={{ alignSelf: "center", opacity: 0.3 }}
-            >
-              Disciplina
-            </Typography>
             <Box textAlign="right">
               <Typography
                 variant="caption"

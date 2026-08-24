@@ -50,6 +50,7 @@ export interface Match {
   away_offsides?: number;
   home_spi?: number;
   away_spi?: number;
+  minute?: string;
 }
 
 export interface Prediction {

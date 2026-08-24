@@ -23,6 +23,17 @@ export interface LiveMatchRaw {
   away_red_cards: number;
   home_logo_url?: string;
   away_logo_url?: string;
+  // Extended stats (from ESPN boxscore)
+  home_possession?: string;
+  away_possession?: string;
+  home_total_shots?: number;
+  away_total_shots?: number;
+  home_shots_on_target?: number;
+  away_shots_on_target?: number;
+  home_fouls?: number;
+  away_fouls?: number;
+  home_offsides?: number;
+  away_offsides?: number;
   prediction?: Partial<Prediction>;
 }
 
@@ -204,12 +215,24 @@ export const matchLiveWithPrediction = (
       home_goals: liveMatch.home_score,
       away_goals: liveMatch.away_score,
       status: liveMatch.status,
+      minute: liveMatch.minute,
       home_corners: liveMatch.home_corners,
       away_corners: liveMatch.away_corners,
       home_yellow_cards: liveMatch.home_yellow_cards,
       away_yellow_cards: liveMatch.away_yellow_cards,
       home_red_cards: liveMatch.home_red_cards,
       away_red_cards: liveMatch.away_red_cards,
+      // Extended stats
+      home_possession: liveMatch.home_possession,
+      away_possession: liveMatch.away_possession,
+      home_total_shots: liveMatch.home_total_shots,
+      away_total_shots: liveMatch.away_total_shots,
+      home_shots_on_target: liveMatch.home_shots_on_target,
+      away_shots_on_target: liveMatch.away_shots_on_target,
+      home_fouls: liveMatch.home_fouls,
+      away_fouls: liveMatch.away_fouls,
+      home_offsides: liveMatch.home_offsides,
+      away_offsides: liveMatch.away_offsides,
     },
     prediction,
   };
