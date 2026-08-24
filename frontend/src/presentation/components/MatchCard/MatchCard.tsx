@@ -836,9 +836,9 @@ const MatchCard: React.FC<MatchCardProps> = memo(
           {/* Market Type Labels */}
           {prediction?.suggested_picks && prediction.suggested_picks.length > 0 && (
             <Box display="flex" flexWrap="wrap" gap={1} sx={{ mt: 0.5, mb: 1 }}>
-              {prediction.suggested_picks.slice(0, 3).map((pick, idx) => (
+              {prediction.suggested_picks.slice(0, 3).map((pick) => (
                 <Typography
-                  key={`${pick.market_type}-${idx}`}
+                  key={pick.market_type}
                   variant="caption"
                   sx={{ fontSize: { xs: "0.65rem", sm: "0.7rem" }, color: "text.secondary" }}
                 >
