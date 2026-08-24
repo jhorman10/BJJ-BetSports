@@ -181,8 +181,8 @@ const LeagueSelector: React.FC = () => {
           >
             <Box
               sx={{
-                width: 32,
-                height: 32,
+                width: { xs: 28, sm: 32 },
+                height: { xs: 28, sm: 32 },
                 borderRadius: 1,
                 display: "flex",
                 alignItems: "center",

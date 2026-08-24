@@ -52,7 +52,7 @@ const PredictionGridList: React.FC<PredictionGridListProps> = ({
   const loadingMatchIdSet = new Set(loadingMatchIds);
 
   return (
-    <Grid container spacing={3}>
+    <Grid container spacing={{ xs: 2, sm: 3 }}>
       {predictions.map((matchPrediction, index) => (
         <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={matchPrediction.match.id}>
           <Box

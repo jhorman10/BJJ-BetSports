@@ -146,7 +146,7 @@ export const LiveScoreBoard: React.FC<LiveScoreBoardProps> = ({ match }) => {
               }
               size="small"
               sx={{
-                height: 18,
+                height: { xs: 20, sm: 18 },
                 fontSize: "0.6rem",
                 fontWeight: "bold",
                 px: 0.5,

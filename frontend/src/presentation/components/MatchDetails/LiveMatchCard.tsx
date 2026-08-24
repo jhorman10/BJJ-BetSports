@@ -21,20 +21,22 @@ const MatchCard = styled(Card)(() => ({
     "linear-gradient(165deg, rgba(20, 25, 35, 0.85) 0%, rgba(10, 14, 23, 0.95) 100%)", // Darker, richer
   backdropFilter: "blur(24px)",
   border: "1px solid rgba(255, 255, 255, 0.08)",
-  borderRadius: "28px", // Slightly softer corners
+  borderRadius: { xs: "16px", sm: "28px" },
   position: "relative",
   overflow: "hidden",
   transition: "all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)",
   cursor: "pointer",
   boxShadow:
     "0 15px 35px -5px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.1), inset 0 0 20px rgba(0,0,0,0.2)",
-  "&:hover": {
-    transform: "translateY(-6px) scale(1.01)",
-    boxShadow:
-      "0 25px 50px -12px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255,255,255,0.2)",
-    borderColor: "rgba(74, 222, 128, 0.3)", // Greenish tint on hover
-    "& .action-bg": {
-      opacity: 1,
+  "@media (pointer: fine)": {
+    "&:hover": {
+      transform: "translateY(-6px) scale(1.01)",
+      boxShadow:
+        "0 25px 50px -12px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255,255,255,0.2)",
+      borderColor: "rgba(74, 222, 128, 0.3)",
+      "& .action-bg": {
+        opacity: 1,
+      },
     },
   },
 }));
@@ -202,7 +204,9 @@ const LiveMatchCard: React.FC<LiveMatchCardProps> = memo(
                       height={42}
                       sx={{
                         transition: "transform 0.3s",
-                        "&:hover": { transform: "scale(1.1)" },
+                        "@media (pointer: fine)": {
+                          "&:hover": { transform: "scale(1.1)" },
+                        },
                       }}
                     />
                   ) : (
@@ -308,7 +312,9 @@ const LiveMatchCard: React.FC<LiveMatchCardProps> = memo(
                       height={42}
                       sx={{
                         transition: "transform 0.3s",
-                        "&:hover": { transform: "scale(1.1)" },
+                        "@media (pointer: fine)": {
+                          "&:hover": { transform: "scale(1.1)" },
+                        },
                       }}
                     />
                   ) : (

@@ -98,7 +98,7 @@ const getCardSx = (highlight?: boolean, clickable?: boolean): Record<string, unk
   background:
     "linear-gradient(165deg, rgba(20, 25, 35, 0.85) 0%, rgba(10, 14, 23, 0.95) 100%)",
   backdropFilter: "blur(24px)",
-  borderRadius: "24px",
+  borderRadius: { xs: "16px", sm: "24px" },
 
   // Borders
   border: highlight
@@ -114,12 +114,14 @@ const getCardSx = (highlight?: boolean, clickable?: boolean): Record<string, unk
   transition: "all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)",
 
   // Hover Effects
-  "&:hover": {
-    transform: clickable ? "translateY(-6px) scale(1.01)" : "none",
-    boxShadow: highlight
-      ? "0 0 50px rgba(59, 130, 246, 0.4), inset 0 1px 0 rgba(255,255,255,0.2)"
-      : "0 25px 50px -12px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255,255,255,0.2)",
-    borderColor: highlight ? "#3b82f6" : "rgba(255, 255, 255, 0.2)",
+  "@media (pointer: fine)": {
+    "&:hover": {
+      transform: clickable ? "translateY(-6px) scale(1.01)" : "none",
+      boxShadow: highlight
+        ? "0 0 50px rgba(59, 130, 246, 0.4), inset 0 1px 0 rgba(255,255,255,0.2)"
+        : "0 25px 50px -12px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255,255,255,0.2)",
+      borderColor: highlight ? "#3b82f6" : "rgba(255, 255, 255, 0.2)",
+    },
   },
 
   // Performance hint

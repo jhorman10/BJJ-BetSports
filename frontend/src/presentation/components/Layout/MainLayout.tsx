@@ -47,7 +47,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             background: "transparent", // Handled by CSS class
           }}
         >
-          <Toolbar sx={{ minHeight: { xs: 56, sm: 64 }, px: { xs: 1, sm: 2 } }}>
+          <Toolbar sx={{ minHeight: { xs: 52, sm: 64 }, px: { xs: 1, sm: 2 } }}>
             <SportsSoccer sx={{ mr: { xs: 1, sm: 2 }, color: "primary.main", fontSize: { xs: "1.5rem", sm: "1.8rem" } }} />
             <Link to="/" style={{ textDecoration: "none", color: "inherit", display: "flex", alignItems: "center", flexGrow: 1, minWidth: 0 }}>
               <Typography

@@ -92,7 +92,7 @@ const ParleySlip: React.FC = () => {
         position: "fixed",
         bottom: 0,
         right: { xs: 0, md: 32 },
-        width: { xs: "100%", md: 350 },
+        width: { xs: "100%", md: "min(350px, 40vw)" },
         borderTopLeftRadius: 16,
         borderTopRightRadius: 16,
         zIndex: 1200,

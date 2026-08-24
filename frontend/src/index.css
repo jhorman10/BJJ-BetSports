@@ -121,9 +121,11 @@ button,
 }
 
 /* Smooth hover effects */
-.MuiCard-root:hover,
-.MuiPaper-root:hover {
-  transform: translateY(-2px);
+@media (pointer: fine) {
+  .MuiCard-root:hover,
+  .MuiPaper-root:hover {
+    transform: translateY(-2px);
+  }
 }
 
 /* Fade-in animation for content */

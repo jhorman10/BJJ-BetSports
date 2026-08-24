@@ -60,7 +60,7 @@ const PredictionGridHeader: React.FC<PredictionGridHeaderProps> = ({
       {league && (
         <Box>
           <Box display="flex" alignItems="center" gap={2} flexWrap="wrap">
-            <Typography variant="h5" fontWeight={600}>
+            <Typography variant="h5" fontWeight={600} sx={{ fontSize: { xs: "1.1rem", sm: "1.25rem" } }} noWrap>
               Predicciones: {getLeagueName(league.name)}
             </Typography>
           </Box>

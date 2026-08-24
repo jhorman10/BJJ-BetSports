@@ -16,7 +16,7 @@ const OfflineIndicator: React.FC = () => {
       <Box
         sx={{
           position: "fixed",
-          bottom: 24,
+          bottom: { xs: 80, sm: 24 },
           left: "50%",
           transform: "translateX(-50%)",
           bgcolor: "rgba(239, 68, 68, 0.9)",
@@ -61,7 +61,7 @@ const OfflineIndicator: React.FC = () => {
       <Box
         sx={{
           position: "fixed",
-          bottom: 24,
+          bottom: { xs: 80, sm: 24 },
           left: "50%",
           transform: "translateX(-50%)",
           bgcolor: "rgba(245, 158, 11, 0.9)",

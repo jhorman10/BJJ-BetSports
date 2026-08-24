@@ -79,7 +79,7 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
       </DialogTitle>
 
       <DialogContent
-        sx={{ px: { xs: 1.5, sm: 3 }, pb: 3, overflowX: "hidden" }}
+        sx={{ px: { xs: 1.5, sm: 3 }, pb: 3, overflowX: "auto" }}
       >
         {!details ? (
           <Box p={3} textAlign="center">
@@ -519,7 +519,7 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                     i > 0 ? "1px solid rgba(255,255,255,0.05)" : "none"
                   }
                 >
-                  <Box width={40} textAlign="center">
+                  <Box sx={{ minWidth: 32, maxWidth: 48, textAlign: "center" }}>
                     <Typography fontWeight="bold">{row.home ?? "-"}</Typography>
                   </Box>
                   <Box
@@ -531,7 +531,7 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                       {row.label}
                     </Typography>
                   </Box>
-                  <Box width={40} textAlign="center">
+                  <Box sx={{ minWidth: 32, maxWidth: 48, textAlign: "center" }}>
                     <Typography fontWeight="bold">{row.away ?? "-"}</Typography>
                   </Box>
                 </Box>

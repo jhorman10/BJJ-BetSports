@@ -78,7 +78,7 @@ const BellCurveVisualization: React.FC<{ points: ScorePoint[]; maxProb: number }
   const maxProbability = maxProb || Math.max(...topScores.map((p) => p.probability), 0.001);
 
   return (
-    <Box sx={{ position: "relative", width: "100%", height: { xs: 280, sm: 360 }, mt: 2 }}>
+    <Box sx={{ position: "relative", width: "100%", height: { xs: 240, sm: 360 }, mt: 2, overflow: { xs: "auto", sm: "visible" } }}>
       <Box
         sx={{
           position: "absolute",
