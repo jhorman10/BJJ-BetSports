@@ -191,6 +191,9 @@ const themeOptions: ThemeOptions = {
       },
     },
     MuiDialog: {
+      defaultProps: {
+        disableScrollLock: true, // Prevents MUI from modifying body overflow/position, which causes iOS Safari viewport minimization
+      },
       styleOverrides: {
         paper: {
           backgroundImage: "none",
