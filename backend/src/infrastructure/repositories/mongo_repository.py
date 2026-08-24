@@ -4,11 +4,17 @@ from dataclasses import asdict, is_dataclass
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
-from pymongo import MongoClient
-from pymongo.errors import OperationFailure
+from pymongo import MongoClient, ReturnDocument
+from pymongo.errors import DuplicateKeyError, OperationFailure
+from src.core.constants import ML_MODEL_FILENAME
 from src.utils.time_utils import get_current_time, is_future_time
 
 logger = logging.getLogger(__name__)
+
+# Serving pointer lives in app_state; the legacy fixed-key blob keeps loading
+# pre-change artifacts read-only until the first gated promotion swaps it out.
+ML_SERVING_POINTER_KEY = "ml_picks_classifier/serving"
+ML_LEGACY_BLOB_KEY = ML_MODEL_FILENAME
 
 
 def _to_bson_friendly(value: Any) -> Any:
@@ -353,12 +359,29 @@ class MongoRepository:
         return True
 
     def clear_all_data(self) -> Dict[str, int]:
-        """Clear training, predictions and API cache collections."""
+        """Clear transient collections, preserving the currently-serving model.
+
+        Training results, predictions and the API cache are wiped. The serving
+        pointer document and its target artifact (plus the legacy fixed-key
+        blob) MUST survive so a failed or interrupted training run never leaves
+        serving without a loadable model (ml-artifact-lifecycle).
+        """
+        pointer = self.get_app_state(ML_SERVING_POINTER_KEY) or {}
+        protected_keys = {ML_LEGACY_BLOB_KEY}
+        if pointer.get("artifact_key") and pointer.get("version"):
+            protected_keys.add(
+                self._versioned_doc_key(pointer["artifact_key"], pointer["version"])
+            )
+
         training_deleted = self.training_results.delete_many({}).deleted_count
         predictions_deleted = self.match_predictions.delete_many({}).deleted_count
         cache_deleted = self.api_cache.delete_many({}).deleted_count
-        app_state_deleted = self.app_state.delete_many({}).deleted_count
-        artifacts_deleted = self.binary_artifacts.delete_many({}).deleted_count
+        app_state_deleted = self.app_state.delete_many(
+            {"key": {"$ne": ML_SERVING_POINTER_KEY}}
+        ).deleted_count
+        artifacts_deleted = self.binary_artifacts.delete_many(
+            {"key": {"$nin": sorted(protected_keys)}}
+        ).deleted_count
 
         return {
             "training_results": training_deleted,
@@ -403,6 +426,95 @@ class MongoRepository:
         if doc and "data" in doc:
             return bytes(doc["data"])
         return None
+
+    # ------------------------------------------------------------------
+    # Versioned ML artifacts + atomic serving pointer
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _versioned_doc_key(key: str, version: str) -> str:
+        """Full document key for a versioned artifact (design D1 layout)."""
+        return f"{key}/{version}"
+
+    def save_binary_artifact_versioned(
+        self, key: str, version: str, binary_data: bytes, meta: Dict[str, Any]
+    ) -> None:
+        """Insert-once write of a versioned artifact (bytes + meta envelope).
+
+        Raises ValueError when the same version already exists — promoted
+        artifacts are immutable; retraining always produces a fresh key.
+        """
+        from bson.binary import Binary
+
+        try:
+            self.binary_artifacts.insert_one(
+                {
+                    "key": self._versioned_doc_key(key, version),
+                    "artifact_key": key,
+                    "version": version,
+                    "data": Binary(binary_data),
+                    "meta": _to_bson_friendly(meta or {}),
+                    "last_updated": get_current_time(),
+                }
+            )
+        except DuplicateKeyError as exc:
+            raise ValueError(
+                f"Artifact {key!r} version {version!r} already exists"
+            ) from exc
+
+    def get_versioned_artifact(
+        self, key: str, version: str
+    ) -> Tuple[Optional[bytes], Optional[dict]]:
+        """Return (bytes, metadata envelope) for a versioned artifact."""
+        doc = self.binary_artifacts.find_one(
+            {"key": self._versioned_doc_key(key, version)}
+        )
+        if not doc or "data" not in doc:
+            return None, None
+        return bytes(doc["data"]), doc.get("meta")
+
+    def list_versions(self, key_prefix: str) -> List[str]:
+        """List stored versions for an artifact key, oldest first."""
+        docs = self.binary_artifacts.find(
+            {"artifact_key": key_prefix}, {"version": 1}
+        )
+        return sorted(doc["version"] for doc in docs if "version" in doc)
+
+    def delete_binary_artifact(self, key: str) -> bool:
+        """Delete one artifact document by exact key (retention pruning only)."""
+        return self.binary_artifacts.delete_one({"key": key}).deleted_count > 0
+
+    def promote_serving_pointer(
+        self,
+        pointer_key: str = ML_SERVING_POINTER_KEY,
+        artifact_key: str = "",
+        version: str = "",
+        metrics: Optional[Dict[str, Any]] = None,
+    ) -> dict:
+        """Atomically repoint serving to a promoted version (find-and-modify).
+
+        Readers via ``get_app_state`` observe complete old-or-new state —
+        never partial or null — because this is exactly one document update.
+        """
+        pointer_data = {
+            "artifact_key": artifact_key,
+            "version": version,
+            "promoted_at": get_current_time().isoformat(),
+            "metrics": _to_bson_friendly(metrics or {}),
+        }
+        doc = self.app_state.find_one_and_update(
+            {"key": pointer_key},
+            {"$set": {"data": pointer_data, "last_updated": get_current_time()}},
+            upsert=True,
+            return_document=ReturnDocument.AFTER,
+        )
+        logger.info(
+            "Serving pointer %s promoted to %s@%s",
+            pointer_key,
+            artifact_key,
+            version,
+        )
+        return doc.get("data", pointer_data) if doc else pointer_data
 
 
 # Singleton accessor with old name alias to avoid changing dependencies everywhere

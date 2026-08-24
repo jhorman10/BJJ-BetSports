@@ -37,6 +37,18 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+# Serving-mode observability (design D6): every response can be marked with
+# the active mode plus the reason category that forced heuristic fallback.
+SERVING_MODE_ML = "ml"
+SERVING_MODE_HEURISTIC = "heuristic"
+FALLBACK_REASONS = (
+    "load_failed",
+    "version_mismatch",
+    "schema_mismatch",
+    "absent",
+    "blend_failed",
+)
+
 
 class PicksConfig:
     """Centralized configuration for Picks Logic thresholds and weights."""
@@ -140,7 +152,12 @@ class PicksService:
         self.confidence_calculator = ConfidenceCalculator()
         self.bankroll_service = BankrollService()  # New Risk Management Module
 
-        # Load ML Model if available (Robust Path Resolution)
+        # Serving-mode observability (design D6)
+        self.serving_mode = SERVING_MODE_HEURISTIC
+        self.fallback_reason: Optional[str] = None
+        self._fallback_counts: dict[str, int] = {r: 0 for r in FALLBACK_REASONS}
+
+        # Load ML Model if available (Validated pointer-aware resolution)
         try:
             from src.core.constants import ML_MODEL_FILENAME
 
@@ -178,12 +195,44 @@ class PicksService:
 
     def _load_ml_model_safely(self, model_path: str) -> Optional[object]:
         """
-        Securely load the ML model with proper error handling and logging.
+        Validated pointer-aware ML model loader (ml-model-deployment spec).
+
+        Resolution order:
+        1. Serving pointer → versioned artifact (validated envelope)
+        2. Legacy fixed-key blob → read-only with deprecation warning
+        3. Disk file fallback (legacy/migration)
         """
         if not ML_AVAILABLE:
+            self._mark_fallback("absent")
             return None
 
-        # 1. Try DB first
+        # 1. Try versioned artifact via serving pointer
+        if self.repo:
+            try:
+                from io import BytesIO
+
+                pointer = self.repo.get_app_state("ml_picks_classifier/serving")
+                if pointer and pointer.get("artifact_key") and pointer.get("version"):
+                    artifact_key = pointer["artifact_key"]
+                    version = pointer["version"]
+                    model_bytes, meta = self.repo.get_versioned_artifact(artifact_key, version)
+                    if model_bytes:
+                        self._validate_envelope(meta)
+                        model = joblib.load(BytesIO(model_bytes))
+                        self._mark_ml_serving()
+                        logger.info(
+                            "ML Model loaded from versioned artifact %s@%s",
+                            artifact_key, version,
+                        )
+                        return cast(object, model)
+            except ValueError as ve:
+                # Envelope validation failed — explicit fallback already logged by _validate_envelope
+                logger.warning("Versioned artifact validation failed: %s", ve)
+                return None  # Don't fall through to legacy on validation mismatch
+            except Exception as e:
+                logger.warning(f"Failed to load versioned artifact: {e}")
+
+        # 2. Legacy fixed-key blob (read-only, deprecation warning)
         if self.repo:
             try:
                 from io import BytesIO
@@ -192,14 +241,19 @@ class PicksService:
 
                 model_bytes = self.repo.get_binary_artifact(ML_MODEL_FILENAME)
                 if model_bytes:
+                    logger.warning(
+                        "Loading legacy ML model blob (deprecated). "
+                        "Run gated training to promote a versioned artifact."
+                    )
                     model = joblib.load(BytesIO(model_bytes))
-                    logger.info("ML Model loaded successfully from Database")
+                    self._mark_fallback("absent")  # legacy loads lack envelope
                     return cast(object, model)
             except Exception as e:
-                logger.warning(f"Failed to load model from Database: {e}")
+                logger.warning(f"Failed to load legacy ML model blob: {e}")
 
-        # 2. Fallback to Disk (Legacy/Migration)
+        # 3. Disk file fallback (legacy/migration)
         if not os.path.exists(model_path):
+            self._mark_fallback("absent")
             return None
 
         try:
@@ -207,6 +261,7 @@ class PicksService:
             # pipeline
             model = joblib.load(model_path)
             logger.info(f"ML Model loaded successfully from {model_path} (Disk)")
+            self._mark_fallback("absent")  # disk path lacks envelope
             return cast(object, model)
         except (FileNotFoundError, ImportError) as e:
             logger.warning(f"Technical failure loading ML model: {e}")
@@ -214,7 +269,60 @@ class PicksService:
             logger.error(
                 f"Security or integrity error loading ML model {model_path}: {e}"
             )
+        self._mark_fallback("load_failed")
         return None
+
+    def _validate_envelope(self, meta: Optional[dict]) -> None:
+        """Validate artifact metadata envelope (ml-model-deployment spec).
+
+        Raises ValueError on mismatch with stored vs runtime values.
+        Sets fallback_reason to version_mismatch or schema_mismatch.
+        """
+        if not meta:
+            raise ValueError("Missing metadata envelope")
+
+        # sklearn version equality (strict — patch mismatch surfaces)
+        stored_sklearn = str(meta.get("sklearn_version", "")).strip()
+        runtime_sklearn = ""
+        try:
+            import sklearn
+            runtime_sklearn = str(sklearn.__version__)
+        except Exception:
+            pass
+        if stored_sklearn and runtime_sklearn and stored_sklearn != runtime_sklearn:
+            self._mark_fallback("version_mismatch")
+            raise ValueError(
+                f"sklearn version mismatch: stored={stored_sklearn!r} "
+                f"runtime={runtime_sklearn!r}"
+            )
+
+        # feature schema hash equality
+        stored_schema = str(meta.get("feature_schema_hash", "")).strip()
+        runtime_schema = ""
+        try:
+            from src.domain.services.ml_feature_extractor import MLFeatureExtractor
+            runtime_schema = MLFeatureExtractor.schema_signature()
+        except Exception:
+            pass
+        if stored_schema and runtime_schema and stored_schema != runtime_schema:
+            self._mark_fallback("schema_mismatch")
+            raise ValueError(
+                f"Feature schema mismatch: stored={stored_schema!r} "
+                f"runtime={runtime_schema!r}"
+            )
+
+    def _mark_ml_serving(self) -> None:
+        """Mark successful ML-backed serving state."""
+        self.serving_mode = SERVING_MODE_ML
+        self.fallback_reason = None
+
+    def _mark_fallback(self, reason: str) -> None:
+        """Mark heuristic fallback with reason and emit structured log."""
+        if reason in self._fallback_counts:
+            self._fallback_counts[reason] += 1
+        self.serving_mode = SERVING_MODE_HEURISTIC
+        self.fallback_reason = reason
+        logger.warning("[ML_FALLBACK] reason=%s", reason)
 
     def reload_model(self) -> None:
         """Force reload of the ML model from disk."""
@@ -927,7 +1035,27 @@ class PicksService:
                 # IF the model passed here is indeed the Outcome Classifier:
                 ml_probs = model_instance.predict_proba(features)[0]
 
-                # Map pick type to probability index
+                # Map probabilities via model.classes_ — never positional indices
+                # (ml-model-deployment spec: "Probabilities mapped through classes_").
+                try:
+                    from src.domain.services.ml_class_alignment import (
+                        outcome_probability_map,
+                    )
+                    label_probs = outcome_probability_map(model_instance, ml_probs)
+                    ml_home = label_probs["home"]
+                    ml_draw = label_probs["draw"]
+                    ml_away = label_probs["away"]
+                except ValueError as ve:
+                    # Unrecognized layout — treat as blend failure, log, keep 0.0
+                    logger.warning(
+                        "ML refinement classes_ alignment failed for match %s (%s) — "
+                        "continuing without ML confidence",
+                        getattr(match, "id", "?"),
+                        ve,
+                    )
+                    ml_home = ml_draw = ml_away = 0.0
+
+                # Map pick type to probability via label keys
                 ml_confidence = 0.0
 
                 if pick.market_type == MarketType.RESULT_1X2:
@@ -936,15 +1064,15 @@ class PicksService:
                         or "(1)" in pick.market_label
                         or match.home_team.name in pick.market_label
                     ):
-                        ml_confidence = ml_probs[1]  # Home
+                        ml_confidence = ml_home
                     elif (
                         "Away" in pick.market_label
                         or "(2)" in pick.market_label
                         or match.away_team.name in pick.market_label
                     ):
-                        ml_confidence = ml_probs[2]  # Away
+                        ml_confidence = ml_away
                     elif "Draw" in pick.market_label or "Empate" in pick.market_label:
-                        ml_confidence = ml_probs[0]  # Draw
+                        ml_confidence = ml_draw
 
                 # If it's NOT a result pick (e.g. Over 2.5), the Outcome Classifier
                 # isn't directly applicable for "Correct/Incorrect".

@@ -413,7 +413,40 @@ class GetPredictionsUseCase:
 
             if features_batch:
                 probs = cast(Any, self.ml_model).predict_proba(features_batch)
-                ml_probs = [p[1] for p in probs]
+
+                # Align probabilities via model.classes_ — never positional indices
+                # (ml-model-deployment spec: "Probabilities mapped through classes_").
+                from src.domain.services.ml_class_alignment import (
+                    outcome_probability_map,
+                    positive_class_probability,
+                )
+
+                ml_probs: list[float] = []
+                for i, (mkt, _, label) in enumerate(outcomes):
+                    p = probs[i]
+                    try:
+                        if mkt == MarketType.WINNER:
+                            # Outcome classifier (Home/Draw/Away) — map via classes_
+                            label_probs = outcome_probability_map(self.ml_model, p)
+                            if label == "Home":
+                                ml_probs.append(label_probs["home"])
+                            elif label == "Draw":
+                                ml_probs.append(label_probs["draw"])
+                            else:
+                                ml_probs.append(label_probs["away"])
+                        else:
+                            # Binary pick-success classifier (Over/Under) —
+                            # locate positive class via classes_
+                            ml_probs.append(positive_class_probability(self.ml_model, p))
+                    except ValueError as ve:
+                        # Unrecognized layout — treat as blend failure
+                        logger.warning(
+                            "ML Override classes_ alignment failed for %s (%s) — "
+                            "using positional fallback for this outcome",
+                            label, ve,
+                        )
+                        ml_probs.append(p[1] if len(p) > 1 else 0.0)
+
                 # Normalize and apply ML probabilities
                 self._normalize_and_apply_probs(prediction, ml_probs)
 
@@ -1263,6 +1296,9 @@ class GetPredictionsUseCase:
             score_confidence_tier=getattr(prediction, "score_confidence_tier", None),
             score_matrix=getattr(prediction, "score_matrix", None),
             score_accuracy_history=getattr(prediction, "score_accuracy_history", None),
+            # ML serving-mode observability (design D6)
+            serving_mode=getattr(self.picks_service, "serving_mode", None),
+            fallback_reason=getattr(self.picks_service, "fallback_reason", None),
         )
 
     def _filter_future_matches(

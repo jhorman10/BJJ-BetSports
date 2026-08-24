@@ -11,6 +11,7 @@ This is a pure domain service with no external dependencies.
 from __future__ import annotations
 
 import functools
+import logging
 import math
 import os
 from typing import Any, Optional
@@ -18,6 +19,8 @@ from typing import Any, Optional
 from src.domain.entities.entities import Match, Prediction, TeamStatistics
 from src.domain.exceptions import InsufficientDataException
 from src.domain.value_objects.value_objects import LeagueAverages, Odds, TeamStrength
+
+logger = logging.getLogger(__name__)
 
 
 class PredictionService:
@@ -1499,12 +1502,19 @@ class PredictionService:
                     away_stats=away_stats,
                 )
 
-                # Predict Probabilities [Draw(0), Home(1), Away(2)]
-                ml_probs = active_models["winner"].predict_proba([features])[0]
+                # Predict Probabilities — aligned to labels via classes_,
+                # never positional indices (ml-model-deployment spec).
+                winner_model = active_models["winner"]
+                ml_probs = winner_model.predict_proba([features])[0]
 
-                ml_draw = ml_probs[0]
-                ml_home = ml_probs[1]
-                ml_away = ml_probs[2]
+                from src.domain.services.ml_class_alignment import (
+                    outcome_probability_map,
+                )
+
+                label_probs = outcome_probability_map(winner_model, ml_probs)
+                ml_home = label_probs["home"]
+                ml_draw = label_probs["draw"]
+                ml_away = label_probs["away"]
 
                 # Ensemble: 60% ML (Real Patterns) + 40% Poisson (Statistical Baseline)
                 # This makes the prediction much smarter than pure stats.
@@ -1522,9 +1532,14 @@ class PredictionService:
                 if data_sources is not None and "RandomForest" not in data_sources:
                     data_sources.append("RandomForest")
 
-            except Exception:
-                # logger.warning(f"ML Ensemble failed: {e}")
-                pass
+            except Exception as ml_err:
+                logger.warning(
+                    "ML Ensemble blend failed for match %s (%s: %s) — "
+                    "continuing with Poisson-only probabilities",
+                    getattr(match, "id", "?"),
+                    type(ml_err).__name__,
+                    ml_err,
+                )
 
         # Calculate over/under
         over_25, under_25 = self.calculate_over_under_probability(

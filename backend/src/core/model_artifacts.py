@@ -39,12 +39,17 @@ def get_model_artifact_paths() -> list[Path]:
 
 
 def cleanup_model_artifacts(
-    logger: logging.Logger, cache: "CacheService | None" = None
+    logger: logging.Logger,
+    cache: "CacheService | None" = None,
+    preserve_serving: bool = False,
 ) -> None:
     """Remove persisted ML artifacts without interrupting the caller.
 
     When a cache provider is passed, its ``clear()`` is invoked to purge the
-    disk cache (``.cache_data``). Failures are logged, never raised.
+    disk cache (``.cache_data``). When ``preserve_serving`` is True (no
+    successor promoted yet this run), on-disk copies of the serving model
+    file are skipped so the prior artifact keeps backing serving. Failures
+    are logged, never raised.
     """
     removed_count = 0
     failed_count = 0
@@ -59,6 +64,12 @@ def cleanup_model_artifacts(
 
     for artifact_path in get_model_artifact_paths():
         if not artifact_path.exists():
+            continue
+
+        if preserve_serving and artifact_path.name == ML_MODEL_FILENAME:
+            logger.info(
+                "Preserving serving artifact during cleanup: %s", artifact_path
+            )
             continue
 
         try:
