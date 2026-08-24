@@ -8,7 +8,7 @@ import {
   Chip,
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
-import { Flag, SportsSoccer } from "@mui/icons-material";
+import { Flag, QueryStats, SportsSoccer } from "@mui/icons-material";
 
 import { LiveMatchRaw } from "../../../utils/matchMatching";
 import { getLeagueName } from "../LeagueSelector/constants";
@@ -339,7 +339,7 @@ const LiveMatchCard: React.FC<LiveMatchCardProps> = memo(
               </Box>
             </Box>
 
-            {/* Compact Stats Bar */}
+            {/* Stats Section */}
             <Box
               sx={{
                 background: "rgba(15, 23, 42, 0.4)",
@@ -347,107 +347,302 @@ const LiveMatchCard: React.FC<LiveMatchCardProps> = memo(
                 py: { xs: 1, sm: 1.5 },
                 px: { xs: 1, sm: 2 },
                 border: "1px solid rgba(255,255,255,0.05)",
-                display: "flex",
-                justifyContent: "space-around",
-                alignItems: "center",
                 mt: "auto",
-                gap: { xs: 0.5, sm: 1 },
-                overflow: "hidden",
               }}
             >
+              {/* Possession Bar */}
+              {(match.home_possession || match.away_possession) && (
+                <Box mb={1.5}>
+                  <Box display="flex" justifyContent="space-between" mb={0.5} gap={0.5}>
+                    <Typography
+                      variant="body2"
+                      fontWeight={700}
+                      color="white"
+                      sx={{ minWidth: 0, flexShrink: 1, fontSize: { xs: "0.7rem", sm: "0.75rem" } }}
+                    >
+                      {match.home_possession ?? "50%"}
+                    </Typography>
+                    <Typography
+                      variant="caption"
+                      color="rgba(255,255,255,0.6)"
+                      sx={{ flexShrink: 0, fontSize: { xs: "0.6rem", sm: "0.65rem" } }}
+                    >
+                      Posesión
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      fontWeight={700}
+                      color="white"
+                      sx={{ minWidth: 0, flexShrink: 1, fontSize: { xs: "0.7rem", sm: "0.75rem" } }}
+                    >
+                      {match.away_possession ?? "50%"}
+                    </Typography>
+                  </Box>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      height: 4,
+                      borderRadius: 1,
+                      overflow: "hidden",
+                      bgcolor: "rgba(255,255,255,0.05)",
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        width: match.home_possession || "50%",
+                        minWidth: "20px",
+                        bgcolor: "#6366f1",
+                        transition: "width 0.3s ease",
+                        borderRadius: 1,
+                      }}
+                    />
+                    <Box
+                      sx={{
+                        width: match.away_possession || "50%",
+                        minWidth: "20px",
+                        bgcolor: "#f43f5e",
+                        transition: "width 0.3s ease",
+                        borderRadius: 1,
+                      }}
+                    />
+                  </Box>
+                </Box>
+              )}
+
+              {/* Total Shots */}
+              {(match.home_total_shots != null || match.away_total_shots != null) && (
+                <Box
+                  display="flex"
+                  justifyContent="space-between"
+                  alignItems="center"
+                  mb={1}
+                  gap={0.5}
+                  sx={{ borderBottom: "1px solid rgba(255,255,255,0.05)", pb: 1 }}
+                >
+                  <Typography
+                    variant="body2"
+                    fontWeight={700}
+                    color="white"
+                    sx={{ minWidth: 0, flexShrink: 1, fontSize: { xs: "0.7rem", sm: "0.75rem" } }}
+                  >
+                    {match.home_total_shots ?? 0}
+                    {match.home_shots_on_target != null && ` (${match.home_shots_on_target})`}
+                  </Typography>
+                  <Box display="flex" alignItems="center" gap={0.3} sx={{ flexShrink: 0 }}>
+                    <QueryStats sx={{ fontSize: { xs: 10, sm: 12 }, color: "#6366f1", opacity: 0.8 }} />
+                    <Typography
+                      variant="caption"
+                      color="rgba(255,255,255,0.6)"
+                      sx={{ fontSize: { xs: "0.6rem", sm: "0.65rem" }, whiteSpace: "nowrap" }}
+                    >
+                      Tiros{(match.home_shots_on_target != null || match.away_shots_on_target != null) ? " (Al Arco)" : ""}
+                    </Typography>
+                  </Box>
+                  <Typography
+                    variant="body2"
+                    fontWeight={700}
+                    color="white"
+                    sx={{ minWidth: 0, flexShrink: 1, fontSize: { xs: "0.7rem", sm: "0.75rem" } }}
+                  >
+                    {match.away_total_shots ?? 0}
+                    {match.away_shots_on_target != null && ` (${match.away_shots_on_target})`}
+                  </Typography>
+                </Box>
+              )}
+
               {/* Corners */}
-              <Box display="flex" flexDirection="column" alignItems="center" sx={{ minWidth: 0 }}>
-                <Box display="flex" alignItems="center" gap={0.3} mb={0.2}>
-                  <Flag sx={{ fontSize: { xs: 8, sm: 10 }, color: "rgba(255,255,255,0.4)" }} />
+              <Box
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+                mb={1}
+                gap={0.5}
+                sx={{ borderBottom: "1px solid rgba(255,255,255,0.05)", pb: 1 }}
+              >
+                <Typography
+                  variant="body2"
+                  fontWeight={700}
+                  color="white"
+                  sx={{ minWidth: 0, flexShrink: 1, fontSize: { xs: "0.7rem", sm: "0.75rem" } }}
+                >
+                  {match.home_corners ?? 0}
+                </Typography>
+                <Box display="flex" alignItems="center" gap={0.3} sx={{ flexShrink: 0 }}>
+                  <Flag sx={{ fontSize: { xs: 10, sm: 12 }, color: "#fbbf24", opacity: 0.8 }} />
                   <Typography
                     variant="caption"
-                    color="rgba(255,255,255,0.4)"
-                    fontSize={{ xs: "0.625rem", sm: "0.7rem" }}
-                    fontWeight={700}
-                    letterSpacing={0.5}
-                    sx={{ whiteSpace: "nowrap" }}
+                    color="rgba(255,255,255,0.6)"
+                    sx={{ fontSize: { xs: "0.6rem", sm: "0.65rem" } }}
                   >
-                    CÓRNERS
+                    Córners
                   </Typography>
                 </Box>
                 <Typography
                   variant="body2"
                   fontWeight={700}
                   color="white"
-                  letterSpacing={1}
-                  sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}
+                  sx={{ minWidth: 0, flexShrink: 1, fontSize: { xs: "0.7rem", sm: "0.75rem" } }}
                 >
-                  {match.home_corners} : {match.away_corners}
+                  {match.away_corners ?? 0}
                 </Typography>
               </Box>
 
-              <Box
-                sx={{
-                  width: "1px",
-                  height: { xs: "16px", sm: "20px" },
-                  bgcolor: "rgba(255,255,255,0.08)",
-                  flexShrink: 0,
-                }}
-              />
-
               {/* Yellow Cards */}
-              <Box display="flex" flexDirection="column" alignItems="center" sx={{ minWidth: 0 }}>
-                <Box display="flex" alignItems="center" gap={0.3} mb={0.2}>
+              <Box
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+                mb={1}
+                gap={0.5}
+                sx={{ borderBottom: "1px solid rgba(255,255,255,0.05)", pb: 1 }}
+              >
+                <Typography
+                  variant="body2"
+                  fontWeight={700}
+                  color="white"
+                  sx={{ minWidth: 0, flexShrink: 1, fontSize: { xs: "0.7rem", sm: "0.75rem" } }}
+                >
+                  {match.home_yellow_cards ?? 0}
+                </Typography>
+                <Box display="flex" alignItems="center" gap={0.3} sx={{ flexShrink: 0 }}>
                   <CardBadge color="#facc15" />
                   <Typography
                     variant="caption"
-                    color="rgba(255,255,255,0.4)"
-                    fontSize={{ xs: "0.625rem", sm: "0.7rem" }}
-                    fontWeight={700}
-                    letterSpacing={0.5}
-                    sx={{ whiteSpace: "nowrap" }}
+                    color="rgba(255,255,255,0.6)"
+                    sx={{ fontSize: { xs: "0.6rem", sm: "0.65rem" } }}
                   >
-                    AMARILLAS
+                    T. Amarillas
                   </Typography>
                 </Box>
                 <Typography
                   variant="body2"
                   fontWeight={700}
                   color="white"
-                  letterSpacing={1}
-                  sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}
+                  sx={{ minWidth: 0, flexShrink: 1, fontSize: { xs: "0.7rem", sm: "0.75rem" } }}
                 >
-                  {match.home_yellow_cards} : {match.away_yellow_cards}
+                  {match.away_yellow_cards ?? 0}
                 </Typography>
               </Box>
 
-              <Box
-                sx={{
-                  width: "1px",
-                  height: { xs: "16px", sm: "20px" },
-                  bgcolor: "rgba(255,255,255,0.08)",
-                  flexShrink: 0,
-                }}
-              />
-
               {/* Red Cards */}
-              <Box display="flex" flexDirection="column" alignItems="center" sx={{ minWidth: 0 }}>
-                <Box display="flex" alignItems="center" gap={0.3} mb={0.2}>
+              <Box
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+                mb={1}
+                gap={0.5}
+                sx={{ borderBottom: "1px solid rgba(255,255,255,0.05)", pb: 1 }}
+              >
+                <Typography
+                  variant="body2"
+                  fontWeight={700}
+                  color="white"
+                  sx={{ minWidth: 0, flexShrink: 1, fontSize: { xs: "0.7rem", sm: "0.75rem" } }}
+                >
+                  {match.home_red_cards ?? 0}
+                </Typography>
+                <Box display="flex" alignItems="center" gap={0.3} sx={{ flexShrink: 0 }}>
                   <CardBadge color="#ef4444" />
                   <Typography
                     variant="caption"
-                    color="rgba(255,255,255,0.4)"
-                    fontSize={{ xs: "0.625rem", sm: "0.7rem" }}
-                    fontWeight={700}
-                    letterSpacing={0.5}
-                    sx={{ whiteSpace: "nowrap" }}
+                    color="rgba(255,255,255,0.6)"
+                    sx={{ fontSize: { xs: "0.6rem", sm: "0.65rem" } }}
                   >
-                    ROJAS
+                    T. Rojas
                   </Typography>
                 </Box>
                 <Typography
                   variant="body2"
                   fontWeight={700}
                   color="white"
-                  letterSpacing={1}
-                  sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}
+                  sx={{ minWidth: 0, flexShrink: 1, fontSize: { xs: "0.7rem", sm: "0.75rem" } }}
                 >
-                  {match.home_red_cards} : {match.away_red_cards}
+                  {match.away_red_cards ?? 0}
+                </Typography>
+              </Box>
+
+              {/* Disciplina Section Header */}
+              <Box mt={1} mb={0.5}>
+                <Typography
+                  variant="caption"
+                  fontWeight={700}
+                  color="rgba(255,255,255,0.5)"
+                  sx={{
+                    textTransform: "uppercase",
+                    letterSpacing: "1px",
+                    fontSize: "0.7rem",
+                    display: "block",
+                    textAlign: "center",
+                    borderBottom: "1px solid rgba(255,255,255,0.05)",
+                    pb: 0.5,
+                  }}
+                >
+                  Disciplina
+                </Typography>
+              </Box>
+
+              {/* Fouls */}
+              <Box
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+                mb={0.5}
+                gap={0.5}
+              >
+                <Typography
+                  variant="body2"
+                  fontWeight={700}
+                  color="white"
+                  sx={{ minWidth: 0, flexShrink: 1, fontSize: { xs: "0.7rem", sm: "0.75rem" } }}
+                >
+                  {match.home_fouls ?? 0}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  color="rgba(255,255,255,0.6)"
+                  sx={{ flexShrink: 0, fontSize: { xs: "0.6rem", sm: "0.65rem" } }}
+                >
+                  Faltas
+                </Typography>
+                <Typography
+                  variant="body2"
+                  fontWeight={700}
+                  color="white"
+                  sx={{ minWidth: 0, flexShrink: 1, fontSize: { xs: "0.7rem", sm: "0.75rem" } }}
+                >
+                  {match.away_fouls ?? 0}
+                </Typography>
+              </Box>
+
+              {/* Offsides */}
+              <Box
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+                gap={0.5}
+              >
+                <Typography
+                  variant="body2"
+                  fontWeight={700}
+                  color="white"
+                  sx={{ minWidth: 0, flexShrink: 1, fontSize: { xs: "0.7rem", sm: "0.75rem" } }}
+                >
+                  {match.home_offsides ?? 0}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  color="rgba(255,255,255,0.6)"
+                  sx={{ flexShrink: 0, fontSize: { xs: "0.6rem", sm: "0.65rem" } }}
+                >
+                  Offsides
+                </Typography>
+                <Typography
+                  variant="body2"
+                  fontWeight={700}
+                  color="white"
+                  sx={{ minWidth: 0, flexShrink: 1, fontSize: { xs: "0.7rem", sm: "0.75rem" } }}
+                >
+                  {match.away_offsides ?? 0}
                 </Typography>
               </Box>
             </Box>
