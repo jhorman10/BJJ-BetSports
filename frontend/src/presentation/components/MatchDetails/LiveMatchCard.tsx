@@ -174,6 +174,7 @@ const LiveMatchCard: React.FC<LiveMatchCardProps> = memo(
               alignItems="center"
               mb={3}
               position="relative"
+              sx={{ overflow: "hidden" }}
             >
               {/* Home Team */}
               <Box
@@ -182,6 +183,7 @@ const LiveMatchCard: React.FC<LiveMatchCardProps> = memo(
                 alignItems="center"
                 justifyContent="center"
                 zIndex={2}
+                sx={{ minWidth: 0, overflow: "hidden" }}
               >
                 <Box
                   sx={{
@@ -235,7 +237,7 @@ const LiveMatchCard: React.FC<LiveMatchCardProps> = memo(
                 display="flex"
                 alignItems="center"
                 justifyContent="center"
-                sx={{ px: 1, zIndex: 2 }}
+                sx={{ px: { xs: 0.5, sm: 1 }, zIndex: 2, flexShrink: 0 }}
               >
                 <Typography
                   variant="h3"
@@ -254,10 +256,10 @@ const LiveMatchCard: React.FC<LiveMatchCardProps> = memo(
                 <Typography
                   variant="h4"
                   sx={{
-                    mx: 1.5,
+                    mx: { xs: 0.5, sm: 1.5 },
                     color: "rgba(255,255,255,0.15)",
                     fontWeight: 200,
-                    fontSize: "1.25rem",
+                    fontSize: { xs: "1rem", sm: "1.25rem" },
                     lineHeight: 1,
                     mb: 0.5, // Subtle optical adjustment
                   }}
@@ -287,6 +289,7 @@ const LiveMatchCard: React.FC<LiveMatchCardProps> = memo(
                 alignItems="center"
                 justifyContent="center"
                 zIndex={2}
+                sx={{ minWidth: 0, overflow: "hidden" }}
               >
                 <Box
                   sx={{
@@ -341,25 +344,28 @@ const LiveMatchCard: React.FC<LiveMatchCardProps> = memo(
               sx={{
                 background: "rgba(15, 23, 42, 0.4)",
                 borderRadius: "16px",
-                py: 1.5,
-                px: 2,
+                py: { xs: 1, sm: 1.5 },
+                px: { xs: 1, sm: 2 },
                 border: "1px solid rgba(255,255,255,0.05)",
                 display: "flex",
                 justifyContent: "space-around",
                 alignItems: "center",
                 mt: "auto",
+                gap: { xs: 0.5, sm: 1 },
+                overflow: "hidden",
               }}
             >
               {/* Corners */}
-              <Box display="flex" flexDirection="column" alignItems="center">
-                <Box display="flex" alignItems="center" gap={0.5} mb={0.2}>
-                  <Flag sx={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }} />
+              <Box display="flex" flexDirection="column" alignItems="center" sx={{ minWidth: 0 }}>
+                <Box display="flex" alignItems="center" gap={0.3} mb={0.2}>
+                  <Flag sx={{ fontSize: { xs: 8, sm: 10 }, color: "rgba(255,255,255,0.4)" }} />
                   <Typography
                     variant="caption"
                     color="rgba(255,255,255,0.4)"
-                    fontSize="0.6rem"
+                    fontSize={{ xs: "0.5rem", sm: "0.6rem" }}
                     fontWeight={700}
                     letterSpacing={0.5}
+                    sx={{ whiteSpace: "nowrap" }}
                   >
                     CÓRNERS
                   </Typography>
@@ -369,6 +375,7 @@ const LiveMatchCard: React.FC<LiveMatchCardProps> = memo(
                   fontWeight={700}
                   color="white"
                   letterSpacing={1}
+                  sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}
                 >
                   {match.home_corners} : {match.away_corners}
                 </Typography>
@@ -377,21 +384,23 @@ const LiveMatchCard: React.FC<LiveMatchCardProps> = memo(
               <Box
                 sx={{
                   width: "1px",
-                  height: "20px",
+                  height: { xs: "16px", sm: "20px" },
                   bgcolor: "rgba(255,255,255,0.08)",
+                  flexShrink: 0,
                 }}
               />
 
               {/* Yellow Cards */}
-              <Box display="flex" flexDirection="column" alignItems="center">
-                <Box display="flex" alignItems="center" gap={0.5} mb={0.2}>
+              <Box display="flex" flexDirection="column" alignItems="center" sx={{ minWidth: 0 }}>
+                <Box display="flex" alignItems="center" gap={0.3} mb={0.2}>
                   <CardBadge color="#facc15" />
                   <Typography
                     variant="caption"
                     color="rgba(255,255,255,0.4)"
-                    fontSize="0.6rem"
+                    fontSize={{ xs: "0.5rem", sm: "0.6rem" }}
                     fontWeight={700}
                     letterSpacing={0.5}
+                    sx={{ whiteSpace: "nowrap" }}
                   >
                     AMARILLAS
                   </Typography>
@@ -401,6 +410,7 @@ const LiveMatchCard: React.FC<LiveMatchCardProps> = memo(
                   fontWeight={700}
                   color="white"
                   letterSpacing={1}
+                  sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}
                 >
                   {match.home_yellow_cards} : {match.away_yellow_cards}
                 </Typography>
@@ -409,21 +419,23 @@ const LiveMatchCard: React.FC<LiveMatchCardProps> = memo(
               <Box
                 sx={{
                   width: "1px",
-                  height: "20px",
+                  height: { xs: "16px", sm: "20px" },
                   bgcolor: "rgba(255,255,255,0.08)",
+                  flexShrink: 0,
                 }}
               />
 
               {/* Red Cards */}
-              <Box display="flex" flexDirection="column" alignItems="center">
-                <Box display="flex" alignItems="center" gap={0.5} mb={0.2}>
+              <Box display="flex" flexDirection="column" alignItems="center" sx={{ minWidth: 0 }}>
+                <Box display="flex" alignItems="center" gap={0.3} mb={0.2}>
                   <CardBadge color="#ef4444" />
                   <Typography
                     variant="caption"
                     color="rgba(255,255,255,0.4)"
-                    fontSize="0.6rem"
+                    fontSize={{ xs: "0.5rem", sm: "0.6rem" }}
                     fontWeight={700}
                     letterSpacing={0.5}
+                    sx={{ whiteSpace: "nowrap" }}
                   >
                     ROJAS
                   </Typography>
@@ -433,6 +445,7 @@ const LiveMatchCard: React.FC<LiveMatchCardProps> = memo(
                   fontWeight={700}
                   color="white"
                   letterSpacing={1}
+                  sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}
                 >
                   {match.home_red_cards} : {match.away_red_cards}
                 </Typography>

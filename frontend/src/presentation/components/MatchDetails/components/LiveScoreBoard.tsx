@@ -78,16 +78,19 @@ export const LiveScoreBoard: React.FC<LiveScoreBoardProps> = ({ match }) => {
         alignItems="center"
         mb={3}
         flexDirection="row"
-        gap={1}
+        gap={0.5}
+        sx={{ overflow: "hidden" }}
       >
         {/* Home Team */}
         <Box
           textAlign="center"
           flex={1}
+          minWidth={0}
           display="flex"
           flexDirection="column"
           alignItems="center"
           justifyContent="center"
+          sx={{ overflow: "hidden" }}
         >
           <Box
             component="img"
@@ -123,8 +126,8 @@ export const LiveScoreBoard: React.FC<LiveScoreBoardProps> = ({ match }) => {
           display="flex"
           flexDirection="column"
           alignItems="center"
-          gap={1.5}
-          sx={{ minWidth: isMobile ? 100 : 150 }}
+          gap={1}
+          sx={{ minWidth: isMobile ? 80 : 120, flexShrink: 0 }}
         >
           {/* Status & Time Row */}
           <Box display="flex" alignItems="center" gap={1}>
@@ -223,10 +226,12 @@ export const LiveScoreBoard: React.FC<LiveScoreBoardProps> = ({ match }) => {
         <Box
           textAlign="center"
           flex={1}
+          minWidth={0}
           display="flex"
           flexDirection="column"
           alignItems="center"
           justifyContent="center"
+          sx={{ overflow: "hidden" }}
         >
           <Box
             component="img"

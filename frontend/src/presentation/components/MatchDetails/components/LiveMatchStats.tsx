@@ -27,15 +27,15 @@ export const LiveMatchStats: React.FC<LiveMatchStatsProps> = ({ match }) => {
       {/* Possession Bar (Classic) */}
       {(match.home_possession || match.away_possession) && (
         <Grid size={12}>
-          <Paper sx={{ p: 2, bgcolor: "rgba(0,0,0,0.2)", borderRadius: 2 }}>
-            <Box display="flex" justifyContent="space-between" mb={1}>
-              <Typography variant="body2" fontWeight="bold">
+          <Paper sx={{ p: { xs: 1.5, sm: 2 }, bgcolor: "rgba(0,0,0,0.2)", borderRadius: 2, overflow: "hidden" }}>
+            <Box display="flex" justifyContent="space-between" mb={1} gap={1}>
+              <Typography variant="body2" fontWeight="bold" sx={{ minWidth: 0, flexShrink: 1, fontSize: { xs: "0.8rem", sm: "0.875rem" } }}>
                 {match.home_possession ?? "50%"}
               </Typography>
-              <Typography variant="caption" color="rgba(255,255,255,0.6)">
+              <Typography variant="caption" color="rgba(255,255,255,0.6)" sx={{ flexShrink: 0, fontSize: { xs: "0.6rem", sm: "0.75rem" } }}>
                 Posesión
               </Typography>
-              <Typography variant="body2" fontWeight="bold">
+              <Typography variant="body2" fontWeight="bold" sx={{ minWidth: 0, flexShrink: 1, fontSize: { xs: "0.8rem", sm: "0.875rem" } }}>
                 {match.away_possession ?? "50%"}
               </Typography>
             </Box>
@@ -69,28 +69,29 @@ export const LiveMatchStats: React.FC<LiveMatchStatsProps> = ({ match }) => {
 
       {/* Main Stats (Shots, Corners, Cards) */}
       <Grid size={12}>
-        <Paper sx={{ p: 2, bgcolor: "rgba(0,0,0,0.2)", borderRadius: 2 }}>
+        <Paper sx={{ p: { xs: 1.5, sm: 2 }, bgcolor: "rgba(0,0,0,0.2)", borderRadius: 2, overflow: "hidden" }}>
           {/* Shots on Target & Total */}
           <Box
             display="flex"
             justifyContent="space-between"
             alignItems="center"
             mb={1.5}
+            gap={0.5}
             sx={{ borderBottom: "1px solid rgba(255,255,255,0.05)", pb: 1 }}
           >
-            <Typography variant="body2" fontWeight="bold">
+            <Typography variant="body2" fontWeight="bold" sx={{ minWidth: 0, flexShrink: 1, fontSize: { xs: "0.8rem", sm: "0.875rem" } }}>
               {match.home_total_shots ?? 0}
               {hasShotsOnTarget && ` (${match.home_shots_on_target ?? 0})`}
             </Typography>
-            <Box display="flex" alignItems="center" gap={1}>
+            <Box display="flex" alignItems="center" gap={0.5} sx={{ flexShrink: 0 }}>
               <QueryStats
-                sx={{ fontSize: 16, color: "primary.main", opacity: 0.8 }}
+                sx={{ fontSize: { xs: 14, sm: 16 }, color: "primary.main", opacity: 0.8 }}
               />
-              <Typography variant="caption" color="rgba(255,255,255,0.6)">
+              <Typography variant="caption" color="rgba(255,255,255,0.6)" sx={{ fontSize: { xs: "0.6rem", sm: "0.75rem" }, whiteSpace: "nowrap" }}>
                 {hasShotsOnTarget ? "Tiros (Al Arco)" : "Tiros"}
               </Typography>
             </Box>
-            <Typography variant="body2" fontWeight="bold">
+            <Typography variant="body2" fontWeight="bold" sx={{ minWidth: 0, flexShrink: 1, fontSize: { xs: "0.8rem", sm: "0.875rem" } }}>
               {match.away_total_shots ?? 0}
               {hasShotsOnTarget && ` (${match.away_shots_on_target ?? 0})`}
             </Typography>
@@ -102,18 +103,19 @@ export const LiveMatchStats: React.FC<LiveMatchStatsProps> = ({ match }) => {
             justifyContent="space-between"
             alignItems="center"
             mb={1.5}
+            gap={0.5}
             sx={{ borderBottom: "1px solid rgba(255,255,255,0.05)", pb: 1 }}
           >
-            <Typography variant="body2" fontWeight="bold">
+            <Typography variant="body2" fontWeight="bold" sx={{ minWidth: 0, flexShrink: 1, fontSize: { xs: "0.8rem", sm: "0.875rem" } }}>
               {match.home_corners ?? 0}
             </Typography>
-            <Box display="flex" alignItems="center" gap={1}>
-              <Flag sx={{ fontSize: 16, color: "#fbbf24", opacity: 0.8 }} />
-              <Typography variant="caption" color="rgba(255,255,255,0.6)">
+            <Box display="flex" alignItems="center" gap={0.5} sx={{ flexShrink: 0 }}>
+              <Flag sx={{ fontSize: { xs: 14, sm: 16 }, color: "#fbbf24", opacity: 0.8 }} />
+              <Typography variant="caption" color="rgba(255,255,255,0.6)" sx={{ fontSize: { xs: "0.6rem", sm: "0.75rem" } }}>
                 Córners
               </Typography>
             </Box>
-            <Typography variant="body2" fontWeight="bold">
+            <Typography variant="body2" fontWeight="bold" sx={{ minWidth: 0, flexShrink: 1, fontSize: { xs: "0.8rem", sm: "0.875rem" } }}>
               {match.away_corners ?? 0}
             </Typography>
           </Box>
@@ -124,18 +126,19 @@ export const LiveMatchStats: React.FC<LiveMatchStatsProps> = ({ match }) => {
             justifyContent="space-between"
             alignItems="center"
             mb={1.5}
+            gap={0.5}
             sx={{ borderBottom: "1px solid rgba(255,255,255,0.05)", pb: 1 }}
           >
-            <Typography variant="body2" fontWeight="bold">
+            <Typography variant="body2" fontWeight="bold" sx={{ minWidth: 0, flexShrink: 1, fontSize: { xs: "0.8rem", sm: "0.875rem" } }}>
               {match.home_yellow_cards ?? 0}
             </Typography>
-            <Box display="flex" alignItems="center" gap={1}>
+            <Box display="flex" alignItems="center" gap={0.5} sx={{ flexShrink: 0 }}>
               <CardBadge color="#facc15" />
-              <Typography variant="caption" color="rgba(255,255,255,0.6)">
+              <Typography variant="caption" color="rgba(255,255,255,0.6)" sx={{ fontSize: { xs: "0.6rem", sm: "0.75rem" } }}>
                 T. Amarillas
               </Typography>
             </Box>
-            <Typography variant="body2" fontWeight="bold">
+            <Typography variant="body2" fontWeight="bold" sx={{ minWidth: 0, flexShrink: 1, fontSize: { xs: "0.8rem", sm: "0.875rem" } }}>
               {match.away_yellow_cards ?? 0}
             </Typography>
           </Box>
@@ -146,18 +149,19 @@ export const LiveMatchStats: React.FC<LiveMatchStatsProps> = ({ match }) => {
             justifyContent="space-between"
             alignItems="center"
             mb={1.5}
+            gap={0.5}
             sx={{ borderBottom: "1px solid rgba(255,255,255,0.05)", pb: 1 }}
           >
-            <Typography variant="body2" fontWeight="bold">
+            <Typography variant="body2" fontWeight="bold" sx={{ minWidth: 0, flexShrink: 1, fontSize: { xs: "0.8rem", sm: "0.875rem" } }}>
               {match.home_red_cards ?? 0}
             </Typography>
-            <Box display="flex" alignItems="center" gap={1}>
+            <Box display="flex" alignItems="center" gap={0.5} sx={{ flexShrink: 0 }}>
               <CardBadge color="#ef4444" />
-              <Typography variant="caption" color="rgba(255,255,255,0.6)">
+              <Typography variant="caption" color="rgba(255,255,255,0.6)" sx={{ fontSize: { xs: "0.6rem", sm: "0.75rem" } }}>
                 T. Rojas
               </Typography>
             </Box>
-            <Typography variant="body2" fontWeight="bold">
+            <Typography variant="body2" fontWeight="bold" sx={{ minWidth: 0, flexShrink: 1, fontSize: { xs: "0.8rem", sm: "0.875rem" } }}>
               {match.away_red_cards ?? 0}
             </Typography>
           </Box>

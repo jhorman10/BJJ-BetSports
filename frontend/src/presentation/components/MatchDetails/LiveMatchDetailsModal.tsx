@@ -91,7 +91,7 @@ const LiveMatchDetailsModal: React.FC = () => {
         </IconButton>
       </DialogTitle>
 
-      <DialogContent sx={{ overflowX: "hidden", px: { xs: 2, sm: 3 } }}>
+      <DialogContent sx={{ overflowX: "visible", px: { xs: 1.5, sm: 3 } }}>
         {/* Live Score Board */}
         <LiveScoreBoard match={match} />
 
