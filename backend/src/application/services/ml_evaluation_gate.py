@@ -196,6 +196,7 @@ def build_baseline_probs(
             implied = {
                 outcome: 1.0 / float(o)
                 for outcome, o in zip(("home", "draw", "away"), triple)
+                if o is not None
             }
             z = sum(implied.values())
             if z > 0:

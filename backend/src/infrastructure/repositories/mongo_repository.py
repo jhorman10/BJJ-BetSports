@@ -480,7 +480,8 @@ class MongoRepository:
 
     def delete_binary_artifact(self, key: str) -> bool:
         """Delete one artifact document by exact key (retention pruning only)."""
-        return self.binary_artifacts.delete_one({"key": key}).deleted_count > 0
+        result = self.binary_artifacts.delete_one({"key": key})
+        return bool(result.deleted_count > 0)
 
     def promote_serving_pointer(
         self,
@@ -494,7 +495,7 @@ class MongoRepository:
         Readers via ``get_app_state`` observe complete old-or-new state —
         never partial or null — because this is exactly one document update.
         """
-        pointer_data = {
+        pointer_data: dict = {
             "artifact_key": artifact_key,
             "version": version,
             "promoted_at": get_current_time().isoformat(),

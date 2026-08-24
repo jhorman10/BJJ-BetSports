@@ -736,6 +736,8 @@ class MLTrainingOrchestrator:
         self.cache_service = cache_service
         self.persistence_repo = persistence_repo
         self.feature_extractor = MLFeatureExtractor()
+        # Type guard for mypy: persistence_repo must have the versioned artifact methods
+        # when gated training is enabled (which it is by default)
 
     async def run_training_pipeline(
         self,
@@ -951,7 +953,7 @@ class MLTrainingOrchestrator:
 
         import joblib
 
-        envelope = {
+        envelope: dict = {
             "sklearn_version": self._sklearn_version(),
             "feature_schema_hash": self.feature_extractor.schema_signature(),
             "git_sha": os.getenv("GIT_SHA", "unknown"),
@@ -970,6 +972,7 @@ class MLTrainingOrchestrator:
         version = f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}-{git_sha8}"
 
         # Save first, promote second — a failed save never touches serving.
+        assert self.persistence_repo is not None, "persistence_repo required"
         self.persistence_repo.save_binary_artifact_versioned(
             self.ARTIFACT_KEY, version, buffer.getvalue(), envelope
         )
@@ -994,6 +997,7 @@ class MLTrainingOrchestrator:
 
     def _prune_superseded_versions(self, promoted_version: str) -> None:
         """Best-effort retention pruning; never deletes the pointer target."""
+        assert self.persistence_repo is not None, "persistence_repo required"
         versions = self.persistence_repo.list_versions(self.ARTIFACT_KEY)
         for old_version in versions[: -self.RETENTION_KEEP_VERSIONS]:
             if old_version == promoted_version:
