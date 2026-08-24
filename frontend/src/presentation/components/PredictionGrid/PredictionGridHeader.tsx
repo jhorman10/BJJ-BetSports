@@ -75,17 +75,18 @@ const PredictionGridHeader: React.FC<PredictionGridHeaderProps> = ({
           display="flex"
           gap={2}
           alignItems="center"
-          sx={{ ml: "auto", maxWidth: "100%" }}
+          flexWrap="wrap"
+          sx={{ ml: { xs: 0, sm: "auto" }, maxWidth: "100%", width: { xs: "100%", sm: "auto" } }}
         >
           <TeamSearch
             searchQuery={searchQuery}
             onSearchChange={onSearchChange}
-            sx={{ flex: 1, minWidth: { xs: 120, sm: 200 }, mr: 1 }}
+            sx={{ flex: { xs: "1 1 100%", sm: 1 }, minWidth: { xs: 0, sm: 200 }, mr: 1 }}
           />
 
           {/* Sort Dropdown */}
 
-          <FormControl size="small" sx={{ minWidth: { xs: 120, sm: 150 } }}>
+          <FormControl size="small" sx={{ minWidth: { xs: 100, sm: 150 }, flexShrink: 0 }}>
             <InputLabel id="sort-by-label">
               <Box display="flex" alignItems="center" gap={0.5}>
                 <Sort fontSize="small" />

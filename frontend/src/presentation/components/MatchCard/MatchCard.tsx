@@ -249,9 +249,11 @@ const MatchCard: React.FC<MatchCardProps> = memo(
               right: 12,
               zIndex: 1,
               display: "flex",
-              flexDirection: "row",
+              flexWrap: "wrap",
               gap: 0.5,
               alignItems: "center",
+              justifyContent: "flex-end",
+              maxWidth: "60%",
             }}
           >
             {/* ML Chip - appears to left of Destacado when both are present */}

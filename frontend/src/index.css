@@ -20,8 +20,7 @@ body {
   background: radial-gradient(circle at 50% 0%, #1e293b 0%, #0f172a 100%);
   min-height: 100dvh;
   color: #f1f5f9;
-  /* Mobile: prevent horizontal overflow */
-  overflow-x: hidden;
+
   /* iOS safe-area padding for notch/home-indicator */
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   /* Prevent iOS zoom on input focus */

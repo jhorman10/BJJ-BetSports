@@ -48,7 +48,9 @@ export const SELECT_STYLES = {
 };
 
 export const MENU_PROPS = {
-  disablePortal: true, // Prevents Popper from using position:fixed, which causes iOS viewport minimization
+  disablePortal: true,
+  anchorOrigin: { vertical: "bottom" as const, horizontal: "left" as const },
+  transformOrigin: { vertical: "top" as const, horizontal: "left" as const },
   PaperProps: {
     sx: {
       mt: 1,
@@ -58,10 +60,13 @@ export const MENU_PROPS = {
       border: "1px solid rgba(99, 102, 241, 0.2)",
       boxShadow: "0 20px 40px rgba(0, 0, 0, 0.4)",
       maxHeight: 320,
+      maxWidth: "calc(100vw - 32px)",
+      overflowX: "hidden" as const,
       "& .MuiMenuItem-root": {
         borderRadius: 1,
         mx: 1,
         my: 0.5,
+        whiteSpace: "normal" as const,
         transition: "all 0.15s ease",
         "&:hover": {
           backgroundColor: "rgba(99, 102, 241, 0.15)",
