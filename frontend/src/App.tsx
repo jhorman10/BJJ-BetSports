@@ -66,7 +66,7 @@ const App: React.FC = () => {
           element={
             <>
               {/* Header */}
-              <Box mb={{ xs: 2, sm: 4 }}>
+              <Box mb={{ xs: 3, sm: 4 }}>
                 <Typography
                   variant="h3"
                   fontWeight={700}
@@ -78,6 +78,7 @@ const App: React.FC = () => {
                     WebkitTextFillColor: "transparent",
                     mb: 1,
                     lineHeight: 1.2,
+                    fontSize: { xs: "1.4rem", sm: "1.75rem", md: "2rem" },
                   }}
                 >
                   Predicciones de Fútbol

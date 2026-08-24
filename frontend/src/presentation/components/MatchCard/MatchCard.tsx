@@ -253,7 +253,7 @@ const MatchCard: React.FC<MatchCardProps> = memo(
               gap: 0.5,
               alignItems: "center",
               justifyContent: "flex-end",
-              maxWidth: "60%",
+              maxWidth: { xs: "50%", sm: "60%" },
             }}
           >
             {/* ML Chip - appears to left of Destacado when both are present */}
@@ -827,19 +827,23 @@ const MatchCard: React.FC<MatchCardProps> = memo(
           </Box>
 
 {/* Picks Tabs Summary */}
-          <div style={{ marginBottom: 8, fontSize: "0.8rem", color: "text.secondary" }}>
+          <Typography variant="caption" sx={{ display: "block", mb: 1, fontSize: { xs: "0.75rem", sm: "0.8rem" }, color: "text.secondary" }}>
             <strong>Picks Available:</strong> {prediction?.suggested_picks?.length || 0} picks
-          </div>
+          </Typography>
 
           {/* Market Type Labels */}
           {prediction?.suggested_picks && prediction.suggested_picks.length > 0 && (
-            <div style={{ marginTop: 4, fontSize: "0.7rem", color: "text.secondary" }}>
+            <Box display="flex" flexWrap="wrap" gap={1} sx={{ mt: 0.5, mb: 1 }}>
               {prediction.suggested_picks.slice(0, 3).map((pick, idx) => (
-                <span key={`${pick.market_type}-${idx}`} style={{ marginRight: 8 }}>
+                <Typography
+                  key={`${pick.market_type}-${idx}`}
+                  variant="caption"
+                  sx={{ fontSize: { xs: "0.65rem", sm: "0.7rem" }, color: "text.secondary" }}
+                >
                   {pick.market_type}
-                </span>
+                </Typography>
               ))}
-            </div>
+            </Box>
           )}
 
           {/* Confidence & Sources */}

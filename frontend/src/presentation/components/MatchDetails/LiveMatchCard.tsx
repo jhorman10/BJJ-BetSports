@@ -117,7 +117,7 @@ const LiveMatchCard: React.FC<LiveMatchCardProps> = memo(
                   fontWeight={700}
                   sx={{
                     textTransform: "uppercase",
-                    fontSize: "0.6rem",
+                    fontSize: { xs: "0.65rem", sm: "0.6rem" },
                     letterSpacing: "1px",
                     textShadow: "0 1px 2px rgba(0,0,0,0.5)",
                   }}
@@ -365,7 +365,7 @@ const LiveMatchCard: React.FC<LiveMatchCardProps> = memo(
                     <Typography
                       variant="caption"
                       color="rgba(255,255,255,0.6)"
-                      sx={{ flexShrink: 0, fontSize: { xs: "0.6rem", sm: "0.65rem" } }}
+                      sx={{ flexShrink: 0, fontSize: { xs: "0.65rem", sm: "0.7rem" } }}
                     >
                       Posesión
                     </Typography>
@@ -433,7 +433,7 @@ const LiveMatchCard: React.FC<LiveMatchCardProps> = memo(
                     <Typography
                       variant="caption"
                       color="rgba(255,255,255,0.6)"
-                      sx={{ fontSize: { xs: "0.6rem", sm: "0.65rem" }, whiteSpace: "nowrap" }}
+                      sx={{ fontSize: { xs: "0.65rem", sm: "0.7rem" }, whiteSpace: "nowrap" }}
                     >
                       Tiros{(match.home_shots_on_target != null || match.away_shots_on_target != null) ? " (Al Arco)" : ""}
                     </Typography>
@@ -472,7 +472,7 @@ const LiveMatchCard: React.FC<LiveMatchCardProps> = memo(
                   <Typography
                     variant="caption"
                     color="rgba(255,255,255,0.6)"
-                    sx={{ fontSize: { xs: "0.6rem", sm: "0.65rem" } }}
+                    sx={{ fontSize: { xs: "0.65rem", sm: "0.7rem" } }}
                   >
                     Córners
                   </Typography>
@@ -509,7 +509,7 @@ const LiveMatchCard: React.FC<LiveMatchCardProps> = memo(
                   <Typography
                     variant="caption"
                     color="rgba(255,255,255,0.6)"
-                    sx={{ fontSize: { xs: "0.6rem", sm: "0.65rem" } }}
+                    sx={{ fontSize: { xs: "0.65rem", sm: "0.7rem" } }}
                   >
                     T. Amarillas
                   </Typography>
@@ -546,7 +546,7 @@ const LiveMatchCard: React.FC<LiveMatchCardProps> = memo(
                   <Typography
                     variant="caption"
                     color="rgba(255,255,255,0.6)"
-                    sx={{ fontSize: { xs: "0.6rem", sm: "0.65rem" } }}
+                    sx={{ fontSize: { xs: "0.65rem", sm: "0.7rem" } }}
                   >
                     T. Rojas
                   </Typography>
@@ -600,7 +600,7 @@ const LiveMatchCard: React.FC<LiveMatchCardProps> = memo(
                 <Typography
                   variant="caption"
                   color="rgba(255,255,255,0.6)"
-                  sx={{ flexShrink: 0, fontSize: { xs: "0.6rem", sm: "0.65rem" } }}
+                  sx={{ flexShrink: 0, fontSize: { xs: "0.65rem", sm: "0.7rem" } }}
                 >
                   Faltas
                 </Typography>
@@ -632,7 +632,7 @@ const LiveMatchCard: React.FC<LiveMatchCardProps> = memo(
                 <Typography
                   variant="caption"
                   color="rgba(255,255,255,0.6)"
-                  sx={{ flexShrink: 0, fontSize: { xs: "0.6rem", sm: "0.65rem" } }}
+                  sx={{ flexShrink: 0, fontSize: { xs: "0.65rem", sm: "0.7rem" } }}
                 >
                   Offsides
                 </Typography>

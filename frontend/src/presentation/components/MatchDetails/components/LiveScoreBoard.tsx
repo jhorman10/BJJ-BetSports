@@ -127,7 +127,7 @@ export const LiveScoreBoard: React.FC<LiveScoreBoardProps> = ({ match }) => {
           flexDirection="column"
           alignItems="center"
           gap={1}
-          sx={{ minWidth: isMobile ? 80 : 120, flexShrink: 0 }}
+          sx={{ minWidth: { xs: 56, sm: 80, md: 120 }, flexShrink: 0, maxWidth: { xs: "35%", sm: "none" } }}
         >
           {/* Status & Time Row */}
           <Box display="flex" alignItems="center" gap={1}>

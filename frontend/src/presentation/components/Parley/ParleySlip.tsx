@@ -167,7 +167,7 @@ const ParleySlip: React.FC = () => {
                       e.stopPropagation();
                       removePick(item.match.match.id);
                     }}
-                    sx={{ p: 0.5, color: "error.main" }}
+                    sx={{ p: 0.5, color: "error.main", minWidth: 44, minHeight: 44 }}
                   >
                     <Close fontSize="small" />
                   </IconButton>

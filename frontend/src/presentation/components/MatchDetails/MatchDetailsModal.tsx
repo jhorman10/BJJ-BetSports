@@ -138,7 +138,7 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                 </Box>
 
                 {/* Score & Status */}
-                <Box textAlign="center" px={1} minWidth={80}>
+                <Box textAlign="center" px={1} sx={{ minWidth: { xs: 60, sm: 80 }, flexShrink: 0 }}>
                   <Box
                     bgcolor="rgba(0,0,0,0.4)"
                     borderRadius={2}
