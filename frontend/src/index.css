@@ -18,7 +18,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background: radial-gradient(circle at 50% 0%, #1e293b 0%, #0f172a 100%);
-  min-height: 100vh;
+  min-height: 100dvh;
   color: #f1f5f9;
   /* Mobile: prevent horizontal overflow */
   overflow-x: hidden;
@@ -29,7 +29,7 @@ body {
 }
 
 #root {
-  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* Scrollbar styling */

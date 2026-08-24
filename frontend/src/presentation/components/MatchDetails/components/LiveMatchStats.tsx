@@ -175,7 +175,7 @@ export const LiveMatchStats: React.FC<LiveMatchStatsProps> = ({ match }) => {
               sx={{
                 textTransform: "uppercase",
                 letterSpacing: "1px",
-                fontSize: "0.6rem",
+                fontSize: "0.75rem",
                 display: "block",
                 textAlign: "center",
                 borderBottom: "1px solid rgba(255,255,255,0.05)",

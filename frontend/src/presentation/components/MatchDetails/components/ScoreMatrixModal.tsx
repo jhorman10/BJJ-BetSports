@@ -78,14 +78,14 @@ const BellCurveVisualization: React.FC<{ points: ScorePoint[]; maxProb: number }
   const maxProbability = maxProb || Math.max(...topScores.map((p) => p.probability), 0.001);
 
   return (
-    <Box sx={{ position: "relative", width: "100%", height: 360, mt: 2 }}>
+    <Box sx={{ position: "relative", width: "100%", height: { xs: 280, sm: 360 }, mt: 2 }}>
       <Box
         sx={{
           position: "absolute",
-          left: 48,
-          right: 16,
-          top: 32,
-          bottom: 56,
+          left: { xs: 36, sm: 48 },
+          right: { xs: 8, sm: 16 },
+          top: { xs: 24, sm: 32 },
+          bottom: { xs: 48, sm: 56 },
           borderLeft: "1px solid rgba(255,255,255,0.15)",
           borderBottom: "1px solid rgba(255,255,255,0.15)",
         }}
@@ -93,15 +93,15 @@ const BellCurveVisualization: React.FC<{ points: ScorePoint[]; maxProb: number }
       <Box
         sx={{
           position: "absolute",
-          left: 48,
-          right: 16,
-          top: 32,
-          bottom: 56,
+          left: { xs: 36, sm: 48 },
+          right: { xs: 8, sm: 16 },
+          top: { xs: 24, sm: 32 },
+          bottom: { xs: 48, sm: 56 },
           display: "flex",
           alignItems: "flex-end",
           justifyContent: "center",
-          gap: 1.2,
-          px: 1,
+          gap: { xs: 0.6, sm: 1.2 },
+          px: 0.5,
         }}
       >
         {topScores.map((point) => {
@@ -150,7 +150,7 @@ const BellCurveVisualization: React.FC<{ points: ScorePoint[]; maxProb: number }
                 />
                 <Typography
                   variant="caption"
-                  sx={{ mt: 0.5, color: "text.secondary", fontSize: "0.65rem" }}
+                  sx={{ mt: 0.5, color: "text.secondary", fontSize: "0.7rem" }}
                 >
                   {label}
                 </Typography>
@@ -194,7 +194,7 @@ export const ScoreMatrixModal: React.FC<ScoreMatrixModalProps> = ({
   const hasScores = points.length > 0;
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <SportsSoccer fontSize="small" />
         <Typography variant="h6" component="span">
@@ -261,7 +261,7 @@ export const ScoreMatrixModal: React.FC<ScoreMatrixModalProps> = ({
             <Typography variant="subtitle2" gutterBottom>
               Historial de Precisión del Modelo
             </Typography>
-            <Box display="flex" gap={3} flexWrap="wrap">
+            <Box display="flex" gap={{ xs: 2, sm: 3 }} flexWrap="wrap">
               <Box>
                 <Typography variant="caption" color="text.secondary">
                   Precisión (marcador exacto)

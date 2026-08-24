@@ -87,7 +87,7 @@ const LiveMatchCard: React.FC<LiveMatchCardProps> = memo(
           />
 
           <CardContent
-            sx={{ p: "24px !important", position: "relative", zIndex: 1 }}
+            sx={{ p: { xs: "16px !important", sm: "24px !important" }, position: "relative", zIndex: 1 }}
           >
             {/* Header: Liga + Tiempo */}
             <Box
@@ -362,7 +362,7 @@ const LiveMatchCard: React.FC<LiveMatchCardProps> = memo(
                   <Typography
                     variant="caption"
                     color="rgba(255,255,255,0.4)"
-                    fontSize={{ xs: "0.5rem", sm: "0.6rem" }}
+                    fontSize={{ xs: "0.625rem", sm: "0.7rem" }}
                     fontWeight={700}
                     letterSpacing={0.5}
                     sx={{ whiteSpace: "nowrap" }}
@@ -397,7 +397,7 @@ const LiveMatchCard: React.FC<LiveMatchCardProps> = memo(
                   <Typography
                     variant="caption"
                     color="rgba(255,255,255,0.4)"
-                    fontSize={{ xs: "0.5rem", sm: "0.6rem" }}
+                    fontSize={{ xs: "0.625rem", sm: "0.7rem" }}
                     fontWeight={700}
                     letterSpacing={0.5}
                     sx={{ whiteSpace: "nowrap" }}
@@ -432,7 +432,7 @@ const LiveMatchCard: React.FC<LiveMatchCardProps> = memo(
                   <Typography
                     variant="caption"
                     color="rgba(255,255,255,0.4)"
-                    fontSize={{ xs: "0.5rem", sm: "0.6rem" }}
+                    fontSize={{ xs: "0.625rem", sm: "0.7rem" }}
                     fontWeight={700}
                     letterSpacing={0.5}
                     sx={{ whiteSpace: "nowrap" }}

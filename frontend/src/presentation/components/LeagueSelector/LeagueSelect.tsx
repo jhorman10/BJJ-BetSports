@@ -33,7 +33,7 @@ const LeagueSelect: React.FC<LeagueSelectProps> = ({
 }) => {
   return (
     <FormControl
-      sx={{ flex: 1, minWidth: 200 }}
+      sx={{ flex: 1, minWidth: { xs: 140, sm: 200 } }}
       size="small"
       disabled={!selectedCountry}
     >

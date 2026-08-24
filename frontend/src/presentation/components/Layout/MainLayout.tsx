@@ -33,7 +33,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     <>
       <Box
         sx={{
-          minHeight: "100vh",
+          minHeight: "100dvh",
           // Background handled by theme/CssBaseline
           bgcolor: "background.default",
         }}
@@ -130,7 +130,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         </AppBar>
 
         {/* Main Content */}
-        <Container maxWidth="xl" sx={{ py: { xs: 2, sm: 4 }, px: { xs: 1.5, sm: 3 } }} className="page-transition">
+        <Container maxWidth="xl" sx={{ py: { xs: 2, sm: 4 }, px: { xs: 1, sm: 2, md: 3 } }} className="page-transition">
           {children}
         </Container>
 

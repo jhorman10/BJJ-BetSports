@@ -97,6 +97,7 @@ const ParleySlip: React.FC = () => {
         borderTopRightRadius: 16,
         zIndex: 1200,
         overflow: "hidden",
+        pb: "env(safe-area-inset-bottom, 0px)",
         bgcolor: "#1e293b",
         border: "1px solid rgba(255,255,255,0.1)",
         display: "flex",
@@ -106,7 +107,8 @@ const ParleySlip: React.FC = () => {
       {/* Header */}
       <Box
         sx={{
-          p: 2,
+          px: { xs: 2, sm: 2 },
+          py: { xs: 1, sm: 2 },
           bgcolor: "#0f172a",
           display: "flex",
           justifyContent: "space-between",
@@ -117,15 +119,15 @@ const ParleySlip: React.FC = () => {
         onClick={toggleParleySlip}
       >
         <Box sx={{ display: "flex", alignItems: "center" }}>
-          <LocalActivity sx={{ color: "#6366f1", mr: 1 }} />
-          <Typography variant="subtitle1" fontWeight="bold" color="white">
+          <LocalActivity sx={{ color: "#6366f1", mr: 1, fontSize: { xs: "1.2rem", sm: "1.5rem" } }} />
+          <Typography variant="subtitle1" fontWeight="bold" color="white" sx={{ fontSize: { xs: "0.875rem", sm: "1rem" } }}>
             Mi Parley
           </Typography>
           <Chip
             label={items.length}
             size="small"
             color="primary"
-            sx={{ ml: 1, height: 20, minWidth: 20 }}
+            sx={{ ml: 1, height: { xs: 18, sm: 20 }, minWidth: { xs: 18, sm: 20 }, fontSize: { xs: "0.7rem", sm: "0.8rem" } }}
           />
         </Box>
         <IconButton size="small" sx={{ color: "text.secondary" }}>
@@ -135,7 +137,7 @@ const ParleySlip: React.FC = () => {
 
       {/* Content */}
       <Collapse in={isParleySlipOpen}>
-        <Box sx={{ p: 0, maxHeight: 400, overflowY: "auto" }}>
+        <Box sx={{ p: 0, maxHeight: { xs: 300, sm: 400 }, overflowY: "auto" }}>
           <List disablePadding>
             {items.map((item) => (
               <ListItem
@@ -270,6 +272,7 @@ const ParleySlip: React.FC = () => {
                 fullWidth
                 onClick={clearPicks}
                 startIcon={<DeleteOutline />}
+                sx={{ minHeight: 44 }}
               >
                 Limpiar
               </Button>

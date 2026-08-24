@@ -159,6 +159,13 @@ const MatchCard: React.FC<MatchCardProps> = memo(
       }
     };
 
+    const handleTouchStart = (): void => {
+      if (prefetchTimerRef.current) clearTimeout(prefetchTimerRef.current);
+      prefetchTimerRef.current = setTimeout(() => {
+        prefetchMatch(match.id);
+      }, 300);
+    };
+
     // Cleanup on unmount
     React.useEffect(() => {
       return () => {
@@ -197,6 +204,7 @@ const MatchCard: React.FC<MatchCardProps> = memo(
           onClick={onClick}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
+          onTouchStart={handleTouchStart}
         >
         {/* Selection Checkbox - Only if handler provided */}
         {onToggleSelection && (
@@ -211,8 +219,8 @@ const MatchCard: React.FC<MatchCardProps> = memo(
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              width: 32,
-              height: 32,
+              width: 44,
+              height: 44,
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -305,94 +313,84 @@ const MatchCard: React.FC<MatchCardProps> = memo(
           </Box>
         )}
 
-        {/* Rigorous ML Badge - Only if Rigorous ML is used */}
-        {prediction.data_sources.includes("Rigorous ML") && !highlight && (
+        {/* Badge stack - non-highlight badges use flex column to avoid overlap */}
+        {!highlight && (
           <Box
             sx={{
               position: "absolute",
               top: 12,
-              right: hasRichData ? (highlight ? 96 : 80) : 12,
-              zIndex: 1,
-              mr: hasRichData ? 1 : 0,
-            }}
-          >
-            <Tooltip title="Predicción generada por Modelo ML Riguroso">
-              <Chip
-                icon={
-                  <Psychology
-                    sx={{
-                      fontSize: "0.9rem !important",
-                      color: "#ec4899 !important", // Pink-500
-                    }}
-                  />
-                }
-                label="ML"
-                size="small"
-                sx={{
-                  bgcolor: "rgba(236, 72, 153, 0.15)", // Pink background
-                  color: "#ec4899",
-                  border: "1px solid rgba(236, 72, 153, 0.3)",
-                  fontWeight: 700,
-                  height: 24,
-                  "& .MuiChip-label": { px: 1 },
-                }}
-              />
-            </Tooltip>
-          </Box>
-        )}
-
-        {/* Rich Data Badge (FotMob) */}
-        {hasRichData && !highlight && (
-          <Box sx={{ position: "absolute", top: 12, right: 12, zIndex: 1 }}>
-            <Tooltip title="Datos enriquecidos (Córners/Tarjetas) disponibles">
-              <Chip
-                icon={
-                  <AutoGraph
-                    sx={{
-                      fontSize: "0.9rem !important",
-                      color: "#a78bfa !important",
-                    }}
-                  />
-                }
-                label="Data+"
-                size="small"
-                sx={{
-                  bgcolor: "rgba(139, 92, 246, 0.15)",
-                  color: "#a78bfa",
-                  border: "1px solid rgba(139, 92, 246, 0.3)",
-                  fontWeight: 700,
-                  height: 24,
-                  "& .MuiChip-label": { px: 1 },
-                }}
-              />
-            </Tooltip>
-          </Box>
-        )}
-
-        {/* Value Bet Badge - Always visible if value exists */}
-        {prediction.is_value_bet && (
-          <Box
-            sx={{
-              position: "absolute",
-              top: highlight ? 40 : hasRichData ? 40 : 12, // Stack correctly
               right: 12,
               zIndex: 1,
+              display: "flex",
+              flexDirection: "column",
+              gap: 0.5,
+              alignItems: "flex-end",
             }}
           >
-            <Chip
-              icon={<Diamond sx={{ fontSize: "0.9rem !important" }} />}
-              label={`EV +${((prediction.expected_value || 0) * 100).toFixed(
-                1
-              )}%`}
-              size="small"
-              sx={{
-                bgcolor: "rgba(251, 191, 36, 0.2)", // Amber background
-                color: "#ffffff", // White text
-                border: "1px solid #fbbf24",
-                fontWeight: 800,
-                "& .MuiChip-icon": { color: "#fbbf24" }, // Icon keeps amber color for contrast
-              }}
-            />
+            {prediction.data_sources.includes("Rigorous ML") && (
+              <Tooltip title="Predicción generada por Modelo ML Riguroso">
+                <Chip
+                  icon={
+                    <Psychology
+                      sx={{
+                        fontSize: "0.9rem !important",
+                        color: "#ec4899 !important",
+                      }}
+                    />
+                  }
+                  label="ML"
+                  size="small"
+                  sx={{
+                    bgcolor: "rgba(236, 72, 153, 0.15)",
+                    color: "#ec4899",
+                    border: "1px solid rgba(236, 72, 153, 0.3)",
+                    fontWeight: 700,
+                    height: 24,
+                    "& .MuiChip-label": { px: 1 },
+                  }}
+                />
+              </Tooltip>
+            )}
+            {hasRichData && (
+              <Tooltip title="Datos enriquecidos (Córners/Tarjetas) disponibles">
+                <Chip
+                  icon={
+                    <AutoGraph
+                      sx={{
+                        fontSize: "0.9rem !important",
+                        color: "#a78bfa !important",
+                      }}
+                    />
+                  }
+                  label="Data+"
+                  size="small"
+                  sx={{
+                    bgcolor: "rgba(139, 92, 246, 0.15)",
+                    color: "#a78bfa",
+                    border: "1px solid rgba(139, 92, 246, 0.3)",
+                    fontWeight: 700,
+                    height: 24,
+                    "& .MuiChip-label": { px: 1 },
+                  }}
+                />
+              </Tooltip>
+            )}
+            {prediction.is_value_bet && (
+              <Chip
+                icon={<Diamond sx={{ fontSize: "0.9rem !important" }} />}
+                label={`EV +${((prediction.expected_value || 0) * 100).toFixed(
+                  1
+                )}%`}
+                size="small"
+                sx={{
+                  bgcolor: "rgba(251, 191, 36, 0.2)",
+                  color: "#ffffff",
+                  border: "1px solid #fbbf24",
+                  fontWeight: 800,
+                  "& .MuiChip-icon": { color: "#fbbf24" },
+                }}
+              />
+            )}
           </Box>
         )}
         <CardContent>

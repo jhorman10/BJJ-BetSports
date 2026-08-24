@@ -165,7 +165,7 @@ const App: React.FC = () => {
         open={goalToast.open}
         autoHideDuration={5000}
         onClose={closeGoalToast}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
         <Alert
           onClose={closeGoalToast}
@@ -186,7 +186,7 @@ const App: React.FC = () => {
       {/* Training Update Notification */}
       <Snackbar
         open={newPredictionsAvailable}
-        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
         <Alert
           severity="info"

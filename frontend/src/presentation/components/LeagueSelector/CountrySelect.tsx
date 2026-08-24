@@ -31,7 +31,7 @@ const CountrySelect: React.FC<CountrySelectProps> = ({
   menuProps,
 }) => {
   return (
-    <FormControl sx={{ flex: 1, minWidth: 180 }} size="small">
+    <FormControl sx={{ flex: 1, minWidth: { xs: 120, sm: 180 } }} size="small">
       <InputLabel
         id="country-select-label"
         sx={{
