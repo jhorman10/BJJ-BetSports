@@ -7,6 +7,15 @@
 import { createTheme, ThemeOptions } from "@mui/material/styles";
 
 const themeOptions: ThemeOptions = {
+  breakpoints: {
+    values: {
+      xs: 0,
+      sm: 640,   // Tailwind sm
+      md: 768,   // Tailwind md
+      lg: 1024,  // Tailwind lg
+      xl: 1280,  // Tailwind xl
+    },
+  },
   palette: {
     mode: "dark",
     primary: {
