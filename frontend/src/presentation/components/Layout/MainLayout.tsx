@@ -46,25 +46,26 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             background: "transparent", // Handled by CSS class
           }}
         >
-          <Toolbar sx={{ minHeight: { xs: 52, sm: 64 }, px: { xs: 1, sm: 2 } }}>
-            <SportsSoccer sx={{ mr: { xs: 1, sm: 2 }, color: "primary.main", fontSize: { xs: "1.5rem", sm: "1.8rem" } }} />
-            <Link to="/" style={{ textDecoration: "none", color: "inherit", display: "flex", alignItems: "center", flexGrow: 1, minWidth: 0 }}>
+          <Toolbar sx={{ minHeight: { xs: 52, sm: 64 }, px: { xs: 1, sm: 2 }, overflow: "hidden" }}>
+            <SportsSoccer sx={{ mr: { xs: 0.5, sm: 2 }, color: "primary.main", fontSize: { xs: "1.3rem", sm: "1.8rem" }, flexShrink: 0 }} />
+            <Link to="/" style={{ textDecoration: "none", color: "inherit", display: "flex", alignItems: "center", minWidth: 0, overflow: "hidden" }}>
               <Typography
                 variant="h6"
                 component="h1"
+                noWrap
                 sx={{
                   fontWeight: 700,
-                  fontSize: { xs: "0.85rem", sm: "1rem" },
-                  whiteSpace: "nowrap",
+                  fontSize: { xs: "0.8rem", sm: "1rem" },
                   overflow: "hidden",
                   textOverflow: "ellipsis",
+                  minWidth: 0,
                 }}
               >
-                BJJ - BetSports v2
+                BJJ BetSports
               </Typography>
             </Link>
 
-            <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0.5, sm: 1 }, flexShrink: 0 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0.25, sm: 1 }, flexShrink: 0, ml: "auto" }}>
               <Link to="/" style={{ textDecoration: "none" }}>
                 <Button
                   sx={{
@@ -72,11 +73,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                     fontWeight: location.pathname === "/" ? 700 : 400,
                     textTransform: "none",
                     minWidth: 0,
-                    px: { xs: 1, sm: 1.5 },
+                    px: { xs: 0.5, sm: 1.5 },
+                    gap: 0.5,
                   }}
-                  startIcon={!isMobile ? <SportsSoccer /> : undefined}
                 >
-                  {isMobile ? <SportsSoccer /> : "Predicciones"}
+                  <SportsSoccer sx={{ fontSize: { xs: "1.1rem", sm: "1.25rem" } }} />
+                  <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>Predicciones</Box>
                 </Button>
               </Link>
 
@@ -88,11 +90,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                       fontWeight: location.pathname === "/bot" ? 700 : 400,
                       textTransform: "none",
                       minWidth: 0,
-                      px: { xs: 1, sm: 1.5 },
+                      px: { xs: 0.5, sm: 1.5 },
+                      gap: 0.5,
                     }}
-                    startIcon={!isMobile ? <SmartToy /> : undefined}
                   >
-                    {isMobile ? <SmartToy /> : "Bot"}
+                    <SmartToy sx={{ fontSize: { xs: "1.1rem", sm: "1.25rem" } }} />
+                    <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>Bot</Box>
                   </Button>
                 </Link>
               )}
@@ -104,11 +107,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                     fontWeight: location.pathname === "/parley-calculator" ? 700 : 400,
                     textTransform: "none",
                     minWidth: 0,
-                    px: { xs: 1, sm: 1.5 },
+                    px: { xs: 0.5, sm: 1.5 },
+                    gap: 0.5,
                   }}
-                  startIcon={!isMobile ? <Calculate /> : undefined}
                 >
-                  {isMobile ? <Calculate /> : "Calculadora"}
+                  <Calculate sx={{ fontSize: { xs: "1.1rem", sm: "1.25rem" } }} />
+                  <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>Calculadora</Box>
                 </Button>
               </Link>
             </Box>
@@ -119,10 +123,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                 color="primary"
                 size="small"
                 onClick={handleInstallClick}
-                sx={{ ml: { xs: 0.5, sm: 2 }, minWidth: 0, px: { xs: 1, sm: 1.5 } }}
-                startIcon={!isMobile ? <GetApp /> : undefined}
+                sx={{ ml: { xs: 0.25, sm: 2 }, minWidth: 0, px: { xs: 0.5, sm: 1.5 }, flexShrink: 0 }}
               >
-                {isMobile ? <GetApp /> : "Instalar App"}
+                <GetApp sx={{ fontSize: "1.1rem" }} />
               </Button>
             )}
           </Toolbar>
