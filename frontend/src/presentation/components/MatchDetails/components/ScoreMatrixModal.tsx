@@ -197,8 +197,6 @@ export const ScoreMatrixModal: React.FC<ScoreMatrixModalProps> = ({
     <Dialog
       open={open}
       onClose={onClose}
-      maxWidth="sm"
-      fullWidth
       disableScrollLock
       PaperProps={{
         sx: {

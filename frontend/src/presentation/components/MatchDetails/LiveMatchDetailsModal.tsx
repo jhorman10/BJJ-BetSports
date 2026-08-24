@@ -57,8 +57,7 @@ const LiveMatchDetailsModal: React.FC = () => {
     <Dialog
       open={liveModalOpen}
       onClose={closeLiveMatchModal}
-      maxWidth="sm"
-      fullWidth
+      fullScreen={false}
       TransitionComponent={Slide}
       TransitionProps={{ direction: "up" } as TransitionProps}
       PaperProps={{

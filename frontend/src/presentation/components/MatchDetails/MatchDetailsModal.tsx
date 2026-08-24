@@ -53,8 +53,7 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
       key={matchPrediction?.match?.id}
       open={open}
       onClose={onClose}
-      maxWidth="sm"
-      fullWidth
+      fullScreen={false}
       TransitionComponent={Slide}
       TransitionProps={{ direction: "up" } as TransitionProps}
       PaperProps={{
