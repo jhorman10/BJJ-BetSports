@@ -22,12 +22,31 @@ const TrainingControlPanel: React.FC = () => {
     loadCapabilities,
     createJob,
   } = useTrainingJobsStore();
-  const [modelKey, setModelKey] = React.useState("");
-  const [executorTarget, setExecutorTarget] = React.useState("");
-  const [datasetProfile, setDatasetProfile] = React.useState("");
-  const [featureProfile, setFeatureProfile] = React.useState("");
-  const [leagueId, setLeagueId] = React.useState("");
-  const [daysBack, setDaysBack] = React.useState("30");
+
+  const initialFormState = {
+    modelKey: "",
+    executorTarget: "",
+    datasetProfile: "",
+    featureProfile: "",
+    leagueId: "",
+    daysBack: "30",
+  };
+
+  const [formState, dispatch] = React.useReducer(
+    (state: typeof initialFormState, action: { type: string; field?: keyof typeof initialFormState; value?: string }) => {
+      switch (action.type) {
+        case "SET_FIELD":
+          return { ...state, [action.field!]: action.value };
+        case "RESET":
+          return initialFormState;
+        default:
+          return state;
+      }
+    },
+    initialFormState
+  );
+
+  const { modelKey, executorTarget, datasetProfile, featureProfile, leagueId, daysBack } = formState;
 
   React.useEffect(() => {
     if (!capabilities) {
@@ -53,9 +72,11 @@ const TrainingControlPanel: React.FC = () => {
     }
 
     return capabilities.executors.filter(
-      (executor) =>
-        executor.available &&
-        selectedModel.supported_executor_targets.includes(executor.key)
+      (executor) => {
+        const supportedExecutorSet = new Set(selectedModel.supported_executor_targets);
+        return executor.available &&
+          supportedExecutorSet.has(executor.key);
+      }
     );
   }, [capabilities, selectedModel]);
 
@@ -64,9 +85,10 @@ const TrainingControlPanel: React.FC = () => {
       return capabilities?.dataset_profiles ?? [];
     }
 
-    return capabilities.dataset_profiles.filter((profile) =>
-      selectedModel.supported_dataset_profiles.includes(profile.key)
-    );
+    return capabilities.dataset_profiles.filter((profile) => {
+      const supportedDatasetSet = new Set(selectedModel.supported_dataset_profiles);
+      return supportedDatasetSet.has(profile.key);
+    });
   }, [capabilities, selectedModel]);
 
   const availableFeatureProfiles = React.useMemo(() => {
@@ -74,9 +96,10 @@ const TrainingControlPanel: React.FC = () => {
       return capabilities?.feature_profiles ?? [];
     }
 
-    return capabilities.feature_profiles.filter((profile) =>
-      selectedModel.supported_feature_profiles.includes(profile.key)
-    );
+    return capabilities.feature_profiles.filter((profile) => {
+      const supportedFeatureSet = new Set(selectedModel.supported_feature_profiles);
+      return supportedFeatureSet.has(profile.key);
+    });
   }, [capabilities, selectedModel]);
 
   const availableLeagues = React.useMemo(() => {
@@ -84,9 +107,10 @@ const TrainingControlPanel: React.FC = () => {
       return capabilities?.league_options ?? [];
     }
 
-    return capabilities.league_options.filter((league) =>
-      selectedModel.supported_league_ids.includes(league.key)
-    );
+    return capabilities.league_options.filter((league) => {
+      const supportedLeagueSet = new Set(selectedModel.supported_league_ids);
+      return supportedLeagueSet.has(league.key);
+    });
   }, [capabilities, selectedModel]);
 
   const availableDaysBack = React.useMemo(() => {
@@ -94,9 +118,10 @@ const TrainingControlPanel: React.FC = () => {
       return capabilities?.days_back_options ?? [];
     }
 
-    return capabilities.days_back_options.filter((windowDays) =>
-      selectedModel.supported_days_back.includes(windowDays)
-    );
+    return capabilities.days_back_options.filter((windowDays) => {
+      const supportedDaysBackSet = new Set(selectedModel.supported_days_back);
+      return supportedDaysBackSet.has(windowDays);
+    });
   }, [capabilities, selectedModel]);
 
   React.useEffect(() => {
@@ -104,24 +129,32 @@ const TrainingControlPanel: React.FC = () => {
       return;
     }
 
-    setModelKey((current) => current || selectedModel.key);
-    setExecutorTarget(
-      (current) =>
-        current ||
-        selectedModel.default_executor_target ||
-        availableExecutors[0]?.key ||
-        ""
-    );
-    setDatasetProfile(
-      (current) => current || availableDatasetProfiles[0]?.key || ""
-    );
-    setFeatureProfile(
-      (current) => current || availableFeatureProfiles[0]?.key || ""
-    );
-    setLeagueId((current) => current || availableLeagues[0]?.key || "");
-    setDaysBack(
-      (current) => current || String(availableDaysBack[0] ?? 30)
-    );
+    dispatch({ type: "SET_FIELD", field: "modelKey", value: modelKey || selectedModel.key });
+    dispatch({
+      type: "SET_FIELD",
+      field: "executorTarget",
+      value: executorTarget || selectedModel.default_executor_target || availableExecutors[0]?.key || "",
+    });
+    dispatch({
+      type: "SET_FIELD",
+      field: "datasetProfile",
+      value: datasetProfile || availableDatasetProfiles[0]?.key || "",
+    });
+    dispatch({
+      type: "SET_FIELD",
+      field: "featureProfile",
+      value: featureProfile || availableFeatureProfiles[0]?.key || "",
+    });
+    dispatch({
+      type: "SET_FIELD",
+      field: "leagueId",
+      value: leagueId || availableLeagues[0]?.key || "",
+    });
+    dispatch({
+      type: "SET_FIELD",
+      field: "daysBack",
+      value: daysBack || String(availableDaysBack[0] ?? 30),
+    });
   }, [
     availableDatasetProfiles,
     availableDaysBack,
@@ -191,7 +224,7 @@ const TrainingControlPanel: React.FC = () => {
               select
               label="Modelo"
               value={selectedModel?.key ?? modelKey}
-              onChange={(event) => setModelKey(event.target.value)}
+              onChange={(event) => dispatch({ type: "SET_FIELD", field: "modelKey", value: event.target.value })}
               size="small"
               SelectProps={{ native: true }}
             >
@@ -206,7 +239,7 @@ const TrainingControlPanel: React.FC = () => {
               select
               label="Ejecutor"
               value={executorTarget}
-              onChange={(event) => setExecutorTarget(event.target.value)}
+              onChange={(event) => dispatch({ type: "SET_FIELD", field: "executorTarget", value: event.target.value })}
               size="small"
               SelectProps={{ native: true }}
             >
@@ -221,7 +254,7 @@ const TrainingControlPanel: React.FC = () => {
               select
               label="Dataset"
               value={datasetProfile}
-              onChange={(event) => setDatasetProfile(event.target.value)}
+              onChange={(event) => dispatch({ type: "SET_FIELD", field: "datasetProfile", value: event.target.value })}
               size="small"
               SelectProps={{ native: true }}
             >
@@ -236,7 +269,7 @@ const TrainingControlPanel: React.FC = () => {
               select
               label="Feature Profile"
               value={featureProfile}
-              onChange={(event) => setFeatureProfile(event.target.value)}
+              onChange={(event) => dispatch({ type: "SET_FIELD", field: "featureProfile", value: event.target.value })}
               size="small"
               SelectProps={{ native: true }}
             >
@@ -251,7 +284,7 @@ const TrainingControlPanel: React.FC = () => {
               select
               label="Liga"
               value={leagueId}
-              onChange={(event) => setLeagueId(event.target.value)}
+              onChange={(event) => dispatch({ type: "SET_FIELD", field: "leagueId", value: event.target.value })}
               size="small"
               SelectProps={{ native: true }}
             >
@@ -266,7 +299,7 @@ const TrainingControlPanel: React.FC = () => {
               select
               label="Ventana"
               value={daysBack}
-              onChange={(event) => setDaysBack(event.target.value)}
+              onChange={(event) => dispatch({ type: "SET_FIELD", field: "daysBack", value: event.target.value })}
               size="small"
               SelectProps={{ native: true }}
             >

@@ -85,15 +85,19 @@ const calculateMarketStats = (
   }
 
   return Object.entries(categories)
-    .filter(([_, value]) => value.total > 0)
-    .map(([key, value]) => ({
-      market_type: key,
-      market_label: value.label,
-      total: value.total,
-      won: value.won,
-      lost: value.lost,
-      accuracy: value.total > 0 ? (value.won / value.total) * 100 : 0,
-    }))
+    .reduce<{ market_type: string; market_label: string; total: number; won: number; lost: number; accuracy: number }[]>((acc, [key, value]) => {
+      if (value.total > 0) {
+        acc.push({
+          market_type: key,
+          market_label: value.label,
+          total: value.total,
+          won: value.won,
+          lost: value.lost,
+          accuracy: (value.won / value.total) * 100,
+        });
+      }
+      return acc;
+    }, [])
     .sort((a, b) => b.total - a.total);
 };
 

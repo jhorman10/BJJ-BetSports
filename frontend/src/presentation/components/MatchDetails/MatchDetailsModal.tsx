@@ -42,10 +42,6 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
   const [picksCount, setPicksCount] = React.useState<number | null>(null);
   const [showVideo, setShowVideo] = React.useState(false);
 
-  React.useEffect(() => {
-    if (open) setShowVideo(false);
-  }, [open, matchPrediction?.match.id]);
-
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const details = matchPrediction;
@@ -54,6 +50,7 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
 
   return (
     <Dialog
+      key={matchPrediction?.match?.id}
       open={open}
       onClose={onClose}
       maxWidth="sm"

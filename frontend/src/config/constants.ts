@@ -38,40 +38,6 @@ export const API_ENDPOINTS = {
 } as const;
 
 /**
- * UI Text Constants (Spanish)
- */
-export const UI_TEXT = {
-  ERRORS: {
-    LOAD_PREDICTIONS: "Error al cargar predicciones",
-    LOAD_LEAGUES: "Error al cargar ligas",
-    LOAD_PICKS: "Error al cargar picks",
-    MAX_PARLEY_PICKS: "No puedes agregar más de 10 picks al parley.",
-    INSUFFICIENT_DATA: "Datos insuficientes para generar picks",
-    LOAD_FAILED: "No se pudieron cargar los datos",
-  },
-  LOADING: {
-    PREDICTIONS: "Cargando predicciones...",
-    PICKS: "Cargando picks...",
-    LEAGUES: "Cargando ligas...",
-  },
-  EMPTY: {
-    PREDICTIONS: "No hay predicciones disponibles",
-    PICKS: "Sin picks disponibles",
-    MATCHES: "No hay partidos disponibles",
-  },
-  LABELS: {
-    LOCAL: "Local",
-    AWAY: "Visitante",
-    DRAW: "Empate",
-    PROBABILITY: "Probabilidad",
-    CONFIDENCE: "Confianza",
-    VALUE_BET: "VALUE BET",
-    CORRECT_PREDICTION: "Predicción Correcta",
-    WRONG_PREDICTION: "Predicción Errada",
-  },
-} as const;
-
-/**
  * App Configuration Constants
  */
 export const APP_CONFIG = {

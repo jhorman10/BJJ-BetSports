@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, memo } from "react";
+import React, { useEffect, useLayoutEffect, useState, useMemo, memo } from "react";
 import {
   Box,
   Typography,
@@ -305,7 +305,7 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
   );
 
   // Report count
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (onPicksCount) {
       onPicksCount(uniquePickCount);
     }

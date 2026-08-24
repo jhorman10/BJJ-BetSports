@@ -272,7 +272,7 @@ const ParleyCalculatorPage: React.FC = () => {
             ) : (
               <List disablePadding sx={{ mb: 2 }}>
                 {currentPicks.map((item, idx) => (
-                  <React.Fragment key={item.match.match?.id || idx}>
+                  <React.Fragment key={item.match.match?.id ?? `pick-${item.match.match?.id ?? item.label}`}>
                     <ListItem sx={{ px: 0, py: 1.5, display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
                       <Box sx={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <Typography variant="caption" color="text.secondary">

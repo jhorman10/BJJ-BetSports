@@ -834,14 +834,11 @@ const MatchCard: React.FC<MatchCardProps> = memo(
           {/* Market Type Labels */}
           {prediction?.suggested_picks && prediction.suggested_picks.length > 0 && (
             <div style={{ marginTop: 4, fontSize: "0.7rem", color: "text.secondary" }}>
-              {(() => {
-                const picks = prediction.suggested_picks;
-                return Array.from({ length: Math.min(picks.length, 3) }, (_, i) => (
-                  <span key={i} style={{ marginRight: 8 }}>
-                    {picks[i].market_type}
-                  </span>
-                ));
-              })()}
+              {prediction.suggested_picks.slice(0, 3).map((pick, idx) => (
+                <span key={`${pick.market_type}-${idx}`} style={{ marginRight: 8 }}>
+                  {pick.market_type}
+                </span>
+              ))}
             </div>
           )}
 
