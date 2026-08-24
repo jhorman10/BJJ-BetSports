@@ -194,7 +194,13 @@ export const ScoreMatrixModal: React.FC<ScoreMatrixModalProps> = ({
   const hasScores = points.length > 0;
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="sm"
+      fullWidth
+      disableScrollLock
+    >
       <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <SportsSoccer fontSize="small" />
         <Typography variant="h6" component="span">

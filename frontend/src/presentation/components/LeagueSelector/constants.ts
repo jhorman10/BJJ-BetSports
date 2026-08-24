@@ -48,6 +48,7 @@ export const SELECT_STYLES = {
 };
 
 export const MENU_PROPS = {
+  disablePortal: true, // Prevents Popper from using position:fixed, which causes iOS viewport minimization
   PaperProps: {
     sx: {
       mt: 1,

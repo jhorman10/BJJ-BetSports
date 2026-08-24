@@ -195,12 +195,22 @@ const themeOptions: ThemeOptions = {
         disableScrollLock: true, // Prevents MUI from modifying body overflow/position, which causes iOS Safari viewport minimization
       },
       styleOverrides: {
+        root: {
+          // Prevent iOS Safari viewport minimization by using absolute positioning
+          // instead of fixed for the backdrop — iOS recalculates viewport on position:fixed
+          "& .MuiBackdrop-root": {
+            position: "absolute",
+          },
+        },
         paper: {
           backgroundImage: "none",
           backgroundColor: "rgba(15, 23, 42, 0.95)", // Slightly more opaque for modals
           backdropFilter: "blur(16px)",
           border: "1px solid rgba(255, 255, 255, 0.1)",
           boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
+          // Prevent overflow on mobile — clamp width to viewport with margin
+          width: "calc(100vw - 32px)",
+          maxWidth: "600px",
         },
       },
     },
