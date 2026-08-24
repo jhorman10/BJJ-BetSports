@@ -20,6 +20,12 @@ body {
   background: radial-gradient(circle at 50% 0%, #1e293b 0%, #0f172a 100%);
   min-height: 100vh;
   color: #f1f5f9;
+  /* Mobile: prevent horizontal overflow */
+  overflow-x: hidden;
+  /* iOS safe-area padding for notch/home-indicator */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  /* Prevent iOS zoom on input focus */
+  font-size: 16px;
 }
 
 #root {
@@ -264,5 +270,42 @@ button,
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* ========================================
+   MOBILE / TOUCH BASE STYLES
+   ======================================== */
+
+/* Remove tap highlight on mobile */
+*,
+*::before,
+*::after {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent text overflow on mobile */
+p, h1, h2, h3, h4, h5, h6, span, div, a, button, label, td, th {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* iOS input zoom prevention — inputs must be ≥16px */
+input,
+select,
+textarea {
+  font-size: 16px !important;
+}
+
+/* Touch targets ≥44px for interactive elements on mobile */
+@media (pointer: coarse) {
+  button,
+  a,
+  [role="button"],
+  .MuiButton-root,
+  .MuiIconButton-root,
+  .MuiChip-root,
+  .MuiToggleButton-root {
+    min-height: 44px;
   }
 }

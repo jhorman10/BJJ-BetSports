@@ -42,29 +42,29 @@ const themeOptions: ThemeOptions = {
   typography: {
     fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
     h1: {
-      fontSize: "2.5rem",
+      fontSize: "clamp(1.75rem, 4vw + 0.5rem, 2.5rem)",
       fontWeight: 700,
       letterSpacing: "-0.02em",
       color: "#ffffff",
     },
     h2: {
-      fontSize: "2rem",
+      fontSize: "clamp(1.5rem, 3.5vw + 0.5rem, 2rem)",
       fontWeight: 600,
       letterSpacing: "-0.01em",
       color: "#ffffff",
     },
     h3: {
-      fontSize: "1.5rem",
+      fontSize: "clamp(1.25rem, 3vw + 0.25rem, 1.5rem)",
       fontWeight: 600,
       color: "#f8fafc",
     },
     h4: {
-      fontSize: "1.25rem",
+      fontSize: "clamp(1.1rem, 2.5vw + 0.15rem, 1.25rem)",
       fontWeight: 600,
       color: "#f8fafc",
     },
     h5: {
-      fontSize: "1rem",
+      fontSize: "clamp(0.9rem, 2vw + 0.1rem, 1rem)",
       fontWeight: 600,
       color: "#f1f5f9",
     },

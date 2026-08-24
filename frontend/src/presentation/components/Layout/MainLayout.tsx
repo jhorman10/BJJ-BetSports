@@ -7,6 +7,8 @@ import {
   AppBar,
   Toolbar,
   Button,
+  useTheme,
+  useMediaQuery,
 } from "@mui/material";
 import { SportsSoccer, GetApp, SmartToy, Calculate } from "@mui/icons-material";
 
@@ -22,6 +24,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const { installPrompt, isInstalled, handleInstallClick } = usePWAInstall();
   const { trainingStatus } = useBotStore();
   const location = useLocation();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const showBotIcon = trainingStatus !== "IDLE";
 
@@ -43,29 +47,37 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             background: "transparent", // Handled by CSS class
           }}
         >
-          <Toolbar>
-            <SportsSoccer sx={{ mr: 2, color: "primary.main" }} />
-            <Link to="/" style={{ textDecoration: "none", color: "inherit", display: "flex", alignItems: "center", flexGrow: 1 }}>
+          <Toolbar sx={{ minHeight: { xs: 56, sm: 64 }, px: { xs: 1, sm: 2 } }}>
+            <SportsSoccer sx={{ mr: { xs: 1, sm: 2 }, color: "primary.main", fontSize: { xs: "1.5rem", sm: "1.8rem" } }} />
+            <Link to="/" style={{ textDecoration: "none", color: "inherit", display: "flex", alignItems: "center", flexGrow: 1, minWidth: 0 }}>
               <Typography
                 variant="h6"
                 component="h1"
-                sx={{ fontWeight: 700 }}
+                sx={{
+                  fontWeight: 700,
+                  fontSize: { xs: "0.85rem", sm: "1rem" },
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
               >
                 BJJ - BetSports v2
               </Typography>
             </Link>
 
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0.5, sm: 1 } }}>
               <Link to="/" style={{ textDecoration: "none" }}>
                 <Button
                   sx={{
                     color: location.pathname === "/" ? "primary.main" : "white",
                     fontWeight: location.pathname === "/" ? 700 : 400,
-                    textTransform: "none"
+                    textTransform: "none",
+                    minWidth: 0,
+                    px: { xs: 1, sm: 1.5 },
                   }}
-                  startIcon={<SportsSoccer />}
+                  startIcon={!isMobile ? <SportsSoccer /> : undefined}
                 >
-                  Predicciones
+                  {isMobile ? <SportsSoccer /> : "Predicciones"}
                 </Button>
               </Link>
 
@@ -75,11 +87,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                     sx={{
                       color: location.pathname === "/bot" ? "primary.main" : "white",
                       fontWeight: location.pathname === "/bot" ? 700 : 400,
-                      textTransform: "none"
+                      textTransform: "none",
+                      minWidth: 0,
+                      px: { xs: 1, sm: 1.5 },
                     }}
-                    startIcon={<SmartToy />}
+                    startIcon={!isMobile ? <SmartToy /> : undefined}
                   >
-                    Bot
+                    {isMobile ? <SmartToy /> : "Bot"}
                   </Button>
                 </Link>
               )}
@@ -89,11 +103,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                   sx={{
                     color: location.pathname === "/parley-calculator" ? "primary.main" : "white",
                     fontWeight: location.pathname === "/parley-calculator" ? 700 : 400,
-                    textTransform: "none"
+                    textTransform: "none",
+                    minWidth: 0,
+                    px: { xs: 1, sm: 1.5 },
                   }}
-                  startIcon={<Calculate />}
+                  startIcon={!isMobile ? <Calculate /> : undefined}
                 >
-                  Calculadora
+                  {isMobile ? <Calculate /> : "Calculadora"}
                 </Button>
               </Link>
             </Box>
@@ -103,18 +119,18 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                 variant="outlined"
                 color="primary"
                 size="small"
-                startIcon={<GetApp />}
                 onClick={handleInstallClick}
-                sx={{ ml: 2 }}
+                sx={{ ml: { xs: 0.5, sm: 2 }, minWidth: 0, px: { xs: 1, sm: 1.5 } }}
+                startIcon={!isMobile ? <GetApp /> : undefined}
               >
-                Instalar App
+                {isMobile ? <GetApp /> : "Instalar App"}
               </Button>
             )}
           </Toolbar>
         </AppBar>
 
         {/* Main Content */}
-        <Container maxWidth="xl" sx={{ py: 4 }} className="page-transition">
+        <Container maxWidth="xl" sx={{ py: { xs: 2, sm: 4 }, px: { xs: 1.5, sm: 3 } }} className="page-transition">
           {children}
         </Container>
 
@@ -122,9 +138,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         <Box
           component="footer"
           sx={{
-            mt: 8,
-            pt: 4,
-            pb: 4,
+            mt: { xs: 4, sm: 8 },
+            pt: { xs: 2, sm: 4 },
+            pb: { xs: 2, sm: 4 },
+            px: { xs: 2, sm: 0 },
             borderTop: "1px solid rgba(148, 163, 184, 0.1)",
             textAlign: "center",
           }}

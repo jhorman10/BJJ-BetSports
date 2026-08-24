@@ -66,7 +66,7 @@ const App: React.FC = () => {
           element={
             <>
               {/* Header */}
-              <Box mb={4}>
+              <Box mb={{ xs: 2, sm: 4 }}>
                 <Typography
                   variant="h3"
                   fontWeight={700}
@@ -77,6 +77,7 @@ const App: React.FC = () => {
                     WebkitBackgroundClip: "text",
                     WebkitTextFillColor: "transparent",
                     mb: 1,
+                    lineHeight: 1.2,
                   }}
                 >
                   Predicciones de Fútbol
@@ -85,6 +86,7 @@ const App: React.FC = () => {
                   variant="body1"
                   color="text.secondary"
                   maxWidth={600}
+                  sx={{ display: { xs: "none", sm: "block" } }}
                 >
                   Análisis estadístico de partidos de fútbol basado en datos
                   históricos, distribución de Poisson y algoritmos de machine

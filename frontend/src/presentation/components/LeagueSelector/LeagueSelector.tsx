@@ -85,8 +85,8 @@ const LeagueSelector: React.FC = () => {
     <Card
       elevation={0}
       sx={{
-        mb: 4,
-        p: 3,
+        mb: { xs: 2, sm: 4 },
+        p: { xs: 2, sm: 3 },
         background:
           "linear-gradient(145deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%)",
         border: "1px solid rgba(99, 102, 241, 0.15)",
@@ -94,23 +94,23 @@ const LeagueSelector: React.FC = () => {
         backdropFilter: "blur(10px)",
       }}
     >
-      <Stack spacing={3}>
+      <Stack spacing={{ xs: 2, sm: 3 }}>
         {/* Header */}
-        <Box display="flex" alignItems="center" gap={2}>
+        <Box display="flex" alignItems="center" gap={1.5}>
           <Avatar
             sx={{
-              width: 40,
-              height: 40,
+              width: { xs: 32, sm: 40 },
+              height: { xs: 32, sm: 40 },
               background: "linear-gradient(135deg, #6366f1 0%, #10b981 100%)",
             }}
           >
             <SportsScore fontSize="small" />
           </Avatar>
-          <Box>
-            <Typography variant="subtitle1" fontWeight={600}>
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Typography variant="subtitle1" fontWeight={600} sx={{ fontSize: { xs: "0.85rem", sm: "1rem" } }}>
               Selecciona una Liga
             </Typography>
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" color="text.secondary" sx={{ display: { xs: "none", sm: "block" } }}>
               Elige el país y la liga para ver las predicciones
             </Typography>
           </Box>
@@ -169,7 +169,7 @@ const LeagueSelector: React.FC = () => {
             display="flex"
             alignItems="center"
             gap={1.5}
-            p={1.5}
+            p={{ xs: 1, sm: 1.5 }}
             borderRadius={2}
             sx={{
               background:
