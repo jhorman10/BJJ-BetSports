@@ -9,6 +9,8 @@ import {
   Typography,
   Chip,
   Tooltip,
+  useTheme,
+  useMediaQuery,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import SportsSoccer from "@mui/icons-material/SportsSoccer";
@@ -181,6 +183,9 @@ export const ScoreMatrixModal: React.FC<ScoreMatrixModalProps> = ({
   onClose,
   prediction,
 }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
   if (!prediction) return null;
 
   const matrix = prediction.score_matrix;
@@ -197,17 +202,10 @@ export const ScoreMatrixModal: React.FC<ScoreMatrixModalProps> = ({
     <Dialog
       open={open}
       onClose={onClose}
+      fullScreen={isMobile}
+      maxWidth="sm"
+      fullWidth
       disableScrollLock
-      PaperProps={{
-        sx: {
-          width: { xs: "100%", sm: "100%" },
-          maxWidth: { xs: "100%", sm: "600px" },
-          height: { xs: "100%", sm: "auto" },
-          maxHeight: { xs: "100%", sm: "calc(100% - 64px)" },
-          margin: { xs: 0, sm: 2 },
-          borderRadius: { xs: 0, sm: 2 },
-        },
-      }}
     >
       <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <SportsSoccer fontSize="small" />

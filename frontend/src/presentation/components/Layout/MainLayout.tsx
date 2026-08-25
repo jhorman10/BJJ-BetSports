@@ -6,8 +6,6 @@ import {
   AppBar,
   Toolbar,
   Button,
-  useTheme,
-  useMediaQuery,
 } from "@mui/material";
 import { SportsSoccer, GetApp, SmartToy, Calculate } from "@mui/icons-material";
 
@@ -23,8 +21,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const { installPrompt, isInstalled, handleInstallClick } = usePWAInstall();
   const { trainingStatus } = useBotStore();
   const location = useLocation();
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const showBotIcon = trainingStatus !== "IDLE";
 

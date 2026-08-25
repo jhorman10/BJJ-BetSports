@@ -53,17 +53,13 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
       key={matchPrediction?.match?.id}
       open={open}
       onClose={onClose}
-      fullScreen={false}
+      fullScreen={isMobile}
+      maxWidth="sm"
+      fullWidth
       TransitionComponent={Slide}
       TransitionProps={{ direction: "up" } as TransitionProps}
       PaperProps={{
         sx: {
-          width: { xs: "100%", sm: "100%" },
-          maxWidth: { xs: "100%", sm: "600px" },
-          height: { xs: "100%", sm: "auto" },
-          maxHeight: { xs: "100%", sm: "calc(100% - 64px)" },
-          margin: { xs: 0, sm: 2 },
-          borderRadius: { xs: 0, sm: 2 },
           background: "rgba(15, 23, 42, 0.85)", // Deep blue glass
           backdropFilter: "blur(16px)",
           border: "1px solid rgba(255, 255, 255, 0.1)",

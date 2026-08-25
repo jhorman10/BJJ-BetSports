@@ -217,13 +217,6 @@ const themeOptions: ThemeOptions = {
           backdropFilter: "blur(16px)",
           border: "1px solid rgba(255, 255, 255, 0.1)",
           boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
-          // Full-screen on mobile, constrained on desktop
-          width: { xs: "100%", sm: "calc(100vw - 32px)" },
-          maxWidth: { xs: "100%", sm: "600px" },
-          height: { xs: "100%", sm: "auto" },
-          maxHeight: { xs: "100%", sm: "calc(100% - 64px)" },
-          margin: { xs: 0, sm: 2 },
-          borderRadius: { xs: 0, sm: 2 },
         },
       },
     },
