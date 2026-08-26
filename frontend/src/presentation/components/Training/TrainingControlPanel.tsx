@@ -43,7 +43,7 @@ const TrainingControlPanel: React.FC = () => {
           return state;
       }
     },
-    initialFormState
+    INITIAL_FORM_STATE
   );
 
   const { modelKey, executorTarget, datasetProfile, featureProfile, leagueId, daysBack } = formState;
