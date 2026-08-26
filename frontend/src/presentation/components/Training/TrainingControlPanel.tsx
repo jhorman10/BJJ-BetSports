@@ -12,6 +12,15 @@ import {
 
 import { useTrainingJobsStore } from "../../../application/stores/useTrainingJobsStore";
 
+const INITIAL_FORM_STATE = {
+  modelKey: "",
+  executorTarget: "",
+  datasetProfile: "",
+  featureProfile: "",
+  leagueId: "",
+  daysBack: "30",
+} as const;
+
 const TrainingControlPanel: React.FC = () => {
   const {
     capabilities,
@@ -23,22 +32,13 @@ const TrainingControlPanel: React.FC = () => {
     createJob,
   } = useTrainingJobsStore();
 
-  const initialFormState = {
-    modelKey: "",
-    executorTarget: "",
-    datasetProfile: "",
-    featureProfile: "",
-    leagueId: "",
-    daysBack: "30",
-  };
-
   const [formState, dispatch] = React.useReducer(
-    (state: typeof initialFormState, action: { type: string; field?: keyof typeof initialFormState; value?: string }) => {
+    (state: typeof INITIAL_FORM_STATE, action: { type: string; field?: keyof typeof INITIAL_FORM_STATE; value?: string }) => {
       switch (action.type) {
         case "SET_FIELD":
           return { ...state, [action.field!]: action.value };
         case "RESET":
-          return initialFormState;
+          return INITIAL_FORM_STATE;
         default:
           return state;
       }
