@@ -42,24 +42,24 @@ const themeOptions: ThemeOptions = {
   typography: {
     fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
     h1: {
-      fontSize: "2.5rem",
+      fontSize: "clamp(1.75rem, 4vw, 2.5rem)",
       fontWeight: 700,
       letterSpacing: "-0.02em",
       color: "#ffffff",
     },
     h2: {
-      fontSize: "2rem",
+      fontSize: "clamp(1.5rem, 3.5vw, 2rem)",
       fontWeight: 600,
       letterSpacing: "-0.01em",
       color: "#ffffff",
     },
     h3: {
-      fontSize: "1.5rem",
+      fontSize: "clamp(1.25rem, 2.5vw, 1.5rem)",
       fontWeight: 600,
       color: "#f8fafc",
     },
     h4: {
-      fontSize: "1.25rem",
+      fontSize: "clamp(1rem, 2vw, 1.25rem)",
       fontWeight: 600,
       color: "#f8fafc",
     },
@@ -191,6 +191,9 @@ const themeOptions: ThemeOptions = {
       },
     },
     MuiDialog: {
+      defaultProps: {
+        fullWidth: true,
+      },
       styleOverrides: {
         paper: {
           backgroundImage: "none",
@@ -198,6 +201,10 @@ const themeOptions: ThemeOptions = {
           backdropFilter: "blur(16px)",
           border: "1px solid rgba(255, 255, 255, 0.1)",
           boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
+          borderRadius: 16,
+        },
+        paperFullScreen: {
+          borderRadius: 0,
         },
       },
     },
@@ -210,6 +217,26 @@ const themeOptions: ThemeOptions = {
           fontWeight: 600,
           color: "#94a3b8",
           backgroundColor: "rgba(15, 23, 42, 0.5)",
+        },
+      },
+    },
+    MuiContainer: {
+      defaultProps: {
+        maxWidth: "xl",
+      },
+      styleOverrides: {
+        root: {
+          "@media (min-width:600px)": {
+            paddingLeft: 24,
+            paddingRight: 24,
+          },
+        },
+      },
+    },
+    MuiAppBar: {
+      styleOverrides: {
+        root: {
+          backgroundImage: "none",
         },
       },
     },

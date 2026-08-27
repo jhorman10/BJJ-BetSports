@@ -9,24 +9,20 @@ import {
   Typography,
   Chip,
   Divider,
-  Paper,
   Slide,
-  useTheme,
   useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import { TransitionProps } from "@mui/material/transitions";
-import { PlayArrow } from "@mui/icons-material";
 
 import { MatchPrediction } from "../../../types";
-import {
-  translateMatchStatus,
-  translateRecommendedBet,
-  translateOverUnder,
-} from "../../../utils/translationUtils";
-import { getTeamLogo, getTeamDisplayName } from "../../../utils/teamUtils";
-import { TeamLogo } from "../common/TeamLogo";
 
 import SuggestedPicksTab from "./SuggestedPicksTab";
+import { ScoreHeader } from "./components/ScoreHeader";
+import { StatsGrid } from "./components/StatsGrid";
+import { ProjectedStats } from "./components/ProjectedStats";
+import { VideoHighlights } from "./components/VideoHighlights";
+import { RecommendationBox } from "./components/RecommendationBox";
 
 interface MatchDetailsModalProps {
   open: boolean;
@@ -41,7 +37,6 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
 }) => {
   const [picksCount, setPicksCount] = React.useState<number | null>(null);
   const [showVideo, setShowVideo] = React.useState(false);
-
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const details = matchPrediction;
@@ -55,15 +50,16 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
       onClose={onClose}
       maxWidth="sm"
       fullWidth
+      fullScreen={isMobile}
       TransitionComponent={Slide}
       TransitionProps={{ direction: "up" } as TransitionProps}
       PaperProps={{
         sx: {
-          width: { xs: "95%", sm: "100%" },
-          margin: { xs: 1, sm: 2 },
-          maxHeight: { xs: "90vh", sm: "calc(100% - 64px)" },
-          borderRadius: 2,
-          background: "rgba(15, 23, 42, 0.85)", // Deep blue glass
+          width: { xs: "100%", sm: "100%" },
+          margin: { xs: 0, sm: 2 },
+          maxHeight: { xs: "100%", sm: "calc(100% - 64px)" },
+          borderRadius: isMobile ? 0 : 2,
+          background: "rgba(15, 23, 42, 0.85)",
           backdropFilter: "blur(16px)",
           border: "1px solid rgba(255, 255, 255, 0.1)",
           boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
@@ -76,144 +72,18 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
         </Typography>
       </DialogTitle>
 
-      <DialogContent
-        sx={{ px: { xs: 1.5, sm: 3 }, pb: 3, overflowX: "hidden" }}
-      >
+      <DialogContent sx={{ px: { xs: 1.5, sm: 3 }, pb: 3, overflowX: "hidden" }}>
         {!details ? (
           <Box p={3} textAlign="center">
-            <Typography color="text.secondary">
-              No hay datos disponibles.
-            </Typography>
+            <Typography color="text.secondary">No hay datos disponibles.</Typography>
           </Box>
         ) : (
           <Box>
-            {/* Score Header - Responsive Design */}
-            <Paper
-              elevation={0}
-              variant="outlined"
-              sx={{
-                mb: 3,
-                p: { xs: 1.5, sm: 2 },
-                bgcolor: "rgba(0, 0, 0, 0.2)",
-                borderRadius: 2,
-                mt: 1,
-                border: "1px solid rgba(255, 255, 255, 0.05)",
-              }}
-            >
-              <Box
-                display="flex"
-                justifyContent="space-between"
-                alignItems="center"
-                gap={1}
-              >
-                {/* Home Team */}
-                <Box
-                  textAlign="center"
-                  flex={1}
-                  display="flex"
-                  flexDirection="column"
-                  alignItems="center"
-                >
-                  <TeamLogo
-                    src={getTeamLogo(details.match.home_team)}
-                    alt={getTeamDisplayName(details.match.home_team)}
-                    width={40}
-                    height={40}
-                    sx={{ mb: 1 }}
-                  />
-                  <Typography
-                    variant={isMobile ? "body2" : "subtitle1"}
-                    lineHeight={1.2}
-                    fontWeight="bold"
-                  >
-                    {getTeamDisplayName(details.match.home_team)}
-                  </Typography>
-                  {details.match.home_spi && (
-                    <Typography variant="caption" color="text.secondary">
-                      SPI: {details.match.home_spi.toFixed(1)}
-                    </Typography>
-                  )}
-                </Box>
+            <ScoreHeader details={details} />
 
-                {/* Score & Status */}
-                <Box textAlign="center" px={1} minWidth={80}>
-                  <Box
-                    bgcolor="rgba(0,0,0,0.4)"
-                    borderRadius={2}
-                    px={2}
-                    py={0.5}
-                    mb={1}
-                    display="inline-block"
-                  >
-                    <Typography variant="h5" fontWeight="900" letterSpacing={1}>
-                      {details.match.home_goals ?? 0}-
-                      {details.match.away_goals ?? 0}
-                    </Typography>
-                  </Box>
-                  <Box display="flex" justifyContent="center">
-                    <Chip
-                      label={translateMatchStatus(details.match.status)}
-                      color={
-                        ["LIVE", "1H", "2H", "HT"].includes(
-                          details.match.status
-                        )
-                          ? "error"
-                          : "default"
-                      }
-                      size="small"
-                      sx={{
-                        fontWeight: "bold",
-                        fontSize: "0.7rem",
-                        height: 20,
-                      }}
-                    />
-                  </Box>
-                </Box>
-
-                {/* Away Team */}
-                <Box
-                  textAlign="center"
-                  flex={1}
-                  display="flex"
-                  flexDirection="column"
-                  alignItems="center"
-                >
-                  <TeamLogo
-                    src={getTeamLogo(details.match.away_team)}
-                    alt={getTeamDisplayName(details.match.away_team)}
-                    width={40}
-                    height={40}
-                    sx={{ mb: 1 }}
-                  />
-                  <Typography
-                    variant={isMobile ? "body2" : "subtitle1"}
-                    lineHeight={1.2}
-                    fontWeight="bold"
-                  >
-                    {getTeamDisplayName(details.match.away_team)}
-                  </Typography>
-                  {details.match.away_spi && (
-                    <Typography variant="caption" color="text.secondary">
-                      SPI: {details.match.away_spi.toFixed(1)}
-                    </Typography>
-                  )}
-                </Box>
-              </Box>
-            </Paper>
-
-            {/* Picks Destacados */}
             <Box mb={3}>
-              <Box
-                display="flex"
-                alignItems="center"
-                justifyContent="space-between"
-                mb={1.5}
-              >
-                <Typography
-                  variant="subtitle1"
-                  fontWeight="bold"
-                  sx={{ display: "flex", alignItems: "center", gap: 1 }}
-                >
+              <Box display="flex" alignItems="center" justifyContent="space-between" mb={1.5}>
+                <Typography variant="subtitle1" fontWeight="bold" sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                   Picks Destacados
                 </Typography>
                 {picksCount !== null && picksCount > 0 && (
@@ -229,15 +99,8 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
                   />
                 )}
               </Box>
-              {/* Render SuggestedPicksTab only if picks exist, otherwise show fallback */}
-              {details &&
-              details.prediction &&
-              details.prediction.suggested_picks &&
-              details.prediction.suggested_picks.length > 0 ? (
-                <SuggestedPicksTab
-                  matchPrediction={details}
-                  onPicksCount={setPicksCount}
-                />
+              {details?.prediction?.suggested_picks && details.prediction.suggested_picks.length > 0 ? (
+                <SuggestedPicksTab matchPrediction={details} onPicksCount={setPicksCount} />
               ) : (
                 <Box py={4} textAlign="center">
                   <Typography variant="caption" color="text.secondary">
@@ -249,497 +112,19 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({
 
             <Divider sx={{ mb: 2.5 }} />
 
-            {/* Stats Grid - Using CSS Grid for better control than MUI Grid */}
-            <Box display="grid" gridTemplateColumns="1fr 1fr" gap={2} mb={3}>
-              {/* 1. Probabilidades */}
-              <Box gridColumn="span 2">
-                <Typography
-                  variant="subtitle2"
-                  color="text.secondary"
-                  gutterBottom
-                >
-                  Probabilidades de Victoria
-                </Typography>
-                <Paper variant="outlined" sx={{ p: 1.5 }}>
-                  {details.prediction.home_win_probability +
-                    details.prediction.draw_probability +
-                    details.prediction.away_win_probability ===
-                  0 ? (
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      display="block"
-                      textAlign="center"
-                    >
-                      No disponible
-                    </Typography>
-                  ) : (
-                    <Box
-                      display="flex"
-                      justifyContent="space-between"
-                      textAlign="center"
-                    >
-                      <Box flex={1}>
-                        <Typography
-                          variant="caption"
-                          display="block"
-                          color="text.secondary"
-                          mb={0.5}
-                        >
-                          1
-                        </Typography>
-                        <Typography
-                          variant="h6"
-                          fontWeight="bold"
-                          color="primary"
-                        >
-                          {(
-                            details.prediction.home_win_probability * 100
-                          ).toFixed(0)}
-                          %
-                        </Typography>
-                      </Box>
-                      <Divider orientation="vertical" flexItem />
-                      <Box flex={1}>
-                        <Typography
-                          variant="caption"
-                          display="block"
-                          color="text.secondary"
-                          mb={0.5}
-                        >
-                          X
-                        </Typography>
-                        <Typography
-                          variant="h6"
-                          fontWeight="bold"
-                          color="text.secondary"
-                        >
-                          {(details.prediction.draw_probability * 100).toFixed(
-                            0
-                          )}
-                          %
-                        </Typography>
-                      </Box>
-                      <Divider orientation="vertical" flexItem />
-                      <Box flex={1}>
-                        <Typography
-                          variant="caption"
-                          display="block"
-                          color="text.secondary"
-                          mb={0.5}
-                        >
-                          2
-                        </Typography>
-                        <Typography
-                          variant="h6"
-                          fontWeight="bold"
-                          color="error"
-                        >
-                          {(
-                            details.prediction.away_win_probability * 100
-                          ).toFixed(0)}
-                          %
-                        </Typography>
-                      </Box>
-                    </Box>
-                  )}
-                </Paper>
-              </Box>
+            <StatsGrid details={details} />
 
-              {/* 2. Goles Esperados */}
-              <Box>
-                <Typography
-                  variant="subtitle2"
-                  color="text.secondary"
-                  gutterBottom
-                >
-                  Goles Esperados
-                </Typography>
-                <Paper
-                  variant="outlined"
-                  sx={{
-                    p: 1.5,
-                    height: "100%",
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "center",
-                    bgcolor: "rgba(255, 255, 255, 0.02)",
-                    border: "1px solid rgba(255, 255, 255, 0.05)",
-                  }}
-                >
-                  <Box display="flex" justifyContent="space-between" mb={0.5}>
-                    <Typography variant="caption" noWrap>
-                      {isMobile
-                        ? "Local"
-                        : getTeamDisplayName(details.match.home_team)}
-                    </Typography>
-                    <Typography fontWeight="bold" color="primary">
-                      {details.prediction.predicted_home_goals.toFixed(1)}
-                    </Typography>
-                  </Box>
-                  <Divider sx={{ my: 0.5 }} />
-                  <Box display="flex" justifyContent="space-between">
-                    <Typography variant="caption" noWrap>
-                      {isMobile
-                        ? "Visita"
-                        : getTeamDisplayName(details.match.away_team)}
-                    </Typography>
-                    <Typography fontWeight="bold" color="error">
-                      {details.prediction.predicted_away_goals.toFixed(1)}
-                    </Typography>
-                  </Box>
-                </Paper>
-              </Box>
+            <ProjectedStats details={details} />
 
-              {/* 3. Mas/Menos 2.5 */}
-              <Box>
-                <Typography
-                  variant="subtitle2"
-                  color="text.secondary"
-                  gutterBottom
-                >
-                  Más/Menos 2.5
-                </Typography>
-                <Paper
-                  variant="outlined"
-                  sx={{
-                    p: 1.5,
-                    height: "100%",
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "center",
-                    bgcolor: "rgba(255, 255, 255, 0.02)",
-                    border: "1px solid rgba(255, 255, 255, 0.05)",
-                  }}
-                >
-                  <Box
-                    display="flex"
-                    justifyContent="space-between"
-                    alignItems="center"
-                    mb={0.5}
-                  >
-                    <Typography variant="caption">Más</Typography>
-                    <Typography
-                      fontWeight="bold"
-                      color={
-                        details.prediction.over_25_probability > 0.5
-                          ? "success.main"
-                          : "text.primary"
-                      }
-                    >
-                      {(details.prediction.over_25_probability * 100).toFixed(
-                        0
-                      )}
-                      %
-                    </Typography>
-                  </Box>
-                  <Divider sx={{ my: 0.5 }} />
-                  <Box
-                    display="flex"
-                    justifyContent="space-between"
-                    alignItems="center"
-                  >
-                    <Typography variant="caption">Menos</Typography>
-                    <Typography
-                      fontWeight="bold"
-                      color={
-                        details.prediction.under_25_probability > 0.5
-                          ? "success.main"
-                          : "text.primary"
-                      }
-                    >
-                      {(details.prediction.under_25_probability * 100).toFixed(
-                        0
-                      )}
-                      %
-                    </Typography>
-                  </Box>
-                </Paper>
-              </Box>
-            </Box>
-
-            {/* Estadísticas Proyectadas */}
-            <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-              Estadísticas Proyectadas
-            </Typography>
-            <Paper variant="outlined" sx={{ p: 0, mb: 3, overflow: "hidden" }}>
-              <Box
-                bgcolor="rgba(255,255,255,0.03)"
-                p={1.5}
-                display="flex"
-                justifyContent="space-between"
-              >
-                <Typography variant="caption" fontWeight="bold">
-                  {getTeamDisplayName(details.match.home_team)}
-                </Typography>
-                <Typography variant="caption" fontWeight="bold">
-                  {getTeamDisplayName(details.match.away_team)}
-                </Typography>
-              </Box>
-
-              {/* Rows */}
-              {[
-                {
-                  label: "Córners",
-                  home:
-                    details.prediction.predicted_home_corners ||
-                    details.match.home_corners,
-                  away:
-                    details.prediction.predicted_away_corners ||
-                    details.match.away_corners,
-                },
-                {
-                  label: "Amarillas",
-                  home:
-                    details.prediction.predicted_home_yellow_cards ||
-                    details.match.home_yellow_cards,
-                  away:
-                    details.prediction.predicted_away_yellow_cards ||
-                    details.match.away_yellow_cards,
-                },
-                {
-                  label: "Rojas",
-                  home:
-                    details.prediction.predicted_home_red_cards ||
-                    details.match.home_red_cards,
-                  away:
-                    details.prediction.predicted_away_red_cards ||
-                    details.match.away_red_cards,
-                },
-              ].map((row, i) => (
-                <Box
-                  key={row.label}
-                  display="flex"
-                  justifyContent="space-between"
-                  alignItems="center"
-                  p={1.5}
-                  borderTop={
-                    i > 0 ? "1px solid rgba(255,255,255,0.05)" : "none"
-                  }
-                >
-                  <Box width={40} textAlign="center">
-                    <Typography fontWeight="bold">{row.home ?? "-"}</Typography>
-                  </Box>
-                  <Box
-                    display="flex"
-                    flexDirection="column"
-                    alignItems="center"
-                  >
-                    <Typography variant="caption" color="text.secondary">
-                      {row.label}
-                    </Typography>
-                  </Box>
-                  <Box width={40} textAlign="center">
-                    <Typography fontWeight="bold">{row.away ?? "-"}</Typography>
-                  </Box>
-                </Box>
-              ))}
-            </Paper>
-
-            {/* highlights video - Optimized with Facade Pattern */}
             {details.prediction.highlights_url && (
-              <Box mb={3}>
-                <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-                  Video Highlights
-                </Typography>
-                <Box
-                  sx={{
-                    position: "relative",
-                    paddingBottom: "56.25%", // 16:9
-                    height: 0,
-                    overflow: "hidden",
-                    borderRadius: 2,
-                    bgcolor: "black",
-                  }}
-                >
-                  {!showVideo ? (
-                    <Box
-                      onClick={() => setShowVideo(true)}
-                      sx={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        width: "100%",
-                        height: "100%",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        cursor: "pointer",
-                        background:
-                          "linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.7))",
-                        "&:hover .play-icon": {
-                          transform: "scale(1.2)",
-                          color: "#3b82f6",
-                        },
-                      }}
-                    >
-                      {/* Play Button Facade */}
-                      <Box
-                        className="play-icon"
-                        sx={{
-                          width: 64,
-                          height: 64,
-                          borderRadius: "50%",
-                          bgcolor: "rgba(255,255,255,0.1)",
-                          backdropFilter: "blur(4px)",
-                          border: "2px solid rgba(255,255,255,0.5)",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          transition: "all 0.3s ease",
-                        }}
-                      >
-                        <PlayArrow
-                          sx={{ fontSize: 40, color: "white", ml: 0.5 }}
-                        />
-                      </Box>
-                      <Typography
-                        variant="subtitle2"
-                        sx={{
-                          position: "absolute",
-                          bottom: 16,
-                          color: "white",
-                          fontWeight: 600,
-                          textShadow: "0 2px 4px rgba(0,0,0,0.8)",
-                        }}
-                      >
-                        Ver Highlights
-                      </Typography>
-                    </Box>
-                  ) : (
-                    <iframe
-                      src={`${details.prediction.highlights_url}?autoplay=1`}
-                      frameBorder="0"
-                      width="100%"
-                      height="100%"
-                      allowFullScreen
-                      allow="autoplay; encrypted-media"
-                      title="Match Highlights"
-                      style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                      }}
-                    />
-                  )}
-                </Box>
-              </Box>
+              <VideoHighlights
+                url={details.prediction.highlights_url}
+                showVideo={showVideo}
+                onShowVideo={() => setShowVideo(true)}
+              />
             )}
 
-            {/* Recomendación Final - Specified Layout Refinement */}
-            <Box
-              sx={{
-                mt: 3,
-                p: 2,
-                background: "rgba(16, 185, 129, 0.04)",
-                backdropFilter: "blur(8px)",
-                border: "1px solid rgba(16, 185, 129, 0.15)",
-                borderRadius: 2,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 2,
-              }}
-            >
-              <Typography
-                variant="overline"
-                sx={{
-                  fontSize: "0.6rem",
-                  fontWeight: 800,
-                  letterSpacing: 1.5,
-                  color: "success.light",
-                  opacity: 0.8,
-                }}
-              >
-                RECOMENDACIÓN
-              </Typography>
-
-              {/* Victoria y Goles en la misma línea */}
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 2,
-                  flexWrap: "wrap",
-                }}
-              >
-                <Chip
-                  label={translateRecommendedBet(
-                    details.prediction.recommended_bet
-                  )}
-                  size="small"
-                  sx={{
-                    fontSize: "0.85rem",
-                    fontWeight: 700,
-                    height: 32,
-                    px: 1,
-                    background: "rgba(16, 185, 129, 0.15)",
-                    color: "success.light",
-                    border: "1px solid rgba(16, 185, 129, 0.3)",
-                    "& .MuiChip-label": { px: 1.5 },
-                  }}
-                />
-                <Chip
-                  label={
-                    translateOverUnder(
-                      details.prediction.over_under_recommendation
-                    ) + " Goles"
-                  }
-                  size="small"
-                  sx={{
-                    fontSize: "0.85rem",
-                    fontWeight: 700,
-                    height: 32,
-                    px: 1,
-                    background: "rgba(16, 185, 129, 0.15)",
-                    color: "success.light",
-                    border: "1px solid rgba(16, 185, 129, 0.3)",
-                    "& .MuiChip-label": { px: 1.5 },
-                  }}
-                />
-              </Box>
-
-              {/* Índice de Confianza justo debajo */}
-              <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: 0,
-                  pt: 1,
-                  borderTop: "1px solid rgba(16, 185, 129, 0.1)",
-                  width: "100%",
-                }}
-              >
-                <Typography
-                  sx={{
-                    fontWeight: 900,
-                    fontSize: "2rem",
-                    color: "success.light",
-                    lineHeight: 1,
-                    background:
-                      "linear-gradient(180deg, #10B981 0%, #6EE7B7 100%)",
-                    WebkitBackgroundClip: "text",
-                    WebkitTextFillColor: "transparent",
-                  }}
-                >
-                  {(details.prediction.confidence * 100).toFixed(0)}%
-                </Typography>
-                <Typography
-                  sx={{
-                    fontSize: "0.65rem",
-                    fontWeight: 800,
-                    textTransform: "uppercase",
-                    color: "success.light",
-                    opacity: 0.6,
-                    letterSpacing: 1,
-                  }}
-                >
-                  Índice de Confianza
-                </Typography>
-              </Box>
-            </Box>
+            <RecommendationBox details={details} />
           </Box>
         )}
       </DialogContent>
