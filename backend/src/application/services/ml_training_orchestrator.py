@@ -1,5 +1,8 @@
 import asyncio
 import logging
+import math
+import os
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
 
 from pydantic import BaseModel
@@ -32,6 +35,14 @@ from src.domain.services.statistics_service import StatisticsService
 from src.infrastructure.cache.cache_service import CacheService
 
 logger = logging.getLogger(__name__)
+
+
+def _finite_or_none(value: Any) -> Optional[float]:
+    """Null-flag uncomputable metrics instead of persisting NaN (honesty rule)."""
+    try:
+        return round(float(value), 6) if math.isfinite(float(value)) else None
+    except (TypeError, ValueError):
+        return None
 
 
 def _build_league_averages(
@@ -294,14 +305,18 @@ def _compute_picks_metrics(
 
 
 def _update_daily_stats(
-    daily_stats: dict, match_date: Any, staked_inc: float, pick_was_correct: bool
+    daily_stats: dict, match_date: Any, staked_inc: float, return_inc: float
 ) -> None:
+    """Accumulate real staked and payout amounts for one match's 1X2 bets.
+
+    Returns derive from resolved payout odds (return_inc), never from a
+    per-win constant — daily ROI must reflect actual bookmaker payouts.
+    """
     date_key = match_date.strftime("%Y-%m-%d")
-    if date_key not in daily_stats:
-        daily_stats[date_key] = {"staked": 0.0, "return": 0.0, "count": 0}
-    daily_stats[date_key]["staked"] += staked_inc
-    daily_stats[date_key]["return"] += 2.0 if pick_was_correct else 0.0
-    daily_stats[date_key]["count"] += 1
+    day = daily_stats.setdefault(date_key, {"staked": 0.0, "return": 0.0, "count": 0})
+    day["staked"] += staked_inc
+    day["return"] += return_inc
+    day["count"] += 1
 
 
 def _build_match_history_entry(
@@ -506,12 +521,13 @@ async def prepare_datasets(
     float,
     Dict[str, "LeagueAverages"],
     Dict[str, Any],
+    List[dict],
 ]:
     """Fetches matches and processes them into ML-ready datasets.
 
     Returns a tuple with: (ml_features, ml_targets, daily_stats, match_history,
     team_stats_cache, matches_processed, total_bets, total_staked, total_return,
-    league_averages_map, context_summary)
+    league_averages_map, context_summary, sample_meta)
     """
     picks_service_instance = picks_service_factory(
         learning_weights=learning_service.get_learning_weights()
@@ -526,6 +542,9 @@ async def prepare_datasets(
 
     ml_features: List[Any] = []
     ml_targets: List[int] = []
+    # Parallel per-feature-row metadata (date + odds) used by the
+    # chronological holdout split and the odds-implied gate baseline.
+    sample_meta: List[dict] = []
 
     leagues = league_ids if league_ids else DEFAULT_LEAGUES
     all_matches, support_matches, coverage_report = await _load_training_matches(
@@ -606,11 +625,19 @@ async def prepare_datasets(
 
         ml_features.extend(feats_add)
         ml_targets.extend(tgts_add)
+        odds_triple = (
+            getattr(match, "home_odds", None),
+            getattr(match, "draw_odds", None),
+            getattr(match, "away_odds", None),
+        )
+        sample_meta.extend(
+            {"date": match.match_date, "odds_triple": odds_triple} for _ in feats_add
+        )
         total_bets += bets_inc
         total_staked += staked_inc
         total_return += return_inc
 
-        _update_daily_stats(daily_stats, match.match_date, staked_inc, pick_was_correct)
+        _update_daily_stats(daily_stats, match.match_date, staked_inc, return_inc)
 
         match_history.append(match_entry)
 
@@ -633,6 +660,7 @@ async def prepare_datasets(
         total_return,
         league_averages_map,
         context_summary,
+        sample_meta,
     )
 
 
@@ -671,6 +699,9 @@ class TrainingResult(BaseModel):
     pick_efficiency: List[Any] = []
     team_stats: dict = {}
     context_summary: dict = {}
+    # Honest metric reporting: every metric is labeled by sample origin
+    # (in-sample fit vs out-of-time holdout) per ml-evaluation-gate spec.
+    metrics_by_origin: dict = {}
 
 
 class MLTrainingOrchestrator:
@@ -682,6 +713,10 @@ class MLTrainingOrchestrator:
     CACHE_KEY_STATUS = "ml_training_status"
     CACHE_KEY_MESSAGE = "ml_training_message"
     CACHE_KEY_RESULT = "ml_training_result_data"
+
+    ARTIFACT_KEY = "models/picks_classifier"
+    GATE_REPORT_KEY = "ml_gate_report"
+    RETENTION_KEEP_VERSIONS = 3
 
     def __init__(
         self,
@@ -701,6 +736,8 @@ class MLTrainingOrchestrator:
         self.cache_service = cache_service
         self.persistence_repo = persistence_repo
         self.feature_extractor = MLFeatureExtractor()
+        # Type guard for mypy: persistence_repo must have the versioned artifact methods
+        # when gated training is enabled (which it is by default)
 
     async def run_training_pipeline(
         self,
@@ -718,6 +755,9 @@ class MLTrainingOrchestrator:
             league_ids,
             days_back,
         )
+        # True only once a gated successor is promoted; disk cleanup preserves
+        # the serving artifact until then (ml-artifact-lifecycle).
+        promoted = False
         try:
             (
                 ml_features,
@@ -731,6 +771,7 @@ class MLTrainingOrchestrator:
                 total_return,
                 league_averages_map,
                 context_summary,
+                sample_meta,
             ) = await prepare_datasets(
                 self.training_data_service,
                 self.statistics_service,
@@ -746,37 +787,16 @@ class MLTrainingOrchestrator:
                 force_refresh,
             )
 
-            # --- TRAIN ML MODEL ---
+            # --- TRAIN ML MODEL (gated) ---
+            gate_summary: Dict[str, Any] = {"status": "skipped"}
             if ML_AVAILABLE and RandomForestClassifier and len(ml_features) > 100:
-                try:
-                    logger.info("Training ML Model on %s samples...", len(ml_features))
-
-                    def _train_model() -> Any:
-                        return train_league_models(ml_features, ml_targets)
-
-                    loop = asyncio.get_running_loop()
-                    trained_model = await loop.run_in_executor(None, _train_model)
-
-                    # --- PERSIST TO DB ---
-                    if self.persistence_repo:
-                        from io import BytesIO
-
-                        import joblib
-                        from src.core.constants import ML_MODEL_FILENAME
-
-                        logger.info("💾 Persisting trained model to Database...")
-                        buffer = BytesIO()
-                        joblib.dump(trained_model, buffer)
-                        self.persistence_repo.save_binary_artifact(
-                            ML_MODEL_FILENAME, buffer.getvalue()
-                        )
-                        logger.info("✅ Model persisted to Database successfully.")
-
-                    logger.info(
-                        "ML Model trained and persisted for the current pipeline run."
-                    )
-                except Exception as e:
-                    logger.exception(f"Failed to train or persist ML model: {e}")
+                gate_summary = await self._train_and_deploy_gated(
+                    ml_features, ml_targets, sample_meta
+                )
+                if not gate_summary:
+                    gate_summary = {"status": "error"}
+                if gate_summary.get("promoted_version"):
+                    promoted = True
 
             # --- PREPARE RESULTS ---
             accuracy = self._calculate_accuracy(match_history)
@@ -796,9 +816,16 @@ class MLTrainingOrchestrator:
                 pick_efficiency=self._calculate_pick_efficiency(match_history),
                 team_stats=team_stats_cache,
                 context_summary=context_summary,
+                metrics_by_origin={
+                    "in_sample": {
+                        "accuracy": round(accuracy, 4),
+                        "matches_evaluated": len(match_history),
+                    },
+                    "out_of_time": gate_summary,
+                },
             )
         finally:
-            cleanup_model_artifacts(logger)
+            cleanup_model_artifacts(logger, preserve_serving=not promoted)
             if self.persistence_repo is not None:
                 try:
                     from src.infrastructure.training.repositories import (
@@ -814,6 +841,173 @@ class MLTrainingOrchestrator:
                     ).delete_for_removed_jobs(logger)
                 except Exception as exc:
                     logger.warning("Failed to cleanup training jobs: %s", exc)
+
+    async def _train_and_deploy_gated(
+        self, ml_features: List[Any], ml_targets: List[int], sample_meta: List[dict]
+    ) -> Dict[str, Any]:
+        """Fit on the chronological train split and deploy only on gate PASS.
+
+        The holdout is evaluated BEFORE any save/promotion. On PASS the model
+        is saved under a fresh versioned key and the serving pointer swaps
+        atomically; on FAIL or error the GateReport persists to
+        training_results and serving state stays untouched.
+        """
+        from src.application.services.ml_evaluation_gate import (
+            build_baseline_probs,
+            chronological_split,
+            run_gate,
+        )
+
+        dates = [meta["date"] for meta in sample_meta]
+        train_idx, holdout_idx = chronological_split(dates)
+        logger.info(
+            "Gated training split: %d train / %d holdout samples",
+            len(train_idx),
+            len(holdout_idx),
+        )
+
+        try:
+
+            def _train_model() -> Any:
+                return train_league_models(
+                    [ml_features[i] for i in train_idx],
+                    [ml_targets[i] for i in train_idx],
+                )
+
+            loop = asyncio.get_running_loop()
+            trained_model = await loop.run_in_executor(None, _train_model)
+
+            X_holdout = [ml_features[i] for i in holdout_idx]
+            y_holdout = [ml_targets[i] for i in holdout_idx]
+            baseline_rows = build_baseline_probs(
+                [sample_meta[i]["odds_triple"] for i in holdout_idx],
+                getattr(trained_model, "classes_", []),
+            )
+
+            report = run_gate(trained_model, X_holdout, y_holdout, baseline_rows)
+            self._persist_gate_report(report)
+            if not report.passed:
+                logger.warning(
+                    "[GATE] %s — prior serving state preserved untouched",
+                    report.reason,
+                )
+                return self._gate_summary(report)
+
+            version = self._save_and_promote(trained_model, report)
+            summary = self._gate_summary(report)
+            summary["promoted_version"] = version
+            return summary
+        except Exception as exc:
+            logger.exception("Gated training/deployment failed: %s", exc)
+            reason = "gate_error"
+            self._persist_failure_reason(reason, str(exc))
+            return {"status": "failed", "reason": reason}
+
+    def _gate_summary(self, report: Any) -> Dict[str, Any]:
+        return {
+            "status": "passed" if report.passed else "failed",
+            "reason": report.reason,
+            "log_loss": _finite_or_none(report.log_loss),
+            "brier": _finite_or_none(report.brier),
+            "baseline_log_loss": _finite_or_none(report.baseline_log_loss),
+            "baseline_brier": _finite_or_none(report.baseline_brier),
+            "n_holdout": report.n_holdout,
+        }
+
+    def _persist_gate_report(self, report: Any) -> None:
+        """Persist the holdout evaluation regardless of outcome."""
+        if not self.persistence_repo:
+            return
+        payload = {
+            "passed": report.passed,
+            "reason": report.reason,
+            "candidate_out_of_time": {
+                "log_loss": _finite_or_none(report.log_loss),
+                "brier": _finite_or_none(report.brier),
+            },
+            "baseline_out_of_time": {
+                "log_loss": _finite_or_none(report.baseline_log_loss),
+                "brier": _finite_or_none(report.baseline_brier),
+            },
+            "n_holdout": report.n_holdout,
+        }
+        try:
+            self.persistence_repo.save_training_result(self.GATE_REPORT_KEY, payload)
+        except Exception as exc:
+            logger.error("Failed to persist gate report: %s", exc)
+
+    def _persist_failure_reason(self, reason: str, detail: str) -> None:
+        if not self.persistence_repo:
+            return
+        try:
+            self.persistence_repo.save_training_result(
+                self.GATE_REPORT_KEY,
+                {"passed": False, "reason": reason, "detail": detail},
+            )
+        except Exception as exc:
+            logger.error("Failed to persist failure reason: %s", exc)
+
+    def _save_and_promote(self, trained_model: Any, report: Any) -> str:
+        """Persist versioned bytes+envelope, then atomically swap the pointer."""
+        from io import BytesIO
+
+        import joblib
+
+        envelope: dict = {
+            "sklearn_version": self._sklearn_version(),
+            "feature_schema_hash": self.feature_extractor.schema_signature(),
+            "git_sha": os.getenv("GIT_SHA", "unknown"),
+            "trained_at": datetime.now(timezone.utc).isoformat(),
+            "metrics": {
+                "log_loss": _finite_or_none(report.log_loss),
+                "brier": _finite_or_none(report.brier),
+                "n_holdout": report.n_holdout,
+            },
+            "legacy": False,
+        }
+
+        buffer = BytesIO()
+        joblib.dump(trained_model, buffer)
+        git_sha8 = envelope["git_sha"][:8] if envelope["git_sha"] else "unknown"
+        version = f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}-{git_sha8}"
+
+        # Save first, promote second — a failed save never touches serving.
+        assert self.persistence_repo is not None, "persistence_repo required"
+        self.persistence_repo.save_binary_artifact_versioned(
+            self.ARTIFACT_KEY, version, buffer.getvalue(), envelope
+        )
+        self.persistence_repo.promote_serving_pointer(
+            artifact_key=self.ARTIFACT_KEY,
+            version=version,
+            metrics=envelope["metrics"],
+        )
+        self._prune_superseded_versions(version)
+        logger.info("✅ Promoted %s@%s (gated PASS)", self.ARTIFACT_KEY, version)
+        return version
+
+    @staticmethod
+    def _sklearn_version() -> str:
+        try:
+            import sklearn
+
+            return str(sklearn.__version__)
+        except Exception as exc:  # pragma: no cover - sklearn guarded upstream
+            logger.warning("sklearn version unavailable: %s", exc)
+            return "unknown"
+
+    def _prune_superseded_versions(self, promoted_version: str) -> None:
+        """Best-effort retention pruning; never deletes the pointer target."""
+        assert self.persistence_repo is not None, "persistence_repo required"
+        versions = self.persistence_repo.list_versions(self.ARTIFACT_KEY)
+        for old_version in versions[: -self.RETENTION_KEEP_VERSIONS]:
+            if old_version == promoted_version:
+                continue
+            try:
+                self.persistence_repo.delete_binary_artifact(
+                    f"{self.ARTIFACT_KEY}/{old_version}"
+                )
+            except Exception as exc:
+                logger.warning("Pruning %s failed: %s", old_version, exc)
 
     def _get_predicted_winner(self, prediction: Any) -> str:
         if (
@@ -852,10 +1046,18 @@ class MLTrainingOrchestrator:
             cum_staked += stats["staked"]
             cum_return += stats["return"]
             profit = cum_return - cum_staked
-            roi = (profit / cum_staked * 100) if cum_staked > 0 else 0.0
-            roi_evolution.append(
-                {"date": date_str, "roi": round(roi, 2), "profit": round(profit, 2)}
+            # No resolved stakes -> no honest ROI; null-flag instead of 0.0.
+            roi: Optional[float] = (
+                round(profit / cum_staked * 100, 2) if cum_staked > 0 else None
             )
+            entry: Dict[str, Any] = {
+                "date": date_str,
+                "roi": roi,
+                "profit": round(profit, 2),
+            }
+            if roi is not None:
+                entry["staked"] = round(cum_staked, 2)
+            roi_evolution.append(entry)
         return roi_evolution
 
     def _calculate_pick_efficiency(self, history: List[dict]) -> List[dict]:

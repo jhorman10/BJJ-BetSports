@@ -43,6 +43,7 @@ def normalize_prediction_document(
                             "id": league.id,
                             "name": league.name,
                             "country": league.country,
+                            "sport": league.sport,
                         },
                     },
                     "prediction": prediction_payload,

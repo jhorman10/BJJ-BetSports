@@ -45,27 +45,37 @@ const LiveMatchesView: React.FC<LiveMatchesViewProps> = ({
   loading,
   error,
   onRefresh,
-  selectedLeagueIds = [],
-  selectedLeagueNames = [],
+  selectedLeagueIds,
+  selectedLeagueNames,
   onMatchClick,
 }) => {
   const { isOnline, isBackendAvailable } = useOfflineStore();
-  // Filtrar Partidos (Sin Agrupar)
+
+  const selectedLeagueIdsArray = useMemo(
+    () => selectedLeagueIds || [],
+    [selectedLeagueIds]
+  );
+  const selectedLeagueNamesArray = useMemo(
+    () => selectedLeagueNames || [],
+    [selectedLeagueNames]
+  );
+
   const filteredMatches = useMemo(() => {
     // 1. Filtrar por ligas seleccionadas (si hay selección)
     let filtered = matches;
-    if (selectedLeagueIds.length > 0) {
+    if (selectedLeagueIdsArray.length > 0) {
       // Intento 1: Filtrado estricto por ID
+      const selectedLeagueIdSet = new Set(selectedLeagueIdsArray);
       const idFiltered = matches.filter((m) =>
-        selectedLeagueIds.includes(m.league_id)
+        selectedLeagueIdSet.has(m.league_id)
       );
 
       if (idFiltered.length > 0) {
         filtered = idFiltered;
-      } else if (selectedLeagueNames.length > 0) {
+      } else if (selectedLeagueNamesArray.length > 0) {
         // Intento 2: Filtrado por Nombre
         filtered = matches.filter((m) =>
-          selectedLeagueNames.some(
+          selectedLeagueNamesArray.some(
             (name) =>
               m.league_name.toLowerCase().includes(name.toLowerCase()) ||
               name.toLowerCase().includes(m.league_name.toLowerCase())
@@ -76,7 +86,7 @@ const LiveMatchesView: React.FC<LiveMatchesViewProps> = ({
       }
     }
     return filtered;
-  }, [matches, selectedLeagueIds, selectedLeagueNames]);
+  }, [matches, selectedLeagueIdsArray, selectedLeagueNamesArray]);
 
   return (
     <Box>

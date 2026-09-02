@@ -15,12 +15,15 @@ import {
   SelectChangeEvent,
   Chip,
   ToggleButton,
+  ToggleButtonGroup,
 } from "@mui/material";
 import { SportsScore, LiveTv } from "@mui/icons-material";
 
 import { usePredictionStore } from "../../../application/stores/usePredictionStore";
 import { useUIStore } from "../../../application/stores/useUIStore";
 import { useLiveStore } from "../../../application/stores/useLiveStore";
+import { SPORTS } from "../../../config/constants";
+import { Sport } from "../../../config/constants";
 
 import CountrySelect from "./CountrySelect";
 import LeagueSelect from "./LeagueSelect";
@@ -40,13 +43,29 @@ const LeagueSelector: React.FC = () => {
     selectCountry,
     selectLeague,
     leaguesLoading,
+    fetchLeagues,
   } = usePredictionStore();
 
-  const { showLive, toggleShowLive } = useUIStore();
+  const { showLive, toggleShowLive, selectedSport, setSport } = useUIStore();
   const { matches: liveMatches } = useLiveStore();
 
   const countries = leaguesData?.countries || [];
   const hasLiveMatches = liveMatches.length > 0;
+
+  const handleSportChange: (
+    _event: React.MouseEvent<HTMLElement>,
+    newSport: Sport | null
+  ) => void = (
+    _event: React.MouseEvent<HTMLElement>,
+    newSport: Sport | null
+  ) => {
+    if (!newSport || newSport === selectedSport) return;
+    setSport(newSport);
+    // Clear current selection and refetch leagues for the new sport
+    selectCountry(null);
+    selectLeague(null);
+    fetchLeagues();
+  };
 
   const handleCountryChange = (event: SelectChangeEvent<string>): void => {
     const countryName = event.target.value;
@@ -111,7 +130,7 @@ const LeagueSelector: React.FC = () => {
               Selecciona una Liga
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Elige el país y la liga para ver las predicciones
+              Elige el deporte, país y liga para ver las predicciones
             </Typography>
           </Box>
 
@@ -140,6 +159,47 @@ const LeagueSelector: React.FC = () => {
               EN VIVO
             </ToggleButton>
           )}
+        </Box>
+
+        {/* Sport Toggle */}
+        <Box>
+          <ToggleButtonGroup
+            value={selectedSport}
+            exclusive
+            onChange={handleSportChange}
+            size="small"
+            sx={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 1,
+              "& .MuiToggleButtonGroup-grouped": {
+                borderRadius: 2,
+                border: "1px solid rgba(99, 102, 241, 0.3)",
+                mx: 0,
+                px: 2,
+                py: 0.75,
+                textTransform: "none",
+                color: "text.secondary",
+                "&.Mui-selected": {
+                  backgroundColor: "rgba(99, 102, 241, 0.25)",
+                  color: "#818cf8",
+                  fontWeight: 600,
+                  "&:hover": {
+                    backgroundColor: "rgba(99, 102, 241, 0.35)",
+                  },
+                },
+                "&:hover": {
+                  backgroundColor: "rgba(99, 102, 241, 0.1)",
+                },
+              },
+            }}
+          >
+            {SPORTS.map((sport) => (
+              <ToggleButton value={sport.value} key={sport.value}>
+                {sport.label}
+              </ToggleButton>
+            ))}
+          </ToggleButtonGroup>
         </Box>
 
         {/* Selectors Row */}

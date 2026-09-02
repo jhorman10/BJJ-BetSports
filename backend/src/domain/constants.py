@@ -2,7 +2,30 @@
 Domain Constants
 
 This module contains constant definitions valid across the domain layer.
+Now powered by the comprehensive global multi-sport leagues dataset.
 """
+
+from enum import Enum
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    pass
+
+
+# ─── Sport Enum ────────────────────────────────────────────────────────
+
+class Sport(str, Enum):
+    """Supported sports in the platform."""
+    SOCCER = "soccer"
+    TENNIS = "tennis"
+    BASEBALL = "baseball"
+    BASKETBALL = "basketball"
+
+
+DEFAULT_SPORT = "soccer"
+
+# ─── International Tournament Tuples ────────────────────────────────────
+# These remain hardcoded for backward compatibility and performance
 
 ORDERED_INTERNATIONAL_TOURNAMENTS = (
     "UCL",
@@ -18,8 +41,24 @@ CLUB_INTERNATIONAL_LEAGUES = frozenset({"UCL", "UEL", "UECL", "LIB", "SUD"})
 NATIONAL_TEAM_TOURNAMENTS = frozenset({"EURO", "WC"})
 ALL_INTERNATIONAL_TOURNAMENTS = CLUB_INTERNATIONAL_LEAGUES | NATIONAL_TEAM_TOURNAMENTS
 
-# Mapping of league codes to metadata
-LEAGUES_METADATA = {
+
+# ─── League Metadata (Lazy-loaded from dataset) ────────────────────────
+
+def _load_metadata() -> dict[str, dict]:
+    """
+    Load LEAGUES_METADATA from the global dataset.
+    Falls back to hardcoded values if dataset unavailable.
+    """
+    try:
+        from src.infrastructure.data.league_loader import dataset
+        return dataset.to_leagues_metadata()
+    except Exception:
+        # Fallback to hardcoded metadata if loader fails
+        return _FALLBACK_METADATA
+
+
+# Hardcoded fallback (original 25 leagues)
+_FALLBACK_METADATA = {
     # England
     "E0": {"name": "Premier League", "country": "England"},
     "E1": {"name": "Championship", "country": "England"},
@@ -61,6 +100,9 @@ LEAGUES_METADATA = {
     "ARG1": {"name": "Liga Profesional", "country": "Argentina"},
     "BRA1": {"name": "Série A", "country": "Brazil"},
 }
+
+# Public API - lazy-loaded from dataset
+LEAGUES_METADATA = _load_metadata()
 
 # Default set of league codes considered for predictions
 DEFAULT_LEAGUES = list(LEAGUES_METADATA.keys())

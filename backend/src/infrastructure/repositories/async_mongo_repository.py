@@ -68,6 +68,7 @@ def _to_prediction_result(doc: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "match_id": doc["match_id"],
         "league_id": doc.get("league_id"),
+        "sport": doc.get("sport", "soccer"),
         "prediction": doc.get("data"),
         "last_updated": doc.get("last_updated"),
     }
@@ -239,6 +240,24 @@ class AsyncMongoRepository:
 
         await self._ensure_indexes()
 
+    async def get_league_ids_with_predictions(self, sport: str | None = None) -> List[str]:
+        """Get distinct league_ids that have active (non-expired) predictions."""
+        await self._ensure_ready()
+        match_stage: Dict[str, Any] = {"expires_at": {"$gt": get_current_time()}}
+        if sport:
+            match_stage["sport"] = sport
+        pipeline = [
+            {"$match": match_stage},
+            {"$group": {"_id": "$league_id"}},
+            {"$sort": {"_id": 1}},
+        ]
+        cursor = self.match_predictions.aggregate(pipeline)
+        result = []
+        async for doc in cursor:
+            if doc.get("_id"):
+                result.append(doc["_id"])
+        return result
+
     async def save_training_result(self, key: str, data: dict) -> None:
         await self._ensure_ready()
         normalized = _to_bson_friendly(data)
@@ -272,7 +291,8 @@ class AsyncMongoRepository:
         return out
 
     async def save_match_prediction(
-        self, match_id: str, league_id: str, data: dict, ttl_seconds: int = 86400
+        self, match_id: str, league_id: str, data: dict, ttl_seconds: int = 86400,
+        sport: str = "soccer",
     ) -> None:
         await self._ensure_ready()
         try:
@@ -294,6 +314,7 @@ class AsyncMongoRepository:
             {
                 "$set": {
                     "league_id": league_id,
+                    "sport": sport,
                     "data": data,
                     "expires_at": expires_at,
                     "last_updated": get_current_time(),
@@ -356,12 +377,14 @@ class AsyncMongoRepository:
             expires_at = get_current_time() + timedelta(
                 seconds=p.get("ttl_seconds", 86400)
             )
+            sport = p.get("sport", "soccer")
             operations.append(
                 UpdateOne(
                     {"match_id": p["match_id"]},
                     {
                         "$set": {
                             "league_id": p.get("league_id"),
+                            "sport": sport,
                             "data": data_payload,
                             "expires_at": expires_at,
                             "last_updated": get_current_time(),
@@ -382,11 +405,14 @@ class AsyncMongoRepository:
         skip: int = 0,
         limit: int = 100,
         league_id: str | None = None,
+        sport: str | None = None,
     ) -> List[dict]:
         await self._ensure_ready()
         query: Dict[str, Any] = {"expires_at": {"$gt": get_current_time()}}
         if league_id is not None:
             query["league_id"] = league_id
+        if sport is not None:
+            query["sport"] = sport
         cursor = self.match_predictions.find(query).skip(skip).limit(limit)
         out = []
         async for doc in cursor:

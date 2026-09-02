@@ -8,7 +8,9 @@ export const API_ENDPOINTS = {
   API_V1_PREFIX: "/api/v1",
 
   // Leagues
+  // NOTE: LEAGUES / LEAGUES_ACTIVE support ?sport= query param for filtering.
   LEAGUES: "/api/v1/leagues",
+  LEAGUES_ACTIVE: "/api/v1/leagues/active",
   LEAGUE_BY_ID: (id: string) => `/api/v1/leagues/${id}`,
 
   // Predictions
@@ -38,38 +40,18 @@ export const API_ENDPOINTS = {
 } as const;
 
 /**
- * UI Text Constants (Spanish)
+ * Supported sports and the default sport (backward compatible with football-only).
  */
-export const UI_TEXT = {
-  ERRORS: {
-    LOAD_PREDICTIONS: "Error al cargar predicciones",
-    LOAD_LEAGUES: "Error al cargar ligas",
-    LOAD_PICKS: "Error al cargar picks",
-    MAX_PARLEY_PICKS: "No puedes agregar más de 10 picks al parley.",
-    INSUFFICIENT_DATA: "Datos insuficientes para generar picks",
-    LOAD_FAILED: "No se pudieron cargar los datos",
-  },
-  LOADING: {
-    PREDICTIONS: "Cargando predicciones...",
-    PICKS: "Cargando picks...",
-    LEAGUES: "Cargando ligas...",
-  },
-  EMPTY: {
-    PREDICTIONS: "No hay predicciones disponibles",
-    PICKS: "Sin picks disponibles",
-    MATCHES: "No hay partidos disponibles",
-  },
-  LABELS: {
-    LOCAL: "Local",
-    AWAY: "Visitante",
-    DRAW: "Empate",
-    PROBABILITY: "Probabilidad",
-    CONFIDENCE: "Confianza",
-    VALUE_BET: "VALUE BET",
-    CORRECT_PREDICTION: "Predicción Correcta",
-    WRONG_PREDICTION: "Predicción Errada",
-  },
-} as const;
+export type Sport = "soccer" | "tennis" | "baseball" | "basketball";
+
+export const SPORTS: { value: Sport; label: string }[] = [
+  { value: "soccer", label: "Fútbol" },
+  { value: "tennis", label: "Tenis" },
+  { value: "baseball", label: "Béisbol" },
+  { value: "basketball", label: "Baloncesto" },
+];
+
+export const DEFAULT_SPORT: Sport = "soccer";
 
 /**
  * App Configuration Constants

@@ -16,8 +16,8 @@ interface LiveMatchesListProps {
 }
 
 const LiveMatchesList: React.FC<LiveMatchesListProps> = ({
-  selectedLeagueIds = [],
-  selectedLeagueNames = [],
+  selectedLeagueIds,
+  selectedLeagueNames,
 }) => {
   const { matches, loading, error, fetchMatches } = useLiveStore();
   const { openLiveMatchModal } = useUIStore();

@@ -7,12 +7,18 @@ from src.api.schemas.leagues import CountryModel, LeagueModel, LeaguesResponse
 from src.domain.constants import LEAGUES_METADATA
 
 
-def build_leagues_response() -> LeaguesResponse:
+def build_leagues_response(sport: str = "soccer") -> LeaguesResponse:
     grouped: dict[str, list[LeagueModel]] = defaultdict(list)
     for league_id, metadata in LEAGUES_METADATA.items():
+        league_sport = metadata.get("sport", "soccer")
+        if league_sport != sport:
+            continue
         grouped[metadata["country"]].append(
             LeagueModel(
-                id=league_id, name=metadata["name"], country=metadata["country"]
+                id=league_id,
+                name=metadata["name"],
+                country=metadata["country"],
+                sport=league_sport,
             )
         )
 
@@ -24,11 +30,20 @@ def build_leagues_response() -> LeaguesResponse:
         )
         for country, leagues in sorted(grouped.items(), key=lambda item: item[0])
     ]
-    return LeaguesResponse(countries=countries, total_leagues=len(LEAGUES_METADATA))
+    total = sum(len(leagues) for leagues in grouped.values())
+    return LeaguesResponse(countries=countries, total_leagues=total)
 
 
-def find_league(league_id: str) -> LeagueModel:
+def find_league(league_id: str, sport: str = "soccer") -> LeagueModel:
     metadata = LEAGUES_METADATA.get(league_id)
     if metadata is None:
         raise HTTPException(status_code=404, detail="Liga no encontrada")
-    return LeagueModel(id=league_id, name=metadata["name"], country=metadata["country"])
+    league_sport = metadata.get("sport", "soccer")
+    if league_sport != sport:
+        raise HTTPException(status_code=404, detail="Liga no encontrada para este deporte")
+    return LeagueModel(
+        id=league_id,
+        name=metadata["name"],
+        country=metadata["country"],
+        sport=league_sport,
+    )

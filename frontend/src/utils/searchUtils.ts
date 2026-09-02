@@ -26,6 +26,10 @@ const IGNORED_TERMS = [
   "la",
 ];
 
+/** Escape special regex characters in a string */
+const escapeRegExp = (s: string): string =>
+  s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 /**
  * Normalizes a string for comparison:
  * 1. Remove accents
@@ -50,7 +54,7 @@ export const normalizeName = (name: string): string => {
       cleaned = cleaned.substring(term.length + 1);
     if (cleaned.endsWith(` ${term}`))
       cleaned = cleaned.substring(0, cleaned.length - term.length - 1);
-    cleaned = cleaned.replace(new RegExp(`\\b${term}\\b`, "g"), " ");
+    cleaned = cleaned.replace(new RegExp(`\\b${escapeRegExp(term)}\\b`, "g"), " ");
   });
 
   // 4. Remove all remaining spaces
