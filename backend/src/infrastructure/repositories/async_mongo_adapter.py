@@ -84,6 +84,30 @@ class AsyncMongoAdapter:
                 "AsyncMongoAdapter: using sync MongoRepository wrapped with to_thread"
             )
 
+    async def get_league_ids_with_predictions(self, sport: str | None = None) -> List[str]:
+        """Get distinct league_ids that have active (non-expired) predictions."""
+        if self._use_motor:
+            match_stage: Dict[str, Any] = {"expires_at": {"$gt": get_current_time()}}
+            if sport:
+                match_stage["sport"] = sport
+            pipeline = [
+                {"$match": match_stage},
+                {"$group": {"_id": "$league_id"}},
+                {"$sort": {"_id": 1}},
+            ]
+            cursor = self.match_predictions.aggregate(pipeline)
+            result = []
+            async for doc in cursor:
+                if doc.get("_id"):
+                    result.append(doc["_id"])
+            return result
+        else:
+            if not self._sync_repo:
+                return []
+            return await asyncio.to_thread(
+                self._sync_repo.get_league_ids_with_predictions, sport
+            )
+
     async def get_cached_response(
         self, endpoint: str, params: dict | None = None
     ) -> Optional[dict]:
@@ -182,7 +206,8 @@ class AsyncMongoAdapter:
             )
 
     async def save_match_prediction(
-        self, match_id: str, league_id: str, data: dict, ttl_seconds: int = 86400
+        self, match_id: str, league_id: str, data: dict, ttl_seconds: int = 86400,
+        sport: str = "soccer",
     ) -> None:
         expires_at = get_current_time() + timedelta(seconds=ttl_seconds)
         if self._use_motor:
@@ -191,6 +216,7 @@ class AsyncMongoAdapter:
                 {
                     "$set": {
                         "league_id": league_id,
+                        "sport": sport,
                         "data": data,
                         "expires_at": expires_at,
                         "last_updated": get_current_time(),
@@ -209,6 +235,7 @@ class AsyncMongoAdapter:
                     league_id,
                     data,
                     ttl_seconds,
+                    sport,
                 )
 
     async def bulk_save_predictions(self, predictions_data: List[dict]) -> None:
@@ -221,11 +248,13 @@ class AsyncMongoAdapter:
                 expires_at = get_current_time() + timedelta(
                     seconds=p.get("ttl_seconds", 86400)
                 )
+                sport = p.get("sport", "soccer")
                 await self.match_predictions.update_one(
                     {"match_id": p["match_id"]},
                     {
                         "$set": {
                             "league_id": p.get("league_id"),
+                            "sport": sport,
                             "data": data_payload,
                             "expires_at": expires_at,
                             "last_updated": get_current_time(),
@@ -247,11 +276,14 @@ class AsyncMongoAdapter:
         skip: int = 0,
         limit: int = 100,
         league_id: str | None = None,
+        sport: str | None = None,
     ) -> List[dict]:
         if self._use_motor:
             query: Dict[str, Any] = {"expires_at": {"$gt": get_current_time()}}
             if league_id is not None:
                 query["league_id"] = league_id
+            if sport is not None:
+                query["sport"] = sport
             docs = (
                 await self.match_predictions.find(query)
                 .skip(skip)
@@ -262,6 +294,7 @@ class AsyncMongoAdapter:
                 {
                     "match_id": doc["match_id"],
                     "league_id": doc.get("league_id"),
+                    "sport": doc.get("sport", "soccer"),
                     "prediction": doc.get("data"),
                     "last_updated": doc.get("last_updated"),
                 }
@@ -272,7 +305,7 @@ class AsyncMongoAdapter:
             return []
 
         return await asyncio.to_thread(
-            self._sync_repo.get_all_active_predictions, skip, limit, league_id
+            self._sync_repo.get_all_active_predictions, skip, limit, league_id, sport
         )
 
     async def get_league_predictions(

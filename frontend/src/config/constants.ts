@@ -8,7 +8,9 @@ export const API_ENDPOINTS = {
   API_V1_PREFIX: "/api/v1",
 
   // Leagues
+  // NOTE: LEAGUES / LEAGUES_ACTIVE support ?sport= query param for filtering.
   LEAGUES: "/api/v1/leagues",
+  LEAGUES_ACTIVE: "/api/v1/leagues/active",
   LEAGUE_BY_ID: (id: string) => `/api/v1/leagues/${id}`,
 
   // Predictions
@@ -36,6 +38,20 @@ export const API_ENDPOINTS = {
   // Health
   HEALTH: "/health",
 } as const;
+
+/**
+ * Supported sports and the default sport (backward compatible with football-only).
+ */
+export type Sport = "soccer" | "tennis" | "baseball" | "basketball";
+
+export const SPORTS: { value: Sport; label: string }[] = [
+  { value: "soccer", label: "Fútbol" },
+  { value: "tennis", label: "Tenis" },
+  { value: "baseball", label: "Béisbol" },
+  { value: "basketball", label: "Baloncesto" },
+];
+
+export const DEFAULT_SPORT: Sport = "soccer";
 
 /**
  * App Configuration Constants

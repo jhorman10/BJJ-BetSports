@@ -42,6 +42,7 @@ def _to_prediction_result(doc: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "match_id": doc["match_id"],
         "league_id": doc.get("league_id"),
+        "sport": doc.get("sport", "soccer"),
         "prediction": doc.get("data"),
         "last_updated": doc.get("last_updated"),
     }
@@ -166,6 +167,19 @@ class MongoRepository:
         """No-op for MongoDB, collections are created implicitly."""
         pass
 
+    def get_league_ids_with_predictions(self, sport: str | None = None) -> List[str]:
+        """Get distinct league_ids that have active (non-expired) predictions."""
+        match_stage: Dict[str, Any] = {"expires_at": {"$gt": get_current_time()}}
+        if sport:
+            match_stage["sport"] = sport
+        pipeline = [
+            {"$match": match_stage},
+            {"$group": {"_id": "$league_id"}},
+            {"$sort": {"_id": 1}},
+        ]
+        cursor = self.match_predictions.aggregate(pipeline)
+        return [doc["_id"] for doc in cursor if doc.get("_id")]
+
     def save_training_result(self, key: str, data: Dict[str, Any]) -> None:
         normalized_data = _to_bson_friendly(data)
         self.training_results.update_one(
@@ -198,6 +212,7 @@ class MongoRepository:
         league_id: str,
         data: Dict[str, Any],
         ttl_seconds: int = 86400,
+        sport: str = "soccer",
     ) -> None:
         # Ensure traceability metadata exists
         try:
@@ -220,6 +235,7 @@ class MongoRepository:
             {
                 "$set": {
                     "league_id": league_id,
+                    "sport": sport,
                     "data": data,
                     "expires_at": expires_at,
                     "last_updated": get_current_time(),
@@ -280,12 +296,14 @@ class MongoRepository:
             expires_at = get_current_time() + timedelta(
                 seconds=p.get("ttl_seconds", 86400)
             )
+            sport = p.get("sport", "soccer")
             operations.append(
                 UpdateOne(
                     {"match_id": p["match_id"]},
                     {
                         "$set": {
                             "league_id": p["league_id"],
+                            "sport": sport,
                             "data": data_payload,
                             "expires_at": expires_at,
                             "last_updated": get_current_time(),
@@ -304,10 +322,13 @@ class MongoRepository:
         skip: int = 0,
         limit: int = 100,
         league_id: str | None = None,
+        sport: str | None = None,
     ) -> List[dict]:
         query: Dict[str, Any] = {"expires_at": {"$gt": get_current_time()}}
         if league_id is not None:
             query["league_id"] = league_id
+        if sport is not None:
+            query["sport"] = sport
         docs = self.match_predictions.find(query).skip(skip).limit(limit)
         return [_to_prediction_result(doc) for doc in docs]
 

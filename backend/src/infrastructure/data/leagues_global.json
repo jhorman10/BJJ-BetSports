@@ -1,0 +1,4494 @@
+{
+  "_metadata": {
+    "version": "2.0.0",
+    "description": "Comprehensive global multi-sport leagues dataset",
+    "last_updated": "2026-09-02",
+    "sources": [
+      "OpenFootball",
+      "Football-Data.org",
+      "API-Football",
+      "TheSportsDB",
+      "RSSSF"
+    ],
+    "total_countries": 92,
+    "total_leagues": 266,
+    "total_sports": 4
+  },
+  "continents": {
+    "UEFA": {
+      "name": "Europe",
+      "confederation": "UEFA",
+      "countries": {
+        "England": {
+          "code": "EN",
+          "flag": "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+          "leagues": [
+            {
+              "id": "E0",
+              "name": "Premier League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 20,
+              "promotion": null,
+              "relegation": 3,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "openfootball",
+                "api_football"
+              ],
+              "aliases": [
+                "English Premier League",
+                "EPL"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "E1",
+              "name": "Championship",
+              "tier": 2,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 24,
+              "promotion": 2,
+              "relegation": 3,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "openfootball"
+              ],
+              "aliases": [
+                "EFL Championship"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "E2",
+              "name": "League One",
+              "tier": 3,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 24,
+              "promotion": 3,
+              "relegation": 4,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "openfootball"
+              ],
+              "aliases": [
+                "EFL League One"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "E3",
+              "name": "League Two",
+              "tier": 4,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 24,
+              "promotion": 4,
+              "relegation": 2,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "openfootball"
+              ],
+              "aliases": [
+                "EFL League Two"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "E_FA",
+              "name": "FA Cup",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 736,
+              "active": true,
+              "data_sources": [
+                "football_data_org"
+              ],
+              "aliases": [
+                "The Emirates FA Cup"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "E_LC",
+              "name": "EFL Cup",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 92,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "Carabao Cup",
+                "League Cup"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "E_NL",
+              "name": "National League",
+              "tier": 5,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 24,
+              "promotion": 1,
+              "relegation": 4,
+              "active": true,
+              "data_sources": [
+                "openfootball"
+              ],
+              "aliases": [
+                "Vanarama National League"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "E_NLS",
+              "name": "National League South",
+              "tier": 6,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 22,
+              "promotion": 2,
+              "relegation": 0,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "E_NLN",
+              "name": "National League North",
+              "tier": 6,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 22,
+              "promotion": 2,
+              "relegation": 0,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "E_SC",
+              "name": "Southern League Premier South",
+              "tier": 7,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 22,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "E_SL",
+              "name": "Southern League Premier Central",
+              "tier": 7,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 22,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "E_NL",
+              "name": "Northern Premier League Premier",
+              "tier": 7,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 22,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Scotland": {
+          "code": "SC",
+          "flag": "🏴󠁧󠁢󠁳󠁣󠁴󠁿",
+          "leagues": [
+            {
+              "id": "SC0",
+              "name": "Scottish Premiership",
+              "tier": 1,
+              "type": "league",
+              "format": "split",
+              "teams": 12,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "openfootball"
+              ],
+              "aliases": [
+                "cinch Premiership"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "SC1",
+              "name": "Scottish Championship",
+              "tier": 2,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 10,
+              "active": true,
+              "data_sources": [
+                "openfootball"
+              ],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "SC2",
+              "name": "Scottish League One",
+              "tier": 3,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 10,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "SC3",
+              "name": "Scottish League Two",
+              "tier": 4,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 10,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "SC_C",
+              "name": "Scottish Cup",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 100,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "Tennent's Scottish Cup"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Wales": {
+          "code": "WA",
+          "flag": "🏴󠁧󠁢󠁷󠁬󠁳󠁿",
+          "leagues": [
+            {
+              "id": "WA0",
+              "name": "Cymru Premier",
+              "tier": 1,
+              "type": "league",
+              "format": "split",
+              "teams": 12,
+              "active": true,
+              "data_sources": [
+                "openfootball"
+              ],
+              "aliases": [
+                "JD Cymru Premier"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Northern Ireland": {
+          "code": "NI",
+          "flag": "🇬🇧",
+          "leagues": [
+            {
+              "id": "NI0",
+              "name": "NIFL Premiership",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 12,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "Danske Bank Premiership"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Republic of Ireland": {
+          "code": "IE",
+          "flag": "🇮🇪",
+          "leagues": [
+            {
+              "id": "IE0",
+              "name": "League of Ireland Premier Division",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 10,
+              "active": true,
+              "data_sources": [
+                "openfootball"
+              ],
+              "aliases": [
+                "SSE Airtricity Premier Division"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "IE1",
+              "name": "League of Ireland First Division",
+              "tier": 2,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 10,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "France": {
+          "code": "FR",
+          "flag": "🇫🇷",
+          "leagues": [
+            {
+              "id": "F1",
+              "name": "Ligue 1",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 18,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "openfootball",
+                "api_football"
+              ],
+              "aliases": [
+                "Ligue 1 McDonald's"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "F2",
+              "name": "Ligue 2",
+              "tier": 2,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 18,
+              "active": true,
+              "data_sources": [
+                "openfootball"
+              ],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "F_C",
+              "name": "Coupe de France",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 500,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "Coupe de France McDonald's"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "F_LC",
+              "name": "Coupe de la Ligue",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 40,
+              "active": false,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "F_N1",
+              "name": "National 1",
+              "tier": 3,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 18,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "Championnat National"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "F_N2",
+              "name": "National 2",
+              "tier": 4,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 36,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Spain": {
+          "code": "ES",
+          "flag": "🇪🇸",
+          "leagues": [
+            {
+              "id": "SP1",
+              "name": "La Liga",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 20,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "openfootball",
+                "api_football"
+              ],
+              "aliases": [
+                "LaLiga EA Sports"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "SP2",
+              "name": "La Liga 2",
+              "tier": 2,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 22,
+              "active": true,
+              "data_sources": [
+                "openfootball"
+              ],
+              "aliases": [
+                "Segunda División"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "SP_C",
+              "name": "Copa del Rey",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 120,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "SP_SC",
+              "name": "Supercopa de España",
+              "tier": 0,
+              "type": "cup",
+              "format": "semi_final_series",
+              "teams": 4,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "SP_PDR",
+              "name": "Primera Federación",
+              "tier": 3,
+              "type": "league",
+              "format": "group_stage",
+              "teams": 36,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "SP_SDR",
+              "name": "Segunda Federación",
+              "tier": 4,
+              "type": "league",
+              "format": "group_stage",
+              "teams": 90,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Germany": {
+          "code": "DE",
+          "flag": "🇩🇪",
+          "leagues": [
+            {
+              "id": "D1",
+              "name": "Bundesliga",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 18,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "openfootball",
+                "api_football"
+              ],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "D2",
+              "name": "2. Bundesliga",
+              "tier": 2,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 18,
+              "active": true,
+              "data_sources": [
+                "openfootball"
+              ],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "D3",
+              "name": "3. Liga",
+              "tier": 3,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 20,
+              "active": true,
+              "data_sources": [
+                "openfootball"
+              ],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "D_C",
+              "name": "DFB-Pokal",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 64,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "DFB Cup"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "D_SC",
+              "name": "DFL-Supercup",
+              "tier": 0,
+              "type": "cup",
+              "format": "single_match",
+              "teams": 2,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "D_RL",
+              "name": "Regionalliga",
+              "tier": 4,
+              "type": "league",
+              "format": "group_stage",
+              "teams": 180,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "Regionalliga Bayern",
+                "Regionalliga West",
+                "Regionalliga Nord",
+                "Regionalliga Südwest",
+                "Regionalliga Nordost"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Italy": {
+          "code": "IT",
+          "flag": "🇮🇹",
+          "leagues": [
+            {
+              "id": "I1",
+              "name": "Serie A",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 20,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "openfootball",
+                "api_football"
+              ],
+              "aliases": [
+                "Serie A TIM"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "I2",
+              "name": "Serie B",
+              "tier": 2,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 20,
+              "active": true,
+              "data_sources": [
+                "openfootball"
+              ],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "I3",
+              "name": "Serie C",
+              "tier": 3,
+              "type": "league",
+              "format": "group_stage",
+              "teams": 60,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "Lega Pro"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "I_C",
+              "name": "Coppa Italia",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 44,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "Coppa Italia Frecciarossa"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "I_SC",
+              "name": "Supercoppa Italiana",
+              "tier": 0,
+              "type": "cup",
+              "format": "semi_final_series",
+              "teams": 4,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Netherlands": {
+          "code": "NL",
+          "flag": "🇳🇱",
+          "leagues": [
+            {
+              "id": "N1",
+              "name": "Eredivisie",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 18,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "openfootball",
+                "api_football"
+              ],
+              "aliases": [
+                "Keuken Kampioen Eredivisie"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "N2",
+              "name": "Eerste Divisie",
+              "tier": 2,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 20,
+              "active": true,
+              "data_sources": [
+                "openfootball"
+              ],
+              "aliases": [
+                "Keuken Kampioen Divisie"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "N_C",
+              "name": "KNVB Cup",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 100,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "TOTO KNVB Beker"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Belgium": {
+          "code": "BE",
+          "flag": "🇧🇪",
+          "leagues": [
+            {
+              "id": "B1",
+              "name": "Jupiler Pro League",
+              "tier": 1,
+              "type": "league",
+              "format": "split",
+              "teams": 16,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "openfootball",
+                "api_football"
+              ],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "B2",
+              "name": "Challenger Pro League",
+              "tier": 2,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 16,
+              "active": true,
+              "data_sources": [
+                "openfootball"
+              ],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "B_C",
+              "name": "Belgian Cup",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 200,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "Croky Cup"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Portugal": {
+          "code": "PT",
+          "flag": "🇵🇹",
+          "leagues": [
+            {
+              "id": "P1",
+              "name": "Primeira Liga",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 18,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "openfootball",
+                "api_football"
+              ],
+              "aliases": [
+                "Liga Portugal Bwin"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "P2",
+              "name": "Liga Portugal 2",
+              "tier": 2,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 18,
+              "active": true,
+              "data_sources": [
+                "openfootball"
+              ],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "P_C",
+              "name": "Taça de Portugal",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 150,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "P_LC",
+              "name": "Taça da Liga",
+              "tier": 0,
+              "type": "cup",
+              "format": "group_stage",
+              "teams": 32,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "League Cup"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "P_L3",
+              "name": "Liga 3",
+              "tier": 3,
+              "type": "league",
+              "format": "group_stage",
+              "teams": 24,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Turkey": {
+          "code": "TR",
+          "flag": "🇹🇷",
+          "leagues": [
+            {
+              "id": "T1",
+              "name": "Süper Lig",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 19,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "openfootball",
+                "api_football"
+              ],
+              "aliases": [
+                "Trendyol Süper Lig"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "T2",
+              "name": "1. Lig",
+              "tier": 2,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 19,
+              "active": true,
+              "data_sources": [
+                "openfootball"
+              ],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "T_C",
+              "name": "Turkish Cup",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 150,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "Ziraat Türkiye Kupası"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "T_SC",
+              "name": "Turkish Super Cup",
+              "tier": 0,
+              "type": "cup",
+              "format": "single_match",
+              "teams": 2,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Greece": {
+          "code": "GR",
+          "flag": "🇬🇷",
+          "leagues": [
+            {
+              "id": "G1",
+              "name": "Super League Greece",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 14,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "openfootball"
+              ],
+              "aliases": [
+                "Stoiximan Super League"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "G2",
+              "name": "Super League 2",
+              "tier": 2,
+              "type": "league",
+              "format": "group_stage",
+              "teams": 24,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "G_C",
+              "name": "Greek Cup",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 100,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "Greek Football Cup"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Russia": {
+          "code": "RU",
+          "flag": "🇷🇺",
+          "leagues": [
+            {
+              "id": "RU1",
+              "name": "Russian Premier League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 16,
+              "active": false,
+              "data_sources": [],
+              "aliases": [
+                "Mir Russian Premier League"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "RU2",
+              "name": "Russian Football National League",
+              "tier": 2,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 18,
+              "active": false,
+              "data_sources": [],
+              "aliases": [
+                "FNL"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Ukraine": {
+          "code": "UA",
+          "flag": "🇺🇦",
+          "leagues": [
+            {
+              "id": "UA1",
+              "name": "Ukrainian Premier League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 16,
+              "active": true,
+              "data_sources": [
+                "openfootball"
+              ],
+              "aliases": [
+                "VBET League"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "UA_C",
+              "name": "Ukrainian Cup",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 50,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Austria": {
+          "code": "AT",
+          "flag": "🇦🇹",
+          "leagues": [
+            {
+              "id": "AT1",
+              "name": "Austrian Bundesliga",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 12,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "openfootball"
+              ],
+              "aliases": [
+                " Admiral Bundesliga"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "AT2",
+              "name": "2. Liga",
+              "tier": 2,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 12,
+              "active": true,
+              "data_sources": [
+                "openfootball"
+              ],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "AT_C",
+              "name": "Austrian Cup",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 60,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "ÖFB-Cup"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Switzerland": {
+          "code": "CH",
+          "flag": "🇨🇭",
+          "leagues": [
+            {
+              "id": "CH1",
+              "name": "Swiss Super League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 12,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "openfootball"
+              ],
+              "aliases": [
+                "Credit Suisse Super League"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "CH2",
+              "name": "Swiss Challenge League",
+              "tier": 2,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 10,
+              "active": true,
+              "data_sources": [
+                "openfootball"
+              ],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "CH_C",
+              "name": "Swiss Cup",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 60,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "Schweizer Cup"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Denmark": {
+          "code": "DK",
+          "flag": "🇩🇰",
+          "leagues": [
+            {
+              "id": "DK1",
+              "name": "Danish Superliga",
+              "tier": 1,
+              "type": "league",
+              "format": "split",
+              "teams": 12,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "openfootball"
+              ],
+              "aliases": [
+                "3F Superliga"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "DK2",
+              "name": "Danish 1st Division",
+              "tier": 2,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 12,
+              "active": true,
+              "data_sources": [
+                "openfootball"
+              ],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "DK_C",
+              "name": "Danish Cup",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 80,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "DBU Pokalen"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Norway": {
+          "code": "NO",
+          "flag": "🇳🇴",
+          "leagues": [
+            {
+              "id": "NO1",
+              "name": "Eliteserien",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 16,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "openfootball"
+              ],
+              "aliases": [
+                "OBOS-ligaen"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "NO2",
+              "name": "OBOS-ligaen",
+              "tier": 2,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 16,
+              "active": true,
+              "data_sources": [
+                "openfootball"
+              ],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "NO_C",
+              "name": "Norwegian Cup",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 100,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "NM-Cupen"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Sweden": {
+          "code": "SE",
+          "flag": "🇸🇪",
+          "leagues": [
+            {
+              "id": "SE1",
+              "name": "Allsvenskan",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 16,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "openfootball"
+              ],
+              "aliases": [
+                "Allsvenskan"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "SE2",
+              "name": "Superettan",
+              "tier": 2,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 16,
+              "active": true,
+              "data_sources": [
+                "openfootball"
+              ],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "SE_C",
+              "name": "Swedish Cup",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 100,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "Svenska Cupen"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Finland": {
+          "code": "FI",
+          "flag": "🇫🇮",
+          "leagues": [
+            {
+              "id": "FI1",
+              "name": "Veikkausliiga",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 12,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "openfootball"
+              ],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "FI2",
+              "name": "Ykkönen",
+              "tier": 2,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 12,
+              "active": true,
+              "data_sources": [
+                "openfootball"
+              ],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "FI_C",
+              "name": "Finnish Cup",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 80,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "Suomen Cup"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Poland": {
+          "code": "PL",
+          "flag": "🇵🇱",
+          "leagues": [
+            {
+              "id": "PL1",
+              "name": "Ekstraklasa",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 18,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "openfootball"
+              ],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "PL2",
+              "name": "I Liga",
+              "tier": 2,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 18,
+              "active": true,
+              "data_sources": [
+                "openfootball"
+              ],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "PL_C",
+              "name": "Polish Cup",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 100,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "Puchar Polski"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Czech Republic": {
+          "code": "CZ",
+          "flag": "🇨🇿",
+          "leagues": [
+            {
+              "id": "CZ1",
+              "name": "Czech First League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 16,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "openfootball"
+              ],
+              "aliases": [
+                "Fortuna Liga"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "CZ2",
+              "name": "Czech National Football League",
+              "tier": 2,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 16,
+              "active": true,
+              "data_sources": [
+                "openfootball"
+              ],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "CZ_C",
+              "name": "Czech Cup",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 100,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "Mol Cup"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Hungary": {
+          "code": "HU",
+          "flag": "🇭🇺",
+          "leagues": [
+            {
+              "id": "HU1",
+              "name": "NB I",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 12,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "openfootball"
+              ],
+              "aliases": [
+                "OTP Bank Liga"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "HU_C",
+              "name": "Hungarian Cup",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 100,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "Magyar Kupa"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Romania": {
+          "code": "RO",
+          "flag": "🇷🇴",
+          "leagues": [
+            {
+              "id": "RO1",
+              "name": "Liga I",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 16,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "openfootball"
+              ],
+              "aliases": [
+                "SuperLiga"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "RO2",
+              "name": "Liga II",
+              "tier": 2,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 20,
+              "active": true,
+              "data_sources": [
+                "openfootball"
+              ],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "RO_C",
+              "name": "Romanian Cup",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 100,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "Cupa României"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Croatia": {
+          "code": "HR",
+          "flag": "🇭🇷",
+          "leagues": [
+            {
+              "id": "HR1",
+              "name": "HNL",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 10,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "openfootball"
+              ],
+              "aliases": [
+                "SuperSport HNL"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "HR_C",
+              "name": "Croatian Cup",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 50,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "Hrvatski nogometni kup"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Serbia": {
+          "code": "RS",
+          "flag": "🇷🇸",
+          "leagues": [
+            {
+              "id": "RS1",
+              "name": "Serbian SuperLiga",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 16,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "openfootball"
+              ],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "RS_C",
+              "name": "Serbian Cup",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 50,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "Kup Srbije"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Bulgaria": {
+          "code": "BG",
+          "flag": "🇧🇬",
+          "leagues": [
+            {
+              "id": "BG1",
+              "name": "First Professional League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 14,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "openfootball"
+              ],
+              "aliases": [
+                "efbet Liga"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "BG_C",
+              "name": "Bulgarian Cup",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 50,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "Kupa na Bulgariya"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        }
+      }
+    },
+    "CONMEBOL": {
+      "name": "South America",
+      "confederation": "CONMEBOL",
+      "countries": {
+        "Brazil": {
+          "code": "BR",
+          "flag": "🇧🇷",
+          "leagues": [
+            {
+              "id": "BRA1",
+              "name": "Série A",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 20,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "openfootball",
+                "api_football"
+              ],
+              "aliases": [
+                "Brasileirão Assaí"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "BRA2",
+              "name": "Série B",
+              "tier": 2,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 20,
+              "active": true,
+              "data_sources": [
+                "openfootball"
+              ],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "BRA3",
+              "name": "Série C",
+              "tier": 3,
+              "type": "league",
+              "format": "group_stage",
+              "teams": 20,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "BRA4",
+              "name": "Série D",
+              "tier": 4,
+              "type": "league",
+              "format": "group_stage",
+              "teams": 40,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "BRA_C",
+              "name": "Copa do Brasil",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 92,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "BRA_SC",
+              "name": "Supercopa do Brasil",
+              "tier": 0,
+              "type": "cup",
+              "format": "single_match",
+              "teams": 2,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Argentina": {
+          "code": "AR",
+          "flag": "🇦🇷",
+          "leagues": [
+            {
+              "id": "ARG1",
+              "name": "Liga Profesional",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 28,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "openfootball",
+                "api_football"
+              ],
+              "aliases": [
+                "Liga Profesional de Fútbol"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "ARG2",
+              "name": "Primera Nacional",
+              "tier": 2,
+              "type": "league",
+              "format": "group_stage",
+              "teams": 36,
+              "active": true,
+              "data_sources": [
+                "openfootball"
+              ],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "ARG_C",
+              "name": "Copa Argentina",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 100,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Colombia": {
+          "code": "CO",
+          "flag": "🇨🇴",
+          "leagues": [
+            {
+              "id": "COL1",
+              "name": "Liga BetPlay",
+              "tier": 1,
+              "type": "league",
+              "format": "apertura_clausura",
+              "teams": 20,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "openfootball",
+                "api_football"
+              ],
+              "aliases": [
+                "Liga BetPlay Dimayor"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "COL2",
+              "name": "Liga BetPlay 2",
+              "tier": 2,
+              "type": "league",
+              "format": "apertura_clausura",
+              "teams": 16,
+              "active": true,
+              "data_sources": [
+                "openfootball"
+              ],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "COL_C",
+              "name": "Copa Colombia",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 36,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Chile": {
+          "code": "CL",
+          "flag": "🇨🇱",
+          "leagues": [
+            {
+              "id": "CHI1",
+              "name": "Primera División",
+              "tier": 1,
+              "type": "league",
+              "format": "apertura_clausura",
+              "teams": 16,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "openfootball"
+              ],
+              "aliases": [
+                "Liga Promotional BetPlay"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "CHI2",
+              "name": "Primera B",
+              "tier": 2,
+              "type": "league",
+              "format": "apertura_clausura",
+              "teams": 14,
+              "active": true,
+              "data_sources": [
+                "openfootball"
+              ],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "CHI_C",
+              "name": "Copa Chile",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 50,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Uruguay": {
+          "code": "UY",
+          "flag": "🇺🇾",
+          "leagues": [
+            {
+              "id": "URU1",
+              "name": "Primera División",
+              "tier": 1,
+              "type": "league",
+              "format": "apertura_clausura",
+              "teams": 16,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "openfootball"
+              ],
+              "aliases": [
+                "Liga Profesional de Primera División"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "URU_C",
+              "name": "Copa Uruguay",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 40,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Paraguay": {
+          "code": "PY",
+          "flag": "🇵🇾",
+          "leagues": [
+            {
+              "id": "PAR1",
+              "name": "Primera División",
+              "tier": 1,
+              "type": "league",
+              "format": "apertura_clausura",
+              "teams": 12,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "openfootball"
+              ],
+              "aliases": [
+                "Liga Apertura"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "PAR_C",
+              "name": "Copa Paraguay",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 40,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Bolivia": {
+          "code": "BO",
+          "flag": "🇧🇴",
+          "leagues": [
+            {
+              "id": "BOL1",
+              "name": "Liga de Fútbol Profesional",
+              "tier": 1,
+              "type": "league",
+              "format": "apertura_clausura",
+              "teams": 16,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "openfootball"
+              ],
+              "aliases": [
+                "Liga Tigo"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Ecuador": {
+          "code": "EC",
+          "flag": "🇪🇨",
+          "leagues": [
+            {
+              "id": "ECU1",
+              "name": "Serie A",
+              "tier": 1,
+              "type": "league",
+              "format": "apertura_clausura",
+              "teams": 16,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "openfootball"
+              ],
+              "aliases": [
+                "Liga Pro Betcris"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "ECU_C",
+              "name": "Copa Ecuador",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 40,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Peru": {
+          "code": "PE",
+          "flag": "🇵🇪",
+          "leagues": [
+            {
+              "id": "PER1",
+              "name": "Liga 1",
+              "tier": 1,
+              "type": "league",
+              "format": "apertura_clausura",
+              "teams": 18,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "openfootball"
+              ],
+              "aliases": [
+                "Liga 1 Betsson"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "PER2",
+              "name": "Liga 2",
+              "tier": 2,
+              "type": "league",
+              "format": "apertura_clausura",
+              "teams": 12,
+              "active": true,
+              "data_sources": [
+                "openfootball"
+              ],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Venezuela": {
+          "code": "VE",
+          "flag": "🇻🇪",
+          "leagues": [
+            {
+              "id": "VEN1",
+              "name": "Primera División",
+              "tier": 1,
+              "type": "league",
+              "format": "apertura_clausura",
+              "teams": 20,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "openfootball"
+              ],
+              "aliases": [
+                "Liga BetPlay"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "VEN_C",
+              "name": "Copa Venezuela",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 40,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        }
+      }
+    },
+    "CONCACAF": {
+      "name": "North & Central America",
+      "confederation": "CONCACAF",
+      "countries": {
+        "Mexico": {
+          "code": "MX",
+          "flag": "🇲🇽",
+          "leagues": [
+            {
+              "id": "MEX1",
+              "name": "Liga MX",
+              "tier": 1,
+              "type": "league",
+              "format": "apertura_clausura",
+              "teams": 18,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "api_football"
+              ],
+              "aliases": [
+                "Liga BBVA MX"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "MEX2",
+              "name": "Liga de Expansión MX",
+              "tier": 2,
+              "type": "league",
+              "format": "apertura_clausura",
+              "teams": 12,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "MEX_C",
+              "name": "Copa MX",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 30,
+              "active": false,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "United States": {
+          "code": "US",
+          "flag": "🇺🇸",
+          "leagues": [
+            {
+              "id": "MLS",
+              "name": "Major League Soccer",
+              "tier": 1,
+              "type": "league",
+              "format": "conference_stage",
+              "teams": 29,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "api_football"
+              ],
+              "aliases": [
+                "MLS"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "USL1",
+              "name": "USL Championship",
+              "tier": 2,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 24,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "USL2",
+              "name": "USL League One",
+              "tier": 3,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 12,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "US_C",
+              "name": "U.S. Open Cup",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 100,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "Lamar Hunt U.S. Open Cup"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Canada": {
+          "code": "CA",
+          "flag": "🇨🇦",
+          "leagues": [
+            {
+              "id": "CANPL",
+              "name": "Canadian Premier League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 8,
+              "active": true,
+              "data_sources": [
+                "football_data_org"
+              ],
+              "aliases": [
+                "CPL"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "CAN_C",
+              "name": "Canadian Championship",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 14,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "Voyageurs Cup"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Costa Rica": {
+          "code": "CR",
+          "flag": "🇨🇷",
+          "leagues": [
+            {
+              "id": "CRC1",
+              "name": "Primera División",
+              "tier": 1,
+              "type": "league",
+              "format": "apertura_clausura",
+              "teams": 12,
+              "active": true,
+              "data_sources": [
+                "football_data_org"
+              ],
+              "aliases": [
+                "Liga Promerica"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Honduras": {
+          "code": "HN",
+          "flag": "🇭🇳",
+          "leagues": [
+            {
+              "id": "HON1",
+              "name": "Liga Nacional",
+              "tier": 1,
+              "type": "league",
+              "format": "apertura_clausura",
+              "teams": 10,
+              "active": true,
+              "data_sources": [
+                "football_data_org"
+              ],
+              "aliases": [
+                "Liga Salva Vida"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Panama": {
+          "code": "PA",
+          "flag": "🇵🇦",
+          "leagues": [
+            {
+              "id": "PAN1",
+              "name": "Liga Panameña de Fútbol",
+              "tier": 1,
+              "type": "league",
+              "format": "apertura_clausura",
+              "teams": 10,
+              "active": true,
+              "data_sources": [
+                "football_data_org"
+              ],
+              "aliases": [
+                "Liga Concacaf"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Guatemala": {
+          "code": "GT",
+          "flag": "🇬🇹",
+          "leagues": [
+            {
+              "id": "GUA1",
+              "name": "Liga Nacional",
+              "tier": 1,
+              "type": "league",
+              "format": "apertura_clausura",
+              "teams": 12,
+              "active": true,
+              "data_sources": [
+                "football_data_org"
+              ],
+              "aliases": [
+                "Liga Guate"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Jamaica": {
+          "code": "JM",
+          "flag": "🇯🇲",
+          "leagues": [
+            {
+              "id": "JAM1",
+              "name": "Jamaica Premier League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 14,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "Wray & Nephew Jamaica Premier League"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Trinidad and Tobago": {
+          "code": "TT",
+          "flag": "🇹🇹",
+          "leagues": [
+            {
+              "id": "TTO1",
+              "name": "TT Premier Football League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 12,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "TT Pro League"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        }
+      }
+    },
+    "CAF": {
+      "name": "Africa",
+      "confederation": "CAF",
+      "countries": {
+        "South Africa": {
+          "code": "ZA",
+          "flag": "🇿🇦",
+          "leagues": [
+            {
+              "id": "SA1",
+              "name": "DStv Premiership",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 16,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "api_football"
+              ],
+              "aliases": [
+                "South African Premier Division"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "SA2",
+              "name": "Motsepe Foundation Championship",
+              "tier": 2,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 16,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "SA_C",
+              "name": "Nedbank Cup",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 32,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Egypt": {
+          "code": "EG",
+          "flag": "🇪🇬",
+          "leagues": [
+            {
+              "id": "EGY1",
+              "name": "Egyptian Premier League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 18,
+              "active": true,
+              "data_sources": [
+                "football_data_org"
+              ],
+              "aliases": [
+                "Egyptian Premier League"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "EGY_C",
+              "name": "Egypt Cup",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 100,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Morocco": {
+          "code": "MA",
+          "flag": "🇲🇦",
+          "leagues": [
+            {
+              "id": "MAR1",
+              "name": "Botola Pro",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 16,
+              "active": true,
+              "data_sources": [
+                "football_data_org"
+              ],
+              "aliases": [
+                "Botola Pro 1"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "MAR2",
+              "name": "Botola Pro 2",
+              "tier": 2,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 16,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "MAR_C",
+              "name": "Coupe du Trône",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 100,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Tunisia": {
+          "code": "TN",
+          "flag": "🇹🇳",
+          "leagues": [
+            {
+              "id": "TUN1",
+              "name": "Tunisian Ligue 1",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 16,
+              "active": true,
+              "data_sources": [
+                "football_data_org"
+              ],
+              "aliases": [
+                "Ligue 1 Tunisienne"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "TUN_C",
+              "name": "Tunisian Cup",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 50,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "Coupe de Tunisie"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Algeria": {
+          "code": "DZ",
+          "flag": "🇩🇿",
+          "leagues": [
+            {
+              "id": "ALG1",
+              "name": "Algerian Ligue 1",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 16,
+              "active": true,
+              "data_sources": [
+                "football_data_org"
+              ],
+              "aliases": [
+                "Ligue 1 Mobilis"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "ALG2",
+              "name": "Algerian Ligue 2",
+              "tier": 2,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 20,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Nigeria": {
+          "code": "NG",
+          "flag": "🇳🇬",
+          "leagues": [
+            {
+              "id": "NGA1",
+              "name": "Nigeria Professional Football League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 20,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "NPFL",
+                "Bet9ja Nigeria Professional Football League"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "NGA2",
+              "name": "Nigeria National League",
+              "tier": 2,
+              "type": "league",
+              "format": "group_stage",
+              "teams": 40,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "NNL"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Ghana": {
+          "code": "GH",
+          "flag": "🇬🇭",
+          "leagues": [
+            {
+              "id": "GHA1",
+              "name": "Ghana Premier League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 18,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "GPL"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "GHA2",
+              "name": "Ghana Division One League",
+              "tier": 2,
+              "type": "league",
+              "format": "group_stage",
+              "teams": 48,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Senegal": {
+          "code": "SN",
+          "flag": "🇸🇳",
+          "leagues": [
+            {
+              "id": "SEN1",
+              "name": "Senegal Premier League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 14,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "Ligue 1 Sénégal"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Cameroon": {
+          "code": "CM",
+          "flag": "🇨🇲",
+          "leagues": [
+            {
+              "id": "CMR1",
+              "name": "Cameroon First Division",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 16,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "MTN Elite One"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Ivory Coast": {
+          "code": "CI",
+          "flag": "🇨🇮",
+          "leagues": [
+            {
+              "id": "CIV1",
+              "name": "Ligue 1 Côte d'Ivoire",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 14,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Kenya": {
+          "code": "KE",
+          "flag": "🇰🇪",
+          "leagues": [
+            {
+              "id": "KEN1",
+              "name": "Kenya Premier League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 18,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "FKF Premier League"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Ethiopia": {
+          "code": "ET",
+          "flag": "🇪🇹",
+          "leagues": [
+            {
+              "id": "ETH1",
+              "name": "Ethiopian Premier League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 16,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "DR Congo": {
+          "code": "CD",
+          "flag": "🇨🇩",
+          "leagues": [
+            {
+              "id": "COD1",
+              "name": "Linafoot",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 16,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "Ligue 1 de Football"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Tanzania": {
+          "code": "TZ",
+          "flag": "🇹🇿",
+          "leagues": [
+            {
+              "id": "TAN1",
+              "name": "Tanzania Premier League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 16,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "NBC Premier League"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Uganda": {
+          "code": "UG",
+          "flag": "🇺🇬",
+          "leagues": [
+            {
+              "id": "UGA1",
+              "name": "Uganda Premier League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 16,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "StarTimes Uganda Premier League"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Zambia": {
+          "code": "ZM",
+          "flag": "🇿🇲",
+          "leagues": [
+            {
+              "id": "ZAM1",
+              "name": "Zambian Premier League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 18,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "Absa Cup"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Zimbabwe": {
+          "code": "ZW",
+          "flag": "🇿🇼",
+          "leagues": [
+            {
+              "id": "ZIM1",
+              "name": "Zimbabwe Premier Soccer League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 18,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        }
+      }
+    },
+    "AFC": {
+      "name": "Asia",
+      "confederation": "AFC",
+      "countries": {
+        "Japan": {
+          "code": "JP",
+          "flag": "🇯🇵",
+          "leagues": [
+            {
+              "id": "J1",
+              "name": "J1 League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 18,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "api_football"
+              ],
+              "aliases": [
+                "Meiji Yasuda J1 League"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "J2",
+              "name": "J2 League",
+              "tier": 2,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 22,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "J3",
+              "name": "J3 League",
+              "tier": 3,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 20,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "J_C",
+              "name": "Emperor's Cup",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 100,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "天皇杯"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "J_LC",
+              "name": "J.League YBC Levain Cup",
+              "tier": 0,
+              "type": "cup",
+              "format": "group_stage",
+              "teams": 20,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "J.League Cup"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "South Korea": {
+          "code": "KR",
+          "flag": "🇰🇷",
+          "leagues": [
+            {
+              "id": "K1",
+              "name": "K League 1",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 12,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "api_football"
+              ],
+              "aliases": [
+                "Hana 1Q K League 1"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "K2",
+              "name": "K League 2",
+              "tier": 2,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 13,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "K_C",
+              "name": "Korea FA Cup",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 50,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "FA Cup"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "China": {
+          "code": "CN",
+          "flag": "🇨🇳",
+          "leagues": [
+            {
+              "id": "C1",
+              "name": "Chinese Super League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 16,
+              "active": true,
+              "data_sources": [
+                "football_data_org"
+              ],
+              "aliases": [
+                "CSL",
+                "Ping An Chinese Super League"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "C2",
+              "name": "China League One",
+              "tier": 2,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 18,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "C3",
+              "name": "China League Two",
+              "tier": 3,
+              "type": "league",
+              "format": "group_stage",
+              "teams": 28,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "CN_C",
+              "name": "Chinese FA Cup",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 60,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Saudi Arabia": {
+          "code": "SA",
+          "flag": "🇸🇦",
+          "leagues": [
+            {
+              "id": "SA1",
+              "name": "Saudi Pro League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 18,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "api_football"
+              ],
+              "aliases": [
+                "Roshn Saudi League"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "SA2",
+              "name": "Saudi First Division League",
+              "tier": 2,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 18,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "SA_C",
+              "name": "King's Cup",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 60,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "UAE": {
+          "code": "AE",
+          "flag": "🇦🇪",
+          "leagues": [
+            {
+              "id": "UAE1",
+              "name": "UAE Pro League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 14,
+              "active": true,
+              "data_sources": [
+                "football_data_org"
+              ],
+              "aliases": [
+                "Arabian Gulf League"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "UAE_C",
+              "name": "UAE President's Cup",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 30,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Qatar": {
+          "code": "QA",
+          "flag": "🇶🇦",
+          "leagues": [
+            {
+              "id": "QAT1",
+              "name": "Qatar Stars League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 12,
+              "active": true,
+              "data_sources": [
+                "football_data_org"
+              ],
+              "aliases": [
+                "QSL"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "QAT_C",
+              "name": "Emir of Qatar Cup",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 20,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Australia": {
+          "code": "AU",
+          "flag": "🇦🇺",
+          "leagues": [
+            {
+              "id": "A1",
+              "name": "A-League Men",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 12,
+              "active": true,
+              "data_sources": [
+                "football_data_org",
+                "api_football"
+              ],
+              "aliases": [
+                "Isuzu UTE A-League"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "A2",
+              "name": "A-League Women",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 12,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "Liberty A-League"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "AU_C",
+              "name": "Australia Cup",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 700,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "Cup"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "India": {
+          "code": "IN",
+          "flag": "🇮🇳",
+          "leagues": [
+            {
+              "id": "ISL",
+              "name": "Indian Super League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 12,
+              "active": true,
+              "data_sources": [
+                "football_data_org"
+              ],
+              "aliases": [
+                "Hero ISL"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "I1",
+              "name": "I-League",
+              "tier": 2,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 12,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "IN_C",
+              "name": "Durand Cup",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 24,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Thailand": {
+          "code": "TH",
+          "flag": "🇹🇭",
+          "leagues": [
+            {
+              "id": "TH1",
+              "name": "Thai League 1",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 16,
+              "active": true,
+              "data_sources": [
+                "football_data_org"
+              ],
+              "aliases": [
+                "Revo Thai League"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "TH2",
+              "name": "Thai League 2",
+              "tier": 2,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 18,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Indonesia": {
+          "code": "ID",
+          "flag": "🇮🇩",
+          "leagues": [
+            {
+              "id": "ID1",
+              "name": "Liga 1",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 18,
+              "active": true,
+              "data_sources": [
+                "football_data_org"
+              ],
+              "aliases": [
+                "BRI Liga 1"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "ID2",
+              "name": "Liga 2",
+              "tier": 2,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 22,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Vietnam": {
+          "code": "VN",
+          "flag": "🇻🇳",
+          "leagues": [
+            {
+              "id": "VN1",
+              "name": "V.League 1",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 14,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            },
+            {
+              "id": "VN2",
+              "name": "V.League 2",
+              "tier": 2,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 12,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Malaysia": {
+          "code": "MY",
+          "flag": "🇲🇾",
+          "leagues": [
+            {
+              "id": "MY1",
+              "name": "Super League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 12,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "Liga Super"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "MY2",
+              "name": "Premier League",
+              "tier": 2,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 12,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "Liga Premier"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Philippines": {
+          "code": "PH",
+          "flag": "🇵🇭",
+          "leagues": [
+            {
+              "id": "PH1",
+              "name": "Philippines Football League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 10,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "PFL"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Iran": {
+          "code": "IR",
+          "flag": "🇮🇷",
+          "leagues": [
+            {
+              "id": "IR1",
+              "name": "Persian Gulf Pro League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 16,
+              "active": true,
+              "data_sources": [
+                "football_data_org"
+              ],
+              "aliases": [
+                "Hazfi Cup"
+              ],
+              "sport": "soccer"
+            },
+            {
+              "id": "IR_C",
+              "name": "Hazfi Cup",
+              "tier": 0,
+              "type": "cup",
+              "format": "knockout",
+              "teams": 60,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Iraq": {
+          "code": "IQ",
+          "flag": "🇮🇶",
+          "leagues": [
+            {
+              "id": "IRQ1",
+              "name": "Iraqi Premier League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 20,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Jordan": {
+          "code": "JO",
+          "flag": "🇯🇴",
+          "leagues": [
+            {
+              "id": "JOR1",
+              "name": "Jordanian Pro League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 12,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Oman": {
+          "code": "OM",
+          "flag": "🇴🇲",
+          "leagues": [
+            {
+              "id": "OMA1",
+              "name": "Oman Professional League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 12,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Kuwait": {
+          "code": "KW",
+          "flag": "🇰🇼",
+          "leagues": [
+            {
+              "id": "KUW1",
+              "name": "Kuwaiti Premier League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 10,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Bahrain": {
+          "code": "BH",
+          "flag": "🇧🇭",
+          "leagues": [
+            {
+              "id": "BHR1",
+              "name": "Bahraini Premier League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 10,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Lebanon": {
+          "code": "LB",
+          "flag": "🇱🇧",
+          "leagues": [
+            {
+              "id": "LEB1",
+              "name": "Lebanese Premier League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 12,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Uzbekistan": {
+          "code": "UZ",
+          "flag": "🇺🇿",
+          "leagues": [
+            {
+              "id": "UZB1",
+              "name": "Uzbekistan Super League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 14,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        }
+      }
+    },
+    "OFC": {
+      "name": "Oceania",
+      "confederation": "OFC",
+      "countries": {
+        "New Zealand": {
+          "code": "NZ",
+          "flag": "🇳🇿",
+          "leagues": [
+            {
+              "id": "NZ1",
+              "name": "New Zealand Football Championship",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 10,
+              "active": true,
+              "data_sources": [],
+              "aliases": [
+                "ISPS Handa Premiership"
+              ],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Fiji": {
+          "code": "FJ",
+          "flag": "🇫🇯",
+          "leagues": [
+            {
+              "id": "FIJ1",
+              "name": "Fiji Premier League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 10,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Papua New Guinea": {
+          "code": "PG",
+          "flag": "🇵🇬",
+          "leagues": [
+            {
+              "id": "PNG1",
+              "name": "National Soccer League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 10,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Solomon Islands": {
+          "code": "SB",
+          "flag": "🇸🇧",
+          "leagues": [
+            {
+              "id": "SOL1",
+              "name": "Solomon Islands National Telekom Premier League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 10,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        },
+        "Vanuatu": {
+          "code": "VU",
+          "flag": "🇻🇺",
+          "leagues": [
+            {
+              "id": "VAN1",
+              "name": "Vanuatu National Super League",
+              "tier": 1,
+              "type": "league",
+              "format": "round_robin",
+              "teams": 8,
+              "active": true,
+              "data_sources": [],
+              "aliases": [],
+              "sport": "soccer"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "international": {
+    "UEFA": {
+      "clubs": [
+        {
+          "id": "UCL",
+          "name": "UEFA Champions League",
+          "tier": 0,
+          "type": "international_club",
+          "format": "group_stage_knockout",
+          "confederation": "UEFA",
+          "active": true,
+          "data_sources": [
+            "football_data_org",
+            "api_football",
+            "thesportsdb"
+          ],
+          "aliases": [
+            "Champions League",
+            "UCL"
+          ],
+          "sport": "soccer"
+        },
+        {
+          "id": "UEL",
+          "name": "UEFA Europa League",
+          "tier": 0,
+          "type": "international_club",
+          "format": "group_stage_knockout",
+          "confederation": "UEFA",
+          "active": true,
+          "data_sources": [
+            "football_data_org",
+            "api_football"
+          ],
+          "aliases": [
+            "Europa League",
+            "UEL"
+          ],
+          "sport": "soccer"
+        },
+        {
+          "id": "UECL",
+          "name": "UEFA Europa Conference League",
+          "tier": 0,
+          "type": "international_club",
+          "format": "group_stage_knockout",
+          "confederation": "UEFA",
+          "active": true,
+          "data_sources": [
+            "football_data_org",
+            "api_football"
+          ],
+          "aliases": [
+            "Conference League",
+            "UECL"
+          ],
+          "sport": "soccer"
+        },
+        {
+          "id": "USC",
+          "name": "UEFA Super Cup",
+          "tier": 0,
+          "type": "international_club",
+          "format": "single_match",
+          "confederation": "UEFA",
+          "active": true,
+          "data_sources": [],
+          "aliases": [],
+          "sport": "soccer"
+        }
+      ],
+      "national_teams": [
+        {
+          "id": "EURO",
+          "name": "UEFA European Championship",
+          "tier": 0,
+          "type": "international_national",
+          "format": "group_stage_knockout",
+          "confederation": "UEFA",
+          "active": true,
+          "data_sources": [
+            "football_data_org",
+            "api_football"
+          ],
+          "aliases": [
+            "Euros",
+            "Euro Championship"
+          ],
+          "sport": "soccer"
+        },
+        {
+          "id": "NATIONS_LEAGUE",
+          "name": "UEFA Nations League",
+          "tier": 0,
+          "type": "international_national",
+          "format": "league_stage",
+          "confederation": "UEFA",
+          "active": true,
+          "data_sources": [
+            "football_data_org"
+          ],
+          "aliases": [
+            "Nations League"
+          ],
+          "sport": "soccer"
+        },
+        {
+          "id": "U21_EURO",
+          "name": "UEFA European Under-21 Championship",
+          "tier": 0,
+          "type": "international_national",
+          "format": "group_stage_knockout",
+          "confederation": "UEFA",
+          "active": true,
+          "data_sources": [],
+          "aliases": [],
+          "sport": "soccer"
+        },
+        {
+          "id": "W_EURO",
+          "name": "UEFA Women's Championship",
+          "tier": 0,
+          "type": "international_national",
+          "format": "group_stage_knockout",
+          "confederation": "UEFA",
+          "active": true,
+          "data_sources": [],
+          "aliases": [
+            "Women's Euros"
+          ],
+          "sport": "soccer"
+        }
+      ]
+    },
+    "CONMEBOL": {
+      "clubs": [
+        {
+          "id": "LIB",
+          "name": "Copa Libertadores",
+          "tier": 0,
+          "type": "international_club",
+          "format": "group_stage_knockout",
+          "confederation": "CONMEBOL",
+          "active": true,
+          "data_sources": [
+            "football_data_org",
+            "api_football",
+            "thesportsdb"
+          ],
+          "aliases": [
+            "Libertadores"
+          ],
+          "sport": "soccer"
+        },
+        {
+          "id": "SUD",
+          "name": "Copa Sudamericana",
+          "tier": 0,
+          "type": "international_club",
+          "format": "group_stage_knockout",
+          "confederation": "CONMEBOL",
+          "active": true,
+          "data_sources": [
+            "football_data_org",
+            "api_football"
+          ],
+          "aliases": [
+            "Sudamericana"
+          ],
+          "sport": "soccer"
+        },
+        {
+          "id": "CS",
+          "name": "Copa Libertadores Femenina",
+          "tier": 0,
+          "type": "international_club",
+          "format": "group_stage_knockout",
+          "confederation": "CONMEBOL",
+          "active": true,
+          "data_sources": [],
+          "aliases": [],
+          "sport": "soccer"
+        },
+        {
+          "id": "RECOPA",
+          "name": "Recopa Sudamericana",
+          "tier": 0,
+          "type": "international_club",
+          "format": "two_leg",
+          "confederation": "CONMEBOL",
+          "active": true,
+          "data_sources": [],
+          "aliases": [],
+          "sport": "soccer"
+        }
+      ],
+      "national_teams": [
+        {
+          "id": "COPA_AMERICA",
+          "name": "Copa América",
+          "tier": 0,
+          "type": "international_national",
+          "format": "group_stage_knockout",
+          "confederation": "CONMEBOL",
+          "active": true,
+          "data_sources": [
+            "football_data_org",
+            "api_football"
+          ],
+          "aliases": [
+            "Americas Cup"
+          ],
+          "sport": "soccer"
+        },
+        {
+          "id": "COPA_AMERICA_F",
+          "name": "Copa América Femenina",
+          "tier": 0,
+          "type": "international_national",
+          "format": "group_stage_knockout",
+          "confederation": "CONMEBOL",
+          "active": true,
+          "data_sources": [],
+          "aliases": [],
+          "sport": "soccer"
+        },
+        {
+          "id": "U20_COPA_AMERICA",
+          "name": "South American U-20 Championship",
+          "tier": 0,
+          "type": "international_national",
+          "format": "group_stage_knockout",
+          "confederation": "CONMEBOL",
+          "active": true,
+          "data_sources": [],
+          "aliases": [],
+          "sport": "soccer"
+        }
+      ]
+    },
+    "CONCACAF": {
+      "clubs": [
+        {
+          "id": "CONCACAF_CL",
+          "name": "CONCACAF Champions Cup",
+          "tier": 0,
+          "type": "international_club",
+          "format": "knockout",
+          "confederation": "CONCACAF",
+          "active": true,
+          "data_sources": [
+            "football_data_org"
+          ],
+          "aliases": [
+            "Champions League"
+          ],
+          "sport": "soccer"
+        },
+        {
+          "id": "CONCACAF_GL",
+          "name": "CONCACAF League",
+          "tier": 0,
+          "type": "international_club",
+          "format": "knockout",
+          "confederation": "CONCACAF",
+          "active": true,
+          "data_sources": [],
+          "aliases": [],
+          "sport": "soccer"
+        }
+      ],
+      "national_teams": [
+        {
+          "id": "GOLD_CUP",
+          "name": "CONCACAF Gold Cup",
+          "tier": 0,
+          "type": "international_national",
+          "format": "group_stage_knockout",
+          "confederation": "CONCACAF",
+          "active": true,
+          "data_sources": [
+            "football_data_org",
+            "api_football"
+          ],
+          "aliases": [],
+          "sport": "soccer"
+        },
+        {
+          "id": "NATIONS_LEAGUE_CONCACAF",
+          "name": "CONCACAF Nations League",
+          "tier": 0,
+          "type": "international_national",
+          "format": "league_stage",
+          "confederation": "CONCACAF",
+          "active": true,
+          "data_sources": [],
+          "aliases": [],
+          "sport": "soccer"
+        }
+      ]
+    },
+    "CAF": {
+      "clubs": [
+        {
+          "id": "CAF_CL",
+          "name": "CAF Champions League",
+          "tier": 0,
+          "type": "international_club",
+          "format": "group_stage_knockout",
+          "confederation": "CAF",
+          "active": true,
+          "data_sources": [
+            "football_data_org"
+          ],
+          "aliases": [
+            "African Champions League"
+          ],
+          "sport": "soccer"
+        },
+        {
+          "id": "CAF_CC",
+          "name": "CAF Confederation Cup",
+          "tier": 0,
+          "type": "international_club",
+          "format": "group_stage_knockout",
+          "confederation": "CAF",
+          "active": true,
+          "data_sources": [
+            "football_data_org"
+          ],
+          "aliases": [],
+          "sport": "soccer"
+        },
+        {
+          "id": "CAF_SC",
+          "name": "CAF Super Cup",
+          "tier": 0,
+          "type": "international_club",
+          "format": "single_match",
+          "confederation": "CAF",
+          "active": true,
+          "data_sources": [],
+          "aliases": [],
+          "sport": "soccer"
+        }
+      ],
+      "national_teams": [
+        {
+          "id": "AFCON",
+          "name": "Africa Cup of Nations",
+          "tier": 0,
+          "type": "international_national",
+          "format": "group_stage_knockout",
+          "confederation": "CAF",
+          "active": true,
+          "data_sources": [
+            "football_data_org",
+            "api_football"
+          ],
+          "aliases": [
+            "AFCON",
+            "Total Africa Cup of Nations"
+          ],
+          "sport": "soccer"
+        },
+        {
+          "id": "CHAN",
+          "name": "African Nations Championship",
+          "tier": 0,
+          "type": "international_national",
+          "format": "group_stage_knockout",
+          "confederation": "CAF",
+          "active": true,
+          "data_sources": [],
+          "aliases": [],
+          "sport": "soccer"
+        }
+      ]
+    },
+    "AFC": {
+      "clubs": [
+        {
+          "id": "ACL",
+          "name": "AFC Champions League Elite",
+          "tier": 0,
+          "type": "international_club",
+          "format": "group_stage_knockout",
+          "confederation": "AFC",
+          "active": true,
+          "data_sources": [
+            "football_data_org"
+          ],
+          "aliases": [
+            "AFC Champions League",
+            "ACL"
+          ],
+          "sport": "soccer"
+        },
+        {
+          "id": "ACL2",
+          "name": "AFC Champions League Two",
+          "tier": 0,
+          "type": "international_club",
+          "format": "group_stage_knockout",
+          "confederation": "AFC",
+          "active": true,
+          "data_sources": [],
+          "aliases": [],
+          "sport": "soccer"
+        },
+        {
+          "id": "ACLW",
+          "name": "AFC Women's Champions League",
+          "tier": 0,
+          "type": "international_club",
+          "format": "group_stage_knockout",
+          "confederation": "AFC",
+          "active": true,
+          "data_sources": [],
+          "aliases": [],
+          "sport": "soccer"
+        },
+        {
+          "id": "AFC_CUP",
+          "name": "AFC Cup",
+          "tier": 0,
+          "type": "international_club",
+          "format": "group_stage_knockout",
+          "confederation": "AFC",
+          "active": false,
+          "data_sources": [],
+          "aliases": [],
+          "sport": "soccer"
+        }
+      ],
+      "national_teams": [
+        {
+          "id": "ASIAN_CUP",
+          "name": "AFC Asian Cup",
+          "tier": 0,
+          "type": "international_national",
+          "format": "group_stage_knockout",
+          "confederation": "AFC",
+          "active": true,
+          "data_sources": [
+            "football_data_org",
+            "api_football"
+          ],
+          "aliases": [
+            "Asian Cup"
+          ],
+          "sport": "soccer"
+        },
+        {
+          "id": "WCQ_AFC",
+          "name": "FIFA World Cup Qualifiers (AFC)",
+          "tier": 0,
+          "type": "international_national",
+          "format": "round_robin",
+          "confederation": "AFC",
+          "active": true,
+          "data_sources": [
+            "football_data_org"
+          ],
+          "aliases": [
+            "Asian WCQ"
+          ],
+          "sport": "soccer"
+        },
+        {
+          "id": "AFC_U23",
+          "name": "AFC U-23 Asian Cup",
+          "tier": 0,
+          "type": "international_national",
+          "format": "group_stage_knockout",
+          "confederation": "AFC",
+          "active": true,
+          "data_sources": [],
+          "aliases": [],
+          "sport": "soccer"
+        },
+        {
+          "id": "AFF_CUP",
+          "name": "AFF Championship",
+          "tier": 0,
+          "type": "international_national",
+          "format": "group_stage_knockout",
+          "confederation": "AFC",
+          "active": true,
+          "data_sources": [],
+          "aliases": [
+            "ASEAN Football Championship",
+            "Suzuki Cup"
+          ],
+          "sport": "soccer"
+        }
+      ]
+    },
+    "OFC": {
+      "clubs": [
+        {
+          "id": "OFC_CL",
+          "name": "OFC Champions League",
+          "tier": 0,
+          "type": "international_club",
+          "format": "group_stage_knockout",
+          "confederation": "OFC",
+          "active": true,
+          "data_sources": [],
+          "aliases": [],
+          "sport": "soccer"
+        }
+      ],
+      "national_teams": [
+        {
+          "id": "OFC_NATIONS",
+          "name": "OFC Nations Cup",
+          "tier": 0,
+          "type": "international_national",
+          "format": "group_stage_knockout",
+          "confederation": "OFC",
+          "active": true,
+          "data_sources": [],
+          "aliases": [],
+          "sport": "soccer"
+        }
+      ]
+    },
+    "FIFA": {
+      "global": [
+        {
+          "id": "WC",
+          "name": "FIFA World Cup",
+          "tier": 0,
+          "type": "international_national",
+          "format": "group_stage_knockout",
+          "confederation": "FIFA",
+          "active": true,
+          "data_sources": [
+            "football_data_org",
+            "api_football",
+            "thesportsdb"
+          ],
+          "aliases": [
+            "World Cup",
+            "FIFA World Cup Qatar 2022"
+          ],
+          "sport": "soccer"
+        },
+        {
+          "id": "WC_W",
+          "name": "FIFA Women's World Cup",
+          "tier": 0,
+          "type": "international_national",
+          "format": "group_stage_knockout",
+          "confederation": "FIFA",
+          "active": true,
+          "data_sources": [],
+          "aliases": [
+            "Women's World Cup"
+          ],
+          "sport": "soccer"
+        },
+        {
+          "id": "CLUB_WC",
+          "name": "FIFA Intercontinental Cup",
+          "tier": 0,
+          "type": "international_club",
+          "format": "knockout",
+          "confederation": "FIFA",
+          "active": true,
+          "data_sources": [],
+          "aliases": [
+            "Club World Cup",
+            "FIFA Club World Cup"
+          ],
+          "sport": "soccer"
+        },
+        {
+          "id": "U20_WC",
+          "name": "FIFA U-20 World Cup",
+          "tier": 0,
+          "type": "international_national",
+          "format": "group_stage_knockout",
+          "confederation": "FIFA",
+          "active": true,
+          "data_sources": [],
+          "aliases": [],
+          "sport": "soccer"
+        },
+        {
+          "id": "U17_WC",
+          "name": "FIFA U-17 World Cup",
+          "tier": 0,
+          "type": "international_national",
+          "format": "group_stage_knockout",
+          "confederation": "FIFA",
+          "active": true,
+          "data_sources": [],
+          "aliases": [],
+          "sport": "soccer"
+        },
+        {
+          "id": "WCQ_EURO",
+          "name": "FIFA World Cup Qualifiers (UEFA)",
+          "tier": 0,
+          "type": "international_national",
+          "format": "round_robin",
+          "confederation": "FIFA",
+          "active": true,
+          "data_sources": [
+            "football_data_org"
+          ],
+          "aliases": [
+            "European WCQ"
+          ],
+          "sport": "soccer"
+        },
+        {
+          "id": "WCQ_CONMEBOL",
+          "name": "FIFA World Cup Qualifiers (CONMEBOL)",
+          "tier": 0,
+          "type": "international_national",
+          "format": "round_robin",
+          "confederation": "FIFA",
+          "active": true,
+          "data_sources": [
+            "football_data_org"
+          ],
+          "aliases": [
+            "South American WCQ"
+          ],
+          "sport": "soccer"
+        },
+        {
+          "id": "WCQ_CONCACAF",
+          "name": "FIFA World Cup Qualifiers (CONCACAF)",
+          "tier": 0,
+          "type": "international_national",
+          "format": "round_robin",
+          "confederation": "FIFA",
+          "active": true,
+          "data_sources": [
+            "football_data_org"
+          ],
+          "aliases": [
+            "North American WCQ"
+          ],
+          "sport": "soccer"
+        },
+        {
+          "id": "WCQ_CAF",
+          "name": "FIFA World Cup Qualifiers (CAF)",
+          "tier": 0,
+          "type": "international_national",
+          "format": "round_robin",
+          "confederation": "FIFA",
+          "active": true,
+          "data_sources": [
+            "football_data_org"
+          ],
+          "aliases": [
+            "African WCQ"
+          ],
+          "sport": "soccer"
+        }
+      ]
+    }
+  },
+  "tennis": {
+    "continents": {
+      "WTA/ATP": {
+        "name": "WTA/ATP Tours",
+        "confederation": "ITF",
+        "countries": {
+          "International": {
+            "code": "INT",
+            "flag": "🎾",
+            "leagues": [
+              {
+                "id": "T_WTA_001",
+                "name": "WTA Tour",
+                "tier": 1,
+                "type": "tour",
+                "format": "single_elimination",
+                "teams": 128,
+                "active": false,
+                "sport": "tennis",
+                "data_sources": [],
+                "aliases": [
+                  "Womens Tennis Association"
+                ]
+              },
+              {
+                "id": "T_ATP_001",
+                "name": "ATP Tour",
+                "tier": 1,
+                "type": "tour",
+                "format": "single_elimination",
+                "teams": 128,
+                "active": false,
+                "sport": "tennis",
+                "data_sources": [],
+                "aliases": [
+                  "Mens Tennis Association"
+                ]
+              },
+              {
+                "id": "T_GS_001",
+                "name": "Grand Slams",
+                "tier": 0,
+                "type": "grand_slam",
+                "format": "single_elimination",
+                "teams": 128,
+                "active": false,
+                "sport": "tennis",
+                "data_sources": [],
+                "aliases": [
+                  "Grand Slam Tournaments"
+                ]
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "baseball": {
+    "continents": {
+      "MLB": {
+        "name": "Major League Baseball",
+        "confederation": "MLB",
+        "countries": {
+          "United States": {
+            "code": "US",
+            "flag": "🇺🇸",
+            "leagues": [
+              {
+                "id": "B_MLB",
+                "name": "MLB",
+                "tier": 1,
+                "type": "league",
+                "format": "round_robin",
+                "teams": 30,
+                "active": false,
+                "sport": "baseball",
+                "data_sources": [],
+                "aliases": [
+                  "Major League Baseball"
+                ]
+              },
+              {
+                "id": "B_NPB",
+                "name": "NPB",
+                "tier": 1,
+                "type": "league",
+                "format": "round_robin",
+                "teams": 12,
+                "active": false,
+                "sport": "baseball",
+                "data_sources": [],
+                "aliases": [
+                  "Nippon Professional Baseball"
+                ]
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "basketball": {
+    "continents": {
+      "NBA": {
+        "name": "National Basketball Association",
+        "confederation": "NBA",
+        "countries": {
+          "United States": {
+            "code": "US",
+            "flag": "🇺🇸",
+            "leagues": [
+              {
+                "id": "K_NBA",
+                "name": "NBA",
+                "tier": 1,
+                "type": "league",
+                "format": "round_robin",
+                "teams": 30,
+                "active": false,
+                "sport": "basketball",
+                "data_sources": [],
+                "aliases": [
+                  "National Basketball Association"
+                ]
+              },
+              {
+                "id": "K_EUROLEAGUE",
+                "name": "EuroLeague",
+                "tier": 1,
+                "type": "league",
+                "format": "round_robin",
+                "teams": 18,
+                "active": false,
+                "sport": "basketball",
+                "data_sources": [],
+                "aliases": [
+                  "Turkish Airlines EuroLeague"
+                ]
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}
