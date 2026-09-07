@@ -2,7 +2,6 @@ from collections import defaultdict
 from datetime import date
 from typing import Any, Dict, List, Optional
 
-import numpy as np
 import pandas as pd
 from src.domain.entities.baseball_game import BaseballGame
 

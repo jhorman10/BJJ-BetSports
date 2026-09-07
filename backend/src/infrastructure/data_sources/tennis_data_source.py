@@ -1,6 +1,5 @@
 import logging
 from io import StringIO
-from typing import List, Optional
 
 import httpx
 import pandas as pd

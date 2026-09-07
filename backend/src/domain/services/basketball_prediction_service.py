@@ -1,6 +1,5 @@
 import logging
-import os
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from src.domain.entities.basketball_game import BasketballGame
 from src.domain.services.basketball_feature_extractor import BasketballFeatureExtractor

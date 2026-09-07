@@ -3,7 +3,6 @@ from datetime import date, timedelta
 from typing import Any, Dict, List, Optional
 
 import httpx
-import pandas as pd
 
 logger = logging.getLogger(__name__)
 

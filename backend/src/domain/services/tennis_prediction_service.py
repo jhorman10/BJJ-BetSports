@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import joblib
 from src.domain.entities.tennis_match import TennisMatch

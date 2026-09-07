@@ -22,7 +22,7 @@ class TennisFixtureDataSource:
 
     def __init__(self, tour: str = "atp"):
         self.tour = tour
-        self.base_url = f"https://raw.githubusercontent.com/JeffSackmann/tennis/master/"
+        self.base_url = "https://raw.githubusercontent.com/JeffSackmann/tennis/master/"
 
     def fetch_upcoming_fixtures(self) -> List[Dict]:
         """

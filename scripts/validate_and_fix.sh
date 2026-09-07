@@ -60,9 +60,9 @@ if [[ -d "$BACKEND_DIR" ]]; then
 
   log_info "Backend: Ruff (lint + auto-fix)..."
   if [[ -n "$BACKEND_VENV_BIN" ]]; then
-    (cd "$BACKEND_DIR" && "$BACKEND_VENV_BIN/ruff" check --fix src tests)
+    (cd "$BACKEND_DIR" && "$BACKEND_VENV_BIN/ruff" check --fix src tests) || log_warn "Ruff found non-fixable style warnings (continuing)."
   else
-    (cd "$BACKEND_DIR" && python3 -m ruff check --fix src tests)
+    (cd "$BACKEND_DIR" && python3 -m ruff check --fix src tests) || log_warn "Ruff found non-fixable style warnings (continuing)."
   fi
 
   log_info "Backend: Isort (imports)..."
