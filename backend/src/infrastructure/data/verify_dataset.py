@@ -22,9 +22,9 @@ def main() -> None:
     print()
 
     try:
-        from src.infrastructure.data.league_loader import dataset
-        from src.domain.constants import LEAGUES_METADATA, DEFAULT_LEAGUES
         from src.core.constants import DEFAULT_LEAGUES as CORE_DEFAULT_LEAGUES
+        from src.domain.constants import DEFAULT_LEAGUES, LEAGUES_METADATA
+        from src.infrastructure.data.league_loader import dataset
     except ImportError as e:
         print(f"❌ Import error: {e}")
         sys.exit(1)
@@ -38,11 +38,11 @@ def main() -> None:
     print(f"   Confederations: {stats['confederations']}")
     print()
     print("   By Tier:")
-    for tier, count in stats['by_tier'].items():
+    for tier, count in stats["by_tier"].items():
         print(f"     Tier {tier}: {count} leagues")
     print()
     print("   By Type:")
-    for ltype, count in stats['by_type'].items():
+    for ltype, count in stats["by_type"].items():
         print(f"     {ltype}: {count}")
 
     # Sample lookups
@@ -52,7 +52,9 @@ def main() -> None:
     for lid in sample_ids:
         league = dataset.get(lid)
         if league:
-            print(f"   {lid}: {league.get('name')} ({league.get('country_name', 'International')})")
+            print(
+                f"   {lid}: {league.get('name')} ({league.get('country_name', 'International')})"
+            )
         else:
             print(f"   {lid}: ❌ NOT FOUND")
 

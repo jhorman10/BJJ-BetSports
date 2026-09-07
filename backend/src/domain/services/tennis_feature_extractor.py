@@ -14,7 +14,13 @@ class TennisFeatureExtractor:
     """
 
     SURFACES: List[str] = ["Hard", "Clay", "Grass", "Carpet"]
-    LEVELS: List[str] = ["G", "A", "M", "D", "F"]  # Grand Slam, ATP, Masters, Davis Cup, Finals
+    LEVELS: List[str] = [
+        "G",
+        "A",
+        "M",
+        "D",
+        "F",
+    ]  # Grand Slam, ATP, Masters, Davis Cup, Finals
 
     def __init__(self, historical_data: Optional[pd.DataFrame] = None):
         """
@@ -24,9 +30,15 @@ class TennisFeatureExtractor:
             historical_data: DataFrame containing past match results.
         """
         self.historical_data = historical_data
-        self.player_stats: Dict[str, Dict[str, float]] = {}  # Cache for player rolling stats
-        self.h2h_stats: Dict[Tuple[str, str], Dict[str, int]] = {}  # Cache for H2H stats
-        self.player_history: Dict[str, List[Dict[str, Any]]] = defaultdict(list)  # Per-player chronological match list
+        self.player_stats: Dict[str, Dict[str, float]] = (
+            {}
+        )  # Cache for player rolling stats
+        self.h2h_stats: Dict[Tuple[str, str], Dict[str, int]] = (
+            {}
+        )  # Cache for H2H stats
+        self.player_history: Dict[str, List[Dict[str, Any]]] = defaultdict(
+            list
+        )  # Per-player chronological match list
 
         if historical_data is not None:
             self._precompute_stats()

@@ -279,7 +279,14 @@ class BaseballPredictionService:
         home_prob, away_prob = float(home_prob), float(away_prob)
         markets = []
 
-        def _m(mtype: str, label: str, prob: float, code: str, rec_thresh: float = 0.6, conf_thresh: float = 0.65) -> dict[str, Any]:
+        def _m(
+            mtype: str,
+            label: str,
+            prob: float,
+            code: str,
+            rec_thresh: float = 0.6,
+            conf_thresh: float = 0.65,
+        ) -> dict[str, Any]:
             cl = "high" if prob > conf_thresh else "medium" if prob > 0.55 else "low"
             return {
                 "market_type": mtype,

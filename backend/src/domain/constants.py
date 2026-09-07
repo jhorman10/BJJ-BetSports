@@ -14,8 +14,10 @@ if TYPE_CHECKING:
 
 # ─── Sport Enum ────────────────────────────────────────────────────────
 
+
 class Sport(str, Enum):
     """Supported sports in the platform."""
+
     SOCCER = "soccer"
     TENNIS = "tennis"
     BASEBALL = "baseball"
@@ -44,6 +46,7 @@ ALL_INTERNATIONAL_TOURNAMENTS = CLUB_INTERNATIONAL_LEAGUES | NATIONAL_TEAM_TOURN
 
 # ─── League Metadata (Lazy-loaded from dataset) ────────────────────────
 
+
 def _load_metadata() -> dict[str, dict]:
     """
     Load LEAGUES_METADATA from the global dataset.
@@ -51,6 +54,7 @@ def _load_metadata() -> dict[str, dict]:
     """
     try:
         from src.infrastructure.data.league_loader import dataset
+
         return dataset.to_leagues_metadata()
     except Exception:
         # Fallback to hardcoded metadata if loader fails

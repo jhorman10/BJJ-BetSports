@@ -40,7 +40,9 @@ def find_league(league_id: str, sport: str = "soccer") -> LeagueModel:
         raise HTTPException(status_code=404, detail="Liga no encontrada")
     league_sport = metadata.get("sport", "soccer")
     if league_sport != sport:
-        raise HTTPException(status_code=404, detail="Liga no encontrada para este deporte")
+        raise HTTPException(
+            status_code=404, detail="Liga no encontrada para este deporte"
+        )
     return LeagueModel(
         id=league_id,
         name=metadata["name"],

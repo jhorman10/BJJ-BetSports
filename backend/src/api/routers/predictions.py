@@ -88,7 +88,9 @@ async def get_prediction_by_match(match_id: str) -> MatchPredictionModel:
 
     league_id = document.get("league_id", "E0")
     doc_sport = document.get("sport", DEFAULT_SPORT)
-    normalized = normalize_prediction_document(document, find_league(league_id, sport=doc_sport))
+    normalized = normalize_prediction_document(
+        document, find_league(league_id, sport=doc_sport)
+    )
     if normalized is None:
         raise HTTPException(status_code=404, detail="Predicción no disponible")
 

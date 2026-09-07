@@ -49,7 +49,9 @@ def get_all_games() -> list[dict]:
     return _all_games
 
 
-def _game_data_to_entity(game_data: dict, series_id: Optional[str] = None) -> BaseballGame:
+def _game_data_to_entity(
+    game_data: dict, series_id: Optional[str] = None
+) -> BaseballGame:
     """Convert a fixture dict to a BaseballGame entity."""
     return BaseballGame(
         game_id=game_data.get("game_id", str(uuid.uuid4())),
@@ -65,7 +67,9 @@ def _game_data_to_entity(game_data: dict, series_id: Optional[str] = None) -> Ba
 
 
 @router.post("/predict", response_model=BaseballPredictResponse)
-async def predict_baseball_game(request: BaseballPredictRequest) -> BaseballPredictResponse:
+async def predict_baseball_game(
+    request: BaseballPredictRequest,
+) -> BaseballPredictResponse:
     """Predict the outcome of a single baseball game."""
     try:
         game_entity = BaseballGame(
@@ -103,7 +107,9 @@ async def predict_baseball_game(request: BaseballPredictRequest) -> BaseballPred
 
 
 @router.get("/games")
-async def get_upcoming_games(team: Optional[str] = Query(None)) -> BaseballGamesResponse:
+async def get_upcoming_games(
+    team: Optional[str] = Query(None),
+) -> BaseballGamesResponse:
     """Get upcoming baseball games."""
     try:
         all_games = get_all_games()
