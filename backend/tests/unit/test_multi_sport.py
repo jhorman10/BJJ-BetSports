@@ -1,7 +1,6 @@
 """Tests for multi-sport plumbing (sport catalog, enum, mapper, loader)."""
 
-
-from src.domain.constants import DEFAULT_SPORT, Sport, LEAGUES_METADATA
+from src.domain.constants import DEFAULT_SPORT, LEAGUES_METADATA, Sport
 
 
 class TestSportEnum:
@@ -130,9 +129,8 @@ class TestLeagueMapperSportFilter:
 
     def test_find_league_sport_mismatch_raises(self):
         import pytest as _pytest
-
-        from src.api.mappers.league_mapper import find_league
         from fastapi import HTTPException
+        from src.api.mappers.league_mapper import find_league
 
         with _pytest.raises(HTTPException) as excinfo:
             find_league("B_MLB", sport="soccer")

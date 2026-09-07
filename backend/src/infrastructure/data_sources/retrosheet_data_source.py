@@ -1,23 +1,48 @@
-import pandas as pd
 import logging
-from typing import Optional, List
 from datetime import date, timedelta
-import httpx
 from io import StringIO
+from typing import Any, List, Optional
+
+import httpx
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
 
 # Team abbreviation mapping (Retrosheet -> standard)
 TEAM_MAP = {
-    "NYA": "NYY", "NYN": "NYM", "CHN": "CHC", "CHA": "CHW",
-    "SLN": "STL", "KCA": "KC", "ANA": "LAA", "SDN": "SD",
-    "SFN": "SF", "TEX": "TEX", "MON": "WSH", "TBA": "TB",
-    "MIA": "MIA", "COL": "COL", "ARI": "ARI", "ATL": "ATL",
-    "LAN": "LAD", "OAK": "OAK", "SEA": "SEA", "DET": "DET",
-    "BAL": "BAL", "BOS": "BOS", "CLE": "CLE", "CIN": "CIN",
-    "HOU": "HOU", "MIL": "MIL", "MIN": "MIN", "PHI": "PHI",
-    "PIT": "PIT", "TOR": "TOR", "WAS": "WSH", "FLO": "MIA",
+    "NYA": "NYY",
+    "NYN": "NYM",
+    "CHN": "CHC",
+    "CHA": "CHW",
+    "SLN": "STL",
+    "KCA": "KC",
+    "ANA": "LAA",
+    "SDN": "SD",
+    "SFN": "SF",
+    "TEX": "TEX",
+    "MON": "WSH",
+    "TBA": "TB",
+    "MIA": "MIA",
+    "COL": "COL",
+    "ARI": "ARI",
+    "ATL": "ATL",
+    "LAN": "LAD",
+    "OAK": "OAK",
+    "SEA": "SEA",
+    "DET": "DET",
+    "BAL": "BAL",
+    "BOS": "BOS",
+    "CLE": "CLE",
+    "CIN": "CIN",
+    "HOU": "HOU",
+    "MIL": "MIL",
+    "MIN": "MIN",
+    "PHI": "PHI",
+    "PIT": "PIT",
+    "TOR": "TOR",
+    "WAS": "WSH",
+    "FLO": "MIA",
 }
 
 
@@ -27,13 +52,15 @@ class RetrosheetDataSource:
     Fetches CSV data for team stats, batting, and pitching.
     """
 
-    BASE_URL = "https://raw.githubusercontent.com/chadwickbureau/baseballdatabank/master/core"
+    BASE_URL = (
+        "https://raw.githubusercontent.com/chadwickbureau/baseballdatabank/master/core"
+    )
 
     def __init__(self, cache_dir: str = "backend/data/cache/retrosheet"):
         self.cache_dir = cache_dir
         self._team_stats_cache: Optional[pd.DataFrame] = None
 
-    def _safe_int(self, val) -> int:
+    def _safe_int(self, val: Any) -> int:
         """Safely convert a value to int, returning 0 on failure."""
         try:
             if pd.isna(val):
@@ -42,7 +69,7 @@ class RetrosheetDataSource:
         except (ValueError, TypeError):
             return 0
 
-    def _safe_float(self, val) -> float:
+    def _safe_float(self, val: Any) -> float:
         """Safely convert a value to float, returning 0.0 on failure."""
         try:
             if pd.isna(val):
@@ -86,7 +113,9 @@ class RetrosheetDataSource:
             return pd.DataFrame()
         return pd.concat(dfs, ignore_index=True)
 
-    def get_team_stats(self, team: str, date_range: Optional[List[date]] = None) -> dict:
+    def get_team_stats(
+        self, team: str, date_range: Optional[List[date]] = None
+    ) -> dict:
         """
         Get aggregate team stats for feature extraction.
         Returns batting and pitching averages.

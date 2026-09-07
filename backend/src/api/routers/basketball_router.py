@@ -1,19 +1,26 @@
 import logging
-from fastapi import APIRouter, HTTPException, Query
-from src.api.dtos.basketball_dtos import (
-    BasketballPredictRequest, BasketballPredictResponse,
-    BasketballGamesResponse, BasketballGameResponse,
-    BasketballGameWithPrediction, BasketballConferenceResponse,
-    BasketballConferenceGamesResponse, BasketballPredictionDetail,
-)
-from src.domain.entities.basketball_game import BasketballGame
-from src.domain.services.basketball_prediction_service import BasketballPredictionService
-from src.domain.services.basketball_feature_extractor import BasketballFeatureExtractor
-from src.infrastructure.data_sources.nba_data_source import NBADataSource
-from src.infrastructure.data_sources.nba_fixture_source import NBAFixtureSource
+import uuid
 from datetime import date
 from typing import Optional
-import uuid
+
+from fastapi import APIRouter, HTTPException, Query
+from src.api.dtos.basketball_dtos import (
+    BasketballConferenceGamesResponse,
+    BasketballConferenceResponse,
+    BasketballGameResponse,
+    BasketballGamesResponse,
+    BasketballGameWithPrediction,
+    BasketballPredictionDetail,
+    BasketballPredictRequest,
+    BasketballPredictResponse,
+)
+from src.domain.entities.basketball_game import BasketballGame
+from src.domain.services.basketball_feature_extractor import BasketballFeatureExtractor
+from src.domain.services.basketball_prediction_service import (
+    BasketballPredictionService,
+)
+from src.infrastructure.data_sources.nba_data_source import NBADataSource
+from src.infrastructure.data_sources.nba_fixture_source import NBAFixtureSource
 
 logger = logging.getLogger(__name__)
 
@@ -27,16 +34,18 @@ _prediction_service = None
 _all_games = None  # Cache
 
 
-def get_prediction_service():
+def get_prediction_service() -> BasketballPredictionService:
     global _feature_extractor, _prediction_service
     if _prediction_service is None:
         logger.info("Initializing Basketball Prediction Service...")
         _feature_extractor = BasketballFeatureExtractor()
-        _prediction_service = BasketballPredictionService(feature_extractor=_feature_extractor)
+        _prediction_service = BasketballPredictionService(
+            feature_extractor=_feature_extractor
+        )
     return _prediction_service
 
 
-def get_all_games():
+def get_all_games() -> list[dict]:
     global _all_games
     if _all_games is None:
         _all_games = _fixture_source.get_upcoming_games(days=14)
@@ -55,7 +64,7 @@ def _game_data_to_entity(game_data: dict) -> BasketballGame:
 
 
 @router.post("/predict", response_model=BasketballPredictResponse)
-async def predict_basketball_game(request: BasketballPredictRequest):
+async def predict_basketball_game(request: BasketballPredictRequest) -> BasketballPredictResponse:
     """Predict the outcome of a single basketball game."""
     try:
         game_entity = BasketballGame(
@@ -76,10 +85,13 @@ async def predict_basketball_game(request: BasketballPredictRequest):
         if not prediction:
             raise HTTPException(status_code=500, detail="Prediction failed")
         return BasketballPredictResponse(
-            game_id=game_entity.game_id, home_team=game_entity.home_team,
+            game_id=game_entity.game_id,
+            home_team=game_entity.home_team,
             away_team=game_entity.away_team,
-            home_win_prob=prediction.home_win_prob, away_win_prob=prediction.away_win_prob,
-            predicted_winner=prediction.predicted_winner, confidence=prediction.confidence,
+            home_win_prob=prediction.home_win_prob,
+            away_win_prob=prediction.away_win_prob,
+            predicted_winner=prediction.predicted_winner,
+            confidence=prediction.confidence,
         )
     except HTTPException:
         raise
@@ -89,41 +101,61 @@ async def predict_basketball_game(request: BasketballPredictRequest):
 
 
 @router.get("/games")
-async def get_upcoming_games(team: Optional[str] = Query(None)):
+async def get_upcoming_games(team: Optional[str] = Query(None)) -> BasketballGamesResponse:
     """Get upcoming basketball games."""
     try:
         all_games = get_all_games()
         if not all_games:
-            return BasketballGamesResponse(games=[], generated_at=date.today().isoformat())
+            return BasketballGamesResponse(
+                games=[], generated_at=date.today().isoformat()
+            )
         if team:
             team = team.upper()
-            all_games = [g for g in all_games if g.get("home_team") == team or g.get("away_team") == team]
+            all_games = [
+                g
+                for g in all_games
+                if g.get("home_team") == team or g.get("away_team") == team
+            ]
         results = []
         for gd in all_games:
             try:
                 ent = _game_data_to_entity(gd)
-                results.append(BasketballGameResponse(
-                    game_id=ent.game_id, date=ent.game_date.isoformat(),
-                    home_team=ent.home_team, away_team=ent.away_team,
-                    venue=ent.venue,
-                    home_team_name=gd.get("home_team_name"),
-                    away_team_name=gd.get("away_team_name"),
-                ))
+                results.append(
+                    BasketballGameResponse(
+                        game_id=ent.game_id,
+                        date=ent.game_date.isoformat(),
+                        home_team=ent.home_team,
+                        away_team=ent.away_team,
+                        venue=ent.venue,
+                        home_team_name=gd.get("home_team_name"),
+                        away_team_name=gd.get("away_team_name"),
+                    )
+                )
             except Exception as e:
                 logger.warning(f"Failed to process game: {e}")
-        return BasketballGamesResponse(games=results, generated_at=date.today().isoformat())
+        return BasketballGamesResponse(
+            games=results, generated_at=date.today().isoformat()
+        )
     except Exception as e:
         logger.error(f"Error fetching games: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/conferences")
-async def get_conferences():
+async def get_conferences() -> BasketballConferenceResponse:
     """Get available conferences."""
     try:
         conferences = [
-            {"id": "east", "name": "Eastern Conference", "teams": BasketballFeatureExtractor.CONFERENCES["East"]},
-            {"id": "west", "name": "Western Conference", "teams": BasketballFeatureExtractor.CONFERENCES["West"]},
+            {
+                "id": "east",
+                "name": "Eastern Conference",
+                "teams": BasketballFeatureExtractor.CONFERENCES["East"],
+            },
+            {
+                "id": "west",
+                "name": "Western Conference",
+                "teams": BasketballFeatureExtractor.CONFERENCES["West"],
+            },
         ]
         return BasketballConferenceResponse(
             conferences=conferences,
@@ -135,17 +167,22 @@ async def get_conferences():
 
 
 @router.get("/predictions/{conference_id}")
-async def get_conference_predictions(conference_id: str):
+async def get_conference_predictions(conference_id: str) -> BasketballConferenceGamesResponse:
     """Get predictions for games in a specific conference."""
     try:
         all_games = get_all_games()
-        conf_teams = BasketballFeatureExtractor.CONFERENCES.get(conference_id.capitalize(), [])
+        conf_teams = BasketballFeatureExtractor.CONFERENCES.get(
+            conference_id.capitalize(), []
+        )
         if not conf_teams:
-            raise HTTPException(status_code=404, detail=f"Conference '{conference_id}' not found")
+            raise HTTPException(
+                status_code=404, detail=f"Conference '{conference_id}' not found"
+            )
 
         # Filter games involving conference teams
         conference_games = [
-            g for g in all_games
+            g
+            for g in all_games
             if g.get("home_team") in conf_teams or g.get("away_team") in conf_teams
         ]
 
@@ -158,24 +195,41 @@ async def get_conference_predictions(conference_id: str):
                 markets = []
                 kf = []
                 if pred:
-                    markets = predictor.generate_basketball_markets(ent, pred.home_win_prob, pred.away_win_prob)
+                    markets = predictor.generate_basketball_markets(
+                        ent, pred.home_win_prob, pred.away_win_prob
+                    )
                     kf = pred.key_factors
-                results.append(BasketballGameWithPrediction(
-                    game_id=ent.game_id, date=ent.game_date.isoformat(),
-                    home_team=ent.home_team, away_team=ent.away_team,
-                    venue=ent.venue,
-                    home_team_name=gd.get("home_team_name"),
-                    away_team_name=gd.get("away_team_name"),
-                    prediction=BasketballPredictionDetail(
-                        home_win_prob=pred.home_win_prob, away_win_prob=pred.away_win_prob,
-                        predicted_winner=pred.predicted_winner, confidence=pred.confidence,
-                        key_factors=kf, markets=markets,
-                    ) if pred else None,
-                ))
+                results.append(
+                    BasketballGameWithPrediction(
+                        game_id=ent.game_id,
+                        date=ent.game_date.isoformat(),
+                        home_team=ent.home_team,
+                        away_team=ent.away_team,
+                        venue=ent.venue,
+                        home_team_name=gd.get("home_team_name"),
+                        away_team_name=gd.get("away_team_name"),
+                        prediction=(
+                            BasketballPredictionDetail(
+                                home_win_prob=pred.home_win_prob,
+                                away_win_prob=pred.away_win_prob,
+                                predicted_winner=pred.predicted_winner,
+                                confidence=pred.confidence,
+                                key_factors=kf,
+                                markets=markets,
+                            )
+                            if pred
+                            else None
+                        ),
+                    )
+                )
             except Exception as e:
                 logger.warning(f"Failed to process game: {e}")
 
-        conf_name = "Eastern Conference" if conference_id.lower() == "east" else "Western Conference"
+        conf_name = (
+            "Eastern Conference"
+            if conference_id.lower() == "east"
+            else "Western Conference"
+        )
         return BasketballConferenceGamesResponse(
             conference_id=conference_id,
             conference_name=conf_name,

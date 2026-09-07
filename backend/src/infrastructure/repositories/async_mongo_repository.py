@@ -240,7 +240,9 @@ class AsyncMongoRepository:
 
         await self._ensure_indexes()
 
-    async def get_league_ids_with_predictions(self, sport: str | None = None) -> List[str]:
+    async def get_league_ids_with_predictions(
+        self, sport: str | None = None
+    ) -> List[str]:
         """Get distinct league_ids that have active (non-expired) predictions."""
         await self._ensure_ready()
         match_stage: Dict[str, Any] = {"expires_at": {"$gt": get_current_time()}}
@@ -291,7 +293,11 @@ class AsyncMongoRepository:
         return out
 
     async def save_match_prediction(
-        self, match_id: str, league_id: str, data: dict, ttl_seconds: int = 86400,
+        self,
+        match_id: str,
+        league_id: str,
+        data: dict,
+        ttl_seconds: int = 86400,
         sport: str = "soccer",
     ) -> None:
         await self._ensure_ready()

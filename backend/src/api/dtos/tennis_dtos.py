@@ -1,9 +1,12 @@
-from pydantic import BaseModel
-from typing import Optional
 from datetime import date
+from typing import Optional
+
+from pydantic import BaseModel
+
 
 class TennisMatchRequest(BaseModel):
     """Request model for tennis match prediction."""
+
     tournament_name: str
     surface: str  # 'Hard', 'Clay', 'Grass', 'Carpet'
     tourney_level: str  # 'G' (Grand Slam), 'A' (ATP), 'M' (Masters), etc.
@@ -33,8 +36,10 @@ class TennisMatchRequest(BaseModel):
     p2_entry: Optional[str] = None
     p2_odds: Optional[float] = None
 
+
 class TennisPredictionResponse(BaseModel):
     """Response model for tennis match prediction."""
+
     match_id: str
     p1_name: str
     p2_name: str

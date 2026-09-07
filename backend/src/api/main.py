@@ -80,6 +80,8 @@ def health_check() -> HealthResponse:
     return HealthResponse(status="ok", version=app.version, timestamp=_utc_now_iso())
 
 
+from src.api.routers.baseball_router import router as baseball_router  # noqa: E402
+from src.api.routers.basketball_router import router as basketball_router  # noqa: E402
 from src.api.routers.labeler import router as labeler_router  # noqa: E402
 
 # Register routers
@@ -89,10 +91,8 @@ from src.api.routers.metrics import router as metrics_router  # noqa: E402
 from src.api.routers.monitor import router as monitor_router  # noqa: E402
 from src.api.routers.picks import router as picks_router  # noqa: E402
 from src.api.routers.predictions import router as predictions_router  # noqa: E402
-from src.api.routers.training import router as training_router  # noqa: E402
 from src.api.routers.tennis_router import router as tennis_router  # noqa: E402
-from src.api.routers.baseball_router import router as baseball_router  # noqa: E402
-from src.api.routers.basketball_router import router as basketball_router  # noqa: E402
+from src.api.routers.training import router as training_router  # noqa: E402
 
 app.include_router(leagues_router)
 app.include_router(predictions_router)

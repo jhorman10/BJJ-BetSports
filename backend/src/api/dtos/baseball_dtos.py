@@ -1,10 +1,12 @@
-from pydantic import BaseModel
-from typing import Optional, List
 from datetime import date
+from typing import List, Optional
+
+from pydantic import BaseModel
 
 
 class BaseballPredictRequest(BaseModel):
     """Request model for baseball game prediction."""
+
     date: date
     home_team: str
     away_team: str
@@ -20,6 +22,7 @@ class BaseballPredictRequest(BaseModel):
 
 class BaseballGameResponse(BaseModel):
     """Response model for a single baseball game."""
+
     game_id: str
     date: str
     home_team: str
@@ -34,6 +37,7 @@ class BaseballGameResponse(BaseModel):
 
 class BaseballMarketResponse(BaseModel):
     """Response model for a baseball betting market."""
+
     market_type: str
     market_label: str
     probability: float
@@ -47,6 +51,7 @@ class BaseballMarketResponse(BaseModel):
 
 class BaseballPredictionDetail(BaseModel):
     """Full prediction detail for a game."""
+
     home_win_prob: float
     away_win_prob: float
     predicted_winner: str
@@ -57,6 +62,7 @@ class BaseballPredictionDetail(BaseModel):
 
 class BaseballPredictResponse(BaseModel):
     """Response model for baseball game prediction."""
+
     game_id: str
     home_team: str
     away_team: str
@@ -68,12 +74,14 @@ class BaseballPredictResponse(BaseModel):
 
 class BaseballGamesResponse(BaseModel):
     """Response model for upcoming baseball games."""
+
     games: List[BaseballGameResponse]
     generated_at: str
 
 
 class BaseballSeriesGame(BaseModel):
     """A single game within a series."""
+
     game_id: str
     date: str
     home_team: str
@@ -89,6 +97,7 @@ class BaseballSeriesGame(BaseModel):
 
 class BaseballSeriesResponse(BaseModel):
     """Response model for baseball series."""
+
     series: List[List[BaseballSeriesGame]]
     generated_at: str
     is_demo: bool = False

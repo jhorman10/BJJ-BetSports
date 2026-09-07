@@ -8,7 +8,7 @@ Provides fast lookup by league ID, country, confederation, tier, and sport.
 import json
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -63,9 +63,9 @@ class LeagueDataset:
             with open(_DATASET_PATH, "r", encoding="utf-8") as f:
                 raw = json.load(f)
 
-            self._metadata = raw.get("_metadata", {})
-            self._continents = raw.get("continents", {})
-            self._international = raw.get("international", {})
+            self._metadata: dict[str, Any] = raw.get("_metadata", {})
+            self._continents: dict[str, Any] = raw.get("continents", {})
+            self._international: dict[str, Any] = raw.get("international", {})
 
             # Build fast lookup indices
             self._by_id: dict[str, dict] = {}
@@ -257,13 +257,15 @@ class LeagueDataset:
 
     def to_leagues_metadata(self, sport: Optional[str] = None) -> dict[str, dict]:
         """Convert leagues to the LEAGUES_METADATA format, optionally filtered by sport."""
-        result = {}
+        result: dict[str, dict] = {}
         for league in self._all_leagues:
             if sport and league.get("sport", DEFAULT_SPORT) != sport:
                 continue
             league_id = league.get("id")
             if league_id:
-                result[league_id] = self.to_metadata_format(league_id)
+                metadata = self.to_metadata_format(league_id)
+                if metadata is not None:
+                    result[league_id] = metadata
         return result
 
     def get_default_leagues(self) -> list[str]:

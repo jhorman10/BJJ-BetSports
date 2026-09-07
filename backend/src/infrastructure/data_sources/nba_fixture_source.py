@@ -1,6 +1,7 @@
 import logging
-from typing import Optional, List, Dict
-from datetime import datetime, date, timedelta
+from datetime import date, datetime, timedelta
+from typing import Any, Dict, List, Optional
+
 import httpx
 
 logger = logging.getLogger(__name__)
@@ -12,13 +13,17 @@ class NBAFixtureSource:
     Falls back to demo data when API is unavailable.
     """
 
-    SCOREBOARD_URL = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard"
+    SCOREBOARD_URL = (
+        "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard"
+    )
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._cache: Optional[List[Dict]] = None
         self._cache_date: Optional[date] = None
 
-    def get_upcoming_games(self, days: int = 7, team: Optional[str] = None) -> List[Dict]:
+    def get_upcoming_games(
+        self, days: int = 7, team: Optional[str] = None
+    ) -> List[Dict]:
         """
         Get upcoming NBA games for the next N days.
         Returns a list of game dicts with teams, venue, etc.
@@ -35,7 +40,9 @@ class NBAFixtureSource:
         # Fallback to demo data
         return self._generate_demo_fixtures(days, team)
 
-    def _fetch_from_api(self, start: date, days: int, team: Optional[str] = None) -> List[Dict]:
+    def _fetch_from_api(
+        self, start: date, days: int, team: Optional[str] = None
+    ) -> List[Dict]:
         """Fetch schedule from ESPN API."""
         games = []
         for i in range(days):
@@ -52,7 +59,10 @@ class NBAFixtureSource:
                 for event in data.get("events", []):
                     game = self._parse_event(event, target_date)
                     if game:
-                        if team and team.upper() not in (game["home_team"], game["away_team"]):
+                        if team and team.upper() not in (
+                            game["home_team"],
+                            game["away_team"],
+                        ):
                             continue
                         games.append(game)
             except Exception as e:
@@ -71,8 +81,12 @@ class NBAFixtureSource:
             if len(competitors) < 2:
                 return None
 
-            home = next((c for c in competitors if c.get("homeAway") == "home"), competitors[0])
-            away = next((c for c in competitors if c.get("homeAway") == "away"), competitors[1])
+            home = next(
+                (c for c in competitors if c.get("homeAway") == "home"), competitors[0]
+            )
+            away = next(
+                (c for c in competitors if c.get("homeAway") == "away"), competitors[1]
+            )
 
             home_team = home.get("team", {})
             away_team = away.get("team", {})
@@ -101,11 +115,13 @@ class NBAFixtureSource:
             logger.error(f"Error parsing event: {e}")
             return None
 
-    def _generate_demo_fixtures(self, days: int = 7, team: Optional[str] = None) -> List[Dict]:
+    def _generate_demo_fixtures(
+        self, days: int = 7, team: Optional[str] = None
+    ) -> List[Dict]:
         """Generate demo NBA fixtures with realistic matchups."""
         today = date.today()
 
-        matchups = [
+        matchups: list[dict[str, Any]] = [
             {
                 "home": {"abbr": "LAL", "name": "Los Angeles Lakers"},
                 "away": {"abbr": "BOS", "name": "Boston Celtics"},
@@ -162,15 +178,17 @@ class NBAFixtureSource:
         for i, matchup in enumerate(matchups):
             game_date = today + timedelta(days=i % days)
             hour = 19 if i % 3 != 0 else 13
-            games.append({
-                "game_id": f"demo_{i+1}",
-                "date": game_date.isoformat(),
-                "time": f"{hour}:00",
-                "home_team": matchup["home"]["abbr"],
-                "away_team": matchup["away"]["abbr"],
-                "home_team_name": matchup["home"]["name"],
-                "away_team_name": matchup["away"]["name"],
-                "venue": matchup["venue"],
-            })
+            games.append(
+                {
+                    "game_id": f"demo_{i+1}",
+                    "date": game_date.isoformat(),
+                    "time": f"{hour}:00",
+                    "home_team": matchup["home"]["abbr"],
+                    "away_team": matchup["away"]["abbr"],
+                    "home_team_name": matchup["home"]["name"],
+                    "away_team_name": matchup["away"]["name"],
+                    "venue": matchup["venue"],
+                }
+            )
 
         return games
