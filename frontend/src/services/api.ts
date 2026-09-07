@@ -20,6 +20,20 @@ import {
   BettingFeedbackRequest,
   BettingFeedbackResponse,
   LearningStatsResponse,
+  TennisMatchRequest,
+  TennisPredictionResponse,
+  TennisUpcomingResponse,
+  TennisTournamentsResponse,
+  TennisPredictionsResponse,
+  BaseballPredictRequest,
+  BaseballPredictResponse,
+  BaseballGamesResponse,
+  BaseballSeriesResponse,
+  BasketballPredictRequest,
+  BasketballPredictResponse,
+  BasketballGamesResponse,
+  BasketballConferencesResponse,
+  BasketballConferenceGamesResponse,
 } from "../types";
 
 /**
@@ -147,6 +161,138 @@ export const api = {
     const response = await apiClient.post<BettingFeedbackResponse>(
       API_ENDPOINTS.SUGGESTED_PICKS_FEEDBACK,
       feedback
+    );
+    return response.data;
+  },
+
+  /**
+   * Tennis match prediction
+   */
+  async predictTennis(data: TennisMatchRequest): Promise<TennisPredictionResponse> {
+    const response = await apiClient.post<TennisPredictionResponse>(
+      API_ENDPOINTS.TENNIS_PREDICT,
+      data
+    );
+    return response.data;
+  },
+
+  /**
+   * Get upcoming tennis matches with predictions
+   */
+  async getTennisUpcoming(): Promise<TennisUpcomingResponse> {
+    const response = await apiClient.get<TennisUpcomingResponse>(
+      API_ENDPOINTS.TENNIS_UPCOMING
+    );
+    return response.data;
+  },
+
+  /**
+   * Get available tennis tournaments
+   */
+  async getTennisTournaments(): Promise<TennisTournamentsResponse> {
+    const response = await apiClient.get<TennisTournamentsResponse>(
+      API_ENDPOINTS.TENNIS_TOURNAMENTS
+    );
+    return response.data;
+  },
+
+  /**
+   * Get predictions for a specific tennis tournament
+   */
+  async getTennisPredictionsByTournament(
+    tournamentId: string
+  ): Promise<TennisPredictionsResponse> {
+    const response = await apiClient.get<TennisPredictionsResponse>(
+      API_ENDPOINTS.TENNIS_PREDICT_BY_TOURNAMENT(tournamentId)
+    );
+    return response.data;
+  },
+
+  /**
+   * Baseball game prediction
+   */
+  async predictBaseball(data: BaseballPredictRequest): Promise<BaseballPredictResponse> {
+    const response = await apiClient.post<BaseballPredictResponse>(
+      API_ENDPOINTS.BASEBALL_PREDICT,
+      data
+    );
+    return response.data;
+  },
+
+  /**
+   * Get upcoming baseball games
+   */
+  async getBaseballGames(team?: string): Promise<BaseballGamesResponse> {
+    const response = await apiClient.get<BaseballGamesResponse>(
+      API_ENDPOINTS.BASEBALL_GAMES,
+      { params: team ? { team } : {} }
+    );
+    return response.data;
+  },
+
+  /**
+   * Get upcoming baseball series with predictions
+   */
+  async getBaseballSeries(team?: string): Promise<BaseballSeriesResponse> {
+    const response = await apiClient.get<BaseballSeriesResponse>(
+      API_ENDPOINTS.BASEBALL_SERIES,
+      { params: team ? { team } : {} }
+    );
+    return response.data;
+  },
+
+  /**
+   * Get predictions for a specific baseball series
+   */
+  async getBaseballSeriesPredictions(
+    seriesId: string
+  ): Promise<{ series_id: string; games: unknown[]; generated_at: string }> {
+    const response = await apiClient.get(
+      API_ENDPOINTS.BASEBALL_SERIES_PREDICTIONS(seriesId)
+    );
+    return response.data;
+  },
+
+  /**
+   * Basketball game prediction
+   */
+  async predictBasketball(data: BasketballPredictRequest): Promise<BasketballPredictResponse> {
+    const response = await apiClient.post<BasketballPredictResponse>(
+      API_ENDPOINTS.BASKETBALL_PREDICT,
+      data
+    );
+    return response.data;
+  },
+
+  /**
+   * Get upcoming basketball games
+   */
+  async getBasketballGames(team?: string): Promise<BasketballGamesResponse> {
+    const response = await apiClient.get<BasketballGamesResponse>(
+      API_ENDPOINTS.BASKETBALL_GAMES,
+      { params: team ? { team } : {} }
+    );
+    return response.data;
+  },
+
+  /**
+   * Get available basketball conferences
+   */
+  async getBasketballConferences(): Promise<BasketballConferencesResponse> {
+    const response = await apiClient.get<BasketballConferencesResponse>(
+      API_ENDPOINTS.BASKETBALL_CONFERENCES
+    );
+    return response.data;
+  },
+
+  /**
+   * Get predictions for a specific conference
+   */
+  async getBasketballPredictionsByConference(
+    conferenceId: string
+  ): Promise<BasketballConferenceGamesResponse> {
+    const response = await apiClient.get<BasketballConferenceGamesResponse>(
+      API_ENDPOINTS.BASKETBALL_PREDICT_BY_CONFERENCE(conferenceId)
     );
     return response.data;
   },

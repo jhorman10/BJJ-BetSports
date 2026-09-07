@@ -20,6 +20,9 @@ import {
 } from "@mui/material";
 import {
   SportsSoccer,
+  SportsTennis,
+  SportsBaseball,
+  SportsBasketball,
   GetApp,
   SmartToy,
   Calculate,
@@ -37,6 +40,9 @@ interface MainLayoutProps {
 
 const NAV_ITEMS = [
   { path: "/", label: "Predicciones", icon: SportsSoccer },
+  { path: "/tennis", label: "Tenis", icon: SportsTennis },
+  { path: "/baseball", label: "Béisbol", icon: SportsBaseball },
+  { path: "/basketball", label: "Baloncesto", icon: SportsBasketball },
   { path: "/parley-calculator", label: "Calculadora", icon: Calculate },
 ];
 

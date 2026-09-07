@@ -183,7 +183,7 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
         categoryCounts={categoryCounts}
         onTabChange={handleTabChange}
       />
-      <PicksScrollList filteredPicks={filteredPicks} match={match} />
+      <PicksScrollList filteredPicks={filteredPicks} match={match as any} />
     </Box>
   );
 };

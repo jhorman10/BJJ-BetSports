@@ -273,5 +273,147 @@ export interface LearningStatsResponse {
   last_updated: string;
 }
 
+/**
+ * Tennis Prediction Types
+ */
+export interface TennisMatchRequest {
+  tournament_name: string;
+  surface: string;
+  tourney_level: string;
+  round_name: string;
+  match_date: string;
+  best_of: number;
+  p1_name: string;
+  p1_rank?: number;
+  p1_rank_points?: number;
+  p1_age?: number;
+  p1_hand?: string;
+  p1_height?: number;
+  p1_seed?: number;
+  p1_entry?: string;
+  p1_odds?: number;
+  p2_name: string;
+  p2_rank?: number;
+  p2_rank_points?: number;
+  p2_age?: number;
+  p2_hand?: string;
+  p2_height?: number;
+  p2_seed?: number;
+  p2_entry?: string;
+  p2_odds?: number;
+}
+
+export interface TennisPredictionResponse {
+  match_id: string;
+  p1_name: string;
+  p2_name: string;
+  p1_win_prob: number;
+  p2_win_prob: number;
+  predicted_winner: string;
+  confidence: number;
+  surface: string;
+  tournament_name: string;
+}
+
+export interface TennisUpcomingPlayer {
+  name: string;
+  rank: number | null;
+  rank_points?: number | null;
+  age?: number | null;
+  hand?: string;
+  height?: number | null;
+  seed: number | null;
+}
+
+export interface TennisUpcomingPrediction {
+  p1_win_prob: number;
+  p2_win_prob: number;
+  predicted_winner: string;
+  confidence: number;
+  h2h: {
+    total_matches: number;
+    p1_wins: number;
+    p2_wins: number;
+  };
+  surface_stats: {
+    p1_surface_win_rate: number;
+    p2_surface_win_rate: number;
+    surface: string;
+  };
+  form: {
+    p1_win_rate_5: number;
+    p2_win_rate_5: number;
+    p1_win_rate_10: number;
+    p2_win_rate_10: number;
+    p1_ace_rate: number;
+    p2_ace_rate: number;
+    p1_first_serve_pct: number;
+    p2_first_serve_pct: number;
+  };
+  value_bets: Array<{
+    player: string;
+    odds: number;
+    implied_prob: number;
+    model_prob: number;
+    edge: number;
+    type: string;
+  }>;
+  key_factors: string[];
+  markets: TennisMarket[];
+}
+
+export interface TennisMarket {
+  market_type: string;
+  market_label: string;
+  probability: number;
+  confidence_level: "high" | "medium" | "low";
+  reasoning: string;
+  risk_level: number;
+  is_recommended: boolean;
+  priority_score: number;
+  pick_code: string;
+}
+
+export interface TennisUpcomingMatch {
+  match_id: string;
+  tournament: string;
+  surface: string;
+  round: string;
+  match_date: string;
+  best_of?: number;
+  player1: TennisUpcomingPlayer;
+  player2: TennisUpcomingPlayer;
+  prediction: TennisUpcomingPrediction;
+}
+
+export interface TennisUpcomingResponse {
+  matches: TennisUpcomingMatch[];
+}
+
+export interface TennisTournament {
+  id: string;
+  name: string;
+  surface: string;
+  level: string;
+  match_count: number;
+}
+
+export interface TennisTournamentsResponse {
+  tournaments: TennisTournament[];
+  total_matches: number;
+}
+
+export interface TennisPredictionsResponse {
+  tournament: TennisTournament | null;
+  matches: TennisUpcomingMatch[];
+  generated_at: string | null;
+}
+
+// Baseball Prediction Types
+export * from "./baseball";
+
+// Basketball Prediction Types
+export * from "./basketball";
+
 // Export all component props and types
 export * from "./components";

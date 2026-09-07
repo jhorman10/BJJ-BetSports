@@ -35,6 +35,27 @@ export const API_ENDPOINTS = {
   TRAIN: "/api/v1/train/run-now",
   TRAINING_STATUS: "/api/v1/training/results/latest",
 
+  // Tennis
+  TENNIS_PREDICT: "/tennis/predict",
+  TENNIS_UPCOMING: "/tennis/upcoming",
+  TENNIS_TOURNAMENTS: "/tennis/tournaments",
+  TENNIS_PREDICT_BY_TOURNAMENT: (tournamentId: string) =>
+    `/tennis/predictions/${tournamentId}`,
+
+  // Baseball
+  BASEBALL_PREDICT: "/baseball/predict",
+  BASEBALL_GAMES: "/baseball/games",
+  BASEBALL_SERIES: "/baseball/series",
+  BASEBALL_SERIES_PREDICTIONS: (seriesId: string) =>
+    `/baseball/predictions/${seriesId}`,
+
+  // Basketball
+  BASKETBALL_PREDICT: "/basketball/predict",
+  BASKETBALL_GAMES: "/basketball/games",
+  BASKETBALL_CONFERENCES: "/basketball/conferences",
+  BASKETBALL_PREDICT_BY_CONFERENCE: (conferenceId: string) =>
+    `/basketball/predictions/${conferenceId}`,
+
   // Health
   HEALTH: "/health",
 } as const;

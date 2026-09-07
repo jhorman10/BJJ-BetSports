@@ -118,7 +118,7 @@ const PredictionGrid: React.FC = memo(() => {
           )[0];
 
           const pickItem: ParleyPickItem = {
-            match: match,
+            match: match as any,
             // Ensure we have a valid code or fallback to a readable one
             pick: bestPick.pick_code || bestPick.market_type || "WINNER",
             probability: bestPick.probability,
@@ -130,7 +130,7 @@ const PredictionGrid: React.FC = memo(() => {
           const bestPick = getBestPick(match);
           if (bestPick) {
             const pickItem: ParleyPickItem = {
-              match: match,
+              match: match as any,
               pick: bestPick.pick_code || bestPick.market_type || "WINNER",
               probability: bestPick.probability,
               label: bestPick.market_label,

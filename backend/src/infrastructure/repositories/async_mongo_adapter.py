@@ -89,7 +89,7 @@ class AsyncMongoAdapter:
         if self._use_motor:
             match_stage: Dict[str, Any] = {"expires_at": {"$gt": get_current_time()}}
             if sport:
-                match_stage["sport"] = sport
+                match_stage["$or"] = [{"sport": sport}, {"sport": None}]
             pipeline = [
                 {"$match": match_stage},
                 {"$group": {"_id": "$league_id"}},
@@ -283,7 +283,7 @@ class AsyncMongoAdapter:
             if league_id is not None:
                 query["league_id"] = league_id
             if sport is not None:
-                query["sport"] = sport
+                query["$or"] = [{"sport": sport}, {"sport": None}]
             docs = (
                 await self.match_predictions.find(query)
                 .skip(skip)

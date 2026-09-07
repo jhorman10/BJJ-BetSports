@@ -245,7 +245,7 @@ class AsyncMongoRepository:
         await self._ensure_ready()
         match_stage: Dict[str, Any] = {"expires_at": {"$gt": get_current_time()}}
         if sport:
-            match_stage["sport"] = sport
+            match_stage["$or"] = [{"sport": sport}, {"sport": None}]
         pipeline = [
             {"$match": match_stage},
             {"$group": {"_id": "$league_id"}},
@@ -412,7 +412,7 @@ class AsyncMongoRepository:
         if league_id is not None:
             query["league_id"] = league_id
         if sport is not None:
-            query["sport"] = sport
+            query["$or"] = [{"sport": sport}, {"sport": None}]
         cursor = self.match_predictions.find(query).skip(skip).limit(limit)
         out = []
         async for doc in cursor:

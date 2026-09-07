@@ -6,7 +6,7 @@ export interface Team {
   logo_url?: string;
 }
 
-export type Sport = "soccer" | "tennis" | "baseball" | "basketball";
+export type Sport = "soccer" | "tennis" | "baseball";
 
 export interface League {
   id: string;

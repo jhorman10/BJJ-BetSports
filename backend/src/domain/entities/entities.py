@@ -235,6 +235,13 @@ class Prediction:
     under_95_corners_probability: float = 0.0
     over_45_cards_probability: float = 0.0
     under_45_cards_probability: float = 0.0
+    # Tennis-specific fields
+    set_over_under_probabilities: list[dict] = field(
+        default_factory=list,
+    )
+    game_probabilities: list[dict] = field(
+        default_factory=list,
+    )
     # Dynamic Handicap
     handicap_line: float = 0.0
     handicap_home_probability: float = 0.0

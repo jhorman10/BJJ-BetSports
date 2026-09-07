@@ -1,6 +1,5 @@
 """Tests for multi-sport plumbing (sport catalog, enum, mapper, loader)."""
 
-import pytest
 
 from src.domain.constants import DEFAULT_SPORT, Sport, LEAGUES_METADATA
 
@@ -68,7 +67,7 @@ class TestLeagueDatasetSportIndex:
         from src.infrastructure.data.league_loader import dataset
 
         tennis = dataset.get_by_sport("tennis")
-        assert all(l.get("sport") == "tennis" for l in tennis)
+        assert all(lg.get("sport") == "tennis" for lg in tennis)
 
     def test_get_by_sport_soccer_returns_all_soccer(self):
         from src.infrastructure.data.league_loader import dataset
