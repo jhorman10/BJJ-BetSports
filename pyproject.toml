@@ -59,17 +59,17 @@ warn_unused_ignores = false
 [tool.mypy.overrides]
 # New Phase 3 modules - complex type annotations
 module = [
-    "backend.src.domain.services.continuous_learning",
-    "backend.src.infrastructure.odds_feed",
-    "backend.src.domain.services.sharp_detector",
-    "backend.src.domain.services.tennis_prediction_service",
-    "backend.src.domain.entities.tennis_match",
-    "backend.src.domain.services.tennis_feature_extractor",
-    "backend.src.api.routers.leagues",
-    "backend.src.infrastructure.data.league_loader",
-    "backend.src.infrastructure.data.verify_dataset",
-    "backend.src.infrastructure.data_sources.mlb_fixture_source",
-    "backend.src.domain.services.prediction_service",
-    "backend.src.infrastructure.data.league_loader",
+    "domain.services.continuous_learning",
+    "infrastructure.odds_feed",
+    "domain.services.sharp_detector",
+    "domain.services.tennis_prediction_service",
+    "domain.entities.tennis_match",
+    "domain.services.tennis_feature_extractor",
+    "api.routers.leagues",
+    "infrastructure.data.league_loader",
+    "infrastructure.data.verify_dataset",
+    "infrastructure.data_sources.mlb_fixture_source",
+    "domain.services.prediction_service",
+    "infrastructure.data.league_loader",
 ]
 ignore_errors = true
