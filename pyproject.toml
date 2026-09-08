@@ -63,22 +63,12 @@ module = [
     "backend.src.infrastructure.odds_feed",
     "backend.src.domain.services.sharp_detector",
     "backend.src.domain.services.tennis_prediction_service",
-]
-ignore_errors = true
-
-# Pre-existing files with known issues
-module = [
     "backend.src.domain.entities.tennis_match",
     "backend.src.domain.services.tennis_feature_extractor",
     "backend.src.api.routers.leagues",
     "backend.src.infrastructure.data.league_loader",
     "backend.src.infrastructure.data.verify_dataset",
     "backend.src.infrastructure.data_sources.mlb_fixture_source",
-]
-ignore_errors = true
-
-# Files with complexity issues
-module = [
     "backend.src.domain.services.prediction_service",
     "backend.src.infrastructure.data.league_loader",
 ]
