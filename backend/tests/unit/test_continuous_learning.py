@@ -181,7 +181,7 @@ class TestContinuousLearningPipeline:
 
         metadata = self.pipeline.daily_retrain(
             sport="football",
-            new_X=X,
+            new_x=X,
             new_y=y,
             feature_names=feature_names,
         )
@@ -208,7 +208,7 @@ class TestContinuousLearningPipeline:
 
         metadata = self.pipeline.daily_retrain(
             sport="tennis",
-            new_X=X,
+            new_x=X,
             new_y=y,
             feature_names=["f1", "f2", "f3", "f4"],
         )
@@ -222,7 +222,7 @@ class TestContinuousLearningPipeline:
 
         decision = self.pipeline.auto_retrain_trigger(
             sport="football",
-            current_X=X,
+            current_x=X,
             current_y=y,
             feature_names=["f1", "f2", "f3", "f4"],
         )
@@ -240,7 +240,7 @@ class TestContinuousLearningPipeline:
         y_train = np.random.randint(0, 2, 50)
         self.pipeline.daily_retrain(
             sport="football",
-            new_X=X_train,
+            new_x=X_train,
             new_y=y_train,
             feature_names=["f1", "f2", "f3", "f4"],
         )
@@ -253,7 +253,7 @@ class TestContinuousLearningPipeline:
 
         decision = self.pipeline.auto_retrain_trigger(
             sport="football",
-            current_X=X_current,
+            current_x=X_current,
             current_y=y_current,
             feature_names=["f1", "f2", "f3", "f4"],
             predictions=preds,
@@ -272,7 +272,7 @@ class TestContinuousLearningPipeline:
         y_train = np.random.randint(0, 2, 200)
         self.pipeline.daily_retrain(
             sport="football",
-            new_X=X_train,
+            new_x=X_train,
             new_y=y_train,
             feature_names=["f1", "f2", "f3", "f4"],
         )
@@ -285,7 +285,7 @@ class TestContinuousLearningPipeline:
 
         decision = self.pipeline.auto_retrain_trigger(
             sport="football",
-            current_X=X_current,
+            current_x=X_current,
             current_y=y_current,
             feature_names=["f1", "f2", "f3", "f4"],
             predictions=preds,
@@ -332,7 +332,7 @@ class TestContinuousLearningPipeline:
 
         decision = self.pipeline.auto_retrain_trigger(
             sport="football",
-            current_X=X_current,
+            current_x=X_current,
             current_y=y_current,
             feature_names=["f1", "f2", "f3", "f4"],
             predictions=preds,
@@ -351,7 +351,7 @@ class TestContinuousLearningPipeline:
 
         metadata = self.pipeline.daily_retrain(
             sport="basketball",
-            new_X=X,
+            new_x=X,
             new_y=y,
             feature_names=["f1", "f2", "f3"],
         )
@@ -374,7 +374,7 @@ class TestContinuousLearningPipeline:
 
         metadata = self.pipeline.daily_retrain(
             sport="baseball",
-            new_X=X,
+            new_x=X,
             new_y=y,
             feature_names=["f1", "f2", "f3"],
         )
@@ -393,7 +393,7 @@ class TestContinuousLearningPipeline:
             np.random.shuffle(y)
             self.pipeline.daily_retrain(
                 sport="tennis",
-                new_X=X,
+                new_x=X,
                 new_y=y,
                 feature_names=["f1", "f2", "f3"],
             )
@@ -413,7 +413,7 @@ class TestContinuousLearningPipeline:
             np.random.shuffle(y)
             meta = self.pipeline.daily_retrain(
                 sport="hockey",
-                new_X=X,
+                new_x=X,
                 new_y=y,
                 feature_names=["f1", "f2", "f3"],
             )
@@ -441,7 +441,7 @@ class TestContinuousLearningPipeline:
             time.sleep(0.01)
             self.pipeline.daily_retrain(
                 sport="soccer",
-                new_X=X,
+                new_x=X,
                 new_y=y,
                 feature_names=["f1", "f2", "f3"],
             )
@@ -465,7 +465,7 @@ class TestContinuousLearningPipeline:
 
         metadata = self.pipeline.daily_retrain(
             sport="cricket",
-            new_X=X,
+            new_x=X,
             new_y=y,
             feature_names=["f1", "f2", "f3"],
         )

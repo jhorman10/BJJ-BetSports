@@ -137,7 +137,7 @@ class BasketballPredictionService:
 
         # KELLY CRITERION SIZING
         kelly_recommendations = self._calculate_kelly_recommendations(
-            home_prob, away_prob, home_odds, away_odds, confidence, value_bets
+            game, home_prob, away_prob, home_odds, away_odds, confidence, value_bets
         )
 
         # Extract key factors
@@ -234,7 +234,7 @@ class BasketballPredictionService:
 
         # KELLY CRITERION SIZING
         kelly_recommendations = self._calculate_kelly_recommendations(
-            home_prob, away_prob, home_odds, away_odds, confidence, value_bets
+            game, home_prob, away_prob, home_odds, away_odds, confidence, value_bets
         )
 
         # Extract key factors
@@ -683,7 +683,10 @@ class BasketballPredictionService:
             return None
 
     def _detect_sharp_money(
-        self, game: BasketballGame, home_odds: float, away_odds: float
+        self,
+        game: BasketballGame,
+        home_odds: float,
+        away_odds: float,
     ) -> Optional[SharpMoneySignal]:
         """Detect sharp money signals for a game."""
         if not (
@@ -740,6 +743,7 @@ class BasketballPredictionService:
 
     def _calculate_kelly_recommendations(
         self,
+        game: BasketballGame,
         home_prob: float,
         away_prob: float,
         home_odds: float,

@@ -22,10 +22,7 @@ import os
 from typing import Any, Optional
 
 import concurrent.futures
-import math
-import os
 from datetime import datetime, timedelta
-from typing import Any, Optional
 
 import numpy as np
 from src.domain.entities.entities import Match, Prediction, TeamStatistics
@@ -36,6 +33,7 @@ from src.domain.services.sharp_detector import SharpMoneyDetector, SharpMoneySig
 from src.infrastructure.odds_feed import (
     MarketEfficiencyMetrics,
     OddsFeed,
+    OddsProvider,
     OddsSnapshot,
 )
 
@@ -1964,6 +1962,26 @@ class PredictionService:
             except Exception as e:
                 logger.debug(f"Sharp money detection failed for {match.id}: {e}")
 
+        # Calculate confidence and value bet status BEFORE Kelly sizing
+        # These are needed for Kelly sizing and market metadata
+        max_ev = 0.0
+        is_value_bet = False
+        if match.home_odds and match.draw_odds and match.away_odds:
+            ev_home = (home_win * match.home_odds) - 1
+            ev_draw = (draw * match.draw_odds) - 1
+            ev_away = (away_win * match.away_odds) - 1
+            max_ev = max(ev_home, ev_draw, ev_away)
+            if max_ev > 0.02:
+                is_value_bet = True
+
+        confidence = self.calculate_confidence(
+            home_stats,
+            away_stats,
+            has_odds=match.home_odds is not None,
+            calculated_probs=(home_win, draw, away_win),
+            odds=odds_obj,
+        )
+
         # 8. KELLY CRITERION SIZING for value bets
         if odds_obj and is_value_bet:
             try:
@@ -2077,29 +2095,6 @@ class PredictionService:
 
         # Calculate Expected Value (EV)
         # We look for the highest EV among the main 1X2 market
-        max_ev = 0.0
-        is_value_bet = False
-
-        if match.home_odds and match.draw_odds and match.away_odds:
-            ev_home = (home_win * match.home_odds) - 1
-            ev_draw = (draw * match.draw_odds) - 1
-            ev_away = (away_win * match.away_odds) - 1
-
-            max_ev = max(ev_home, ev_draw, ev_away)
-
-            # Threshold for "Value Bet" badge (e.g. > 2% edge)
-            if max_ev > 0.02:
-                is_value_bet = True
-
-        # Calculate confidence based on ACTUAL data quality
-        confidence = self.calculate_confidence(
-            home_stats,
-            away_stats,
-            has_odds=match.home_odds is not None,
-            calculated_probs=(home_win, draw, away_win),
-            odds=odds_obj,
-        )
-
         # Boost confidence if Elo data is present (it adds robustness)
         if home_elo and away_elo:
             confidence = min(0.99, confidence * 1.1)

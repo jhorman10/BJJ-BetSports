@@ -201,14 +201,14 @@ class ContinuousLearningPipeline:
         except Exception as e:
             logger.error(f"Failed to save model registry: {e}")
 
-    def _compute_data_hash(self, X: np.ndarray, y: np.ndarray) -> str:
+    def _compute_data_hash(self, x: np.ndarray, y: np.ndarray) -> str:
         """Compute hash of training data for versioning."""
         # Use deterministic sampling for reproducibility
-        sample_size = min(1000, len(X))
+        sample_size = min(1000, len(x))
         # Use fixed seed based on data shape for deterministic but varied sampling
-        rng = np.random.default_rng(seed=hash((X.shape, y.shape)) % (2**32))
-        indices = rng.choice(len(X), sample_size, replace=False)
-        x_sample = X[indices]
+        rng = np.random.default_rng(seed=hash((x.shape, y.shape)) % (2**32))
+        indices = rng.choice(len(x), sample_size, replace=False)
+        x_sample = x[indices]
         y_sample = y[indices]
 
         # Hash the data
@@ -218,19 +218,19 @@ class ContinuousLearningPipeline:
         return hasher.hexdigest()[:16]
 
     def _compute_feature_distributions(
-        self, X: np.ndarray, feature_names: list[str]
+        self, x: np.ndarray, feature_names: list[str]
     ) -> dict[str, np.ndarray]:
         """Compute feature distributions for PSI baseline."""
         distributions = {}
         for i, name in enumerate(feature_names):
-            if i < X.shape[1]:
+            if i < x.shape[1]:
                 # Use histogram bins
-                hist, bins = np.histogram(X[:, i], bins=10, density=True)
+                hist, bins = np.histogram(x[:, i], bins=10, density=True)
                 distributions[name] = {
                     "hist": hist.tolist(),
                     "bins": bins.tolist(),
-                    "mean": float(np.mean(X[:, i])),
-                    "std": float(np.std(X[:, i])),
+                    "mean": float(np.mean(x[:, i])),
+                    "std": float(np.std(x[:, i])),
                 }
         return distributions
 
@@ -433,7 +433,7 @@ class ContinuousLearningPipeline:
     def daily_retrain(
         self,
         sport: str,
-        new_X: np.ndarray,
+        new_x: np.ndarray,
         new_y: np.ndarray,
         feature_names: list[str],
         model_class: type = RandomForestClassifier,
@@ -445,7 +445,7 @@ class ContinuousLearningPipeline:
 
         Args:
             sport: Sport identifier
-            new_X: New feature data
+            new_x: New feature data
             new_y: New labels
             feature_names: Feature names
             model_class: Model class to use
@@ -455,13 +455,13 @@ class ContinuousLearningPipeline:
         Returns:
             ModelMetadata for new model version, or None if skipped
         """
-        if not self._has_sufficient_data(new_X, sport):
+        if not self._has_sufficient_data(new_x, sport):
             return None
 
         active_model = self._active_models.get(sport)
         parent_id = active_model.model_id if active_model else None
 
-        x_train = new_X
+        x_train = new_x
         y_train = new_y
 
         model, params = self._train_model(
@@ -487,13 +487,13 @@ class ContinuousLearningPipeline:
         )
         return metadata
 
-    def _has_sufficient_data(self, new_X: np.ndarray, sport: str) -> bool:
+    def _has_sufficient_data(self, new_x: np.ndarray, sport: str) -> bool:
         """Check if there's enough data for retraining."""
-        if len(new_X) >= self.min_samples_for_retrain:
+        if len(new_x) >= self.min_samples_for_retrain:
             return True
         logger.info(
             "Insufficient new data for "
-            f"{sport}: {len(new_X)} < {self.min_samples_for_retrain}"
+            f"{sport}: {len(new_x)} < {self.min_samples_for_retrain}"
         )
         return False
 
@@ -644,7 +644,7 @@ class ContinuousLearningPipeline:
     def auto_retrain_trigger(
         self,
         sport: str,
-        current_X: np.ndarray,
+        current_x: np.ndarray,
         current_y: np.ndarray,
         feature_names: list[str],
         predictions: Optional[np.ndarray] = None,
@@ -660,7 +660,7 @@ class ContinuousLearningPipeline:
 
         Args:
             sport: Sport identifier
-            current_X: Current feature data
+            current_x: Current feature data
             current_y: Current labels
             feature_names: Feature names
             predictions: Recent model predictions (for performance)
@@ -686,7 +686,7 @@ class ContinuousLearningPipeline:
             # Simplified: use current model's training data hash to load reference
             # In practice, would store reference samples
             drift_report = self._check_drift_from_baseline(
-                current_X, ref_dists, feature_names
+                current_x, ref_dists, feature_names
             )
 
             if drift_report.drift_detected:
@@ -741,7 +741,7 @@ class ContinuousLearningPipeline:
 
     def _check_drift_from_baseline(
         self,
-        current_X: np.ndarray,
+        current_x: np.ndarray,
         baseline_dists: dict[str, Any],
         feature_names: list[str],
     ) -> DriftReport:
@@ -750,14 +750,14 @@ class ContinuousLearningPipeline:
         features_drifted = []
 
         for i, name in enumerate(feature_names):
-            if i >= current_X.shape[1] or name not in baseline_dists:
+            if i >= current_x.shape[1] or name not in baseline_dists:
                 continue
 
             baseline = baseline_dists[name]
             ref_hist = np.array(baseline["hist"])
             bins = np.array(baseline["bins"])
 
-            curr_hist, _ = np.histogram(current_X[:, i], bins=bins, density=True)
+            curr_hist, _ = np.histogram(current_x[:, i], bins=bins, density=True)
 
             ref_hist = np.where(ref_hist == 0, 0.0001, ref_hist)
             curr_hist = np.where(curr_hist == 0, 0.0001, curr_hist)
