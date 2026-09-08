@@ -70,6 +70,5 @@ module = [
     "infrastructure.data.verify_dataset",
     "infrastructure.data_sources.mlb_fixture_source",
     "domain.services.prediction_service",
-    "infrastructure.data.league_loader",
 ]
 ignore_errors = true
