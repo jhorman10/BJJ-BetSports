@@ -14,17 +14,13 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import os
-import pickle
-import shutil
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
 import joblib
 import numpy as np
-import pandas as pd
 from sklearn.base import BaseEstimator
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.ensemble import RandomForestClassifier
@@ -212,12 +208,12 @@ class ContinuousLearningPipeline:
         # Use fixed seed based on data shape for deterministic but varied sampling
         rng = np.random.default_rng(seed=hash((X.shape, y.shape)) % (2**32))
         indices = rng.choice(len(X), sample_size, replace=False)
-        X_sample = X[indices]
+        x_sample = X[indices]
         y_sample = y[indices]
 
         # Hash the data
         hasher = hashlib.md5()
-        hasher.update(X_sample.tobytes())
+        hasher.update(x_sample.tobytes())
         hasher.update(y_sample.tobytes())
         return hasher.hexdigest()[:16]
 
@@ -373,9 +369,18 @@ class ContinuousLearningPipeline:
             y_onehot = np.eye(n_classes)[y_true]
             brier = np.mean(np.sum((predictions - y_onehot) ** 2, axis=1))
 
-        ll = log_loss(y_true, np.clip(predictions if n_classes > 2 else y_pred, 1e-15, 1 - 1e-15))
-        accuracy = np.mean((y_pred > 0.5) == y_true) if n_classes == 2 else np.mean(
-            np.argmax(predictions, axis=1) == outcomes
+        ll = log_loss(
+            y_true,
+            np.clip(
+                predictions if n_classes > 2 else y_pred,
+                1e-15,
+                1 - 1e-15,
+            ),
+        )
+        accuracy = np.mean(
+            (y_pred > 0.5) == y_true
+            if n_classes == 2
+            else np.argmax(predictions, axis=1) == outcomes
         )
 
         # Rolling metrics
@@ -389,11 +394,20 @@ class ContinuousLearningPipeline:
                 rb = brier_score_loss(y_true[start:end], y_pred[start:end])
             else:
                 y_onehot_roll = np.eye(n_classes)[y_true[start:end]]
-                rb = np.mean(np.sum((predictions[start:end] - y_onehot_roll) ** 2, axis=1))
+                rb = np.mean(
+                    np.sum(
+                        (predictions[start:end] - y_onehot_roll) ** 2,
+                        axis=1,
+                    )
+                )
 
             rl = log_loss(
                 y_true[start:end],
-                np.clip(predictions[start:end] if n_classes > 2 else y_pred[start:end], 1e-15, 1 - 1e-15),
+                np.clip(
+                    predictions[start:end] if n_classes > 2 else y_pred[start:end],
+                    1e-15,
+                    1 - 1e-15,
+                ),
             )
             rolling_brier.append(rb)
             rolling_log_loss.append(rl)
@@ -441,22 +455,57 @@ class ContinuousLearningPipeline:
         Returns:
             ModelMetadata for new model version, or None if skipped
         """
-        if len(new_X) < self.min_samples_for_retrain:
-            logger.info(
-                f"Insufficient new data for {sport}: {len(new_X)} < {self.min_samples_for_retrain}"
-            )
+        if not self._has_sufficient_data(new_X, sport):
             return None
 
-        # Get current active model
         active_model = self._active_models.get(sport)
         parent_id = active_model.model_id if active_model else None
 
-        # Combine with recent historical data if available
-        # For now, just use new data (incremental)
-        X_train = new_X
+        x_train = new_X
         y_train = new_y
 
-        # Train new model
+        model, params = self._train_model(
+            x_train, y_train, model_class, model_params, calibrate
+        )
+        brier, ll, accuracy = self._evaluate_model(model, x_train, y_train)
+
+        metadata = self._create_model_metadata(
+            sport, model_class, x_train, y_train, feature_names,
+            brier, ll, accuracy, parent_id, params
+        )
+
+        # Save model
+        model_path = self.models_dir / f"{metadata.model_id}.joblib"
+        joblib.dump(model, model_path)
+
+        # Update registry with new active model
+        self._update_registry(sport, metadata)
+
+        logger.info(
+            f"Retrained {sport} model: {metadata.model_id} "
+            f"(Brier={metadata.metrics['brier_score']:.4f}, Acc={accuracy:.4f})"
+        )
+        return metadata
+
+    def _has_sufficient_data(self, new_X: np.ndarray, sport: str) -> bool:
+        """Check if there's enough data for retraining."""
+        if len(new_X) >= self.min_samples_for_retrain:
+            return True
+        logger.info(
+            "Insufficient new data for "
+            f"{sport}: {len(new_X)} < {self.min_samples_for_retrain}"
+        )
+        return False
+
+    def _train_model(
+        self,
+        x_train: np.ndarray,
+        y_train: np.ndarray,
+        model_class: type,
+        model_params: Optional[dict[str, Any]],
+        calibrate: bool,
+    ) -> tuple[BaseEstimator, dict[str, Any]]:
+        """Train a new model with optional calibration."""
         params = model_params or {
             "n_estimators": 200,
             "max_depth": 10,
@@ -467,19 +516,21 @@ class ContinuousLearningPipeline:
         }
 
         base_model = model_class(**params)
-        base_model.fit(X_train, y_train)
+        base_model.fit(x_train, y_train)
 
-        # Calibrate if requested
         if calibrate:
-            # Use TimeSeriesSplit for calibration to avoid leakage
             tscv = TimeSeriesSplit(n_splits=3)
             model = CalibratedClassifierCV(base_model, method="isotonic", cv=tscv)
-            model.fit(X_train, y_train)
+            model.fit(x_train, y_train)
         else:
             model = base_model
+        return model, params
 
-        # Evaluate on training data (in-sample)
-        train_preds = model.predict_proba(X_train)
+    def _evaluate_model(
+        self, model: BaseEstimator, x_train: np.ndarray, y_train: np.ndarray
+    ) -> tuple[float, float, float]:
+        """Evaluate model on training data."""
+        train_preds = model.predict_proba(x_train)
         if train_preds.ndim > 1 and train_preds.shape[1] > 1:
             train_pred_probs = train_preds[np.arange(len(y_train)), y_train]
         else:
@@ -487,31 +538,46 @@ class ContinuousLearningPipeline:
 
         brier = brier_score_loss(y_train, train_pred_probs)
         ll = log_loss(y_train, np.clip(train_pred_probs, 1e-15, 1 - 1e-15))
-        accuracy = np.mean(model.predict(X_train) == y_train)
+        accuracy = np.mean(model.predict(x_train) == y_train)
+        return brier, ll, accuracy
 
-        # Create metadata with unique model_id
-        data_hash = self._compute_data_hash(X_train, y_train)
-        version = datetime.utcnow().strftime("%Y%m%d_%H%M%S_%f")[:-3]  # Include milliseconds
+    def _create_model_metadata(
+        self,
+        sport: str,
+        model_class: type,
+        x_train: np.ndarray,
+        y_train: np.ndarray,
+        feature_names: list[str],
+        brier: float,
+        ll: float,
+        accuracy: float,
+        parent_id: Optional[str],
+        params: dict[str, Any],
+    ) -> ModelMetadata:
+        """Create model metadata."""
+        data_hash = self._compute_data_hash(x_train, y_train)
+        version = datetime.utcnow().strftime("%Y%m%d_%H%M%S_%f")[:-3]
         model_id = f"{sport}_{version}"
 
-        # Ensure unique model_id by adding counter if needed
         counter = 0
         original_model_id = model_id
-        while any(m.model_id == model_id for m in self._model_registry.get(sport, [])):
+        while any(
+            m.model_id == model_id
+            for m in self._model_registry.get(sport, [])
+        ):
             counter += 1
             model_id = f"{original_model_id}_{counter}"
 
-        # Feature distributions for future drift detection
-        drift_baseline = self._compute_feature_distributions(X_train, feature_names)
+        drift_baseline = self._compute_feature_distributions(x_train, feature_names)
 
-        metadata = ModelMetadata(
+        return ModelMetadata(
             model_id=model_id,
             sport=sport,
             model_type=model_class.__name__,
             version=version,
             created_at=datetime.utcnow(),
             training_data_hash=data_hash,
-            training_samples=len(X_train),
+            training_samples=len(x_train),
             features=feature_names,
             hyperparameters=params,
             metrics={
@@ -521,30 +587,18 @@ class ContinuousLearningPipeline:
             },
             drift_baseline=drift_baseline,
             parent_model_id=parent_id,
-            is_active=True,  # New model becomes active
-            notes=f"Daily retrain with {len(X_train)} new samples",
+            is_active=True,
+            notes=f"Daily retrain with {len(x_train)} new samples",
         )
 
-        # Save model
-        model_path = self.models_dir / f"{model_id}.joblib"
-        joblib.dump(model, model_path)
-
-        # Deactivate old model
-        if active_model:
-            for m in self._model_registry.get(sport, []):
-                if m.model_id == active_model.model_id:
-                    # Can't modify frozen dataclass, recreate
-                    pass
-
-        # Update registry
+    def _update_registry(self, sport: str, metadata: ModelMetadata) -> None:
+        """Update model registry with new active model."""
         if sport not in self._model_registry:
             self._model_registry[sport] = []
 
-        # Mark old active as inactive, add new
         new_registry = []
         for m in self._model_registry[sport]:
             if m.is_active:
-                # Create inactive version
                 new_registry.append(
                     ModelMetadata(
                         model_id=m.model_id,
@@ -580,7 +634,11 @@ class ContinuousLearningPipeline:
         self._active_models[sport] = metadata
         self._save_registry()
 
-        logger.info(f"Retrained {sport} model: {model_id} (Brier={brier:.4f}, Acc={accuracy:.4f})")
+        logger.info(
+            f"Retrained {sport} model: {metadata.model_id} "
+            f"(Brier={metadata.metrics['brier_score']:.4f}, "
+            f"Acc={metadata.metrics['accuracy']:.4f})"
+        )
         return metadata
 
     def auto_retrain_trigger(
@@ -623,7 +681,8 @@ class ContinuousLearningPipeline:
         if active_model.drift_baseline:
             # Reconstruct reference distributions from baseline
             ref_dists = active_model.drift_baseline
-            # For PSI, we need reference feature arrays - approximate from baseline stats
+            # For PSI, we need reference feature arrays -
+            # approximate from baseline stats
             # Simplified: use current model's training data hash to load reference
             # In practice, would store reference samples
             drift_report = self._check_drift_from_baseline(
@@ -633,9 +692,14 @@ class ContinuousLearningPipeline:
             if drift_report.drift_detected:
                 return RetrainDecision(
                     should_retrain=True,
-                    reason=f"Feature drift detected (PSI={drift_report.overall_psi:.3f})",
+                    reason=(
+                        f"Feature drift detected "
+                        f"(PSI={drift_report.overall_psi:.3f})"
+                    ),
                     drift_report=drift_report,
-                    urgency="high" if drift_report.overall_psi > 0.3 else "medium",
+                    urgency=(
+                        "high" if drift_report.overall_psi > 0.3 else "medium"
+                    ),
                 )
 
         # Check 2: Performance degradation
@@ -650,7 +714,10 @@ class ContinuousLearningPipeline:
             if perf_report.threshold_exceeded:
                 return RetrainDecision(
                     should_retrain=True,
-                    reason=f"Performance drop: Brier increased by {perf_report.performance_drop:.4f}",
+                    reason=(
+                        "Performance drop: Brier increased by "
+                        f"{perf_report.performance_drop:.4f}"
+                    ),
                     performance_report=perf_report,
                     urgency="high",
                 )
@@ -734,7 +801,9 @@ class ContinuousLearningPipeline:
             return None
         return joblib.load(model_path)
 
-    def get_model_metadata(self, sport: str, model_id: Optional[str] = None) -> Optional[ModelMetadata]:
+    def get_model_metadata(
+        self, sport: str, model_id: Optional[str] = None
+    ) -> Optional[ModelMetadata]:
         """Get metadata for a model."""
         if model_id:
             for sport_models in self._model_registry.values():
@@ -825,14 +894,18 @@ class ContinuousLearningPipeline:
 
             # Update registry
             if keep_active:
-                self._model_registry[sport] = active_models + inactive_models[:keep_last_n]
+                self._model_registry[sport] = active_models + inactive_models[
+                    :keep_last_n
+                ]
             else:
                 self._model_registry[sport] = inactive_models[:keep_last_n]
 
         self._save_registry()
         return removed
 
-    def export_model_card(self, sport: str, model_id: Optional[str] = None) -> dict[str, Any]:
+    def export_model_card(
+        self, sport: str, model_id: Optional[str] = None
+    ) -> dict[str, Any]:
         """Export model card for documentation/audit."""
         metadata = self.get_model_metadata(sport, model_id)
         if not metadata:

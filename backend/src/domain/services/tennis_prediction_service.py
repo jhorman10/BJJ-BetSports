@@ -1,6 +1,6 @@
 import logging
 import os
-from datetime import date, datetime
+from datetime import datetime
 from typing import Any, Optional
 
 import joblib
@@ -12,7 +12,7 @@ from src.domain.services.tennis_feature_extractor import TennisFeatureExtractor
 from src.infrastructure.data_sources.tennis_data_source import TennisDataSource
 from src.domain.services.sharp_detector import SharpMoneyDetector, SharpMoneySignal
 from src.domain.services.kelly_sizer import KellySizer
-from src.infrastructure.odds_feed import OddsFeed, OddsSnapshot, OddsProvider
+from src.infrastructure.odds_feed import OddsFeed, OddsProvider, OddsSnapshot
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +98,8 @@ class TennisPredictionService:
 
     def _calibrate_model(self, base_model: Any) -> Any:
         """
-        Calibrate the base RandomForest model using CalibratedClassifierCV with isotonic regression.
+        Calibrate the base RandomForest model using CalibratedClassifierCV
+        with isotonic regression.
 
         Uses historical match data as a holdout set for calibration.
         Falls back to 3-fold cross-validation if holdout data is insufficient.
@@ -106,19 +107,17 @@ class TennisPredictionService:
         try:
             # Load historical data for calibration (similar to test script)
             source = TennisDataSource(tour="atp")
-            hist_df = source.fetch_matches_range(2020, 2023)  # Use recent 4 years for calibration
+            hist_df = source.fetch_matches_range(
+                2020, 2023
+            )  # Use recent 4 years for calibration
 
             if hist_df is None or len(hist_df) < 100:
-                logger.warning("Insufficient historical data for calibration, using CV=3")
+                logger.warning(
+                    "Insufficient historical data for calibration, using CV=3"
+                )
                 return CalibratedClassifierCV(base_model, method="isotonic", cv=3)
 
             # Prepare features and labels for calibration
-            # We use a feature extractor without historical data to avoid leakage
-            extractor = TennisFeatureExtractor(historical_data=None)
-            # But we need historical data for feature extraction, so let's use the loaded data
-            # for feature extraction but only on matches before a certain date
-            # to simulate a holdout set
-
             # Sort by date and use the last 20% as calibration holdout
             hist_df = hist_df.sort_values("tourney_date")
             split_idx = int(len(hist_df) * 0.8)
@@ -133,7 +132,7 @@ class TennisPredictionService:
             train_extractor = TennisFeatureExtractor(historical_data=train_df)
 
             # Extract features and labels from calibration set
-            X_cal = []
+            x_cal = []
             y_cal = []
 
             for _, row in calibration_df.iterrows():
@@ -145,7 +144,7 @@ class TennisPredictionService:
                 # Create a mock match for feature extraction
                 try:
                     match = TennisMatch(
-                        match_id=f"cal_{len(X_cal)}",
+                        match_id=f"cal_{len(x_cal)}",
                         tournament_name=row.get("tourney_name", "Unknown"),
                         surface=row.get("surface", "Hard"),
                         tourney_level=row.get("tourney_level", "A"),
@@ -170,12 +169,12 @@ class TennisPredictionService:
 
                     features = train_extractor.extract_features(match)
                     feature_names = train_extractor.get_feature_names()
-                    X_cal.append([features[f] for f in feature_names])
+                    x_cal.append([features[f] for f in feature_names])
                     y_cal.append(1)  # Winner is p1
 
                     # Also add the reverse (loser as p1) for balanced calibration
                     match_rev = TennisMatch(
-                        match_id=f"cal_{len(X_cal)}",
+                        match_id=f"cal_{len(x_cal)}",
                         tournament_name=row.get("tourney_name", "Unknown"),
                         surface=row.get("surface", "Hard"),
                         tourney_level=row.get("tourney_level", "A"),
@@ -199,24 +198,29 @@ class TennisPredictionService:
                     )
 
                     features_rev = train_extractor.extract_features(match_rev)
-                    X_cal.append([features_rev[f] for f in feature_names])
+                    x_cal.append([features_rev[f] for f in feature_names])
                     y_cal.append(0)  # Winner is p2
 
                 except Exception:
                     continue  # Skip problematic matches
 
-            if len(X_cal) < 50:
+            if len(x_cal) < 50:
                 logger.warning("Not enough calibration samples, using CV=3")
                 return CalibratedClassifierCV(base_model, method="isotonic", cv=3)
 
-            X_cal = np.array(X_cal)
+            x_cal = np.array(x_cal)
             y_cal = np.array(y_cal)
 
             # Fit calibrated classifier on holdout set
-            calibrated = CalibratedClassifierCV(base_model, method="isotonic", cv="prefit")
-            calibrated.fit(X_cal, y_cal)
+            calibrated = CalibratedClassifierCV(
+                base_model, method="isotonic", cv="prefit"
+            )
+            calibrated.fit(x_cal, y_cal)
 
-            logger.info(f"Calibrated model on {len(X_cal)} samples from {len(calibration_df)} matches")
+            logger.info(
+                f"Calibrated model on {len(x_cal)} samples from "
+                f"{len(calibration_df)} matches"
+            )
             return calibrated
 
         except Exception as e:
@@ -233,161 +237,34 @@ class TennisPredictionService:
             return None
 
         try:
-            # 1. Extract features
-            features = self.feature_extractor.extract_features(match)
-            feature_names = self.feature_extractor.get_feature_names()
+            # 1. Extract features and predict
+            features, feature_names = self._extract_features(match)
+            x = [[features[f] for f in feature_names]]
+            p1_prob, p2_prob, confidence = self._get_predictions(x)
 
-            # Convert to array in the correct order
-            X = [[features[f] for f in feature_names]]
+            # 2. Gather context from feature extractor
+            h2h, surface_stats, form = self._build_context(match)
 
-            # 2. Predict probabilities
-            probs = self.model.predict_proba(X)[0]
+            # 3. Phase 3: Advanced market alignment
+            p1_odds, p2_odds, real_time_odds = self._fetch_real_time_odds(match)
 
-            if 1 in self.model.classes_:
-                p1_idx = list(self.model.classes_).index(1)
-                p1_prob = probs[p1_idx]
-                p2_prob = 1.0 - p1_prob
-            else:
-                p1_prob = probs[0]
-                p2_prob = probs[1]
+            value_bets = self._calculate_value_bets(
+                match, p1_prob, p2_prob, p1_odds, p2_odds
+            )
 
-            # 3. Calculate confidence
-            confidence = abs(p1_prob - 0.5) * 2
+            sharp_signal = self._detect_sharp_money(match, p1_odds, p2_odds)
 
-            # 4. Gather context from feature extractor
-            h2h = self._get_h2h_context(match)
-            surface_stats = self._get_surface_stats(match)
-            form = self._get_form_context(match)
+            kelly_recommendations = self._calculate_kelly(
+                p1_prob, p2_prob, p1_odds, p2_odds, value_bets, confidence
+            )
 
-            # ============================================================
-            # PHASE 3: ADVANCED MARKET ALIGNMENT
-            # ============================================================
-
-            # 5. REAL-TIME ODDS FETCH
-            real_time_odds: Optional[OddsSnapshot] = None
-            p1_odds = match.p1_odds
-            p2_odds = match.p2_odds
-
-            if self.odds_feed and self.odds_feed.is_configured():
-                try:
-                    import asyncio
-
-                    async def fetch_odds():
-                        return await self.odds_feed.fetch_odds(
-                            sport="tennis",
-                            league=match.tournament_name or "unknown",
-                            match_id=match.match_id,
-                        )
-
-                    try:
-                        loop = asyncio.get_running_loop()
-                        import concurrent.futures
-                        with concurrent.futures.ThreadPoolExecutor() as executor:
-                            future = executor.submit(asyncio.run, fetch_odds())
-                            real_time_odds = future.result(timeout=10)
-                    except RuntimeError:
-                        real_time_odds = asyncio.run(fetch_odds())
-
-                    if real_time_odds:
-                        # Use real-time odds (more accurate for value bets)
-                        p1_odds = real_time_odds.odds.home
-                        p2_odds = real_time_odds.odds.away
-
-                except Exception as e:
-                    logger.debug(f"Real-time odds fetch failed for {match.match_id}: {e}")
-
-            # Calculate value bets with real-time odds
-            value_bets = self._calculate_value_bets(match, p1_prob, p2_prob, p1_odds, p2_odds)
-
-            # 6. SHARP MONEY DETECTION
-            sharp_signal: Optional[SharpMoneySignal] = None
-            if p1_odds and p2_odds and hasattr(match, "opening_odds") and match.opening_odds:
-                try:
-                    # Would need odds history - simplified with opening vs current
-                    from src.infrastructure.odds_feed import OddsSnapshot, OddsProvider
-                    from datetime import timedelta
-
-                    opening = match.opening_odds  # Should be Odds object
-                    current_odds = type('Odds', (), {'home': p1_odds, 'draw': 1.0, 'away': p2_odds})()
-
-                    odds_history = [
-                        OddsSnapshot(
-                            provider=OddsProvider.PINNACLE,
-                            sport="tennis",
-                            league=match.tournament_name or "unknown",
-                            match_id=match.match_id,
-                            odds=opening,
-                            timestamp=match.match_date - timedelta(days=7) if match.match_date else datetime.utcnow(),
-                        ),
-                        OddsSnapshot(
-                            provider=OddsProvider.PINNACLE,
-                            sport="tennis",
-                            league=match.tournament_name or "unknown",
-                            match_id=match.match_id,
-                            odds=current_odds,
-                            timestamp=datetime.utcnow(),
-                        ),
-                    ]
-
-                    sharp_signal = self.sharp_detector.analyze_line_movement(
-                        opening_odds=opening,
-                        current_odds=current_odds,
-                        odds_history=odds_history,
-                    )
-
-                    # Add sharp money signals to key_factors
-                    if sharp_signal and sharp_signal.confidence > 0.5:
-                        if sharp_signal.reverse_line_movement:
-                            key_factors.append("⚠️ Reverse Line Movement detectado")
-                        if sharp_signal.smart_money_side:
-                            side_name = match.p1_name if sharp_signal.smart_money_side == "home" else match.p2_name
-                            key_factors.append(f"💰 Dinero sharp en {side_name} (score: {sharp_signal.steam_score:.0%})")
-
-                except Exception as e:
-                    logger.debug(f"Sharp money detection failed for {match.match_id}: {e}")
-
-            # 7. KELLY CRITERION SIZING
-            kelly_recommendations = []
-            if p1_odds and p2_odds and value_bets:
-                try:
-                    model_probs = {"player1": p1_prob, "player2": p2_prob}
-                    odds_dict = {"player1": p1_odds, "player2": p2_odds}
-
-                    kelly_results = self.kelly_sizer.calculate_tennis_kelly(
-                        p1_prob=p1_prob,
-                        p2_prob=p2_prob,
-                        p1_odds=p1_odds,
-                        p2_odds=p2_odds,
-                        bankroll=100.0,  # Standard bankroll
-                        confidence=confidence,
-                    )
-
-                    kelly_recommendations = self.kelly_sizer.generate_stake_recommendations(
-                        kelly_results, 100.0, confidence
-                    )
-
-                except Exception as e:
-                    logger.debug(f"Kelly sizing failed for {match.match_id}: {e}")
-
-            # 8. Extract key factors (includes sharp money signals if detected)
+            # 4. Extract key factors (includes sharp money signals if detected)
             key_factors = self._extract_key_factors(features, match)
 
-            # Market metadata
-            market_metadata = {
-                "sharp_money": {
-                    "smart_money_side": sharp_signal.smart_money_side if sharp_signal else None,
-                    "steam_score": sharp_signal.steam_score if sharp_signal else 0.0,
-                    "reverse_line_movement": sharp_signal.reverse_line_movement if sharp_signal else False,
-                } if sharp_signal else None,
-                "kelly": {
-                    "total_stake": sum(r.stake_units for r in kelly_recommendations),
-                    "recommendations": [
-                        {"outcome": r.outcome, "stake_units": r.stake_units, "risk_level": r.risk_level}
-                        for r in kelly_recommendations
-                    ],
-                } if kelly_recommendations else None,
-                "real_time_odds_provider": real_time_odds.provider.value if real_time_odds else None,
-            }
+            # 5. Build market metadata
+            market_metadata = self._build_market_metadata(
+                sharp_signal, kelly_recommendations, real_time_odds
+            )
 
             return TennisPrediction(
                 p1_win_prob=p1_prob,
@@ -406,6 +283,203 @@ class TennisPredictionService:
         except Exception as e:
             logger.error(f"Prediction failed: {e}")
             return None
+
+    def _extract_features(self, match: TennisMatch) -> tuple[dict, list]:
+        """Extract features and feature names for a match."""
+        features = self.feature_extractor.extract_features(match)
+        feature_names = self.feature_extractor.get_feature_names()
+        return features, feature_names
+
+    def _get_predictions(self, x: list) -> tuple[float, float, float]:
+        """Get model predictions and calculate confidence."""
+        probs = self.model.predict_proba(x)[0]
+
+        if 1 in self.model.classes_:
+            p1_idx = list(self.model.classes_).index(1)
+            p1_prob = probs[p1_idx]
+            p2_prob = 1.0 - p1_prob
+        else:
+            p1_prob = probs[0]
+            p2_prob = probs[1]
+
+        confidence = abs(p1_prob - 0.5) * 2
+        return p1_prob, p2_prob, confidence
+
+    def _build_context(self, match: TennisMatch) -> tuple[dict, dict, dict]:
+        """Gather context from feature extractor."""
+        h2h = self._get_h2h_context(match)
+        surface_stats = self._get_surface_stats(match)
+        form = self._get_form_context(match)
+        return h2h, surface_stats, form
+
+    def _fetch_real_time_odds(
+        self, match: TennisMatch
+    ) -> tuple[Optional[float], Optional[float], Optional[OddsSnapshot]]:
+        """Fetch real-time odds if odds feed is configured."""
+        real_time_odds: Optional[OddsSnapshot] = None
+        p1_odds = match.p1_odds
+        p2_odds = match.p2_odds
+
+        if self.odds_feed and self.odds_feed.is_configured():
+            try:
+                import asyncio
+
+                async def fetch_odds():
+                    return await self.odds_feed.fetch_odds(
+                        sport="tennis",
+                        league=match.tournament_name or "unknown",
+                        match_id=match.match_id,
+                    )
+
+                try:
+                    asyncio.get_running_loop()
+                    import concurrent.futures
+                    with concurrent.futures.ThreadPoolExecutor() as executor:
+                        future = executor.submit(asyncio.run, fetch_odds())
+                        real_time_odds = future.result(timeout=10)
+                except RuntimeError:
+                    real_time_odds = asyncio.run(fetch_odds())
+
+                if real_time_odds:
+                    # Use real-time odds (more accurate for value bets)
+                    p1_odds = real_time_odds.odds.home
+                    p2_odds = real_time_odds.odds.away
+
+            except Exception as e:
+                logger.debug(
+                    f"Real-time odds fetch failed for {match.match_id}: {e}"
+                )
+
+        return p1_odds, p2_odds, real_time_odds
+
+    def _detect_sharp_money(
+        self, match: TennisMatch, p1_odds: Optional[float], p2_odds: Optional[float]
+    ) -> Optional[SharpMoneySignal]:
+        """Detect sharp money signals."""
+        sharp_signal: Optional[SharpMoneySignal] = None
+        has_opening = hasattr(match, "opening_odds") and match.opening_odds
+
+        if not (p1_odds and p2_odds and has_opening):
+            return None
+
+        try:
+            # Would need odds history - simplified with opening vs current
+            from datetime import timedelta
+
+            opening = match.opening_odds  # Should be Odds object
+            current_odds = type(
+                'Odds', (), {'home': p1_odds, 'draw': 1.0, 'away': p2_odds}
+            )()
+
+            odds_history = [
+                OddsSnapshot(
+                    provider=OddsProvider.PINNACLE,
+                    sport="tennis",
+                    league=match.tournament_name or "unknown",
+                    match_id=match.match_id,
+                    odds=opening,
+                    timestamp=(
+                        match.match_date - timedelta(days=7)
+                        if match.match_date
+                        else datetime.utcnow()
+                    ),
+                ),
+                OddsSnapshot(
+                    provider=OddsProvider.PINNACLE,
+                    sport="tennis",
+                    league=match.tournament_name or "unknown",
+                    match_id=match.match_id,
+                    odds=current_odds,
+                    timestamp=datetime.utcnow(),
+                ),
+            ]
+
+            sharp_signal = self.sharp_detector.analyze_line_movement(
+                opening_odds=opening,
+                current_odds=current_odds,
+                odds_history=odds_history,
+            )
+
+        except Exception as e:
+            logger.debug(
+                f"Sharp money detection failed for {match.match_id}: {e}"
+            )
+
+        return sharp_signal
+
+    def _calculate_kelly(
+        self,
+        p1_prob: float,
+        p2_prob: float,
+        p1_odds: Optional[float],
+        p2_odds: Optional[float],
+        value_bets: list,
+        confidence: float,
+    ) -> list:
+        """Calculate Kelly criterion sizing."""
+        kelly_recommendations = []
+
+        if not (p1_odds and p2_odds and value_bets):
+            return kelly_recommendations
+
+        try:
+            kelly_results = self.kelly_sizer.calculate_tennis_kelly(
+                p1_prob=p1_prob,
+                p2_prob=p2_prob,
+                p1_odds=p1_odds,
+                p2_odds=p2_odds,
+                bankroll=100.0,  # Standard bankroll
+                confidence=confidence,
+            )
+
+            kelly_recs = self.kelly_sizer.generate_stake_recommendations
+            kelly_recommendations = kelly_recs(
+                kelly_results, 100.0, confidence
+            )
+
+        except Exception as e:
+            logger.debug(
+                f"Kelly sizing failed: {e}"
+            )
+
+        return kelly_recommendations
+
+    def _build_market_metadata(
+        self,
+        sharp_signal: Optional[SharpMoneySignal],
+        kelly_recommendations: list,
+        real_time_odds: Optional[OddsSnapshot],
+    ) -> dict:
+        """Build market metadata for the prediction."""
+        return {
+            "sharp_money": {
+                "smart_money_side": (
+                    sharp_signal.smart_money_side if sharp_signal else None
+                ),
+                "steam_score": sharp_signal.steam_score if sharp_signal else 0.0,
+                "reverse_line_movement": (
+                    sharp_signal.reverse_line_movement if sharp_signal else False
+                ),
+            }
+            if sharp_signal
+            else None,
+            "kelly": {
+                "total_stake": sum(r.stake_units for r in kelly_recommendations),
+                "recommendations": [
+                    {
+                        "outcome": r.outcome,
+                        "stake_units": r.stake_units,
+                        "risk_level": r.risk_level,
+                    }
+                    for r in kelly_recommendations
+                ],
+            }
+            if kelly_recommendations
+            else None,
+            "real_time_odds_provider": (
+                real_time_odds.provider.value if real_time_odds else None
+            ),
+        }
 
     def _get_h2h_context(self, match: TennisMatch) -> dict:
         """Get head-to-head context."""
@@ -464,7 +538,8 @@ class TennisPredictionService:
         p1_odds: Optional[float] = None,
         p2_odds: Optional[float] = None,
     ) -> list:
-        """Calculate value bets by comparing model probability vs implied odds probability."""
+        """Calculate value bets by comparing model probability
+        vs implied odds probability."""
         value_bets = []
 
         # Use provided odds (real-time) or fall back to match odds
@@ -509,27 +584,44 @@ class TennisPredictionService:
         """Extract the most influential factors for the prediction."""
         factors = []
 
-        # Ranking advantage
+        factors.extend(self._get_rank_factor(features, match))
+        factors.extend(self._get_surface_factor(features, match))
+        factors.extend(self._get_form_factor(features, match))
+        factors.extend(self._get_h2h_factor(features, match))
+        factors.extend(self._get_serve_factor(features, match))
+
+        return factors[:5]
+
+    def _get_rank_factor(self, features: dict, match: TennisMatch) -> list:
+        """Extract ranking advantage factor."""
         rank_diff = features.get("rank_diff", 0)
         if abs(rank_diff) > 3:
             better = match.p1_name if rank_diff < 0 else match.p2_name
-            factors.append(
+            return [
                 f"{better} tiene mejor ranking por {abs(rank_diff)} posiciones"
-            )
+            ]
+        return []
 
-        # Surface dominance
+    def _get_surface_factor(self, features: dict, match: TennisMatch) -> list:
+        """Extract surface dominance factor."""
+        factors = []
         p1_surface = features.get("p1_surface_win_rate", 0.5)
         p2_surface = features.get("p2_surface_win_rate", 0.5)
         if p1_surface > 0.7:
             factors.append(
-                f"{match.p1_name} domina en {match.surface} ({p1_surface*100:.0f}% victorias)"
+                f"{match.p1_name} domina en {match.surface} "
+                f"({p1_surface*100:.0f}% victorias)"
             )
         if p2_surface > 0.7:
             factors.append(
-                f"{match.p2_name} domina en {match.surface} ({p2_surface*100:.0f}% victorias)"
+                f"{match.p2_name} domina en {match.surface} "
+                f"({p2_surface*100:.0f}% victorias)"
             )
+        return factors
 
-        # Recent form
+    def _get_form_factor(self, features: dict, match: TennisMatch) -> list:
+        """Extract recent form factor."""
+        factors = []
         p1_form = features.get("p1_win_rate_10", 0.5)
         p2_form = features.get("p2_win_rate_10", 0.5)
         if p1_form > 0.8:
@@ -540,21 +632,29 @@ class TennisPredictionService:
             factors.append(
                 f"{match.p2_name} en racha ({p2_form*100:.0f}% en últimos 10)"
             )
+        return factors
 
-        # H2H dominance
+    def _get_h2h_factor(self, features: dict, match: TennisMatch) -> list:
+        """Extract H2H dominance factor."""
+        factors = []
         h2h_total = features.get("h2h_total", 0)
         if h2h_total >= 3:
             h2h_p1 = features.get("h2h_p1_win_rate", 0.5)
             if h2h_p1 > 0.7:
                 factors.append(
-                    f"{match.p1_name} domina el H2H ({int(h2h_p1*h2h_total)}/{h2h_total})"
+                    f"{match.p1_name} domina el H2H "
+                    f"({int(h2h_p1*h2h_total)}/{h2h_total})"
                 )
             elif h2h_p1 < 0.3:
                 factors.append(
-                    f"{match.p2_name} domina el H2H ({int((1-h2h_p1)*h2h_total)}/{h2h_total})"
+                    f"{match.p2_name} domina el H2H "
+                    f"({int((1-h2h_p1)*h2h_total)}/{h2h_total})"
                 )
+        return factors
 
-        # First serve advantage
+    def _get_serve_factor(self, features: dict, match: TennisMatch) -> list:
+        """Extract first serve advantage factor."""
+        factors = []
         p1_serve = features.get("p1_first_serve_pct_10", 0)
         p2_serve = features.get("p2_first_serve_pct_10", 0)
         if p1_serve > 0.65:
@@ -565,8 +665,7 @@ class TennisPredictionService:
             factors.append(
                 f"{match.p2_name} tiene buen primer servicio ({p2_serve*100:.0f}%)"
             )
-
-        return factors[:5]
+        return factors
 
     def generate_tennis_markets(
         self, match: TennisMatch, p1_prob: float, p2_prob: float
@@ -578,18 +677,45 @@ class TennisPredictionService:
         markets = []
 
         # 1. MATCH WINNER (Money Line)
+        markets.extend(self._create_moneyline(match, p1_prob, p2_prob))
+
+        # 2. SET HANDICAP (based on best_of and probability)
+        markets.extend(self._create_set_handicap(match, p1_prob, p2_prob))
+
+        # 3. TOTAL SETS OVER/UNDER (2.5 for best of 3, 3.5 for best of 5)
+        markets.extend(self._create_sets_over_under(match, p1_prob, p2_prob))
+
+        # 4. FIRST SET WINNER
+        markets.extend(self._create_first_set_winner(match, p1_prob, p2_prob))
+
+        # 5. CORRECT SCORE (set score)
+        markets.extend(self._create_correct_score(match, p1_prob))
+
+        # 6. TOTAL GAMES OVER/UNDER (estimated)
+        markets.extend(self._create_games_over_under(match, p1_prob))
+
+        # Sort by priority (recommended first, then by probability)
+        markets.sort(key=lambda x: (-int(x["is_recommended"]), -x["probability"]))  # type: ignore[call-overload,operator]
+
+        return markets
+
+    def _create_moneyline(
+        self, match: TennisMatch, p1_prob: float, p2_prob: float
+    ) -> list:
+        """Create match winner (moneyline) markets."""
+        markets = []
+
         if p1_prob > p2_prob:
             markets.append(
                 {
                     "market_type": "match_winner",
                     "market_label": f"Gana {match.p1_name}",
                     "probability": round(p1_prob, 3),
-                    "confidence_level": (
-                        "high"
-                        if p1_prob > 0.65
-                        else "medium" if p1_prob > 0.55 else "low"
+                    "confidence_level": self._get_confidence_level(p1_prob),
+                    "reasoning": (
+                        f"{match.p1_name} tiene {p1_prob*100:.1f}% "
+                        f"de probabilidad de victoria"
                     ),
-                    "reasoning": f"{match.p1_name} tiene {p1_prob*100:.1f}% de probabilidad de victoria",
                     "risk_level": round((1 - p1_prob) * 10, 1),
                     "is_recommended": p1_prob > 0.6,
                     "priority_score": round(p1_prob * 100, 1),
@@ -602,22 +728,24 @@ class TennisPredictionService:
                     "market_type": "match_winner",
                     "market_label": f"Gana {match.p2_name}",
                     "probability": round(p2_prob, 3),
-                    "confidence_level": (
-                        "high"
-                        if p2_prob > 0.65
-                        else "medium" if p2_prob > 0.55 else "low"
+                    "confidence_level": self._get_confidence_level(p2_prob),
+                    "reasoning": (
+                        f"{match.p2_name} tiene {p2_prob*100:.1f}% "
+                        f"de probabilidad de victoria"
                     ),
-                    "reasoning": f"{match.p2_name} tiene {p2_prob*100:.1f}% de probabilidad de victoria",
                     "risk_level": round((1 - p2_prob) * 10, 1),
                     "is_recommended": p2_prob > 0.6,
                     "priority_score": round(p2_prob * 100, 1),
                     "pick_code": "ML2",
                 }
             )
+        return markets
 
-        # 2. SET HANDICAP (based on best_of and probability)
-        handicap = -1.5 if match.best_of == 5 else -1.5
-        # Probability of winning by 2+ sets
+    def _create_set_handicap(
+        self, match: TennisMatch, p1_prob: float, p2_prob: float
+    ) -> list:
+        """Create set handicap markets."""
+        markets = []
         p1_handicap_prob = self._estimate_handicap_prob(p1_prob, match.best_of)
         p2_handicap_prob = self._estimate_handicap_prob(p2_prob, match.best_of)
 
@@ -628,7 +756,10 @@ class TennisPredictionService:
                     "market_label": f"{match.p1_name} -1.5 sets",
                     "probability": round(p1_handicap_prob, 3),
                     "confidence_level": "high" if p1_handicap_prob > 0.5 else "medium",
-                    "reasoning": f"{match.p1_name} ganaría por 2+ sets con probabilidad {p1_handicap_prob*100:.1f}%",
+                    "reasoning": (
+                        f"{match.p1_name} ganaría por 2+ sets con "
+                        f"probabilidad {p1_handicap_prob*100:.1f}%"
+                    ),
                     "risk_level": round((1 - p1_handicap_prob) * 10, 1),
                     "is_recommended": p1_handicap_prob > 0.5,
                     "priority_score": round(p1_handicap_prob * 100, 1),
@@ -642,17 +773,24 @@ class TennisPredictionService:
                     "market_label": f"{match.p2_name} -1.5 sets",
                     "probability": round(p2_handicap_prob, 3),
                     "confidence_level": "high" if p2_handicap_prob > 0.5 else "medium",
-                    "reasoning": f"{match.p2_name} ganaría por 2+ sets con probabilidad {p2_handicap_prob*100:.1f}%",
+                    "reasoning": (
+                        f"{match.p2_name} ganaría por 2+ sets con "
+                        f"probabilidad {p2_handicap_prob*100:.1f}%"
+                    ),
                     "risk_level": round((1 - p2_handicap_prob) * 10, 1),
                     "is_recommended": p2_handicap_prob > 0.5,
                     "priority_score": round(p2_handicap_prob * 100, 1),
                     "pick_code": "SH2",
                 }
             )
+        return markets
 
-        # 3. TOTAL SETS OVER/UNDER (2.5 for best of 3, 3.5 for best of 5)
+    def _create_sets_over_under(
+        self, match: TennisMatch, p1_prob: float, p2_prob: float
+    ) -> list:
+        """Create total sets over/under markets."""
+        markets = []
         threshold = 3.5 if match.best_of == 5 else 2.5
-        # Higher prob match = fewer sets likely
         over_prob = self._estimate_sets_over_prob(p1_prob, p2_prob, threshold)
         under_prob = 1 - over_prob
 
@@ -661,12 +799,11 @@ class TennisPredictionService:
                 "market_type": "total_sets_over",
                 "market_label": f"Más de {threshold} sets",
                 "probability": round(over_prob, 3),
-                "confidence_level": (
-                    "high"
-                    if over_prob > 0.6
-                    else "medium" if over_prob > 0.5 else "low"
+                "confidence_level": self._get_confidence_level(over_prob),
+                "reasoning": (
+                    f"Se esperan más de {threshold} sets con "
+                    f"probabilidad {over_prob*100:.1f}%"
                 ),
-                "reasoning": f"Se esperan más de {threshold} sets con probabilidad {over_prob*100:.1f}%",
                 "risk_level": round((1 - over_prob) * 10, 1),
                 "is_recommended": over_prob > 0.55,
                 "priority_score": round(over_prob * 100, 1),
@@ -678,23 +815,28 @@ class TennisPredictionService:
                 "market_type": "total_sets_under",
                 "market_label": f"Menos de {threshold} sets",
                 "probability": round(under_prob, 3),
-                "confidence_level": (
-                    "high"
-                    if under_prob > 0.6
-                    else "medium" if under_prob > 0.5 else "low"
+                "confidence_level": self._get_confidence_level(under_prob),
+                "reasoning": (
+                    f"Se esperan menos de {threshold} sets con "
+                    f"probabilidad {under_prob*100:.1f}%"
                 ),
-                "reasoning": f"Se esperan menos de {threshold} sets con probabilidad {under_prob*100:.1f}%",
                 "risk_level": round((1 - under_prob) * 10, 1),
                 "is_recommended": under_prob > 0.55,
                 "priority_score": round(under_prob * 100, 1),
                 "pick_code": f"U{threshold}",
             }
         )
+        return markets
 
-        # 4. FIRST SET WINNER
+    def _create_first_set_winner(
+        self, match: TennisMatch, p1_prob: float, p2_prob: float
+    ) -> list:
+        """Create first set winner markets."""
+        markets = []
         # Slightly different from match winner - closer to 50/50
         p1_first_set = 0.5 + (p1_prob - 0.5) * 0.7  # Dampened
         p2_first_set = 1 - p1_first_set
+
         if p1_first_set > 0.55:
             markets.append(
                 {
@@ -702,7 +844,10 @@ class TennisPredictionService:
                     "market_label": f"{match.p1_name} gana primer set",
                     "probability": round(p1_first_set, 3),
                     "confidence_level": "medium",
-                    "reasoning": f"{match.p1_name} tiene {p1_first_set*100:.1f}% de probabilidad de ganar el primer set",
+                    "reasoning": (
+                        f"{match.p1_name} tiene {p1_first_set*100:.1f}% "
+                        f"de probabilidad de ganar el primer set"
+                    ),
                     "risk_level": round((1 - p1_first_set) * 10, 1),
                     "is_recommended": p1_first_set > 0.6,
                     "priority_score": round(p1_first_set * 100, 1),
@@ -716,90 +861,88 @@ class TennisPredictionService:
                     "market_label": f"{match.p2_name} gana primer set",
                     "probability": round(p2_first_set, 3),
                     "confidence_level": "medium",
-                    "reasoning": f"{match.p2_name} tiene {p2_first_set*100:.1f}% de probabilidad de ganar el primer set",
+                    "reasoning": (
+                        f"{match.p2_name} tiene {p2_first_set*100:.1f}% "
+                        f"de probabilidad de ganar el primer set"
+                    ),
                     "risk_level": round((1 - p2_first_set) * 10, 1),
                     "is_recommended": p2_first_set > 0.6,
                     "priority_score": round(p2_first_set * 100, 1),
                     "pick_code": "FS2",
                 }
             )
+        return markets
 
-        # 5. CORRECT SCORE (set score)
-        if match.best_of == 5:
-            # 3-0, 3-1, 3-2
-            scores = self._estimate_set_scores(p1_prob, 5)
-            for score, prob in scores.items():
-                if prob > 0.1:
-                    markets.append(
-                        {
-                            "market_type": "correct_score",
-                            "market_label": f"Resultado final: {score}",
-                            "probability": round(prob, 3),
-                            "confidence_level": "low",
-                            "reasoning": f"Probabilidad de resultado {score}: {prob*100:.1f}%",
-                            "risk_level": round((1 - prob) * 10, 1),
-                            "is_recommended": prob > 0.25,
-                            "priority_score": round(prob * 100, 1),
-                            "pick_code": f"CS_{score.replace('-', '')}",
-                        }
-                    )
-        else:
-            # 2-0, 2-1
-            scores = self._estimate_set_scores(p1_prob, 3)
-            for score, prob in scores.items():
-                if prob > 0.1:
-                    markets.append(
-                        {
-                            "market_type": "correct_score",
-                            "market_label": f"Resultado final: {score}",
-                            "probability": round(prob, 3),
-                            "confidence_level": "low",
-                            "reasoning": f"Probabilidad de resultado {score}: {prob*100:.1f}%",
-                            "risk_level": round((1 - prob) * 10, 1),
-                            "is_recommended": prob > 0.25,
-                            "priority_score": round(prob * 100, 1),
-                            "pick_code": f"CS_{score.replace('-', '')}",
-                        }
-                    )
+    def _create_correct_score(
+        self, match: TennisMatch, p1_prob: float
+    ) -> list:
+        """Create correct score markets."""
+        markets = []
+        best_of = match.best_of
+        scores = self._estimate_set_scores(p1_prob, best_of)
 
-        # 6. TOTAL GAMES OVER/UNDER (estimated)
-        total_games_est = self._estimate_total_games(p1_prob, match.best_of)
+        for score, prob in scores.items():
+            if prob > 0.1:
+                markets.append(
+                    {
+                        "market_type": "correct_score",
+                        "market_label": f"Resultado final: {score}",
+                        "probability": round(prob, 3),
+                        "confidence_level": "low",
+                        "reasoning": (
+                            f"Probabilidad de resultado {score}: {prob*100:.1f}%"
+                        ),
+                        "risk_level": round((1 - prob) * 10, 1),
+                        "is_recommended": prob > 0.25,
+                        "priority_score": round(prob * 100, 1),
+                        "pick_code": f"CS_{score.replace('-', '')}",
+                    }
+                )
+        return markets
+
+    def _create_games_over_under(
+        self, match: TennisMatch, p1_prob: float
+    ) -> list:
+        """Create total games over/under markets."""
+        markets = []
         for threshold in [19.5, 21.5, 23.5]:
             if match.best_of == 3 and threshold <= 21.5:
-                over_prob = self._games_over_prob(p1_prob, threshold)
                 markets.append(
-                    {
-                        "market_type": "total_games_over",
-                        "market_label": f"Más de {threshold} juegos",
-                        "probability": round(over_prob, 3),
-                        "confidence_level": "medium",
-                        "reasoning": f"Estimación de más de {threshold} juegos: {over_prob*100:.1f}%",
-                        "risk_level": round((1 - over_prob) * 10, 1),
-                        "is_recommended": over_prob > 0.55,
-                        "priority_score": round(over_prob * 100, 1),
-                        "pick_code": f"TG{int(threshold)}",
-                    }
+                    self._create_game_market(match, p1_prob, threshold)
                 )
             elif match.best_of == 5 and threshold >= 21.5:
-                over_prob = self._games_over_prob(p1_prob, threshold)
                 markets.append(
-                    {
-                        "market_type": "total_games_over",
-                        "market_label": f"Más de {threshold} juegos",
-                        "probability": round(over_prob, 3),
-                        "confidence_level": "medium",
-                        "reasoning": f"Estimación de más de {threshold} juegos: {over_prob*100:.1f}%",
-                        "risk_level": round((1 - over_prob) * 10, 1),
-                        "is_recommended": over_prob > 0.55,
-                        "priority_score": round(over_prob * 100, 1),
-                        "pick_code": f"TG{int(threshold)}",
-                    }
+                    self._create_game_market(match, p1_prob, threshold)
                 )
-
-        # Sort by priority (recommended first, then by probability)
-        markets.sort(key=lambda x: (-int(x["is_recommended"]), -x["probability"]))  # type: ignore[call-overload,operator]
-
         return markets
+
+    def _create_game_market(
+        self, match: TennisMatch, p1_prob: float, threshold: float
+    ) -> dict:
+        """Create a single total games over market."""
+        over_prob = self._games_over_prob(p1_prob, threshold)
+        reasoning = (
+            f"Estimación de más de {threshold} juegos: {over_prob*100:.1f}%"
+        )
+        return {
+            "market_type": "total_games_over",
+            "market_label": f"Más de {threshold} juegos",
+            "probability": round(over_prob, 3),
+            "confidence_level": "medium",
+            "reasoning": reasoning,
+            "risk_level": round((1 - over_prob) * 10, 1),
+            "is_recommended": over_prob > 0.55,
+            "priority_score": round(over_prob * 100, 1),
+            "pick_code": f"TG{int(threshold)}",
+        }
+
+    def _get_confidence_level(self, prob: float) -> str:
+        """Get confidence level based on probability."""
+        if prob > 0.6:
+            return "high"
+        elif prob > 0.5:
+            return "medium"
+        return "low"
 
     def _estimate_handicap_prob(self, win_prob: float, best_of: int) -> float:
         """Estimate probability of winning by 2+ sets."""

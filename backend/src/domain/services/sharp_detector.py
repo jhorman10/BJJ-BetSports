@@ -11,12 +11,9 @@ Detects professional/smart money activity in betting markets:
 from __future__ import annotations
 
 import logging
-import math
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any, Optional
-
-import numpy as np
 
 from src.domain.value_objects.value_objects import Odds
 from src.infrastructure.odds_feed import OddsSnapshot, OddsProvider
@@ -220,58 +217,66 @@ class SharpMoneyDetector:
         for i in range(1, len(sorted_history)):
             prev = sorted_history[i - 1]
             curr = sorted_history[i]
-
             time_diff = (curr.timestamp - prev.timestamp).total_seconds() / 60
 
-            # Only consider moves within the steam time window
             if time_diff > self.steam_window_minutes:
                 continue
 
-            # Calculate movement for each outcome
-            for outcome in ["home", "draw", "away"]:
-                prev_odds = getattr(prev.odds, outcome)
-                curr_odds = getattr(curr.odds, outcome)
+            moves = self._calculate_outcome_movements(prev, curr, time_diff)
+            steam_moves.extend(moves)
 
-                if prev_odds <= 0:
-                    continue
-
-                movement_pct = abs(curr_odds - prev_odds) / prev_odds
-
-                if movement_pct >= self.min_movement_pct:
-                    volume = curr.volume or 0
-
-                    # Volume confirmation (prefer exchange volume)
-                    volume_confirmed = volume >= self.min_volume
-
-                    # Confidence based on volume and speed
-                    confidence = 0.5
-                    if volume_confirmed:
-                        confidence += 0.3
-                    if time_diff <= 15:  # Very fast move
-                        confidence += 0.2
-
-                    # Provider reliability weight
-                    if curr.provider == OddsProvider.BETFAIR:
-                        confidence += 0.1  # Exchange prices most reliable
-                    elif curr.provider == OddsProvider.PINNACLE:
-                        confidence += 0.05
-
-                    steam_moves.append(
-                        SteamMove(
-                            outcome=outcome,
-                            movement_pct=movement_pct,
-                            volume=volume,
-                            time_window_minutes=int(time_diff),
-                            timestamp=curr.timestamp,
-                            provider=curr.provider,
-                            confidence=min(confidence, 1.0),
-                        )
-                    )
-
-        # Sort by confidence and movement
         steam_moves.sort(key=lambda s: (s.confidence, s.movement_pct), reverse=True)
-
         return steam_moves
+
+    def _calculate_outcome_movements(
+        self, prev: OddsSnapshot, curr: OddsSnapshot, time_diff: float
+    ) -> list[SteamMove]:
+        """Calculate movements for each outcome and create SteamMove objects."""
+        steam_moves = []
+        for outcome in ["home", "draw", "away"]:
+            prev_odds = getattr(prev.odds, outcome)
+            curr_odds = getattr(curr.odds, outcome)
+
+            if prev_odds <= 0:
+                continue
+
+            movement_pct = abs(curr_odds - prev_odds) / prev_odds
+            if movement_pct < self.min_movement_pct:
+                continue
+
+            volume = curr.volume or 0
+            confidence = self._calculate_steam_confidence(
+                volume, time_diff, curr.provider
+            )
+
+            steam_moves.append(
+                SteamMove(
+                    outcome=outcome,
+                    movement_pct=movement_pct,
+                    volume=volume,
+                    time_window_minutes=int(time_diff),
+                    timestamp=curr.timestamp,
+                    provider=curr.provider,
+                    confidence=min(confidence, 1.0),
+                )
+            )
+        return steam_moves
+
+    def _calculate_steam_confidence(
+        self, volume: float, time_diff: float, provider: OddsProvider
+    ) -> float:
+        """Calculate confidence for a steam move."""
+        volume_confirmed = volume >= self.min_volume
+        confidence = 0.5
+        if volume_confirmed:
+            confidence += 0.3
+        if time_diff <= 15:
+            confidence += 0.2
+        if provider == OddsProvider.BETFAIR:
+            confidence += 0.1
+        elif provider == OddsProvider.PINNACLE:
+            confidence += 0.05
+        return confidence
 
     def _detect_reverse_line_movement(
         self,
@@ -335,7 +340,29 @@ class SharpMoneyDetector:
 
         movements = self._calculate_movements(opening, closing)
 
-        # Signal 1: Biggest line movement (sharp books move lines)
+        sharp_movements = self._calculate_sharp_book_movements(
+            sorted_history, opening
+        )
+        volume_movements = self._calculate_volume_movements(
+            sorted_history, opening
+        )
+        rlm_side = self._calculate_rlm_side(
+            movements, sharp_movements, public_percentages
+        )
+
+        scores = self._combine_smart_money_signals(
+            sharp_movements, volume_movements, rlm_side
+        )
+
+        smart_side = min(scores, key=scores.get)
+        if scores[smart_side] < -0.1:
+            return smart_side
+        return None
+
+    def _calculate_sharp_book_movements(
+        self, sorted_history: list[OddsSnapshot], opening: Odds
+    ) -> dict[str, float]:
+        """Calculate average movements from sharp bookmakers."""
         sharp_books = [OddsProvider.PINNACLE, OddsProvider.BETFAIR]
         sharp_movements = {k: 0.0 for k in ["home", "draw", "away"]}
         sharp_count = 0
@@ -352,12 +379,18 @@ class SharpMoneyDetector:
         if sharp_count > 0:
             for k in sharp_movements:
                 sharp_movements[k] /= sharp_count
+        return sharp_movements
 
-        # Signal 2: Volume-weighted movement (exchange volume)
+    def _calculate_volume_movements(
+        self, sorted_history: list[OddsSnapshot], opening: Odds
+    ) -> dict[str, float]:
+        """Calculate volume-weighted movements from Betfair."""
         volume_movements = {k: 0.0 for k in ["home", "draw", "away"]}
         total_vol = 0.0
 
-        betfair_snapshots = [s for s in sorted_history if s.provider == OddsProvider.BETFAIR]
+        betfair_snapshots = [
+            s for s in sorted_history if s.provider == OddsProvider.BETFAIR
+        ]
         if betfair_snapshots:
             for s in betfair_snapshots:
                 vol = s.volume or 0
@@ -371,48 +404,55 @@ class SharpMoneyDetector:
             if total_vol > 0:
                 for k in volume_movements:
                     volume_movements[k] /= total_vol
+        return volume_movements
 
-        # Signal 3: Reverse line movement vs public
-        rlm_side = None
-        if public_percentages:
-            public_fav = max(public_percentages, key=public_percentages.get)
-            if public_percentages[public_fav] > self.RLM_PUBLIC_THRESHOLD:
-                fav_movement = movements.get(public_fav, 0)
-                if fav_movement > 0.005:  # Line moved against public
-                    # Smart money is on the OTHER side(s)
-                    other_sides = [s for s in ["home", "draw", "away"] if s != public_fav]
-                    # Pick the one with biggest sharp movement
-                    rlm_side = max(other_sides, key=lambda s: sharp_movements.get(s, 0))
+    def _calculate_rlm_side(
+        self,
+        movements: dict[str, float],
+        sharp_movements: dict[str, float],
+        public_percentages: Optional[dict[str, float]],
+    ) -> Optional[str]:
+        """Calculate RLM side if applicable."""
+        if not public_percentages:
+            return None
 
-        # Combine signals with weights
+        public_fav = max(public_percentages, key=public_percentages.get)
+        if public_percentages[public_fav] <= self.RLM_PUBLIC_THRESHOLD:
+            return None
+
+        fav_movement = movements.get(public_fav, 0)
+        if fav_movement <= 0.005:
+            return None
+
+        other_sides = [s for s in ["home", "draw", "away"] if s != public_fav]
+        return max(other_sides, key=lambda s: sharp_movements.get(s, 0))
+
+    def _combine_smart_money_signals(
+        self,
+        sharp_movements: dict[str, float],
+        volume_movements: dict[str, float],
+        rlm_side: Optional[str],
+    ) -> dict[str, float]:
+        """Combine smart money signals with weights."""
         scores = {k: 0.0 for k in ["home", "draw", "away"]}
 
         # Weight 1: Sharp book movement (40%)
         max_sharp = max(abs(v) for v in sharp_movements.values())
         if max_sharp > 0:
             for k, v in sharp_movements.items():
-                # Negative movement (v < 0) = odds shortened = money came in = negative score
                 scores[k] -= (abs(v) / max_sharp) * 0.4 * (1 if v < 0 else -1)
 
         # Weight 2: Volume-weighted movement (30%)
         max_vol = max(abs(v) for v in volume_movements.values())
         if max_vol > 0:
             for k, v in volume_movements.items():
-                # Negative movement (v < 0) = odds shortened = money came in = negative score
                 scores[k] -= (abs(v) / max_vol) * 0.3 * (1 if v < 0 else -1)
 
         # Weight 3: RLM signal (30%)
         if rlm_side:
-            scores[rlm_side] -= 0.3  # RLM indicates smart money on this side
+            scores[rlm_side] -= 0.3
 
-        # Smart money side = outcome with most negative score (odds shortened = money came in)
-        smart_side = min(scores, key=scores.get)
-
-        # Only return if signal is strong enough
-        if scores[smart_side] < -0.1:
-            return smart_side
-
-        return None
+        return scores
 
     def _calculate_confidence(
         self,
@@ -487,7 +527,8 @@ class SharpMoneyDetector:
         """
         Get human-readable movement direction for each outcome.
 
-        Returns dict like: {'home': 'shortened', 'draw': 'lengthened', 'away': 'unchanged'}
+        Returns dict like:
+        {'home': 'shortened', 'draw': 'lengthened', 'away': 'unchanged'}
         """
         directions = {}
         for outcome in ["home", "draw", "away"]:

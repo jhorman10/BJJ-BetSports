@@ -8,7 +8,7 @@ from src.domain.entities.baseball_game import BaseballGame
 from src.domain.services.baseball_feature_extractor import BaseballFeatureExtractor
 from src.domain.services.sharp_detector import SharpMoneyDetector, SharpMoneySignal
 from src.domain.services.kelly_sizer import KellySizer
-from src.infrastructure.odds_feed import OddsFeed, OddsSnapshot, OddsProvider
+from src.infrastructure.odds_feed import OddsFeed, OddsSnapshot
 
 logger = logging.getLogger(__name__)
 
@@ -100,8 +100,8 @@ class BaseballPredictionService:
         self, features: dict, feature_names: list, game: BaseballGame
     ) -> Optional[BaseballPrediction]:
         """Use ML model for prediction with Phase 3 market alignment."""
-        X = [[features[f] for f in feature_names]]
-        probs = self.model.predict_proba(X)[0]
+        x = [[features[f] for f in feature_names]]
+        probs = self.model.predict_proba(x)[0]
 
         if 1 in self.model.classes_:
             home_idx = list(self.model.classes_).index(1)
@@ -118,126 +118,36 @@ class BaseballPredictionService:
         # ============================================================
 
         # 5. REAL-TIME ODDS FETCH
-        real_time_odds: Optional[OddsSnapshot] = None
+        real_time_odds = self._fetch_real_time_odds(game, "baseball", "MLB")
         home_odds = game.home_odds
         away_odds = game.away_odds
 
-        if self.odds_feed and self.odds_feed.is_configured():
-            try:
-                import asyncio
-
-                async def fetch_odds():
-                    return await self.odds_feed.fetch_odds(
-                        sport="baseball",
-                        league=game.league or "MLB",
-                        match_id=game.game_id,
-                    )
-
-                try:
-                    loop = asyncio.get_running_loop()
-                    import concurrent.futures
-                    with concurrent.futures.ThreadPoolExecutor() as executor:
-                        future = executor.submit(asyncio.run, fetch_odds())
-                        real_time_odds = future.result(timeout=10)
-                except RuntimeError:
-                    real_time_odds = asyncio.run(fetch_odds())
-
-                if real_time_odds:
-                    home_odds = real_time_odds.odds.home
-                    away_odds = real_time_odds.odds.away
-
-            except Exception as e:
-                logger.debug(f"Real-time odds fetch failed for {game.game_id}: {e}")
+        if real_time_odds:
+            home_odds = real_time_odds.odds.home
+            away_odds = real_time_odds.odds.away
 
         # Calculate value bets with real-time odds
-        value_bets = self._calculate_value_bets(game, home_prob, away_prob, home_odds, away_odds)
+        value_bets = self._calculate_value_bets(
+            game, home_prob, away_prob, home_odds, away_odds
+        )
 
         # 6. SHARP MONEY DETECTION
-        sharp_signal: Optional[SharpMoneySignal] = None
-        if home_odds and away_odds and hasattr(game, "opening_odds") and game.opening_odds:
-            try:
-                from src.infrastructure.odds_feed import OddsSnapshot, OddsProvider
-                from datetime import timedelta
-
-                opening = game.opening_odds
-                current_odds = type('Odds', (), {'home': home_odds, 'draw': 1.0, 'away': away_odds})()
-
-                odds_history = [
-                    OddsSnapshot(
-                        provider=OddsProvider.PINNACLE,
-                        sport="baseball",
-                        league=game.league or "MLB",
-                        match_id=game.game_id,
-                        odds=opening,
-                        timestamp=game.date - timedelta(days=7) if game.date else datetime.utcnow(),
-                    ),
-                    OddsSnapshot(
-                        provider=OddsProvider.PINNACLE,
-                        sport="baseball",
-                        league=game.league or "MLB",
-                        match_id=game.game_id,
-                        odds=current_odds,
-                        timestamp=datetime.utcnow(),
-                    ),
-                ]
-
-                sharp_signal = self.sharp_detector.analyze_line_movement(
-                    opening_odds=opening,
-                    current_odds=current_odds,
-                    odds_history=odds_history,
-                )
-
-                # Add sharp money signals to key_factors
-                if sharp_signal and sharp_signal.confidence > 0.5:
-                    if sharp_signal.reverse_line_movement:
-                        key_factors = self._extract_key_factors(features, game)
-                        key_factors.append("⚠️ Reverse Line Movement detected")
-                    if sharp_signal.smart_money_side:
-                        side_name = game.home_team if sharp_signal.smart_money_side == "home" else game.away_team
-                        key_factors.append(f"💰 Sharp money on {side_name} (score: {sharp_signal.steam_score:.0%})")
-
-            except Exception as e:
-                logger.debug(f"Sharp money detection failed for {game.game_id}: {e}")
+        sharp_signal = self._detect_sharp_money(
+            game, home_odds, away_odds
+        )
 
         # 7. KELLY CRITERION SIZING
-        kelly_recommendations = []
-        if home_odds and away_odds and value_bets:
-            try:
-                kelly_results = self.kelly_sizer.calculate_baseball_kelly(
-                    home_prob=home_prob,
-                    away_prob=away_prob,
-                    home_odds=home_odds,
-                    away_odds=away_odds,
-                    bankroll=100.0,
-                    confidence=confidence,
-                )
-
-                kelly_recommendations = self.kelly_sizer.generate_stake_recommendations(
-                    kelly_results, 100.0, confidence
-                )
-
-            except Exception as e:
-                logger.debug(f"Kelly sizing failed for {game.game_id}: {e}")
+        kelly_recommendations = self._calculate_kelly_recommendations(
+            home_prob, away_prob, home_odds, away_odds, confidence, value_bets
+        )
 
         # Extract key factors
         key_factors = self._extract_key_factors(features, game)
 
         # Market metadata
-        market_metadata = {
-            "sharp_money": {
-                "smart_money_side": sharp_signal.smart_money_side if sharp_signal else None,
-                "steam_score": sharp_signal.steam_score if sharp_signal else 0.0,
-                "reverse_line_movement": sharp_signal.reverse_line_movement if sharp_signal else False,
-            } if sharp_signal else None,
-            "kelly": {
-                "total_stake": sum(r.stake_units for r in kelly_recommendations),
-                "recommendations": [
-                    {"outcome": r.outcome, "stake_units": r.stake_units, "risk_level": r.risk_level}
-                    for r in kelly_recommendations
-                ],
-            } if kelly_recommendations else None,
-            "real_time_odds_provider": real_time_odds.provider.value if real_time_odds else None,
-        }
+        market_metadata = self._build_market_metadata(
+            sharp_signal, kelly_recommendations, real_time_odds
+        )
 
         return BaseballPrediction(
             home_win_prob=home_prob,
@@ -290,97 +200,26 @@ class BaseballPredictionService:
         # ============================================================
 
         # REAL-TIME ODDS FETCH
-        real_time_odds: Optional[OddsSnapshot] = None
+        real_time_odds = self._fetch_real_time_odds(game, "baseball", "MLB")
         home_odds = game.home_odds
         away_odds = game.away_odds
 
-        if self.odds_feed and self.odds_feed.is_configured():
-            try:
-                import asyncio
-
-                async def fetch_odds():
-                    return await self.odds_feed.fetch_odds(
-                        sport="baseball",
-                        league=game.league or "MLB",
-                        match_id=game.game_id,
-                    )
-
-                try:
-                    loop = asyncio.get_running_loop()
-                    import concurrent.futures
-                    with concurrent.futures.ThreadPoolExecutor() as executor:
-                        future = executor.submit(asyncio.run, fetch_odds())
-                        real_time_odds = future.result(timeout=10)
-                except RuntimeError:
-                    real_time_odds = asyncio.run(fetch_odds())
-
-                if real_time_odds:
-                    home_odds = real_time_odds.odds.home
-                    away_odds = real_time_odds.odds.away
-
-            except Exception as e:
-                logger.debug(f"Real-time odds fetch failed for {game.game_id}: {e}")
+        if real_time_odds:
+            home_odds = real_time_odds.odds.home
+            away_odds = real_time_odds.odds.away
 
         # Calculate value bets with real-time odds
-        value_bets = self._calculate_value_bets(game, home_prob, away_prob, home_odds, away_odds)
+        value_bets = self._calculate_value_bets(
+            game, home_prob, away_prob, home_odds, away_odds
+        )
 
         # SHARP MONEY DETECTION (simplified for rule-based)
-        sharp_signal: Optional[SharpMoneySignal] = None
-        if home_odds and away_odds and hasattr(game, "opening_odds") and game.opening_odds:
-            try:
-                from src.infrastructure.odds_feed import OddsSnapshot, OddsProvider
-                from datetime import timedelta
-
-                opening = game.opening_odds
-                current_odds = type('Odds', (), {'home': home_odds, 'draw': 1.0, 'away': away_odds})()
-
-                odds_history = [
-                    OddsSnapshot(
-                        provider=OddsProvider.PINNACLE,
-                        sport="baseball",
-                        league=game.league or "MLB",
-                        match_id=game.game_id,
-                        odds=opening,
-                        timestamp=game.date - timedelta(days=7) if game.date else datetime.utcnow(),
-                    ),
-                    OddsSnapshot(
-                        provider=OddsProvider.PINNACLE,
-                        sport="baseball",
-                        league=game.league or "MLB",
-                        match_id=game.game_id,
-                        odds=current_odds,
-                        timestamp=datetime.utcnow(),
-                    ),
-                ]
-
-                sharp_signal = self.sharp_detector.analyze_line_movement(
-                    opening_odds=opening,
-                    current_odds=current_odds,
-                    odds_history=odds_history,
-                )
-
-            except Exception as e:
-                logger.debug(f"Sharp money detection failed for {game.game_id}: {e}")
+        sharp_signal = self._detect_sharp_money(game, home_odds, away_odds)
 
         # KELLY CRITERION SIZING
-        kelly_recommendations = []
-        if home_odds and away_odds and value_bets:
-            try:
-                kelly_results = self.kelly_sizer.calculate_baseball_kelly(
-                    home_prob=home_prob,
-                    away_prob=away_prob,
-                    home_odds=home_odds,
-                    away_odds=away_odds,
-                    bankroll=100.0,
-                    confidence=confidence,
-                )
-
-                kelly_recommendations = self.kelly_sizer.generate_stake_recommendations(
-                    kelly_results, 100.0, confidence
-                )
-
-            except Exception as e:
-                logger.debug(f"Kelly sizing failed for {game.game_id}: {e}")
+        kelly_recommendations = self._calculate_kelly_recommendations(
+            home_prob, away_prob, home_odds, away_odds, confidence, value_bets
+        )
 
         # Extract key factors
         key_factors = self._extract_key_factors(features, game)
@@ -390,25 +229,20 @@ class BaseballPredictionService:
             if sharp_signal.reverse_line_movement:
                 key_factors.append("⚠️ Reverse Line Movement detected")
             if sharp_signal.smart_money_side:
-                side_name = game.home_team if sharp_signal.smart_money_side == "home" else game.away_team
-                key_factors.append(f"💰 Sharp money on {side_name} (score: {sharp_signal.steam_score:.0%})")
+                side_name = (
+                    game.home_team
+                    if sharp_signal.smart_money_side == "home"
+                    else game.away_team
+                )
+                key_factors.append(
+                    f"💰 Sharp money on {side_name} "
+                    f"(score: {sharp_signal.steam_score:.0%})"
+                )
 
         # Market metadata
-        market_metadata = {
-            "sharp_money": {
-                "smart_money_side": sharp_signal.smart_money_side if sharp_signal else None,
-                "steam_score": sharp_signal.steam_score if sharp_signal else 0.0,
-                "reverse_line_movement": sharp_signal.reverse_line_movement if sharp_signal else False,
-            } if sharp_signal else None,
-            "kelly": {
-                "total_stake": sum(r.stake_units for r in kelly_recommendations),
-                "recommendations": [
-                    {"outcome": r.outcome, "stake_units": r.stake_units, "risk_level": r.risk_level}
-                    for r in kelly_recommendations
-                ],
-            } if kelly_recommendations else None,
-            "real_time_odds_provider": real_time_odds.provider.value if real_time_odds else None,
-        }
+        market_metadata = self._build_market_metadata(
+            sharp_signal, kelly_recommendations, real_time_odds
+        )
 
         return BaseballPrediction(
             home_win_prob=home_prob,
@@ -470,12 +304,19 @@ class BaseballPredictionService:
         home_odds: Optional[float] = None,
         away_odds: Optional[float] = None,
     ) -> list:
-        """Calculate value bets by comparing model probability vs implied odds probability."""
+        """Calculate value bets by comparing model probability vs implied odds.
+
+        Returns list of value bet dicts with team, odds, implied prob, model prob, edge.
+        """
         value_bets = []
 
         # Use provided odds (real-time) or fall back to game odds
-        odds_home = home_odds if home_odds is not None else game.home_odds
-        odds_away = away_odds if away_odds is not None else game.away_odds
+        odds_home = (
+            home_odds if home_odds is not None else game.home_odds
+        )
+        odds_away = (
+            away_odds if away_odds is not None else game.away_odds
+        )
 
         if odds_home and odds_away:
             implied_home = 1.0 / odds_home
@@ -535,11 +376,13 @@ class BaseballPredictionService:
             h2h_home = features.get("h2h_home_win_rate", 0.5)
             if h2h_home > 0.65:
                 factors.append(
-                    f"{game.home_team} domina el H2H ({int(h2h_home*h2h_total)}/{h2h_total})"
+                    f"{game.home_team} domina el H2H "
+                    f"({int(h2h_home * h2h_total)}/{h2h_total})"
                 )
             elif h2h_home < 0.35:
                 factors.append(
-                    f"{game.away_team} domina el H2H ({int((1-h2h_home)*h2h_total)}/{h2h_total})"
+                    f"{game.away_team} domina el H2H "
+                    f"({int((1 - h2h_home) * h2h_total)}/{h2h_total})"
                 )
 
         # Pitcher matchup
@@ -548,11 +391,13 @@ class BaseballPredictionService:
             away_era = features.get("away_pitcher_era", 4.0)
             if home_era < 3.0:
                 factors.append(
-                    f"{game.home_pitcher_name or game.home_team} tiene ERA bajo ({home_era:.2f})"
+                    f"{game.home_pitcher_name or game.home_team} "
+                    f"tiene ERA bajo ({home_era:.2f})"
                 )
             if away_era < 3.0:
                 factors.append(
-                    f"{game.away_pitcher_name or game.away_team} tiene ERA bajo ({away_era:.2f})"
+                    f"{game.away_pitcher_name or game.away_team} "
+                    f"tiene ERA bajo ({away_era:.2f})"
                 )
 
         return factors[:5]
@@ -564,52 +409,93 @@ class BaseballPredictionService:
         home_prob, away_prob = float(home_prob), float(away_prob)
         markets = []
 
-        def _m(
-            mtype: str,
-            label: str,
-            prob: float,
-            code: str,
-            rec_thresh: float = 0.6,
-            conf_thresh: float = 0.65,
-        ) -> dict[str, Any]:
-            cl = "high" if prob > conf_thresh else "medium" if prob > 0.55 else "low"
-            return {
-                "market_type": mtype,
-                "market_label": label,
-                "probability": round(prob, 3),
-                "confidence_level": cl,
-                "reasoning": f"{label}: {prob*100:.1f}%",
-                "risk_level": round((1 - prob) * 10, 1),
-                "is_recommended": prob > rec_thresh,
-                "priority_score": round(prob * 100, 1),
-                "pick_code": code,
-            }
-
         # 1. Moneyline
+        markets.extend(self._create_moneyline_markets(game, home_prob, away_prob))
+
+        # 2. Run Line (-1.5 / +1.5)
+        markets.extend(self._create_run_line_markets(game, home_prob, away_prob))
+
+        # 3. Total Runs O/U
+        markets.extend(self._create_total_runs_markets(game, home_prob, away_prob))
+
+        # 4. First 5 Innings
+        markets.extend(self._create_f5_markets(game, home_prob, away_prob))
+
+        # 5. Team Total Runs
+        markets.extend(self._create_team_total_markets(game, home_prob, away_prob))
+
+        # 6. Both Teams Score
+        markets.extend(self._create_bts_markets(game, home_prob, away_prob))
+
+        markets.sort(key=lambda x: (-int(x["is_recommended"]), -x["probability"]))
+        return markets
+
+    def _create_market_dict(
+        self,
+        mtype: str,
+        label: str,
+        prob: float,
+        code: str,
+        rec_thresh: float = 0.6,
+        conf_thresh: float = 0.65,
+    ) -> dict[str, Any]:
+        """Create a market dictionary."""
+        cl = "high" if prob > conf_thresh else "medium" if prob > 0.55 else "low"
+        return {
+            "market_type": mtype,
+            "market_label": label,
+            "probability": round(prob, 3),
+            "confidence_level": cl,
+            "reasoning": f"{label}: {prob*100:.1f}%",
+            "risk_level": round((1 - prob) * 10, 1),
+            "is_recommended": prob > rec_thresh,
+            "priority_score": round(prob * 100, 1),
+            "pick_code": code,
+        }
+
+    def _create_moneyline_markets(
+        self, game: BaseballGame, home_prob: float, away_prob: float
+    ) -> list:
+        """Create moneyline markets."""
+        markets = []
         winner_prob = max(home_prob, away_prob)
         winner_team = game.home_team if home_prob > away_prob else game.away_team
         markets.append(
-            _m(
+            self._create_market_dict(
                 "moneyline",
                 f"{winner_team} gana",
                 winner_prob,
                 "ML_H" if home_prob > away_prob else "ML_A",
             )
         )
+        return markets
 
-        # 2. Run Line (-1.5 / +1.5)
+    def _create_run_line_markets(
+        self, game: BaseballGame, home_prob: float, away_prob: float
+    ) -> list:
+        """Create run line markets."""
+        markets = []
         rl_home = max(0.1, min(home_prob * 0.65 + 0.1, 0.9))
         rl_away = max(0.1, min(away_prob * 0.65 + 0.1, 0.9))
         if rl_home > 0.4:
             markets.append(
-                _m("run_line", f"{game.home_team} -1.5", rl_home, "RL_H", 0.5)
+                self._create_market_dict(
+                    "run_line", f"{game.home_team} -1.5", rl_home, "RL_H", 0.5
+                )
             )
         if rl_away > 0.4:
             markets.append(
-                _m("run_line", f"{game.away_team} +1.5", rl_away, "RL_A", 0.5)
+                self._create_market_dict(
+                    "run_line", f"{game.away_team} +1.5", rl_away, "RL_A", 0.5
+                )
             )
+        return markets
 
-        # 3. Total Runs O/U
+    def _create_total_runs_markets(
+        self, game: BaseballGame, home_prob: float, away_prob: float
+    ) -> list:
+        """Create total runs over/under markets."""
+        markets = []
         closer = 1 - abs(home_prob - away_prob)
         for thr in [7.5, 8.5, 9.5]:
             base = 0.35 + closer * 0.3
@@ -619,7 +505,7 @@ class BaseballPredictionService:
                 base += 0.1
             over_p = max(0.1, min(base, 0.9))
             markets.append(
-                _m(
+                self._create_market_dict(
                     "total_runs_over",
                     f"Más de {thr} carreras",
                     over_p,
@@ -629,7 +515,7 @@ class BaseballPredictionService:
                 )
             )
             markets.append(
-                _m(
+                self._create_market_dict(
                     "total_runs_under",
                     f"Menos de {thr} carreras",
                     1 - over_p,
@@ -638,13 +524,18 @@ class BaseballPredictionService:
                     0.6,
                 )
             )
+        return markets
 
-        # 4. First 5 Innings
+    def _create_f5_markets(
+        self, game: BaseballGame, home_prob: float, away_prob: float
+    ) -> list:
+        """Create first 5 innings markets."""
+        markets = []
         f5_h = home_prob * 0.92 + 0.04
         f5_a = 1.0 - f5_h
         if f5_h > 0.55:
             markets.append(
-                _m(
+                self._create_market_dict(
                     "first_5_innings",
                     f"{game.home_team} gana F5",
                     f5_h,
@@ -655,7 +546,7 @@ class BaseballPredictionService:
             )
         if f5_a > 0.55:
             markets.append(
-                _m(
+                self._create_market_dict(
                     "first_5_innings",
                     f"{game.away_team} gana F5",
                     f5_a,
@@ -664,8 +555,13 @@ class BaseballPredictionService:
                     0.6,
                 )
             )
+        return markets
 
-        # 5. Team Total Runs
+    def _create_team_total_markets(
+        self, game: BaseballGame, home_prob: float, away_prob: float
+    ) -> list:
+        """Create team total runs markets."""
+        markets = []
         for t_name, is_h in [(game.home_team, True), (game.away_team, False)]:
             t_total = 4.5 + ((home_prob if is_h else away_prob) - 0.5) * 1.5
             t_total = max(2.5, min(t_total, 7.0))
@@ -676,7 +572,7 @@ class BaseballPredictionService:
                     else (0.55 if t_total > ou_thr else 0.35)
                 )
                 markets.append(
-                    _m(
+                    self._create_market_dict(
                         "team_total_runs",
                         f"{t_name} más de {ou_thr} carreras",
                         tt_over,
@@ -685,14 +581,22 @@ class BaseballPredictionService:
                         0.6,
                     )
                 )
+        return markets
 
-        # 6. Both Teams Score
+    def _create_bts_markets(
+        self, game: BaseballGame, home_prob: float, away_prob: float
+    ) -> list:
+        """Create both teams score markets."""
+        markets = []
+        closer = 1 - abs(home_prob - away_prob)
         bts = min(0.5 + closer * 0.35, 0.9)
         markets.append(
-            _m("both_teams_score", "Ambos equipos anotan", bts, "BTS_Y", 0.6, 0.7)
+            self._create_market_dict(
+                "both_teams_score", "Ambos equipos anotan", bts, "BTS_Y", 0.6, 0.7
+            )
         )
         markets.append(
-            _m(
+            self._create_market_dict(
                 "both_teams_score_no",
                 "Al menos uno no anota",
                 1 - bts,
@@ -701,6 +605,163 @@ class BaseballPredictionService:
                 0.7,
             )
         )
-
-        markets.sort(key=lambda x: (-int(x["is_recommended"]), -x["probability"]))
         return markets
+
+    def _fetch_real_time_odds(
+        self, game: BaseballGame, sport: str, league: str
+    ) -> Optional[OddsSnapshot]:
+        """Fetch real-time odds for a game."""
+        if not (self.odds_feed and self.odds_feed.is_configured()):
+            return None
+
+        try:
+            import asyncio
+
+            async def fetch_odds() -> Optional[OddsSnapshot]:
+                return await self.odds_feed.fetch_odds(
+                    sport=sport,
+                    league=game.league or league,
+                    match_id=game.game_id,
+                )
+
+            try:
+                import concurrent.futures
+
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(asyncio.run, fetch_odds())
+                    return future.result(timeout=10)
+            except RuntimeError:
+                return asyncio.run(fetch_odds())
+
+        except Exception as e:
+            logger.debug(
+                "Real-time odds fetch failed for "
+                f"{game.game_id}: {e}"
+            )
+            return None
+
+    def _detect_sharp_money(
+        self, game: BaseballGame, home_odds: float, away_odds: float
+    ) -> Optional[SharpMoneySignal]:
+        """Detect sharp money signals for a game."""
+        if not (
+            home_odds
+            and away_odds
+            and hasattr(game, "opening_odds")
+            and game.opening_odds
+        ):
+            return None
+
+        try:
+            from src.infrastructure.odds_feed import OddsProvider
+            from datetime import timedelta
+
+            opening = game.opening_odds
+            current_odds = type(
+                "Odds", (), {"home": home_odds, "draw": 1.0, "away": away_odds}
+            )()
+
+            odds_history = [
+                OddsSnapshot(
+                    provider=OddsProvider.PINNACLE,
+                    sport="baseball",
+                    league=game.league or "MLB",
+                    match_id=game.game_id,
+                    odds=opening,
+                    timestamp=(
+                        game.date - timedelta(days=7)
+                        if game.date
+                        else datetime.utcnow()
+                    ),
+                ),
+                OddsSnapshot(
+                    provider=OddsProvider.PINNACLE,
+                    sport="baseball",
+                    league=game.league or "MLB",
+                    match_id=game.game_id,
+                    odds=current_odds,
+                    timestamp=datetime.utcnow(),
+                ),
+            ]
+
+            sharp_signal = self.sharp_detector.analyze_line_movement(
+                opening_odds=opening,
+                current_odds=current_odds,
+                odds_history=odds_history,
+            )
+
+            return sharp_signal
+
+        except Exception as e:
+            logger.debug(f"Sharp money detection failed for {game.game_id}: {e}")
+            return None
+
+    def _calculate_kelly_recommendations(
+        self,
+        home_prob: float,
+        away_prob: float,
+        home_odds: float,
+        away_odds: float,
+        confidence: float,
+        value_bets: list,
+    ) -> list:
+        """Calculate Kelly criterion stake recommendations."""
+        kelly_recommendations: list = []
+        if not (home_odds and away_odds and value_bets):
+            return kelly_recommendations
+
+        try:
+            kelly_results = self.kelly_sizer.calculate_baseball_kelly(
+                home_prob=home_prob,
+                away_prob=away_prob,
+                home_odds=home_odds,
+                away_odds=away_odds,
+                bankroll=100.0,
+                confidence=confidence,
+            )
+
+            kelly_recommendations = self.kelly_sizer.generate_stake_recommendations(
+                kelly_results, 100.0, confidence
+            )
+
+        except Exception as e:
+            logger.debug(f"Kelly sizing failed for {game.game_id}: {e}")
+
+        return kelly_recommendations
+
+    def _build_market_metadata(
+        self,
+        sharp_signal: Optional[SharpMoneySignal],
+        kelly_recommendations: list,
+        real_time_odds: Optional[OddsSnapshot],
+    ) -> dict:
+        """Build market metadata dictionary."""
+        return {
+            "sharp_money": {
+                "smart_money_side": (
+                    sharp_signal.smart_money_side if sharp_signal else None
+                ),
+                "steam_score": sharp_signal.steam_score if sharp_signal else 0.0,
+                "reverse_line_movement": (
+                    sharp_signal.reverse_line_movement if sharp_signal else False
+                ),
+            }
+            if sharp_signal
+            else None,
+            "kelly": {
+                "total_stake": sum(r.stake_units for r in kelly_recommendations),
+                "recommendations": [
+                    {
+                        "outcome": r.outcome,
+                        "stake_units": r.stake_units,
+                        "risk_level": r.risk_level,
+                    }
+                    for r in kelly_recommendations
+                ],
+            }
+            if kelly_recommendations
+            else None,
+            "real_time_odds_provider": (
+                real_time_odds.provider.value if real_time_odds else None
+            ),
+        }

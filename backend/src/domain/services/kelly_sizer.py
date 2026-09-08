@@ -362,7 +362,11 @@ class KellySizer:
                         meets_min_edge=True,
                     )
             total_stake = bankroll * max_daily
-            allocation = {k: v.recommended_stake for k, v in outcomes.items() if v.meets_min_edge}
+            allocation = {
+                k: v.recommended_stake
+                for k, v in outcomes.items()
+                if v.meets_min_edge
+            }
 
         return MultiOutcomeKellyResult(
             outcomes=outcomes,

@@ -21,22 +21,23 @@ import math
 import os
 from typing import Any, Optional
 
+import concurrent.futures
+import math
+import os
+from datetime import datetime, timedelta
+from typing import Any, Optional
+
 import numpy as np
-import pandas as pd
 from src.domain.entities.entities import Match, Prediction, TeamStatistics
 from src.domain.exceptions import InsufficientDataException
 from src.domain.value_objects.value_objects import LeagueAverages, Odds, TeamStrength
+from src.domain.services.kelly_sizer import KellySizer, MultiOutcomeKellyResult
 from src.domain.services.sharp_detector import SharpMoneyDetector, SharpMoneySignal
-from src.domain.services.kelly_sizer import KellySizer, KellyResult, MultiOutcomeKellyResult
 from src.infrastructure.odds_feed import (
+    MarketEfficiencyMetrics,
     OddsFeed,
     OddsSnapshot,
-    MarketEfficiencyMetrics,
-    OddsProvider,
 )
-import concurrent.futures
-from datetime import datetime, timedelta
-from src.infrastructure.odds_feed import OddsFeed, OddsSnapshot, MarketEfficiencyMetrics
 
 logger = logging.getLogger(__name__)
 
@@ -108,9 +109,12 @@ class PredictionService:
         Args:
             calculated_probs: Model's predicted probabilities
             odds: Bookmaker odds
-            weight: Weight to give to bookmaker odds (0-1). If None, calculates optimal weight dynamically.
-            league_id: League identifier for dynamic weight calculation (required if weight is None)
-            match_date: Match date in ISO format for dynamic weight calculation (required if weight is None)
+            weight: Weight to give to bookmaker odds (0-1). If None,
+                calculates optimal weight dynamically.
+            league_id: League identifier for dynamic weight calculation
+                (required if weight is None)
+            match_date: Match date in ISO format for dynamic weight calculation
+                (required if weight is None)
 
         Returns:
             Adjusted probabilities
@@ -128,7 +132,8 @@ class PredictionService:
                     import concurrent.futures
                     with concurrent.futures.ThreadPoolExecutor() as executor:
                         future = executor.submit(
-                            asyncio.run, self.calculate_optimal_weight(league_id, match_date)
+                            asyncio.run,
+                            self.calculate_optimal_weight(league_id, match_date),
                         )
                         weight = future.result(timeout=30)
                 except RuntimeError:
@@ -179,21 +184,29 @@ class PredictionService:
 
         Args:
             league_id: League identifier (e.g., 'E0', 'SP1')
-            match_date: Reference date in ISO format (YYYY-MM-DD) - only matches before this date are used
+            match_date: Reference date in ISO format (YYYY-MM-DD) -
+                only matches before this date are used
             lookback_matches: Maximum number of historical matches to consider
 
         Returns:
-            Optimal weight in range [0.3, 0.7], defaulting to 0.5 if insufficient data
+            Optimal weight in range [0.3, 0.7], defaulting to 0.5
+            if insufficient data
         """
         try:
             # Import here to avoid circular imports
-            from src.infrastructure.data_sources.football_data_uk import FootballDataUKSource
-            from src.infrastructure.data_sources.github_dataset import LocalGithubDataSource
+            from src.infrastructure.data_sources.football_data_uk import (
+                FootballDataUKSource,
+            )
+            from src.infrastructure.data_sources.github_dataset import (
+                LocalGithubDataSource,
+            )
             import pandas as pd
 
             # Try Football-Data.co.uk first
             data_source = FootballDataUKSource()
-            hist_matches = await data_source.get_historical_matches(league_code=league_id)
+            hist_matches = await data_source.get_historical_matches(
+                league_code=league_id
+            )
 
             if not hist_matches:
                 # Fallback to GitHub dataset
@@ -201,23 +214,32 @@ class PredictionService:
                 hist_matches = await gh_source.get_finished_matches(league_id)
 
             if not hist_matches:
-                logger.debug(f"No historical data for league {league_id}, using default weight 0.5")
+                logger.debug(
+                    f"No historical data for league {league_id}, "
+                    f"using default weight 0.5"
+                )
                 return 0.5
 
             # Convert Match entities to DataFrame
-            hist_df = pd.DataFrame([{
-                'date': m.date,
-                'home_team': m.home_team.name if m.home_team else '',
-                'away_team': m.away_team.name if m.away_team else '',
-                'home_goals': m.home_goals,
-                'away_goals': m.away_goals,
-                'home_odds': m.odds.home if m.odds else 0,
-                'draw_odds': m.odds.draw if m.odds else 0,
-                'away_odds': m.odds.away if m.odds else 0,
-            } for m in hist_matches])
+            hist_df = pd.DataFrame([
+                {
+                    'date': m.date,
+                    'home_team': m.home_team.name if m.home_team else '',
+                    'away_team': m.away_team.name if m.away_team else '',
+                    'home_goals': m.home_goals,
+                    'away_goals': m.away_goals,
+                    'home_odds': m.odds.home if m.odds else 0,
+                    'draw_odds': m.odds.draw if m.odds else 0,
+                    'away_odds': m.odds.away if m.odds else 0,
+                }
+                for m in hist_matches
+            ])
 
             if len(hist_df) == 0:
-                logger.debug(f"No historical data for league {league_id}, using default weight 0.5")
+                logger.debug(
+                    f"No historical data for league {league_id}, "
+                    f"using default weight 0.5"
+                )
                 return 0.5
 
             # Filter matches before the reference date
@@ -226,7 +248,10 @@ class PredictionService:
             hist_df = hist_df[pd.to_datetime(hist_df["date"]) < match_dt]
 
             if len(hist_df) < 30:
-                logger.debug(f"Insufficient historical matches ({len(hist_df)}) for league {league_id}, using default weight 0.5")
+                logger.debug(
+                    f"Insufficient historical matches ({len(hist_df)}) for league "
+                    f"{league_id}, using default weight 0.5"
+                )
                 return 0.5
 
             # Limit to lookback window
@@ -273,14 +298,19 @@ class PredictionService:
                     continue
 
             if len(implied_probs) < 30:
-                logger.debug(f"Insufficient valid odds data ({len(implied_probs)}) for league {league_id}")
+                logger.debug(
+                    f"Insufficient valid odds data ({len(implied_probs)}) "
+                    f"for league {league_id}"
+                )
                 return 0.5
 
             implied_probs = np.array(implied_probs)
             actual_outcomes = np.array(actual_outcomes)
 
             # Calculate Brier score for pure market odds
-            brier_market = np.mean(np.sum((implied_probs - actual_outcomes) ** 2, axis=1))
+            brier_market = np.mean(
+                np.sum((implied_probs - actual_outcomes) ** 2, axis=1)
+            )
 
             # For the model prediction, we use a simple baseline:
             # We estimate model performance by assuming it's roughly as good as
@@ -289,21 +319,9 @@ class PredictionService:
             # historical prediction logs. For now, we estimate model Brier score
             # by using a Poisson model baseline on the same data.
 
-            # Simple baseline: league average home/draw/away rates
-            home_wins = np.sum(actual_outcomes[:, 0])
-            draws = np.sum(actual_outcomes[:, 1])
-            away_wins = np.sum(actual_outcomes[:, 2])
-            total = len(actual_outcomes)
-
-            league_baseline = np.array([
-                home_wins / total,
-                draws / total,
-                away_wins / total
-            ])
-
             # Model baseline: slightly better than league average by using team strength
-            # We approximate this by using the market odds as a proxy for model+market blend
-            # and finding the weight that minimizes Brier score
+            # We approximate this by using the market odds as a proxy
+            # for model+market blend and finding the weight that minimizes Brier score
 
             # Actually, the proper way: we need historical model predictions.
             # Since we don't have those stored, we'll use a proxy:
@@ -323,8 +341,12 @@ class PredictionService:
                     away_exp = row.get("away_expected_goals", 1.2)
                     # Poisson probabilities
                     from math import exp, factorial
+
                     def poisson_p(k, lam):
-                        return (lam ** k) * exp(-lam) / factorial(k) if lam > 0 else (1 if k == 0 else 0)
+                        if lam > 0:
+                            return (lam ** k) * exp(-lam) / factorial(k)
+                        return 1 if k == 0 else 0
+
                     max_g = 8
                     p_home = p_draw = p_away = 0
                     for hg in range(max_g):
@@ -337,7 +359,15 @@ class PredictionService:
                             else:
                                 p_away += p
                     model_probs = np.array([p_home, p_draw, p_away])
-                    model_brier_scores.append(np.sum((model_probs - actual_outcomes[len(model_brier_scores)]) ** 2))
+                    model_brier_scores.append(
+                        np.sum(
+                            (
+                                model_probs
+                                - actual_outcomes[len(model_brier_scores)]
+                            )
+                            ** 2
+                        )
+                    )
                 except Exception:
                     continue
 
@@ -353,19 +383,27 @@ class PredictionService:
             best_brier = float("inf")
 
             for w in np.linspace(0.3, 0.7, 21):  # 0.3, 0.32, ..., 0.7
-                # For each historical match, combined prob = w * implied + (1-w) * model
-                # Since we don't have per-match model predictions, we use average model performance
+                # For each historical match, combined prob = w * implied +
+                # (1-w) * model
+                # Since we don't have per-match model predictions, we use
+                # average model performance
                 # This is an approximation but reasonable for weight selection
                 combined_brier = w * brier_market + (1 - w) * brier_model
                 if combined_brier < best_brier:
                     best_brier = combined_brier
                     best_weight = w
 
-            logger.info(f"League {league_id}: market Brier={brier_market:.4f}, model Brier={brier_model:.4f}, optimal weight={best_weight:.2f}")
+            logger.info(
+                f"League {league_id}: market Brier={brier_market:.4f}, "
+                f"model Brier={brier_model:.4f}, optimal weight={best_weight:.2f}"
+            )
             return float(best_weight)
 
         except Exception as e:
-            logger.warning(f"Failed to calculate optimal weight for {league_id}: {e}, using default 0.5")
+            logger.warning(
+                f"Failed to calculate optimal weight for {league_id}: {e}, "
+                f"using default 0.5"
+            )
             return 0.5
 
     def calculate_team_strength(
@@ -1820,7 +1858,9 @@ class PredictionService:
             )
             # Get league_id from match.league
             league_id = match.league.id if match.league else None
-            match_date_str = match.match_date.strftime("%Y-%m-%d") if match.match_date else None
+            match_date_str = (
+                match.match_date.strftime("%Y-%m-%d") if match.match_date else None
+            )
             if league_id and match_date_str:
                 home_win, draw, away_win = self.adjust_with_odds(
                     calculated_probs=(home_win, draw, away_win),
@@ -1864,7 +1904,7 @@ class PredictionService:
                     )
 
                 try:
-                    loop = asyncio.get_running_loop()
+                    asyncio.get_running_loop()
                     with concurrent.futures.ThreadPoolExecutor() as executor:
                         future = executor.submit(asyncio.run, fetch_odds())
                         real_time_odds_snapshot = future.result(timeout=10)
@@ -1899,7 +1939,11 @@ class PredictionService:
                             league=match.league.id if match.league else "unknown",
                             match_id=match.id,
                             odds=opening_odds,
-                            timestamp=match.match_date - timedelta(days=7) if match.match_date else datetime.utcnow(),
+                            timestamp=(
+                                match.match_date - timedelta(days=7)
+                                if match.match_date
+                                else datetime.utcnow()
+                            ),
                         ),
                         OddsSnapshot(
                             provider=OddsProvider.PINNACLE,
@@ -1923,17 +1967,6 @@ class PredictionService:
         # 8. KELLY CRITERION SIZING for value bets
         if odds_obj and is_value_bet:
             try:
-                model_probs = {
-                    "home": home_win,
-                    "draw": draw,
-                    "away": away_win,
-                }
-                odds_dict = {
-                    "home": odds_obj.home,
-                    "draw": odds_obj.draw,
-                    "away": odds_obj.away,
-                }
-
                 # Use a standard bankroll of 100 units for stake calculation
                 # In production, this would come from user's bankroll
                 bankroll = 100.0
@@ -1982,12 +2015,25 @@ class PredictionService:
             # Re-blend with CLV-adjusted weight
             if clv_adjusted_weight is not None and odds_obj:
                 market_probs = odds_obj.to_probabilities()
-                home_win = (home_win * (1 - clv_adjusted_weight)) + (market_probs[0] * clv_adjusted_weight)
-                draw = (draw * (1 - clv_adjusted_weight)) + (market_probs[1] * clv_adjusted_weight)
-                away_win = (away_win * (1 - clv_adjusted_weight)) + (market_probs[2] * clv_adjusted_weight)
+                home_win = (
+                    home_win * (1 - clv_adjusted_weight)
+                    + market_probs[0] * clv_adjusted_weight
+                )
+                draw = (
+                    draw * (1 - clv_adjusted_weight)
+                    + market_probs[1] * clv_adjusted_weight
+                )
+                away_win = (
+                    away_win * (1 - clv_adjusted_weight)
+                    + market_probs[2] * clv_adjusted_weight
+                )
                 total = home_win + draw + away_win
                 if total > 0:
-                    home_win, draw, away_win = home_win / total, draw / total, away_win / total
+                    home_win, draw, away_win = (
+                        home_win / total,
+                        draw / total,
+                        away_win / total,
+                    )
 
         # Calculate over/under
         over_25, under_25 = self.calculate_over_under_probability(
@@ -2107,19 +2153,31 @@ class PredictionService:
             real_time_odds=real_time_odds,
             model_metadata={
                 "model_version": os.getenv("MODEL_VERSION", "unknown"),
-                "generated_by": os.getenv("MODEL_GENERATED_BY", "prediction-service"),
+                "model_generated_by": os.getenv(
+                    "MODEL_GENERATED_BY", "prediction-service"
+                ),
                 # Phase 3: Advanced Market Alignment
                 "sharp_money_signal": {
-                    "smart_money_side": sharp_signal.smart_money_side if sharp_signal else None,
+                    "smart_money_side": (
+                        sharp_signal.smart_money_side if sharp_signal else None
+                    ),
                     "steam_score": sharp_signal.steam_score if sharp_signal else 0.0,
-                    "reverse_line_movement": sharp_signal.reverse_line_movement if sharp_signal else False,
+                    "reverse_line_movement": (
+                        sharp_signal.reverse_line_movement if sharp_signal else False
+                    ),
                     "confidence": sharp_signal.confidence if sharp_signal else 0.0,
-                    "steam_moves_count": len(sharp_signal.steam_moves) if sharp_signal else 0,
-                } if sharp_signal else None,
+                    "steam_moves_count": (
+                        len(sharp_signal.steam_moves) if sharp_signal else 0
+                    ),
+                }
+                if sharp_signal
+                else None,
                 "kelly_sizing": {
                     "total_kelly": kelly_results.total_kelly if kelly_results else 0.0,
                     "total_stake": kelly_results.total_stake if kelly_results else 0.0,
-                    "bankroll_allocation": kelly_results.bankroll_allocation if kelly_results else {},
+                    "bankroll_allocation": (
+                        kelly_results.bankroll_allocation if kelly_results else {}
+                    ),
                     "recommendations": [
                         {
                             "outcome": r.outcome,
@@ -2131,15 +2189,31 @@ class PredictionService:
                         }
                         for r in kelly_recommendations
                     ],
-                } if kelly_results else None,
+                }
+                if kelly_results
+                else None,
                 "market_efficiency": {
                     "clv": market_efficiency.clv if market_efficiency else 0.0,
-                    "market_margin": market_efficiency.market_margin if market_efficiency else 0.0,
-                    "sharp_movement_detected": market_efficiency.sharp_movement_detected if market_efficiency else False,
-                    "steam_score": market_efficiency.steam_score if market_efficiency else 0.0,
-                } if market_efficiency else None,
+                    "market_margin": (
+                        market_efficiency.market_margin if market_efficiency else 0.0
+                    ),
+                    "sharp_movement_detected": (
+                        market_efficiency.sharp_movement_detected
+                        if market_efficiency
+                        else False
+                    ),
+                    "steam_score": (
+                        market_efficiency.steam_score if market_efficiency else 0.0
+                    ),
+                }
+                if market_efficiency
+                else None,
                 "clv_adjusted_weight": clv_adjusted_weight,
-                "real_time_odds_provider": real_time_odds_snapshot.provider.value if real_time_odds_snapshot else None,
+                "real_time_odds_provider": (
+                    real_time_odds_snapshot.provider.value
+                    if real_time_odds_snapshot
+                    else None
+                ),
             },
             # Marcador Tentativo
             score_probabilities=self.calculate_score_probabilities(

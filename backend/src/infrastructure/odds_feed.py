@@ -18,7 +18,7 @@ import os
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
 from typing import Any, Optional
 
@@ -166,7 +166,9 @@ class PinnacleProvider(OddsProviderBase):
             url = f"{self.BASE_URL}/odds"
             params = {"sport_id": sport_id, "league_id": league, "event_id": match_id}
 
-            async with session.get(url, headers=self._get_headers(), params=params) as resp:
+            async with session.get(
+                url, headers=self._get_headers(), params=params
+            ) as resp:
                 if resp.status == 404:
                     return None
                 resp.raise_for_status()
@@ -192,7 +194,9 @@ class PinnacleProvider(OddsProviderBase):
         """Fetch historical odds from Pinnacle (limited availability)."""
         # Pinnacle historical API requires special access
         # For now, return empty list - would need Pinnacle's historical feed
-        logger.warning("Pinnacle historical odds not available without enterprise access")
+        logger.warning(
+            "Pinnacle historical odds not available without enterprise access"
+        )
         return []
 
     def normalize_odds(self, raw_odds: dict[str, Any]) -> Odds:
@@ -241,7 +245,9 @@ class BetfairProvider(OddsProviderBase):
 
     BASE_URL = "https://api.betfair.com/exchange/betting/json-rpc/v1"
 
-    def __init__(self, api_key: Optional[str] = None, session_token: Optional[str] = None):
+    def __init__(
+        self, api_key: Optional[str] = None, session_token: Optional[str] = None
+    ):
         super().__init__(api_key)
         self.session_token = session_token
         self._rate_limit_delay = 1.0
@@ -319,9 +325,13 @@ class BetfairProvider(OddsProviderBase):
         return None
 
     async def fetch_historical_odds(
-        self, sport: str, league: str, date_range: tuple[datetime, datetime]
+        self,
+        sport: str,
+        league: str,
+        date_range: tuple[datetime, datetime],
     ) -> list[HistoricalOdds]:
-        """Fetch historical odds from Betfair (requires historical data subscription)."""
+        """Fetch historical odds from Betfair (requires historical
+        data subscription)."""
         logger.warning("Betfair historical odds require separate subscription")
         return []
 
@@ -544,7 +554,9 @@ class OddsFeed:
                 snapshot = await provider.fetch_odds(sport, league, match_id)
                 if snapshot:
                     self._cache[cache_key] = (snapshot, time.time())
-                    logger.info(f"Fetched odds for {match_id} from {provider_type.value}")
+                    logger.info(
+                        f"Fetched odds for {match_id} from {provider_type.value}"
+                    )
                     return snapshot
             except Exception as e:
                 logger.warning(f"Provider {provider_type.value} failed: {e}")
@@ -569,7 +581,9 @@ class OddsFeed:
                 continue
 
             try:
-                historical = await provider.fetch_historical_odds(sport, league, date_range)
+                historical = await provider.fetch_historical_odds(
+                    sport, league, date_range
+                )
                 for h in historical:
                     if h.match_id not in all_historical:
                         all_historical[h.match_id] = h
@@ -587,7 +601,9 @@ class OddsFeed:
                             closing_odds=h.closing_odds or existing.closing_odds,
                         )
             except Exception as e:
-                logger.warning(f"Historical fetch from {provider_type.value} failed: {e}")
+                logger.warning(
+                    f"Historical fetch from {provider_type.value} failed: {e}"
+                )
 
         return list(all_historical.values())
 
@@ -691,7 +707,9 @@ class OddsFeed:
         steam_score = 0.0
         volume_weighted_move = 0.0
 
-        betfair_snapshots = [s for s in sorted_history if s.provider == OddsProvider.BETFAIR]
+        betfair_snapshots = [
+            s for s in sorted_history if s.provider == OddsProvider.BETFAIR
+        ]
         if betfair_snapshots:
             # Calculate volume-weighted movement on Betfair
             total_volume = sum(s.volume or 0 for s in betfair_snapshots)
@@ -756,14 +774,16 @@ class OddsFeed:
         for i in range(1, len(sorted_series)):
             prev = sorted_series[i - 1]
             curr = sorted_series[i]
-            time_diff = (curr.timestamp - prev.timestamp).total_seconds() / 60  # minutes
+            time_diff = (
+                (curr.timestamp - prev.timestamp).total_seconds() / 60
+            )  # minutes
 
             if time_diff <= 60:  # Within 1 hour
                 for outcome in ["home", "draw", "away"]:
                     prev_odds = getattr(prev.odds, outcome)
                     curr_odds = getattr(curr.odds, outcome)
                     move_pct = abs(curr_odds - prev_odds) / prev_odds
-                    if move_pct > 0.01 and (curr.volume or 0) > 1000:  # 1% move with volume
+                    if move_pct > 0.01 and (curr.volume or 0) > 1000:
                         steam_moves.append(
                             {
                                 "outcome": outcome,
