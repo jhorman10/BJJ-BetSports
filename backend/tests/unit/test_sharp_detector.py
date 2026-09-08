@@ -5,7 +5,6 @@ Unit tests for SharpMoneyDetector module.
 import pytest
 from datetime import datetime, timedelta
 
-import numpy as np
 
 from src.domain.value_objects.value_objects import Odds
 from src.domain.services.sharp_detector import (

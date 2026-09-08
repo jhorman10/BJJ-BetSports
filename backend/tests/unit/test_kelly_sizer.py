@@ -3,13 +3,11 @@ Unit tests for KellySizer module.
 """
 
 import pytest
-import math
 
 from src.domain.services.kelly_sizer import (
     KellySizer,
     KellyResult,
     MultiOutcomeKellyResult,
-    KellyVariant,
 )
 
 
@@ -24,7 +22,7 @@ class TestKellySizer:
             min_edge=0.02,        # 2% minimum edge
         )
 
-    def test_calculate_kelly_fraction_basic(self):
+    def test_calculatekelly_fraction_basic(self):
         """Test basic Kelly fraction calculation."""
         # Model prob 0.55, odds 2.0 -> edge = 0.55 * 2 - 1 = 0.10
         # Full Kelly = 0.10 / (2.0 - 1) = 0.10
@@ -33,21 +31,21 @@ class TestKellySizer:
 
         assert abs(kelly - 0.025) < 0.001
 
-    def test_calculate_kelly_fraction_no_edge(self):
+    def test_calculatekelly_fraction_no_edge(self):
         """Test Kelly with no edge."""
         # Model prob 0.45, odds 2.0 -> edge = 0.45 * 2 - 1 = -0.10
         kelly = self.sizer.calculate_kelly_fraction(0.45, 2.0)
 
         assert kelly == 0.0
 
-    def test_calculate_kelly_fraction_break_even(self):
+    def test_calculatekelly_fraction_break_even(self):
         """Test Kelly at break-even."""
         # Model prob 0.5, odds 2.0 -> edge = 0
         kelly = self.sizer.calculate_kelly_fraction(0.5, 2.0)
 
         assert kelly == 0.0
 
-    def test_calculate_kelly_fraction_high_odds(self):
+    def test_calculatekelly_fraction_high_odds(self):
         """Test Kelly with high odds."""
         # Model prob 0.20, odds 6.0 -> edge = 0.20 * 6 - 1 = 0.20
         # Full Kelly = 0.20 / 5 = 0.04
@@ -56,14 +54,14 @@ class TestKellySizer:
 
         assert abs(kelly - 0.01) < 0.001
 
-    def test_calculate_kelly_fraction_custom_fraction(self):
+    def test_calculatekelly_fraction_custom_fraction(self):
         """Test Kelly with custom fraction override."""
         # Half Kelly instead of quarter
         kelly = self.sizer.calculate_kelly_fraction(0.55, 2.0, kelly_fraction=0.5)
 
         assert abs(kelly - 0.05) < 0.001
 
-    def test_calculate_kelly_fraction_capped(self):
+    def test_calculatekelly_fraction_capped(self):
         """Test Kelly capped at 0.5."""
         # Very high edge case
         kelly = self.sizer.calculate_kelly_fraction(0.9, 1.5, kelly_fraction=1.0)
@@ -74,7 +72,7 @@ class TestKellySizer:
     def test_calculate_optimal_stake(self):
         """Test optimal stake calculation."""
         bankroll = 1000.0
-        kelly = self.sizer.calculate_kelly_fraction(0.55, 2.0)  # 0.025
+        _kelly = self.sizer.calculate_kelly_fraction(0.55, 2.0)  # 0.025
         stake = self.sizer.calculate_optimal_stake(bankroll, 0.55, 2.0)
 
         assert abs(stake - 25.0) < 0.01  # 1000 * 0.025
@@ -88,7 +86,7 @@ class TestKellySizer:
 
         assert abs(stake - 50.0) < 0.01  # 1000 * 0.05
 
-    def test_kelly_with_confidence_high(self):
+    def testkelly_with_confidence_high(self):
         """Test Kelly with high confidence."""
         result = self.sizer.kelly_with_confidence(
             model_prob=0.55,
@@ -102,7 +100,7 @@ class TestKellySizer:
         assert result.edge > 0
         assert result.confidence_adjusted > 0
 
-    def test_kelly_with_confidence_low(self):
+    def testkelly_with_confidence_low(self):
         """Test Kelly with low confidence reduces stake."""
         result_high = self.sizer.kelly_with_confidence(0.55, 2.0, 0.9)
         result_low = self.sizer.kelly_with_confidence(0.55, 2.0, 0.4)
@@ -110,7 +108,7 @@ class TestKellySizer:
         # Low confidence should reduce the adjusted kelly
         assert result_low.confidence_adjusted < result_high.confidence_adjusted
 
-    def test_kelly_with_confidence_below_min_edge(self):
+    def testkelly_with_confidence_below_min_edge(self):
         """Test Kelly when edge below minimum."""
         result = self.sizer.kelly_with_confidence(
             model_prob=0.525,  # Edge = 0.525 - 0.5 = 0.025 (clearly above 0.02)
@@ -122,7 +120,7 @@ class TestKellySizer:
         # Edge clearly above minimum should meet threshold
         assert result.meets_min_edge is True
 
-    def test_kelly_with_confidence_no_edge(self):
+    def testkelly_with_confidence_no_edge(self):
         """Test Kelly with no edge after confidence adjustment."""
         result = self.sizer.kelly_with_confidence(
             model_prob=0.51,
@@ -134,7 +132,7 @@ class TestKellySizer:
         # With low confidence, adjusted edge might be below min
         assert result.confidence_adjusted >= 0
 
-    def test_calculate_multi_outcome_kelly_1x2(self):
+    def test_calculate_multi_outcomekelly_1x2(self):
         """Test multi-outcome Kelly for 1X2 market."""
         model_probs = {"home": 0.50, "draw": 0.25, "away": 0.25}
         odds = {"home": 2.1, "draw": 3.4, "away": 3.6}
@@ -149,7 +147,7 @@ class TestKellySizer:
         assert result.total_stake >= 0
         assert all(o >= 0 for o in result.bankroll_allocation.values())
 
-    def test_calculate_multi_outcome_kelly_some_no_edge(self):
+    def test_calculate_multi_outcomekelly_some_no_edge(self):
         """Test multi-outcome Kelly when some outcomes have no edge."""
         model_probs = {"home": 0.45, "draw": 0.30, "away": 0.25}
         odds = {"home": 2.0, "draw": 3.5, "away": 4.0}  # Home has no edge
@@ -237,7 +235,7 @@ class TestKellySizer:
 
         assert 0 <= ruin_prob <= 1
 
-    def test_full_kelly_vs_fractional(self):
+    def test_fullkelly_vs_fractional(self):
         """Test that fractional Kelly is safer than full Kelly."""
         sizer_full = KellySizer(kelly_fraction=1.0, max_stake_pct=1.0)
         sizer_quarter = KellySizer(kelly_fraction=0.25, max_stake_pct=0.05)
@@ -254,12 +252,12 @@ class TestKellySizer:
         bankroll = 1000.0
 
         # Full Kelly
-        growth_full = self.sizer.calculate_expected_growth(
+        _growth_full = self.sizer.calculate_expected_growth(
             bankroll, 0.10, 0.55, 2.0, n_bets
         )
 
         # Quarter Kelly
-        growth_quarter = self.sizer.calculate_expected_growth(
+        _growth_quarter = self.sizer.calculate_expected_growth(
             bankroll, 0.025, 0.55, 2.0, n_bets
         )
 

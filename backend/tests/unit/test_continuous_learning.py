@@ -1,3 +1,4 @@
+import numpy as np
 """
 Unit tests for ContinuousLearningPipeline module.
 """
@@ -8,8 +9,6 @@ import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
 
-import numpy as np
-from sklearn.ensemble import RandomForestClassifier
 
 from src.domain.services.continuous_learning import (
     ContinuousLearningPipeline,
@@ -349,7 +348,7 @@ class TestContinuousLearningPipeline:
         X = np.random.randn(30, 3)
         y = np.random.randint(0, 2, 30)
 
-        metadata = self.pipeline.daily_retrain(
+        _metadata = self.pipeline.daily_retrain(
             sport="basketball",
             new_x=X,
             new_y=y,
