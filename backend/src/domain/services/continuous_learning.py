@@ -296,9 +296,7 @@ class ContinuousLearningPipeline:
             ref_hist, bins = np.histogram(
                 reference_features[:, i], bins=10, density=True
             )
-            curr_hist, _ = np.histogram(
-                current_features[:, i], bins=bins, density=True
-            )
+            curr_hist, _ = np.histogram(current_features[:, i], bins=bins, density=True)
 
             # Avoid zeros
             ref_hist = np.where(ref_hist == 0, 0.0001, ref_hist)
@@ -470,8 +468,16 @@ class ContinuousLearningPipeline:
         brier, ll, accuracy = self._evaluate_model(model, x_train, y_train)
 
         metadata = self._create_model_metadata(
-            sport, model_class, x_train, y_train, feature_names,
-            brier, ll, accuracy, parent_id, params
+            sport,
+            model_class,
+            x_train,
+            y_train,
+            feature_names,
+            brier,
+            ll,
+            accuracy,
+            parent_id,
+            params,
         )
 
         # Save model
@@ -561,10 +567,7 @@ class ContinuousLearningPipeline:
 
         counter = 0
         original_model_id = model_id
-        while any(
-            m.model_id == model_id
-            for m in self._model_registry.get(sport, [])
-        ):
+        while any(m.model_id == model_id for m in self._model_registry.get(sport, [])):
             counter += 1
             model_id = f"{original_model_id}_{counter}"
 
@@ -697,9 +700,7 @@ class ContinuousLearningPipeline:
                         f"(PSI={drift_report.overall_psi:.3f})"
                     ),
                     drift_report=drift_report,
-                    urgency=(
-                        "high" if drift_report.overall_psi > 0.3 else "medium"
-                    ),
+                    urgency=("high" if drift_report.overall_psi > 0.3 else "medium"),
                 )
 
         # Check 2: Performance degradation
@@ -894,9 +895,9 @@ class ContinuousLearningPipeline:
 
             # Update registry
             if keep_active:
-                self._model_registry[sport] = active_models + inactive_models[
-                    :keep_last_n
-                ]
+                self._model_registry[sport] = (
+                    active_models + inactive_models[:keep_last_n]
+                )
             else:
                 self._model_registry[sport] = inactive_models[:keep_last_n]
 

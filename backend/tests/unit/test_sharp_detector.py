@@ -41,16 +41,18 @@ class TestSharpMoneyDetector:
         # Home shortened from 2.0 to 1.9 = -5%
         assert abs(movements["home"] - (-0.05)) < 0.001
         # Draw lengthened from 3.2 to 3.3 = +3.125%
-        assert abs(movements["draw"] - (0.1/3.2)) < 0.001
+        assert abs(movements["draw"] - (0.1 / 3.2)) < 0.001
         # Away lengthened from 3.5 to 3.7 = +5.7%
-        assert abs(movements["away"] - (0.2/3.5)) < 0.001
+        assert abs(movements["away"] - (0.2 / 3.5)) < 0.001
 
     def test_calculate_steam_score_basic(self):
         """Test steam score calculation with basic inputs."""
         movements = {"home": -0.03, "draw": 0.02, "away": 0.01}
         volume = {"home": 50000, "draw": 10000, "away": 5000}
 
-        score = self.detector.calculate_steam_score(movements, volume, time_window_minutes=30)
+        score = self.detector.calculate_steam_score(
+            movements, volume, time_window_minutes=30
+        )
 
         assert 0 <= score <= 1
         # 3% move with high volume should give decent score
@@ -60,7 +62,9 @@ class TestSharpMoneyDetector:
         """Test steam score without volume data."""
         movements = {"home": -0.03, "draw": 0.02, "away": 0.01}
 
-        score = self.detector.calculate_steam_score(movements, None, time_window_minutes=30)
+        score = self.detector.calculate_steam_score(
+            movements, None, time_window_minutes=30
+        )
 
         assert 0 <= score <= 1
 
@@ -69,7 +73,9 @@ class TestSharpMoneyDetector:
         movements = {"home": -0.002, "draw": 0.001, "away": 0.001}
         volume = {"home": 500, "draw": 100, "away": 50}  # Low volume (< min_volume)
 
-        score = self.detector.calculate_steam_score(movements, volume, time_window_minutes=30)
+        score = self.detector.calculate_steam_score(
+            movements, volume, time_window_minutes=30
+        )
 
         # Small movement + low volume should give low score
         # movement_score: 0.002 * 20 = 0.04
@@ -111,7 +117,9 @@ class TestSharpMoneyDetector:
         history = self._create_history_with_steam("home")
 
         # Method expects public_percentages as second arg
-        smart_side = self.detector.identify_smart_money_side(history, public_percentages=None)
+        smart_side = self.detector.identify_smart_money_side(
+            history, public_percentages=None
+        )
 
         # Steam on home (odds shortened) -> smart money on home
         assert smart_side == "home"
@@ -122,7 +130,9 @@ class TestSharpMoneyDetector:
 
         public = {"home": 0.75, "draw": 0.15, "away": 0.10}
 
-        smart_side = self.detector.identify_smart_money_side(history, public_percentages=public)
+        smart_side = self.detector.identify_smart_money_side(
+            history, public_percentages=public
+        )
 
         # RLM -> smart money on opposite side (away or draw)
         assert smart_side in ["away", "draw"]
@@ -131,7 +141,9 @@ class TestSharpMoneyDetector:
         """Test smart money identification with no clear signal."""
         history = self._create_history_no_signal()
 
-        smart_side = self.detector.identify_smart_money_side(history, public_percentages=None)
+        smart_side = self.detector.identify_smart_money_side(
+            history, public_percentages=None
+        )
 
         assert smart_side is None
 

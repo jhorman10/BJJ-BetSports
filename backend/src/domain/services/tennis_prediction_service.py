@@ -334,6 +334,7 @@ class TennisPredictionService:
                 try:
                     asyncio.get_running_loop()
                     import concurrent.futures
+
                     with concurrent.futures.ThreadPoolExecutor() as executor:
                         future = executor.submit(asyncio.run, fetch_odds())
                         real_time_odds = future.result(timeout=10)
@@ -346,9 +347,7 @@ class TennisPredictionService:
                     p2_odds = real_time_odds.odds.away
 
             except Exception as e:
-                logger.debug(
-                    f"Real-time odds fetch failed for {match.match_id}: {e}"
-                )
+                logger.debug(f"Real-time odds fetch failed for {match.match_id}: {e}")
 
         return p1_odds, p2_odds, real_time_odds
 
@@ -368,7 +367,7 @@ class TennisPredictionService:
 
             opening = match.opening_odds  # Should be Odds object
             current_odds = type(
-                'Odds', (), {'home': p1_odds, 'draw': 1.0, 'away': p2_odds}
+                "Odds", (), {"home": p1_odds, "draw": 1.0, "away": p2_odds}
             )()
 
             odds_history = [
@@ -401,9 +400,7 @@ class TennisPredictionService:
             )
 
         except Exception as e:
-            logger.debug(
-                f"Sharp money detection failed for {match.match_id}: {e}"
-            )
+            logger.debug(f"Sharp money detection failed for {match.match_id}: {e}")
 
         return sharp_signal
 
@@ -433,14 +430,10 @@ class TennisPredictionService:
             )
 
             kelly_recs = self.kelly_sizer.generate_stake_recommendations
-            kelly_recommendations = kelly_recs(
-                kelly_results, 100.0, confidence
-            )
+            kelly_recommendations = kelly_recs(kelly_results, 100.0, confidence)
 
         except Exception as e:
-            logger.debug(
-                f"Kelly sizing failed: {e}"
-            )
+            logger.debug(f"Kelly sizing failed: {e}")
 
         return kelly_recommendations
 
@@ -452,30 +445,34 @@ class TennisPredictionService:
     ) -> dict:
         """Build market metadata for the prediction."""
         return {
-            "sharp_money": {
-                "smart_money_side": (
-                    sharp_signal.smart_money_side if sharp_signal else None
-                ),
-                "steam_score": sharp_signal.steam_score if sharp_signal else 0.0,
-                "reverse_line_movement": (
-                    sharp_signal.reverse_line_movement if sharp_signal else False
-                ),
-            }
-            if sharp_signal
-            else None,
-            "kelly": {
-                "total_stake": sum(r.stake_units for r in kelly_recommendations),
-                "recommendations": [
-                    {
-                        "outcome": r.outcome,
-                        "stake_units": r.stake_units,
-                        "risk_level": r.risk_level,
-                    }
-                    for r in kelly_recommendations
-                ],
-            }
-            if kelly_recommendations
-            else None,
+            "sharp_money": (
+                {
+                    "smart_money_side": (
+                        sharp_signal.smart_money_side if sharp_signal else None
+                    ),
+                    "steam_score": sharp_signal.steam_score if sharp_signal else 0.0,
+                    "reverse_line_movement": (
+                        sharp_signal.reverse_line_movement if sharp_signal else False
+                    ),
+                }
+                if sharp_signal
+                else None
+            ),
+            "kelly": (
+                {
+                    "total_stake": sum(r.stake_units for r in kelly_recommendations),
+                    "recommendations": [
+                        {
+                            "outcome": r.outcome,
+                            "stake_units": r.stake_units,
+                            "risk_level": r.risk_level,
+                        }
+                        for r in kelly_recommendations
+                    ],
+                }
+                if kelly_recommendations
+                else None
+            ),
             "real_time_odds_provider": (
                 real_time_odds.provider.value if real_time_odds else None
             ),
@@ -597,9 +594,7 @@ class TennisPredictionService:
         rank_diff = features.get("rank_diff", 0)
         if abs(rank_diff) > 3:
             better = match.p1_name if rank_diff < 0 else match.p2_name
-            return [
-                f"{better} tiene mejor ranking por {abs(rank_diff)} posiciones"
-            ]
+            return [f"{better} tiene mejor ranking por {abs(rank_diff)} posiciones"]
         return []
 
     def _get_surface_factor(self, features: dict, match: TennisMatch) -> list:
@@ -873,9 +868,7 @@ class TennisPredictionService:
             )
         return markets
 
-    def _create_correct_score(
-        self, match: TennisMatch, p1_prob: float
-    ) -> list:
+    def _create_correct_score(self, match: TennisMatch, p1_prob: float) -> list:
         """Create correct score markets."""
         markets = []
         best_of = match.best_of
@@ -900,20 +893,14 @@ class TennisPredictionService:
                 )
         return markets
 
-    def _create_games_over_under(
-        self, match: TennisMatch, p1_prob: float
-    ) -> list:
+    def _create_games_over_under(self, match: TennisMatch, p1_prob: float) -> list:
         """Create total games over/under markets."""
         markets = []
         for threshold in [19.5, 21.5, 23.5]:
             if match.best_of == 3 and threshold <= 21.5:
-                markets.append(
-                    self._create_game_market(match, p1_prob, threshold)
-                )
+                markets.append(self._create_game_market(match, p1_prob, threshold))
             elif match.best_of == 5 and threshold >= 21.5:
-                markets.append(
-                    self._create_game_market(match, p1_prob, threshold)
-                )
+                markets.append(self._create_game_market(match, p1_prob, threshold))
         return markets
 
     def _create_game_market(
@@ -921,9 +908,7 @@ class TennisPredictionService:
     ) -> dict:
         """Create a single total games over market."""
         over_prob = self._games_over_prob(p1_prob, threshold)
-        reasoning = (
-            f"Estimación de más de {threshold} juegos: {over_prob*100:.1f}%"
-        )
+        reasoning = f"Estimación de más de {threshold} juegos: {over_prob*100:.1f}%"
         return {
             "market_type": "total_games_over",
             "market_label": f"Más de {threshold} juegos",

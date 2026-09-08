@@ -106,16 +106,12 @@ class SharpMoneyDetector:
             steam_moves = self._detect_steam_moves(odds_history)
 
         # Calculate steam score
-        steam_score = self.calculate_steam_score(
-            movements, volumes, steam_moves
-        )
+        steam_score = self.calculate_steam_score(movements, volumes, steam_moves)
 
         # Detect reverse line movement
         rlm = False
         if public_percentages:
-            rlm = self._detect_reverse_line_movement(
-                movements, public_percentages
-            )
+            rlm = self._detect_reverse_line_movement(movements, public_percentages)
 
         # Identify smart money side
         smart_side = self.identify_smart_money_side(
@@ -147,9 +143,7 @@ class SharpMoneyDetector:
             confidence=confidence,
         )
 
-    def _calculate_movements(
-        self, opening: Odds, current: Odds
-    ) -> dict[str, float]:
+    def _calculate_movements(self, opening: Odds, current: Odds) -> dict[str, float]:
         """Calculate percentage movements for each outcome."""
         return {
             "home": (current.home - opening.home) / opening.home,
@@ -196,17 +190,11 @@ class SharpMoneyDetector:
             time_score = max(0.3, 1.0 - (time_window_minutes / 120))
 
         # Combined steam score (weighted)
-        steam_score = (
-            movement_score * 0.5
-            + volume_score * 0.3
-            + time_score * 0.2
-        )
+        steam_score = movement_score * 0.5 + volume_score * 0.3 + time_score * 0.2
 
         return min(max(steam_score, 0.0), 1.0)
 
-    def _detect_steam_moves(
-        self, odds_history: list[OddsSnapshot]
-    ) -> list[SteamMove]:
+    def _detect_steam_moves(self, odds_history: list[OddsSnapshot]) -> list[SteamMove]:
         """Detect individual steam moves in odds history."""
         if len(odds_history) < 2:
             return []
@@ -340,12 +328,8 @@ class SharpMoneyDetector:
 
         movements = self._calculate_movements(opening, closing)
 
-        sharp_movements = self._calculate_sharp_book_movements(
-            sorted_history, opening
-        )
-        volume_movements = self._calculate_volume_movements(
-            sorted_history, opening
-        )
+        sharp_movements = self._calculate_sharp_book_movements(sorted_history, opening)
+        volume_movements = self._calculate_volume_movements(sorted_history, opening)
         rlm_side = self._calculate_rlm_side(
             movements, sharp_movements, public_percentages
         )
@@ -489,9 +473,7 @@ class SharpMoneyDetector:
 
         return min(confidence, 1.0)
 
-    def analyze_odds_series(
-        self, odds_series: list[OddsSnapshot]
-    ) -> SharpMoneySignal:
+    def analyze_odds_series(self, odds_series: list[OddsSnapshot]) -> SharpMoneySignal:
         """
         Full analysis of an odds time series.
 

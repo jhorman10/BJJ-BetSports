@@ -18,8 +18,8 @@ class TestKellySizer:
         """Set up test fixtures."""
         self.sizer = KellySizer(
             kelly_fraction=0.25,  # Quarter Kelly
-            max_stake_pct=0.05,   # 5% max stake
-            min_edge=0.02,        # 2% minimum edge
+            max_stake_pct=0.05,  # 5% max stake
+            min_edge=0.02,  # 2% minimum edge
         )
 
     def test_calculatekelly_fraction_basic(self):
@@ -138,9 +138,7 @@ class TestKellySizer:
         odds = {"home": 2.1, "draw": 3.4, "away": 3.6}
         bankroll = 1000.0
 
-        result = self.sizer.calculate_multi_outcome_kelly(
-            model_probs, odds, bankroll
-        )
+        result = self.sizer.calculate_multi_outcome_kelly(model_probs, odds, bankroll)
 
         assert isinstance(result, MultiOutcomeKellyResult)
         assert len(result.outcomes) == 3
@@ -153,9 +151,7 @@ class TestKellySizer:
         odds = {"home": 2.0, "draw": 3.5, "away": 4.0}  # Home has no edge
         bankroll = 1000.0
 
-        result = self.sizer.calculate_multi_outcome_kelly(
-            model_probs, odds, bankroll
-        )
+        result = self.sizer.calculate_multi_outcome_kelly(model_probs, odds, bankroll)
 
         assert result.outcomes["home"].meets_min_edge is False
         assert result.outcomes["home"].recommended_stake == 0.0
@@ -262,9 +258,7 @@ class TestKellySizer:
         )
 
         # Quarter Kelly has lower growth but much lower variance/ruin risk
-        ruin_full = self.sizer.probability_of_ruin(
-            bankroll, 0.10, 0.55, 2.0, 2000.0
-        )
+        ruin_full = self.sizer.probability_of_ruin(bankroll, 0.10, 0.55, 2.0, 2000.0)
         ruin_quarter = self.sizer.probability_of_ruin(
             bankroll, 0.025, 0.55, 2.0, 2000.0
         )

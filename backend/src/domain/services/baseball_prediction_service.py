@@ -132,9 +132,7 @@ class BaseballPredictionService:
         )
 
         # 6. SHARP MONEY DETECTION
-        sharp_signal = self._detect_sharp_money(
-            game, home_odds, away_odds
-        )
+        sharp_signal = self._detect_sharp_money(game, home_odds, away_odds)
 
         # 7. KELLY CRITERION SIZING
         kelly_recommendations = self._calculate_kelly_recommendations(
@@ -311,12 +309,8 @@ class BaseballPredictionService:
         value_bets = []
 
         # Use provided odds (real-time) or fall back to game odds
-        odds_home = (
-            home_odds if home_odds is not None else game.home_odds
-        )
-        odds_away = (
-            away_odds if away_odds is not None else game.away_odds
-        )
+        odds_home = home_odds if home_odds is not None else game.home_odds
+        odds_away = away_odds if away_odds is not None else game.away_odds
 
         if odds_home and odds_away:
             implied_home = 1.0 / odds_home
@@ -634,10 +628,7 @@ class BaseballPredictionService:
                 return asyncio.run(fetch_odds())
 
         except Exception as e:
-            logger.debug(
-                "Real-time odds fetch failed for "
-                f"{game.game_id}: {e}"
-            )
+            logger.debug("Real-time odds fetch failed for " f"{game.game_id}: {e}")
             return None
 
     def _detect_sharp_money(
@@ -741,30 +732,34 @@ class BaseballPredictionService:
     ) -> dict:
         """Build market metadata dictionary."""
         return {
-            "sharp_money": {
-                "smart_money_side": (
-                    sharp_signal.smart_money_side if sharp_signal else None
-                ),
-                "steam_score": sharp_signal.steam_score if sharp_signal else 0.0,
-                "reverse_line_movement": (
-                    sharp_signal.reverse_line_movement if sharp_signal else False
-                ),
-            }
-            if sharp_signal
-            else None,
-            "kelly": {
-                "total_stake": sum(r.stake_units for r in kelly_recommendations),
-                "recommendations": [
-                    {
-                        "outcome": r.outcome,
-                        "stake_units": r.stake_units,
-                        "risk_level": r.risk_level,
-                    }
-                    for r in kelly_recommendations
-                ],
-            }
-            if kelly_recommendations
-            else None,
+            "sharp_money": (
+                {
+                    "smart_money_side": (
+                        sharp_signal.smart_money_side if sharp_signal else None
+                    ),
+                    "steam_score": sharp_signal.steam_score if sharp_signal else 0.0,
+                    "reverse_line_movement": (
+                        sharp_signal.reverse_line_movement if sharp_signal else False
+                    ),
+                }
+                if sharp_signal
+                else None
+            ),
+            "kelly": (
+                {
+                    "total_stake": sum(r.stake_units for r in kelly_recommendations),
+                    "recommendations": [
+                        {
+                            "outcome": r.outcome,
+                            "stake_units": r.stake_units,
+                            "risk_level": r.risk_level,
+                        }
+                        for r in kelly_recommendations
+                    ],
+                }
+                if kelly_recommendations
+                else None
+            ),
             "real_time_odds_provider": (
                 real_time_odds.provider.value if real_time_odds else None
             ),

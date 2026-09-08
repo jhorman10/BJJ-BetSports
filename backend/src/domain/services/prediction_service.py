@@ -122,12 +122,14 @@ class PredictionService:
             if league_id and match_date:
                 # Run async function synchronously
                 import asyncio
+
                 try:
                     # Try to get running loop
                     loop = asyncio.get_running_loop()
                     # If we're in a running loop, we can't use run_until_complete
                     # Create a new task instead
                     import concurrent.futures
+
                     with concurrent.futures.ThreadPoolExecutor() as executor:
                         future = executor.submit(
                             asyncio.run,
@@ -219,19 +221,21 @@ class PredictionService:
                 return 0.5
 
             # Convert Match entities to DataFrame
-            hist_df = pd.DataFrame([
-                {
-                    'date': m.date,
-                    'home_team': m.home_team.name if m.home_team else '',
-                    'away_team': m.away_team.name if m.away_team else '',
-                    'home_goals': m.home_goals,
-                    'away_goals': m.away_goals,
-                    'home_odds': m.odds.home if m.odds else 0,
-                    'draw_odds': m.odds.draw if m.odds else 0,
-                    'away_odds': m.odds.away if m.odds else 0,
-                }
-                for m in hist_matches
-            ])
+            hist_df = pd.DataFrame(
+                [
+                    {
+                        "date": m.date,
+                        "home_team": m.home_team.name if m.home_team else "",
+                        "away_team": m.away_team.name if m.away_team else "",
+                        "home_goals": m.home_goals,
+                        "away_goals": m.away_goals,
+                        "home_odds": m.odds.home if m.odds else 0,
+                        "draw_odds": m.odds.draw if m.odds else 0,
+                        "away_odds": m.odds.away if m.odds else 0,
+                    }
+                    for m in hist_matches
+                ]
+            )
 
             if len(hist_df) == 0:
                 logger.debug(
@@ -275,10 +279,10 @@ class PredictionService:
                         continue
 
                     # Convert odds to implied probabilities (removing overround)
-                    total_implied = 1/home_odds + 1/draw_odds + 1/away_odds
-                    imp_home = (1/home_odds) / total_implied
-                    imp_draw = (1/draw_odds) / total_implied
-                    imp_away = (1/away_odds) / total_implied
+                    total_implied = 1 / home_odds + 1 / draw_odds + 1 / away_odds
+                    imp_home = (1 / home_odds) / total_implied
+                    imp_draw = (1 / draw_odds) / total_implied
+                    imp_away = (1 / away_odds) / total_implied
 
                     implied_probs.append([imp_home, imp_draw, imp_away])
 
@@ -342,7 +346,7 @@ class PredictionService:
 
                     def poisson_p(k, lam):
                         if lam > 0:
-                            return (lam ** k) * exp(-lam) / factorial(k)
+                            return (lam**k) * exp(-lam) / factorial(k)
                         return 1 if k == 0 else 0
 
                     max_g = 8
@@ -359,10 +363,7 @@ class PredictionService:
                     model_probs = np.array([p_home, p_draw, p_away])
                     model_brier_scores.append(
                         np.sum(
-                            (
-                                model_probs
-                                - actual_outcomes[len(model_brier_scores)]
-                            )
+                            (model_probs - actual_outcomes[len(model_brier_scores)])
                             ** 2
                         )
                     )
@@ -2152,57 +2153,73 @@ class PredictionService:
                     "MODEL_GENERATED_BY", "prediction-service"
                 ),
                 # Phase 3: Advanced Market Alignment
-                "sharp_money_signal": {
-                    "smart_money_side": (
-                        sharp_signal.smart_money_side if sharp_signal else None
-                    ),
-                    "steam_score": sharp_signal.steam_score if sharp_signal else 0.0,
-                    "reverse_line_movement": (
-                        sharp_signal.reverse_line_movement if sharp_signal else False
-                    ),
-                    "confidence": sharp_signal.confidence if sharp_signal else 0.0,
-                    "steam_moves_count": (
-                        len(sharp_signal.steam_moves) if sharp_signal else 0
-                    ),
-                }
-                if sharp_signal
-                else None,
-                "kelly_sizing": {
-                    "total_kelly": kelly_results.total_kelly if kelly_results else 0.0,
-                    "total_stake": kelly_results.total_stake if kelly_results else 0.0,
-                    "bankroll_allocation": (
-                        kelly_results.bankroll_allocation if kelly_results else {}
-                    ),
-                    "recommendations": [
-                        {
-                            "outcome": r.outcome,
-                            "stake_units": r.stake_units,
-                            "stake_pct_bankroll": r.stake_pct_bankroll,
-                            "kelly_fraction": r.kelly_fraction,
-                            "fractional_kelly": r.fractional_kelly,
-                            "risk_level": r.risk_level,
-                        }
-                        for r in kelly_recommendations
-                    ],
-                }
-                if kelly_results
-                else None,
-                "market_efficiency": {
-                    "clv": market_efficiency.clv if market_efficiency else 0.0,
-                    "market_margin": (
-                        market_efficiency.market_margin if market_efficiency else 0.0
-                    ),
-                    "sharp_movement_detected": (
-                        market_efficiency.sharp_movement_detected
-                        if market_efficiency
-                        else False
-                    ),
-                    "steam_score": (
-                        market_efficiency.steam_score if market_efficiency else 0.0
-                    ),
-                }
-                if market_efficiency
-                else None,
+                "sharp_money_signal": (
+                    {
+                        "smart_money_side": (
+                            sharp_signal.smart_money_side if sharp_signal else None
+                        ),
+                        "steam_score": (
+                            sharp_signal.steam_score if sharp_signal else 0.0
+                        ),
+                        "reverse_line_movement": (
+                            sharp_signal.reverse_line_movement
+                            if sharp_signal
+                            else False
+                        ),
+                        "confidence": sharp_signal.confidence if sharp_signal else 0.0,
+                        "steam_moves_count": (
+                            len(sharp_signal.steam_moves) if sharp_signal else 0
+                        ),
+                    }
+                    if sharp_signal
+                    else None
+                ),
+                "kelly_sizing": (
+                    {
+                        "total_kelly": (
+                            kelly_results.total_kelly if kelly_results else 0.0
+                        ),
+                        "total_stake": (
+                            kelly_results.total_stake if kelly_results else 0.0
+                        ),
+                        "bankroll_allocation": (
+                            kelly_results.bankroll_allocation if kelly_results else {}
+                        ),
+                        "recommendations": [
+                            {
+                                "outcome": r.outcome,
+                                "stake_units": r.stake_units,
+                                "stake_pct_bankroll": r.stake_pct_bankroll,
+                                "kelly_fraction": r.kelly_fraction,
+                                "fractional_kelly": r.fractional_kelly,
+                                "risk_level": r.risk_level,
+                            }
+                            for r in kelly_recommendations
+                        ],
+                    }
+                    if kelly_results
+                    else None
+                ),
+                "market_efficiency": (
+                    {
+                        "clv": market_efficiency.clv if market_efficiency else 0.0,
+                        "market_margin": (
+                            market_efficiency.market_margin
+                            if market_efficiency
+                            else 0.0
+                        ),
+                        "sharp_movement_detected": (
+                            market_efficiency.sharp_movement_detected
+                            if market_efficiency
+                            else False
+                        ),
+                        "steam_score": (
+                            market_efficiency.steam_score if market_efficiency else 0.0
+                        ),
+                    }
+                    if market_efficiency
+                    else None
+                ),
                 "clv_adjusted_weight": clv_adjusted_weight,
                 "real_time_odds_provider": (
                     real_time_odds_snapshot.provider.value

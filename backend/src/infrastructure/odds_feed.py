@@ -775,8 +775,8 @@ class OddsFeed:
             prev = sorted_series[i - 1]
             curr = sorted_series[i]
             time_diff = (
-                (curr.timestamp - prev.timestamp).total_seconds() / 60
-            )  # minutes
+                curr.timestamp - prev.timestamp
+            ).total_seconds() / 60  # minutes
 
             if time_diff <= 60:  # Within 1 hour
                 for outcome in ["home", "draw", "away"]:

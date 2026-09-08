@@ -1,4 +1,5 @@
 import numpy as np
+
 """
 Unit tests for ContinuousLearningPipeline module.
 """
@@ -73,8 +74,8 @@ class TestContinuousLearningPipeline:
     def test_calculate_psi_no_drift(self):
         """Test PSI calculation with no drift."""
         # Same distribution
-        ref_dist = {"hist": [0.1]*10, "bins": list(range(11))}
-        curr_dist = {"hist": [0.1]*10, "bins": list(range(11))}
+        ref_dist = {"hist": [0.1] * 10, "bins": list(range(11))}
+        curr_dist = {"hist": [0.1] * 10, "bins": list(range(11))}
 
         psi = self.pipeline._calculate_psi(ref_dist, curr_dist)
 
@@ -83,8 +84,8 @@ class TestContinuousLearningPipeline:
     def test_calculate_psi_with_drift(self):
         """Test PSI calculation with drift."""
         # Shifted distribution
-        ref_dist = {"hist": [0.1]*10, "bins": list(range(11))}
-        curr_dist = {"hist": [0.05]*5 + [0.15]*5, "bins": list(range(11))}
+        ref_dist = {"hist": [0.1] * 10, "bins": list(range(11))}
+        curr_dist = {"hist": [0.05] * 5 + [0.15] * 5, "bins": list(range(11))}
 
         psi = self.pipeline._calculate_psi(ref_dist, curr_dist)
 
@@ -96,9 +97,7 @@ class TestContinuousLearningPipeline:
         ref_X = np.random.randn(100, 3) * 1 + 0  # Mean 0, std 1
         curr_X = ref_X.copy()  # Exact same data -> no drift
 
-        report = self.pipeline.drift_detection(
-            curr_X, ref_X, ["f1", "f2", "f3"]
-        )
+        report = self.pipeline.drift_detection(curr_X, ref_X, ["f1", "f2", "f3"])
 
         assert isinstance(report, DriftReport)
         assert not report.drift_detected
@@ -111,9 +110,7 @@ class TestContinuousLearningPipeline:
         ref_X = np.random.randn(100, 3) * 1 + 0  # Mean 0
         curr_X = np.random.randn(100, 3) * 1 + 2  # Mean shifted to 2
 
-        report = self.pipeline.drift_detection(
-            curr_X, ref_X, ["f1", "f2", "f3"]
-        )
+        report = self.pipeline.drift_detection(curr_X, ref_X, ["f1", "f2", "f3"])
 
         assert report.drift_detected
         assert report.overall_psi >= 0.2
@@ -293,7 +290,9 @@ class TestContinuousLearningPipeline:
 
         assert decision.should_retrain is True
         # Drift might trigger first, so check either drift or performance
-        assert decision.drift_report is not None or decision.performance_report is not None
+        assert (
+            decision.drift_report is not None or decision.performance_report is not None
+        )
         if decision.performance_report is not None:
             assert decision.performance_report.threshold_exceeded is True
 
@@ -316,7 +315,9 @@ class TestContinuousLearningPipeline:
             features=["f1", "f2", "f3", "f4"],
             hyperparameters={},
             metrics={"brier_score": 0.15, "log_loss": 0.4, "accuracy": 0.7},
-            drift_baseline=self.pipeline._compute_feature_distributions(X_train, ["f1", "f2", "f3", "f4"]),
+            drift_baseline=self.pipeline._compute_feature_distributions(
+                X_train, ["f1", "f2", "f3", "f4"]
+            ),
             is_active=True,
         )
         self.pipeline._model_registry["football"] = [old_metadata]
@@ -340,7 +341,11 @@ class TestContinuousLearningPipeline:
 
         assert decision.should_retrain is True
         # Either scheduled or drift could trigger
-        assert "weekly" in decision.reason.lower() or "scheduled" in decision.reason.lower() or "drift" in decision.reason.lower()
+        assert (
+            "weekly" in decision.reason.lower()
+            or "scheduled" in decision.reason.lower()
+            or "drift" in decision.reason.lower()
+        )
 
     def test_load_active_model(self):
         """Test loading active model."""
@@ -437,6 +442,7 @@ class TestContinuousLearningPipeline:
             np.random.shuffle(y)
             # Small delay to ensure unique timestamps
             import time
+
             time.sleep(0.01)
             self.pipeline.daily_retrain(
                 sport="soccer",

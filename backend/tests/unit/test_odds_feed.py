@@ -198,6 +198,7 @@ class TestOddsFeed:
     def test_close(self):
         """Test closing the feed."""
         import asyncio
+
         feed = OddsFeed(pinnacle_key="test")
         asyncio.run(feed.close())
         # Should not raise
