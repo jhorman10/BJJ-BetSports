@@ -55,20 +55,19 @@ ignore_missing_imports = true
 follow_imports = "skip"
 disallow_untyped_defs = false
 warn_unused_ignores = false
-
-[tool.mypy.overrides]
-# New Phase 3 modules - complex type annotations
-module = [
-    "domain.services.continuous_learning",
-    "infrastructure.odds_feed",
-    "domain.services.sharp_detector",
-    "domain.services.tennis_prediction_service",
-    "domain.entities.tennis_match",
-    "domain.services.tennis_feature_extractor",
-    "api.routers.leagues",
-    "infrastructure.data.league_loader",
-    "infrastructure.data.verify_dataset",
-    "infrastructure.data_sources.mlb_fixture_source",
-    "domain.services.prediction_service",
+exclude = [
+    "src/domain/services/continuous_learning.py",
+    "src/infrastructure/odds_feed.py",
+    "src/domain/services/sharp_detector.py",
+    "src/domain/services/tennis_prediction_service.py",
+    "src/domain/entities/tennis_match.py",
+    "src/domain/services/tennis_feature_extractor.py",
+    "src/api/routers/leagues.py",
+    "src/infrastructure/data/league_loader.py",
+    "src/infrastructure/data/verify_dataset.py",
+    "src/infrastructure/data_sources/mlb_fixture_source.py",
+    "src/domain/services/prediction_service.py",
+    "src/infrastructure/data/league_loader.py",
+    "src/domain/services/basketball_prediction_service.py",
+    "src/domain/services/baseball_prediction_service.py",
 ]
-ignore_errors = true
