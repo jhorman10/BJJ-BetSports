@@ -1,10 +1,18 @@
 import logging
 import os
+from datetime import date, datetime
 from typing import Any, Optional
 
 import joblib
+import numpy as np
+import pandas as pd
+from sklearn.calibration import CalibratedClassifierCV
 from src.domain.entities.tennis_match import TennisMatch
 from src.domain.services.tennis_feature_extractor import TennisFeatureExtractor
+from src.infrastructure.data_sources.tennis_data_source import TennisDataSource
+from src.domain.services.sharp_detector import SharpMoneyDetector, SharpMoneySignal
+from src.domain.services.kelly_sizer import KellySizer
+from src.infrastructure.odds_feed import OddsFeed, OddsSnapshot, OddsProvider
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +30,11 @@ class TennisPrediction:
         form: Optional[dict] = None,
         value_bets: Optional[list] = None,
         key_factors: Optional[list] = None,
+        # Phase 3: Advanced Market Alignment
+        sharp_signal: Optional[SharpMoneySignal] = None,
+        kelly_recommendations: Optional[list] = None,
+        real_time_odds: Optional[OddsSnapshot] = None,
+        market_metadata: Optional[dict] = None,
     ):
         self.p1_win_prob = p1_win_prob
         self.p2_win_prob = p2_win_prob
@@ -32,33 +45,188 @@ class TennisPrediction:
         self.form = form or {}
         self.value_bets = value_bets or []
         self.key_factors = key_factors or []
+        # Phase 3
+        self.sharp_signal = sharp_signal
+        self.kelly_recommendations = kelly_recommendations or []
+        self.real_time_odds = real_time_odds
+        self.market_metadata = market_metadata or {}
 
 
 class TennisPredictionService:
     """
     Service for predicting tennis match outcomes using a trained ML model.
+    Phase 3: Integrates OddsFeed, SharpMoneyDetector, KellySizer for market alignment.
     """
 
     MODEL_PATH = os.getenv("TENNIS_MODEL_PATH", "models/tennis_classifier.pkl")
 
-    def __init__(self, feature_extractor: TennisFeatureExtractor):
+    def __init__(
+        self,
+        feature_extractor: TennisFeatureExtractor,
+        odds_feed: Optional[OddsFeed] = None,
+        sharp_detector: Optional[SharpMoneyDetector] = None,
+        kelly_sizer: Optional[KellySizer] = None,
+    ):
         self.feature_extractor = feature_extractor
+        self.odds_feed = odds_feed
+        self.sharp_detector = sharp_detector or SharpMoneyDetector()
+        self.kelly_sizer = kelly_sizer or KellySizer()
         self.model = self._load_model()
 
     def _load_model(self) -> Any:
-        """Load the trained model from disk."""
-        if os.path.exists(self.MODEL_PATH):
-            try:
-                return joblib.load(self.MODEL_PATH)
-            except Exception as e:
-                logger.error(f"Failed to load tennis model: {e}")
-        else:
+        """Load the trained model from disk and calibrate it using historical data."""
+        if not os.path.exists(self.MODEL_PATH):
             logger.warning(f"Tennis model not found at {self.MODEL_PATH}")
-        return None
+            return None
+
+        try:
+            base_model = joblib.load(self.MODEL_PATH)
+            logger.info("Base tennis model loaded successfully")
+
+            # Calibrate the model using isotonic regression with cross-validation
+            calibrated_model = self._calibrate_model(base_model)
+            if calibrated_model is not None:
+                logger.info("Model calibrated successfully with isotonic regression")
+                return calibrated_model
+
+            logger.warning("Calibration failed, returning base model")
+            return base_model
+
+        except Exception as e:
+            logger.error(f"Failed to load tennis model: {e}")
+            return None
+
+    def _calibrate_model(self, base_model: Any) -> Any:
+        """
+        Calibrate the base RandomForest model using CalibratedClassifierCV with isotonic regression.
+
+        Uses historical match data as a holdout set for calibration.
+        Falls back to 3-fold cross-validation if holdout data is insufficient.
+        """
+        try:
+            # Load historical data for calibration (similar to test script)
+            source = TennisDataSource(tour="atp")
+            hist_df = source.fetch_matches_range(2020, 2023)  # Use recent 4 years for calibration
+
+            if hist_df is None or len(hist_df) < 100:
+                logger.warning("Insufficient historical data for calibration, using CV=3")
+                return CalibratedClassifierCV(base_model, method="isotonic", cv=3)
+
+            # Prepare features and labels for calibration
+            # We use a feature extractor without historical data to avoid leakage
+            extractor = TennisFeatureExtractor(historical_data=None)
+            # But we need historical data for feature extraction, so let's use the loaded data
+            # for feature extraction but only on matches before a certain date
+            # to simulate a holdout set
+
+            # Sort by date and use the last 20% as calibration holdout
+            hist_df = hist_df.sort_values("tourney_date")
+            split_idx = int(len(hist_df) * 0.8)
+            calibration_df = hist_df.iloc[split_idx:]
+
+            if len(calibration_df) < 50:
+                logger.warning("Calibration holdout too small, using CV=3")
+                return CalibratedClassifierCV(base_model, method="isotonic", cv=3)
+
+            # Create feature extractor with training data (first 80%)
+            train_df = hist_df.iloc[:split_idx]
+            train_extractor = TennisFeatureExtractor(historical_data=train_df)
+
+            # Extract features and labels from calibration set
+            X_cal = []
+            y_cal = []
+
+            for _, row in calibration_df.iterrows():
+                winner = row.get("winner_name", "")
+                loser = row.get("loser_name", "")
+                if not winner or not loser:
+                    continue
+
+                # Create a mock match for feature extraction
+                try:
+                    match = TennisMatch(
+                        match_id=f"cal_{len(X_cal)}",
+                        tournament_name=row.get("tourney_name", "Unknown"),
+                        surface=row.get("surface", "Hard"),
+                        tourney_level=row.get("tourney_level", "A"),
+                        round_name=row.get("round", "R128"),
+                        match_date=pd.to_datetime(row.get("tourney_date")).date(),
+                        best_of=5 if row.get("best_of") == 5 else 3,
+                        p1_name=winner,
+                        p1_rank=row.get("winner_rank", 100),
+                        p1_rank_points=row.get("winner_rank_points", 0),
+                        p1_age=row.get("winner_age", 25.0),
+                        p1_hand=row.get("winner_hand", "R"),
+                        p1_height=row.get("winner_ht", 180),
+                        p2_name=loser,
+                        p2_rank=row.get("loser_rank", 100),
+                        p2_rank_points=row.get("loser_rank_points", 0),
+                        p2_age=row.get("loser_age", 25.0),
+                        p2_hand=row.get("loser_hand", "R"),
+                        p2_height=row.get("loser_ht", 180),
+                        p1_odds=row.get("avgw"),
+                        p2_odds=row.get("avgl"),
+                    )
+
+                    features = train_extractor.extract_features(match)
+                    feature_names = train_extractor.get_feature_names()
+                    X_cal.append([features[f] for f in feature_names])
+                    y_cal.append(1)  # Winner is p1
+
+                    # Also add the reverse (loser as p1) for balanced calibration
+                    match_rev = TennisMatch(
+                        match_id=f"cal_{len(X_cal)}",
+                        tournament_name=row.get("tourney_name", "Unknown"),
+                        surface=row.get("surface", "Hard"),
+                        tourney_level=row.get("tourney_level", "A"),
+                        round_name=row.get("round", "R128"),
+                        match_date=pd.to_datetime(row.get("tourney_date")).date(),
+                        best_of=5 if row.get("best_of") == 5 else 3,
+                        p1_name=loser,
+                        p1_rank=row.get("loser_rank", 100),
+                        p1_rank_points=row.get("loser_rank_points", 0),
+                        p1_age=row.get("loser_age", 25.0),
+                        p1_hand=row.get("loser_hand", "R"),
+                        p1_height=row.get("loser_ht", 180),
+                        p2_name=winner,
+                        p2_rank=row.get("winner_rank", 100),
+                        p2_rank_points=row.get("winner_rank_points", 0),
+                        p2_age=row.get("winner_age", 25.0),
+                        p2_hand=row.get("winner_hand", "R"),
+                        p2_height=row.get("winner_ht", 180),
+                        p1_odds=row.get("avgl"),
+                        p2_odds=row.get("avgw"),
+                    )
+
+                    features_rev = train_extractor.extract_features(match_rev)
+                    X_cal.append([features_rev[f] for f in feature_names])
+                    y_cal.append(0)  # Winner is p2
+
+                except Exception:
+                    continue  # Skip problematic matches
+
+            if len(X_cal) < 50:
+                logger.warning("Not enough calibration samples, using CV=3")
+                return CalibratedClassifierCV(base_model, method="isotonic", cv=3)
+
+            X_cal = np.array(X_cal)
+            y_cal = np.array(y_cal)
+
+            # Fit calibrated classifier on holdout set
+            calibrated = CalibratedClassifierCV(base_model, method="isotonic", cv="prefit")
+            calibrated.fit(X_cal, y_cal)
+
+            logger.info(f"Calibrated model on {len(X_cal)} samples from {len(calibration_df)} matches")
+            return calibrated
+
+        except Exception as e:
+            logger.warning(f"Calibration failed: {e}, falling back to CV=3")
+            return CalibratedClassifierCV(base_model, method="isotonic", cv=3)
 
     def predict(self, match: TennisMatch) -> Optional[TennisPrediction]:
         """
         Predict the outcome of a tennis match with full context.
+        Phase 3: Includes real-time odds, sharp money detection, Kelly sizing.
         """
         if self.model is None:
             logger.error("Model not loaded, cannot predict.")
@@ -90,8 +258,136 @@ class TennisPredictionService:
             h2h = self._get_h2h_context(match)
             surface_stats = self._get_surface_stats(match)
             form = self._get_form_context(match)
-            value_bets = self._calculate_value_bets(match, p1_prob, p2_prob)
+
+            # ============================================================
+            # PHASE 3: ADVANCED MARKET ALIGNMENT
+            # ============================================================
+
+            # 5. REAL-TIME ODDS FETCH
+            real_time_odds: Optional[OddsSnapshot] = None
+            p1_odds = match.p1_odds
+            p2_odds = match.p2_odds
+
+            if self.odds_feed and self.odds_feed.is_configured():
+                try:
+                    import asyncio
+
+                    async def fetch_odds():
+                        return await self.odds_feed.fetch_odds(
+                            sport="tennis",
+                            league=match.tournament_name or "unknown",
+                            match_id=match.match_id,
+                        )
+
+                    try:
+                        loop = asyncio.get_running_loop()
+                        import concurrent.futures
+                        with concurrent.futures.ThreadPoolExecutor() as executor:
+                            future = executor.submit(asyncio.run, fetch_odds())
+                            real_time_odds = future.result(timeout=10)
+                    except RuntimeError:
+                        real_time_odds = asyncio.run(fetch_odds())
+
+                    if real_time_odds:
+                        # Use real-time odds (more accurate for value bets)
+                        p1_odds = real_time_odds.odds.home
+                        p2_odds = real_time_odds.odds.away
+
+                except Exception as e:
+                    logger.debug(f"Real-time odds fetch failed for {match.match_id}: {e}")
+
+            # Calculate value bets with real-time odds
+            value_bets = self._calculate_value_bets(match, p1_prob, p2_prob, p1_odds, p2_odds)
+
+            # 6. SHARP MONEY DETECTION
+            sharp_signal: Optional[SharpMoneySignal] = None
+            if p1_odds and p2_odds and hasattr(match, "opening_odds") and match.opening_odds:
+                try:
+                    # Would need odds history - simplified with opening vs current
+                    from src.infrastructure.odds_feed import OddsSnapshot, OddsProvider
+                    from datetime import timedelta
+
+                    opening = match.opening_odds  # Should be Odds object
+                    current_odds = type('Odds', (), {'home': p1_odds, 'draw': 1.0, 'away': p2_odds})()
+
+                    odds_history = [
+                        OddsSnapshot(
+                            provider=OddsProvider.PINNACLE,
+                            sport="tennis",
+                            league=match.tournament_name or "unknown",
+                            match_id=match.match_id,
+                            odds=opening,
+                            timestamp=match.match_date - timedelta(days=7) if match.match_date else datetime.utcnow(),
+                        ),
+                        OddsSnapshot(
+                            provider=OddsProvider.PINNACLE,
+                            sport="tennis",
+                            league=match.tournament_name or "unknown",
+                            match_id=match.match_id,
+                            odds=current_odds,
+                            timestamp=datetime.utcnow(),
+                        ),
+                    ]
+
+                    sharp_signal = self.sharp_detector.analyze_line_movement(
+                        opening_odds=opening,
+                        current_odds=current_odds,
+                        odds_history=odds_history,
+                    )
+
+                    # Add sharp money signals to key_factors
+                    if sharp_signal and sharp_signal.confidence > 0.5:
+                        if sharp_signal.reverse_line_movement:
+                            key_factors.append("⚠️ Reverse Line Movement detectado")
+                        if sharp_signal.smart_money_side:
+                            side_name = match.p1_name if sharp_signal.smart_money_side == "home" else match.p2_name
+                            key_factors.append(f"💰 Dinero sharp en {side_name} (score: {sharp_signal.steam_score:.0%})")
+
+                except Exception as e:
+                    logger.debug(f"Sharp money detection failed for {match.match_id}: {e}")
+
+            # 7. KELLY CRITERION SIZING
+            kelly_recommendations = []
+            if p1_odds and p2_odds and value_bets:
+                try:
+                    model_probs = {"player1": p1_prob, "player2": p2_prob}
+                    odds_dict = {"player1": p1_odds, "player2": p2_odds}
+
+                    kelly_results = self.kelly_sizer.calculate_tennis_kelly(
+                        p1_prob=p1_prob,
+                        p2_prob=p2_prob,
+                        p1_odds=p1_odds,
+                        p2_odds=p2_odds,
+                        bankroll=100.0,  # Standard bankroll
+                        confidence=confidence,
+                    )
+
+                    kelly_recommendations = self.kelly_sizer.generate_stake_recommendations(
+                        kelly_results, 100.0, confidence
+                    )
+
+                except Exception as e:
+                    logger.debug(f"Kelly sizing failed for {match.match_id}: {e}")
+
+            # 8. Extract key factors (includes sharp money signals if detected)
             key_factors = self._extract_key_factors(features, match)
+
+            # Market metadata
+            market_metadata = {
+                "sharp_money": {
+                    "smart_money_side": sharp_signal.smart_money_side if sharp_signal else None,
+                    "steam_score": sharp_signal.steam_score if sharp_signal else 0.0,
+                    "reverse_line_movement": sharp_signal.reverse_line_movement if sharp_signal else False,
+                } if sharp_signal else None,
+                "kelly": {
+                    "total_stake": sum(r.stake_units for r in kelly_recommendations),
+                    "recommendations": [
+                        {"outcome": r.outcome, "stake_units": r.stake_units, "risk_level": r.risk_level}
+                        for r in kelly_recommendations
+                    ],
+                } if kelly_recommendations else None,
+                "real_time_odds_provider": real_time_odds.provider.value if real_time_odds else None,
+            }
 
             return TennisPrediction(
                 p1_win_prob=p1_prob,
@@ -102,6 +398,10 @@ class TennisPredictionService:
                 form=form,
                 value_bets=value_bets,
                 key_factors=key_factors,
+                sharp_signal=sharp_signal,
+                kelly_recommendations=kelly_recommendations,
+                real_time_odds=real_time_odds,
+                market_metadata=market_metadata,
             )
         except Exception as e:
             logger.error(f"Prediction failed: {e}")
@@ -157,14 +457,23 @@ class TennisPredictionService:
         }
 
     def _calculate_value_bets(
-        self, match: TennisMatch, p1_prob: float, p2_prob: float
+        self,
+        match: TennisMatch,
+        p1_prob: float,
+        p2_prob: float,
+        p1_odds: Optional[float] = None,
+        p2_odds: Optional[float] = None,
     ) -> list:
         """Calculate value bets by comparing model probability vs implied odds probability."""
         value_bets = []
 
-        if match.p1_odds and match.p2_odds:
-            implied_p1 = 1.0 / match.p1_odds
-            implied_p2 = 1.0 / match.p2_odds
+        # Use provided odds (real-time) or fall back to match odds
+        odds_p1 = p1_odds if p1_odds is not None else match.p1_odds
+        odds_p2 = p2_odds if p2_odds is not None else match.p2_odds
+
+        if odds_p1 and odds_p2:
+            implied_p1 = 1.0 / odds_p1
+            implied_p2 = 1.0 / odds_p2
 
             # Value = model probability - implied probability
             p1_value = p1_prob - implied_p1
@@ -175,7 +484,7 @@ class TennisPredictionService:
                 value_bets.append(
                     {
                         "player": match.p1_name,
-                        "odds": match.p1_odds,
+                        "odds": odds_p1,
                         "implied_prob": round(implied_p1 * 100, 1),
                         "model_prob": round(p1_prob * 100, 1),
                         "edge": round(p1_value * 100, 1),
@@ -186,7 +495,7 @@ class TennisPredictionService:
                 value_bets.append(
                     {
                         "player": match.p2_name,
-                        "odds": match.p2_odds,
+                        "odds": odds_p2,
                         "implied_prob": round(implied_p2 * 100, 1),
                         "model_prob": round(p2_prob * 100, 1),
                         "edge": round(p2_value * 100, 1),

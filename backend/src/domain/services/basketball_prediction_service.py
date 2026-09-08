@@ -1,8 +1,15 @@
 import logging
+import os
 from typing import Any, Optional
+from datetime import datetime
+
+import joblib
 
 from src.domain.entities.basketball_game import BasketballGame
 from src.domain.services.basketball_feature_extractor import BasketballFeatureExtractor
+from src.domain.services.sharp_detector import SharpMoneyDetector, SharpMoneySignal
+from src.domain.services.kelly_sizer import KellySizer
+from src.infrastructure.odds_feed import OddsFeed, OddsSnapshot, OddsProvider
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +26,11 @@ class BasketballPrediction:
         form: Optional[dict] = None,
         value_bets: Optional[list] = None,
         key_factors: Optional[list] = None,
+        # Phase 3: Advanced Market Alignment
+        sharp_signal: Optional[SharpMoneySignal] = None,
+        kelly_recommendations: Optional[list] = None,
+        real_time_odds: Optional[OddsSnapshot] = None,
+        market_metadata: Optional[dict] = None,
     ):
         self.home_win_prob = float(home_win_prob)
         self.away_win_prob = float(away_win_prob)
@@ -28,28 +40,218 @@ class BasketballPrediction:
         self.form = form or {}
         self.value_bets = value_bets or []
         self.key_factors = key_factors or []
+        # Phase 3
+        self.sharp_signal = sharp_signal
+        self.kelly_recommendations = kelly_recommendations or []
+        self.real_time_odds = real_time_odds
+        self.market_metadata = market_metadata or {}
 
 
 class BasketballPredictionService:
     """
     Service for predicting basketball game outcomes.
-    Uses rule-based prediction (no .pkl model initially).
+    Uses trained ML model with calibrated probabilities.
+    Phase 3: Integrates OddsFeed, SharpMoneyDetector, KellySizer for market alignment.
     """
 
-    def __init__(self, feature_extractor: BasketballFeatureExtractor):
+    MODEL_PATH = os.getenv("BASKETBALL_MODEL_PATH", "models/basketball_classifier.pkl")
+
+    def __init__(
+        self,
+        feature_extractor: BasketballFeatureExtractor,
+        odds_feed: Optional[OddsFeed] = None,
+        sharp_detector: Optional[SharpMoneyDetector] = None,
+        kelly_sizer: Optional[KellySizer] = None,
+    ):
         self.feature_extractor = feature_extractor
+        self.odds_feed = odds_feed
+        self.sharp_detector = sharp_detector or SharpMoneyDetector()
+        self.kelly_sizer = kelly_sizer or KellySizer()
+        self.model = self._load_model()
+
+    def _load_model(self) -> Any:
+        """Load the trained model from disk."""
+        if os.path.exists(self.MODEL_PATH):
+            try:
+                return joblib.load(self.MODEL_PATH)
+            except Exception as e:
+                logger.error(f"Failed to load basketball model: {e}")
+        else:
+            logger.warning(f"Basketball model not found at {self.MODEL_PATH}")
+        return None
 
     def predict(self, game: BasketballGame) -> Optional[BasketballPrediction]:
         """
         Predict the outcome of a basketball game.
-        Falls back to rule-based prediction when ML model is unavailable.
+        Uses ML model when available, falls back to rule-based prediction.
         """
         try:
             features = self.feature_extractor.extract_features(game)
-            return self._predict_rule_based(features, game)
+            feature_names = self.feature_extractor.get_feature_names()
+
+            if self.model is not None:
+                return self._predict_with_model(features, feature_names, game)
+            else:
+                return self._predict_rule_based(features, game)
         except Exception as e:
             logger.error(f"Prediction failed: {e}")
             return None
+
+    def _predict_with_model(
+        self, features: dict, feature_names: list, game: BasketballGame
+    ) -> Optional[BasketballPrediction]:
+        """Use ML model for prediction with Phase 3 market alignment."""
+        X = [[features[f] for f in feature_names]]
+        probs = self.model.predict_proba(X)[0]
+
+        if 1 in self.model.classes_:
+            home_idx = list(self.model.classes_).index(1)
+            home_prob = float(probs[home_idx])
+            away_prob = 1.0 - home_prob
+        else:
+            home_prob = float(probs[0])
+            away_prob = float(probs[1])
+
+        confidence = abs(home_prob - 0.5) * 2
+
+        # ============================================================
+        # PHASE 3: ADVANCED MARKET ALIGNMENT
+        # ============================================================
+
+        # REAL-TIME ODDS FETCH
+        real_time_odds: Optional[OddsSnapshot] = None
+        home_odds = game.home_odds
+        away_odds = game.away_odds
+
+        if self.odds_feed and self.odds_feed.is_configured():
+            try:
+                import asyncio
+
+                async def fetch_odds():
+                    return await self.odds_feed.fetch_odds(
+                        sport="basketball",
+                        league=game.league or "NBA",
+                        match_id=game.game_id,
+                    )
+
+                try:
+                    loop = asyncio.get_running_loop()
+                    import concurrent.futures
+                    with concurrent.futures.ThreadPoolExecutor() as executor:
+                        future = executor.submit(asyncio.run, fetch_odds())
+                        real_time_odds = future.result(timeout=10)
+                except RuntimeError:
+                    real_time_odds = asyncio.run(fetch_odds())
+
+                if real_time_odds:
+                    home_odds = real_time_odds.odds.home
+                    away_odds = real_time_odds.odds.away
+
+            except Exception as e:
+                logger.debug(f"Real-time odds fetch failed for {game.game_id}: {e}")
+
+        # Calculate value bets with real-time odds
+        value_bets = self._calculate_value_bets(game, home_prob, away_prob, home_odds, away_odds)
+
+        # SHARP MONEY DETECTION
+        sharp_signal: Optional[SharpMoneySignal] = None
+        if home_odds and away_odds and hasattr(game, "opening_odds") and game.opening_odds:
+            try:
+                from src.infrastructure.odds_feed import OddsSnapshot, OddsProvider
+                from datetime import timedelta
+
+                opening = game.opening_odds
+                current_odds = type('Odds', (), {'home': home_odds, 'draw': 1.0, 'away': away_odds})()
+
+                odds_history = [
+                    OddsSnapshot(
+                        provider=OddsProvider.PINNACLE,
+                        sport="basketball",
+                        league=game.league or "NBA",
+                        match_id=game.game_id,
+                        odds=opening,
+                        timestamp=game.game_date - timedelta(days=7) if game.game_date else datetime.utcnow(),
+                    ),
+                    OddsSnapshot(
+                        provider=OddsProvider.PINNACLE,
+                        sport="basketball",
+                        league=game.league or "NBA",
+                        match_id=game.game_id,
+                        odds=current_odds,
+                        timestamp=datetime.utcnow(),
+                    ),
+                ]
+
+                sharp_signal = self.sharp_detector.analyze_line_movement(
+                    opening_odds=opening,
+                    current_odds=current_odds,
+                    odds_history=odds_history,
+                )
+
+            except Exception as e:
+                logger.debug(f"Sharp money detection failed for {game.game_id}: {e}")
+
+        # KELLY CRITERION SIZING
+        kelly_recommendations = []
+        if home_odds and away_odds and value_bets:
+            try:
+                kelly_results = self.kelly_sizer.calculate_basketball_kelly(
+                    home_prob=home_prob,
+                    away_prob=away_prob,
+                    home_odds=home_odds,
+                    away_odds=away_odds,
+                    bankroll=100.0,
+                    confidence=confidence,
+                )
+
+                kelly_recommendations = self.kelly_sizer.generate_stake_recommendations(
+                    kelly_results, 100.0, confidence
+                )
+
+            except Exception as e:
+                logger.debug(f"Kelly sizing failed for {game.game_id}: {e}")
+
+        # Extract key factors
+        key_factors = self._extract_key_factors(features, game)
+
+        # Add sharp money signals to key_factors if detected
+        if sharp_signal and sharp_signal.confidence > 0.5:
+            if sharp_signal.reverse_line_movement:
+                key_factors.append("⚠️ Reverse Line Movement detected")
+            if sharp_signal.smart_money_side:
+                side_name = game.home_team if sharp_signal.smart_money_side == "home" else game.away_team
+                key_factors.append(f"💰 Sharp money on {side_name} (score: {sharp_signal.steam_score:.0%})")
+
+        # Market metadata
+        market_metadata = {
+            "sharp_money": {
+                "smart_money_side": sharp_signal.smart_money_side if sharp_signal else None,
+                "steam_score": sharp_signal.steam_score if sharp_signal else 0.0,
+                "reverse_line_movement": sharp_signal.reverse_line_movement if sharp_signal else False,
+            } if sharp_signal else None,
+            "kelly": {
+                "total_stake": sum(r.stake_units for r in kelly_recommendations),
+                "recommendations": [
+                    {"outcome": r.outcome, "stake_units": r.stake_units, "risk_level": r.risk_level}
+                    for r in kelly_recommendations
+                ],
+            } if kelly_recommendations else None,
+            "real_time_odds_provider": real_time_odds.provider.value if real_time_odds else None,
+        }
+
+        return BasketballPrediction(
+            home_win_prob=home_prob,
+            away_win_prob=away_prob,
+            confidence=confidence,
+            h2h=self._get_h2h_context(game),
+            form=self._get_form_context(game),
+            value_bets=value_bets,
+            key_factors=key_factors,
+            sharp_signal=sharp_signal,
+            kelly_recommendations=kelly_recommendations,
+            real_time_odds=real_time_odds,
+            market_metadata=market_metadata,
+        )
 
     def _predict_rule_based(
         self, features: dict, game: BasketballGame
@@ -84,19 +286,144 @@ class BasketballPredictionService:
         away_prob = 1.0 - home_prob
 
         confidence = abs(home_prob - 0.5) * 2
-        h2h = self._get_h2h_context(game)
-        form = self._get_form_context(game)
-        value_bets = self._calculate_value_bets(game, home_prob, away_prob)
+
+        # ============================================================
+        # PHASE 3: ADVANCED MARKET ALIGNMENT (Rule-based fallback)
+        # ============================================================
+
+        # REAL-TIME ODDS FETCH
+        real_time_odds: Optional[OddsSnapshot] = None
+        home_odds = game.home_odds
+        away_odds = game.away_odds
+
+        if self.odds_feed and self.odds_feed.is_configured():
+            try:
+                import asyncio
+
+                async def fetch_odds():
+                    return await self.odds_feed.fetch_odds(
+                        sport="basketball",
+                        league=game.league or "NBA",
+                        match_id=game.game_id,
+                    )
+
+                try:
+                    loop = asyncio.get_running_loop()
+                    import concurrent.futures
+                    with concurrent.futures.ThreadPoolExecutor() as executor:
+                        future = executor.submit(asyncio.run, fetch_odds())
+                        real_time_odds = future.result(timeout=10)
+                except RuntimeError:
+                    real_time_odds = asyncio.run(fetch_odds())
+
+                if real_time_odds:
+                    home_odds = real_time_odds.odds.home
+                    away_odds = real_time_odds.odds.away
+
+            except Exception as e:
+                logger.debug(f"Real-time odds fetch failed for {game.game_id}: {e}")
+
+        # Calculate value bets with real-time odds
+        value_bets = self._calculate_value_bets(game, home_prob, away_prob, home_odds, away_odds)
+
+        # SHARP MONEY DETECTION
+        sharp_signal: Optional[SharpMoneySignal] = None
+        if home_odds and away_odds and hasattr(game, "opening_odds") and game.opening_odds:
+            try:
+                from src.infrastructure.odds_feed import OddsSnapshot, OddsProvider
+                from datetime import timedelta
+
+                opening = game.opening_odds
+                current_odds = type('Odds', (), {'home': home_odds, 'draw': 1.0, 'away': away_odds})()
+
+                odds_history = [
+                    OddsSnapshot(
+                        provider=OddsProvider.PINNACLE,
+                        sport="basketball",
+                        league=game.league or "NBA",
+                        match_id=game.game_id,
+                        odds=opening,
+                        timestamp=game.game_date - timedelta(days=7) if game.game_date else datetime.utcnow(),
+                    ),
+                    OddsSnapshot(
+                        provider=OddsProvider.PINNACLE,
+                        sport="basketball",
+                        league=game.league or "NBA",
+                        match_id=game.game_id,
+                        odds=current_odds,
+                        timestamp=datetime.utcnow(),
+                    ),
+                ]
+
+                sharp_signal = self.sharp_detector.analyze_line_movement(
+                    opening_odds=opening,
+                    current_odds=current_odds,
+                    odds_history=odds_history,
+                )
+
+            except Exception as e:
+                logger.debug(f"Sharp money detection failed for {game.game_id}: {e}")
+
+        # KELLY CRITERION SIZING
+        kelly_recommendations = []
+        if home_odds and away_odds and value_bets:
+            try:
+                kelly_results = self.kelly_sizer.calculate_basketball_kelly(
+                    home_prob=home_prob,
+                    away_prob=away_prob,
+                    home_odds=home_odds,
+                    away_odds=away_odds,
+                    bankroll=100.0,
+                    confidence=confidence,
+                )
+
+                kelly_recommendations = self.kelly_sizer.generate_stake_recommendations(
+                    kelly_results, 100.0, confidence
+                )
+
+            except Exception as e:
+                logger.debug(f"Kelly sizing failed for {game.game_id}: {e}")
+
+        # Extract key factors
         key_factors = self._extract_key_factors(features, game)
+
+        # Add sharp money signals to key_factors if detected
+        if sharp_signal and sharp_signal.confidence > 0.5:
+            if sharp_signal.reverse_line_movement:
+                key_factors.append("⚠️ Reverse Line Movement detected")
+            if sharp_signal.smart_money_side:
+                side_name = game.home_team if sharp_signal.smart_money_side == "home" else game.away_team
+                key_factors.append(f"💰 Sharp money on {side_name} (score: {sharp_signal.steam_score:.0%})")
+
+        # Market metadata
+        market_metadata = {
+            "sharp_money": {
+                "smart_money_side": sharp_signal.smart_money_side if sharp_signal else None,
+                "steam_score": sharp_signal.steam_score if sharp_signal else 0.0,
+                "reverse_line_movement": sharp_signal.reverse_line_movement if sharp_signal else False,
+            } if sharp_signal else None,
+            "kelly": {
+                "total_stake": sum(r.stake_units for r in kelly_recommendations),
+                "recommendations": [
+                    {"outcome": r.outcome, "stake_units": r.stake_units, "risk_level": r.risk_level}
+                    for r in kelly_recommendations
+                ],
+            } if kelly_recommendations else None,
+            "real_time_odds_provider": real_time_odds.provider.value if real_time_odds else None,
+        }
 
         return BasketballPrediction(
             home_win_prob=home_prob,
             away_win_prob=away_prob,
             confidence=confidence,
-            h2h=h2h,
-            form=form,
+            h2h=self._get_h2h_context(game),
+            form=self._get_form_context(game),
             value_bets=value_bets,
             key_factors=key_factors,
+            sharp_signal=sharp_signal,
+            kelly_recommendations=kelly_recommendations,
+            real_time_odds=real_time_odds,
+            market_metadata=market_metadata,
         )
 
     def _get_h2h_context(self, game: BasketballGame) -> dict:
@@ -138,20 +465,30 @@ class BasketballPredictionService:
         }
 
     def _calculate_value_bets(
-        self, game: BasketballGame, home_prob: float, away_prob: float
+        self,
+        game: BasketballGame,
+        home_prob: float,
+        away_prob: float,
+        home_odds: Optional[float] = None,
+        away_odds: Optional[float] = None,
     ) -> list:
         """Calculate value bets by comparing model probability vs implied odds probability."""
         value_bets = []
-        if game.home_odds and game.away_odds:
-            implied_home = 1.0 / game.home_odds
-            implied_away = 1.0 / game.away_odds
+
+        # Use provided odds (real-time) or fall back to game odds
+        odds_home = home_odds if home_odds is not None else game.home_odds
+        odds_away = away_odds if away_odds is not None else game.away_odds
+
+        if odds_home and odds_away:
+            implied_home = 1.0 / odds_home
+            implied_away = 1.0 / odds_away
             home_edge = home_prob - implied_home
             away_edge = away_prob - implied_away
             if home_edge > 0.02:
                 value_bets.append(
                     {
                         "team": game.home_team,
-                        "odds": game.home_odds,
+                        "odds": odds_home,
                         "implied_prob": round(implied_home * 100, 1),
                         "model_prob": round(home_prob * 100, 1),
                         "edge": round(home_edge * 100, 1),
@@ -162,7 +499,7 @@ class BasketballPredictionService:
                 value_bets.append(
                     {
                         "team": game.away_team,
-                        "odds": game.away_odds,
+                        "odds": odds_away,
                         "implied_prob": round(implied_away * 100, 1),
                         "model_prob": round(away_prob * 100, 1),
                         "edge": round(away_edge * 100, 1),
