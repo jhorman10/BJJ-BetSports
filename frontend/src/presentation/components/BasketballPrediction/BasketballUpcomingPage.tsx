@@ -37,7 +37,7 @@ const BasketballUpcomingPage: React.FC = () => {
     try {
       const response = await api.getBasketballConferences();
       setConferences(response.conferences || []);
-    } catch (err: unknown) {
+    } catch {
       // Conferences fetch failed, will use defaults
       setConferences([
         { id: "east", name: "Eastern Conference", teams: [] },

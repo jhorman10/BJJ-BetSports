@@ -4,17 +4,16 @@ import numpy as np
 Unit tests for ContinuousLearningPipeline module.
 """
 
-import pytest
-import tempfile
 import shutil
+import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
-
+import pytest
 from src.domain.services.continuous_learning import (
     ContinuousLearningPipeline,
-    ModelMetadata,
     DriftReport,
+    ModelMetadata,
     PerformanceReport,
     RetrainDecision,
     create_pipeline_from_config,

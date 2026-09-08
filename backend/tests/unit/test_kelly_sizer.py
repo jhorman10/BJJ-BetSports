@@ -3,10 +3,9 @@ Unit tests for KellySizer module.
 """
 
 import pytest
-
 from src.domain.services.kelly_sizer import (
-    KellySizer,
     KellyResult,
+    KellySizer,
     MultiOutcomeKellyResult,
 )
 

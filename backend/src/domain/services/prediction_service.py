@@ -15,21 +15,20 @@ This is a pure domain service with no external dependencies.
 
 from __future__ import annotations
 
+import concurrent.futures
 import functools
 import logging
 import math
 import os
-from typing import Any, Optional
-
-import concurrent.futures
 from datetime import datetime, timedelta
+from typing import Any, Optional
 
 import numpy as np
 from src.domain.entities.entities import Match, Prediction, TeamStatistics
 from src.domain.exceptions import InsufficientDataException
-from src.domain.value_objects.value_objects import LeagueAverages, Odds, TeamStrength
 from src.domain.services.kelly_sizer import KellySizer, MultiOutcomeKellyResult
 from src.domain.services.sharp_detector import SharpMoneyDetector, SharpMoneySignal
+from src.domain.value_objects.value_objects import LeagueAverages, Odds, TeamStrength
 from src.infrastructure.odds_feed import (
     MarketEfficiencyMetrics,
     OddsFeed,
@@ -194,13 +193,13 @@ class PredictionService:
         """
         try:
             # Import here to avoid circular imports
+            import pandas as pd
             from src.infrastructure.data_sources.football_data_uk import (
                 FootballDataUKSource,
             )
             from src.infrastructure.data_sources.github_dataset import (
                 LocalGithubDataSource,
             )
-            import pandas as pd
 
             # Try Football-Data.co.uk first
             data_source = FootballDataUKSource()

@@ -11,6 +11,69 @@ import { SportsBaseball } from "@mui/icons-material";
 import { api } from "../../../services/api";
 import { BaseballSeries } from "../../../types";
 
+// API response types
+interface ApiSeriesGame {
+  game_id: string;
+  date: string;
+  home_team: string;
+  away_team: string;
+  venue: string;
+  day_night: string;
+  home_pitcher_name?: string;
+  away_pitcher_name?: string;
+  home_odds?: number;
+  away_odds?: number;
+  prediction?: {
+    home_win_prob: number;
+    away_win_prob: number;
+    predicted_winner: string;
+    confidence: number;
+    key_factors: string[];
+    markets: Array<{
+      market_type: string;
+      market_label: string;
+      probability: number;
+      confidence_level: string;
+      reasoning: string;
+      risk_level: number;
+      is_recommended: boolean;
+      priority_score: number;
+      pick_code: string;
+    }>;
+  };
+}
+
+interface ApiSeriesItem {
+  game_id: string;
+  date: string;
+  home_team: string;
+  away_team: string;
+  venue: string;
+  day_night: string;
+  home_pitcher_name?: string;
+  away_pitcher_name?: string;
+  home_odds?: number;
+  away_odds?: number;
+  prediction?: {
+    home_win_prob: number;
+    away_win_prob: number;
+    predicted_winner: string;
+    confidence: number;
+    key_factors: string[];
+    markets: Array<{
+      market_type: string;
+      market_label: string;
+      probability: number;
+      confidence_level: string;
+      reasoning: string;
+      risk_level: number;
+      is_recommended: boolean;
+      priority_score: number;
+      pick_code: string;
+    }>;
+  };
+}
+
 import BaseballSeriesView from "./BaseballSeriesSelector";
 
 const BaseballUpcomingPage: React.FC = () => {
@@ -29,12 +92,12 @@ const BaseballUpcomingPage: React.FC = () => {
     try {
       const response = await api.getBaseballSeries();
       // Transform API response to match BaseballSeries type
-      const seriesData: BaseballSeries[] = (response.series || []).map((s: any, idx: number) => ({
+      const seriesData: BaseballSeries[] = (response.series || []).map((s: ApiSeriesItem, idx: number) => ({
         series_id: `series_${idx}`,
         home_team: s[0]?.home_team || "",
         away_team: s[0]?.away_team || "",
         game_count: s.length,
-        games: s.map((g: any) => ({
+        games: s.map((g: ApiSeriesGame) => ({
           game_id: g.game_id,
           date: g.date,
           home_team: g.home_team,

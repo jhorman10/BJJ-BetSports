@@ -2,17 +2,16 @@
 Unit tests for SharpMoneyDetector module.
 """
 
-import pytest
 from datetime import datetime, timedelta
 
-
-from src.domain.value_objects.value_objects import Odds
+import pytest
 from src.domain.services.sharp_detector import (
     SharpMoneyDetector,
     SharpMoneySignal,
     SteamMove,
 )
-from src.infrastructure.odds_feed import OddsSnapshot, OddsProvider
+from src.domain.value_objects.value_objects import Odds
+from src.infrastructure.odds_feed import OddsProvider, OddsSnapshot
 
 
 class TestSharpMoneyDetector:

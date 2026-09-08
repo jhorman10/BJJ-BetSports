@@ -8,10 +8,10 @@ import numpy as np
 import pandas as pd
 from sklearn.calibration import CalibratedClassifierCV
 from src.domain.entities.tennis_match import TennisMatch
+from src.domain.services.kelly_sizer import KellySizer
+from src.domain.services.sharp_detector import SharpMoneyDetector, SharpMoneySignal
 from src.domain.services.tennis_feature_extractor import TennisFeatureExtractor
 from src.infrastructure.data_sources.tennis_data_source import TennisDataSource
-from src.domain.services.sharp_detector import SharpMoneyDetector, SharpMoneySignal
-from src.domain.services.kelly_sizer import KellySizer
 from src.infrastructure.odds_feed import OddsFeed, OddsProvider, OddsSnapshot
 
 logger = logging.getLogger(__name__)

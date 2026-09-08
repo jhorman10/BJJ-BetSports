@@ -24,7 +24,6 @@ from typing import Any, Optional
 
 import aiohttp
 import numpy as np
-
 from src.domain.value_objects.value_objects import Odds
 
 logger = logging.getLogger(__name__)

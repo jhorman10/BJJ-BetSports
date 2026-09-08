@@ -16,7 +16,7 @@ from datetime import datetime
 from typing import Any, Optional
 
 from src.domain.value_objects.value_objects import Odds
-from src.infrastructure.odds_feed import OddsSnapshot, OddsProvider
+from src.infrastructure.odds_feed import OddsProvider, OddsSnapshot
 
 logger = logging.getLogger(__name__)
 

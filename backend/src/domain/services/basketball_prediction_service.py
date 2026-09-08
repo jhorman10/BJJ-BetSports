@@ -1,14 +1,13 @@
 import logging
 import os
-from typing import Any, Optional
 from datetime import datetime
+from typing import Any, Optional
 
 import joblib
-
 from src.domain.entities.basketball_game import BasketballGame
 from src.domain.services.basketball_feature_extractor import BasketballFeatureExtractor
-from src.domain.services.sharp_detector import SharpMoneyDetector, SharpMoneySignal
 from src.domain.services.kelly_sizer import KellySizer
+from src.domain.services.sharp_detector import SharpMoneyDetector, SharpMoneySignal
 from src.infrastructure.odds_feed import OddsFeed, OddsSnapshot
 
 logger = logging.getLogger(__name__)
@@ -691,8 +690,9 @@ class BasketballPredictionService:
             return None
 
         try:
-            from src.infrastructure.odds_feed import OddsProvider
             from datetime import timedelta
+
+            from src.infrastructure.odds_feed import OddsProvider
 
             opening = game.opening_odds
             current_odds = type(

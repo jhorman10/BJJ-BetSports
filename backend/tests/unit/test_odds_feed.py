@@ -2,16 +2,15 @@
 Unit tests for OddsFeed module.
 """
 
-import pytest
 from datetime import datetime, timedelta
 from unittest.mock import patch
 
-
+import pytest
 from src.domain.value_objects.value_objects import Odds
 from src.infrastructure.odds_feed import (
     OddsFeed,
-    OddsSnapshot,
     OddsProvider,
+    OddsSnapshot,
     PinnacleProvider,
     TheOddsAPIProvider,
     create_odds_feed_from_env,

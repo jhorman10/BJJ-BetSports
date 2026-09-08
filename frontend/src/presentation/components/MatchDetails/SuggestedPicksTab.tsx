@@ -7,6 +7,7 @@ import {
 import { TipsAndUpdates } from "@mui/icons-material";
 
 import { MatchPrediction, SuggestedPick } from "../../../types";
+import { Match } from "../../../domain/entities/match";
 import { generateFallbackPicks } from "../../../utils/predictionUtils";
 import {
   getUniquePicks,
@@ -47,6 +48,7 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
   onPicksCount,
 }) => {
   const { match } = matchPrediction;
+  const domainMatch = match as Match;
   const inlinePicks = matchPrediction.prediction?.suggested_picks;
   const hasInlinePicks = inlinePicks && inlinePicks.length > 0;
 
@@ -183,7 +185,7 @@ const SuggestedPicksTab: React.FC<SuggestedPicksTabProps> = ({
         categoryCounts={categoryCounts}
         onTabChange={handleTabChange}
       />
-      <PicksScrollList filteredPicks={filteredPicks} match={match as any} />
+      <PicksScrollList filteredPicks={filteredPicks} match={domainMatch} />
     </Box>
   );
 };
