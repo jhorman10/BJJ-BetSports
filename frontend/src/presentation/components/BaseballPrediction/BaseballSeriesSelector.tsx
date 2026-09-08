@@ -9,7 +9,9 @@ import {
   Divider,
 } from "@mui/material";
 import { SportsBaseball } from "@mui/icons-material";
+
 import { BaseballSeries } from "../../../types";
+
 import BaseballGameCard from "./BaseballGameCard";
 
 interface BaseballSeriesViewProps {

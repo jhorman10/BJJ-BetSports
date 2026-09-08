@@ -20,7 +20,9 @@ import {
   TrendingUp,
   Star,
 } from "@mui/icons-material";
+
 import { BasketballGameWithPrediction, BasketballMarket } from "../../../types";
+
 import {
   BASKETBALL_CATEGORY_TABS,
   getMarketIcon,

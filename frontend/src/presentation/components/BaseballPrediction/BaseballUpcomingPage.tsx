@@ -7,8 +7,10 @@ import {
   Chip,
 } from "@mui/material";
 import { SportsBaseball } from "@mui/icons-material";
+
 import { api } from "../../../services/api";
 import { BaseballSeries } from "../../../types";
+
 import BaseballSeriesView from "./BaseballSeriesSelector";
 
 const BaseballUpcomingPage: React.FC = () => {

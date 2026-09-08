@@ -15,8 +15,10 @@ import {
   SelectChangeEvent,
 } from "@mui/material";
 import { Search, SportsTennis, SortByAlpha } from "@mui/icons-material";
+
 import { api } from "../../../services/api";
 import { TennisUpcomingMatch, TennisTournament } from "../../../types";
+
 import TennisMatchCard from "./TennisMatchCard";
 
 interface TennisPredictionGridProps {

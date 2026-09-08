@@ -21,7 +21,9 @@ import {
   Star,
   SportsMma,
 } from "@mui/icons-material";
+
 import { TennisUpcomingMatch, TennisMarket } from "../../../types";
+
 import {
   TENNIS_CATEGORY_TABS,
   getMarketIcon,

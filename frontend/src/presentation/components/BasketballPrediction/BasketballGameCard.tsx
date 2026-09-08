@@ -13,7 +13,9 @@ import {
   Star,
   CheckCircle,
 } from "@mui/icons-material";
+
 import { BasketballGameWithPrediction } from "../../../types";
+
 import BasketballGameDetailsModal from "./BasketballGameDetailsModal";
 
 interface BasketballGameCardProps {

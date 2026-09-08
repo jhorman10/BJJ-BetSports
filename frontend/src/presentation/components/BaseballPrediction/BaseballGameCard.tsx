@@ -14,7 +14,9 @@ import {
   Star,
   CheckCircle,
 } from "@mui/icons-material";
+
 import { BaseballGameWithPrediction } from "../../../types";
+
 import BaseballGameDetailsModal from "./BaseballGameDetailsModal";
 
 interface BaseballGameCardProps {

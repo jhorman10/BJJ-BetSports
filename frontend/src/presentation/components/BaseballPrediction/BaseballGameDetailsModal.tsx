@@ -20,7 +20,9 @@ import {
   TrendingUp,
   Star,
 } from "@mui/icons-material";
+
 import { BaseballGameWithPrediction, BaseballMarket } from "../../../types";
+
 import {
   BASEBALL_CATEGORY_TABS,
   getMarketIcon,

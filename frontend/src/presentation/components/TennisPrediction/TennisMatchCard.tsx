@@ -15,7 +15,9 @@ import {
   SportsMma,
   CheckCircle,
 } from "@mui/icons-material";
+
 import { TennisUpcomingMatch } from "../../../types";
+
 import TennisMatchDetailsModal from "./TennisMatchDetailsModal";
 
 interface TennisMatchCardProps {

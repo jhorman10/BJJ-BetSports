@@ -1,5 +1,6 @@
 import React from "react";
 import { Box, Typography, Chip } from "@mui/material";
+
 import { Prediction } from "../../../domain/entities";
 import { Sport } from "../../../types";
 

@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import { Box, Typography } from "@mui/material";
+
+import { TennisTournament } from "../../../types";
+
 import TennisTournamentSelector from "./TennisTournamentSelector";
 import TennisPredictionGrid from "./TennisPredictionGrid";
-import { TennisTournament } from "../../../types";
 
 const TennisPredictionPage: React.FC = () => {
   const [selectedTournament, setSelectedTournament] =

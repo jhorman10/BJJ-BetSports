@@ -5,7 +5,9 @@ import {
   Grid,
 } from "@mui/material";
 import { SportsBasketball } from "@mui/icons-material";
+
 import { BasketballGameWithPrediction } from "../../../types";
+
 import BasketballGameCard from "./BasketballGameCard";
 
 interface BasketballPredictionGridProps {
