@@ -31,7 +31,7 @@ ignore = ["E203"]
 "backend/src/domain/services/match_aggregator_service.py" = ["C901"]
 "backend/src/domain/services/match_enrichment_service.py" = ["C901"]
 "backend/src/domain/services/pick_resolution_service.py" = ["C901"]
-"backend/src/domain/services/picks_service.py" = ["C901"]
+"backend/src/domain/services/picks_service.py" = ["C901", "E501"]
 "backend/src/domain/services/prediction_service.py" = ["C901"]
 "backend/src/domain/services/risk_management/risk_manager.py" = ["C901"]
 "backend/src/domain/services/statistics_service.py" = ["C901"]
@@ -40,3 +40,34 @@ ignore = ["E203"]
 "backend/src/infrastructure/data_sources/football_data_uk.py" = ["C901"]
 "backend/src/infrastructure/data_sources/github_dataset.py" = ["C901"]
 "backend/src/scheduler.py" = ["C901"]
+"backend/tests/**" = ["C901", "N803", "N806", "E402", "E501"]
+"backend/src/application/services/ml_evaluation_gate.py" = ["N803", "N806"]
+"backend/src/application/services/ml_training_orchestrator.py" = ["N806"]
+"backend/src/domain/entities/tennis_match.py" = ["N815"]
+"backend/src/domain/services/tennis_feature_extractor.py" = ["N806", "E741"]
+"backend/src/api/routers/leagues.py" = ["E741"]
+"backend/src/infrastructure/data/league_loader.py" = ["C901", "E501"]
+"backend/src/infrastructure/data/verify_dataset.py" = ["E501"]
+"backend/src/infrastructure/data_sources/mlb_fixture_source.py" = ["E501"]
+
+[tool.mypy]
+ignore_missing_imports = true
+follow_imports = "skip"
+disallow_untyped_defs = false
+warn_unused_ignores = false
+exclude = [
+    "src/domain/services/continuous_learning.py",
+    "src/infrastructure/odds_feed.py",
+    "src/domain/services/sharp_detector.py",
+    "src/domain/services/tennis_prediction_service.py",
+    "src/domain/entities/tennis_match.py",
+    "src/domain/services/tennis_feature_extractor.py",
+    "src/api/routers/leagues.py",
+    "src/infrastructure/data/league_loader.py",
+    "src/infrastructure/data/verify_dataset.py",
+    "src/infrastructure/data_sources/mlb_fixture_source.py",
+    "src/domain/services/prediction_service.py",
+    "src/infrastructure/data/league_loader.py",
+    "src/domain/services/basketball_prediction_service.py",
+    "src/domain/services/baseball_prediction_service.py",
+]

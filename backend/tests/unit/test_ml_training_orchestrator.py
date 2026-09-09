@@ -102,6 +102,7 @@ async def _run_prepare(  # noqa: C901
         total_return,
         league_averages_map,
         context_summary,
+        sample_meta,
     ) = await orchestrator.prepare_datasets(
         training_service,
         stat_service,
@@ -127,6 +128,7 @@ async def _run_prepare(  # noqa: C901
         total_return,
         league_averages_map,
         context_summary,
+        sample_meta,
     )
 
 
@@ -206,11 +208,12 @@ def test_prepare_datasets_basic():
         total_return,
         league_averages_map,
         context_summary,
+        sample_meta,
     ) = asyncio.run(_run_prepare(matches))
 
     assert isinstance(ml_features, list)
     assert isinstance(ml_targets, list)
-    assert len(ml_features) == len(ml_targets) == 1
+    assert len(ml_features) == len(ml_targets) == len(sample_meta) == 1
     assert matches_processed == 1
     assert total_bets >= 0
     assert isinstance(match_history, list)
@@ -501,7 +504,9 @@ def test_run_training_pipeline_exposes_context_summary_for_international_leagues
 ):
     # Never run the REAL artifact cleanup against the working tree from a test:
     # with the expanded D4 globs it removes tracked files (output/*.json).
-    monkeypatch.setattr(orchestrator, "cleanup_model_artifacts", lambda logger: None)
+    monkeypatch.setattr(
+        orchestrator, "cleanup_model_artifacts", lambda logger, **kwargs: None
+    )
     target_match = _make_match(1, league_id="LIB")
     support_matches = [
         _make_match(2, league_id="BRA1", home_team_name="A", away_team_name="C"),

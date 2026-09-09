@@ -57,12 +57,14 @@ class League:
         name: Full name of the league (e.g., "Premier League")
         country: Country where the league is played
         season: Current season (e.g., "2024-2025")
+        sport: Sport type (e.g., "soccer", "tennis", "baseball", "basketball")
     """
 
     id: str
     name: str
     country: str
     season: Optional[str] = None
+    sport: str = "soccer"
 
     def __post_init__(self) -> None:
         if not self.name or not self.country:
@@ -233,6 +235,13 @@ class Prediction:
     under_95_corners_probability: float = 0.0
     over_45_cards_probability: float = 0.0
     under_45_cards_probability: float = 0.0
+    # Tennis-specific fields
+    set_over_under_probabilities: list[dict] = field(
+        default_factory=list,
+    )
+    game_probabilities: list[dict] = field(
+        default_factory=list,
+    )
     # Dynamic Handicap
     handicap_line: float = 0.0
     handicap_home_probability: float = 0.0

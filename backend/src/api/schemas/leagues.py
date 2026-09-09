@@ -7,6 +7,7 @@ class LeagueModel(BaseModel):
     id: str
     name: str
     country: str
+    sport: str = "soccer"
 
 
 class CountryModel(BaseModel):

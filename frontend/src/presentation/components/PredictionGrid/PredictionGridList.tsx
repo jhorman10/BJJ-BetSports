@@ -48,6 +48,9 @@ const PredictionGridList: React.FC<PredictionGridListProps> = ({
   loadingMatchIds = new Set(),
   onToggleMatchSelection,
 }) => {
+  const selectedMatchIdSet = new Set(selectedMatchIds);
+  const loadingMatchIdSet = new Set(loadingMatchIds);
+
   return (
     <Grid container spacing={3}>
       {predictions.map((matchPrediction, index) => (
@@ -64,8 +67,8 @@ const PredictionGridList: React.FC<PredictionGridListProps> = ({
                 matchPrediction={matchPrediction}
                 highlight={index === 0}
                 onClick={() => onMatchClick(matchPrediction)}
-                isSelected={selectedMatchIds.includes(matchPrediction.match.id)}
-                isLoading={loadingMatchIds.has(matchPrediction.match.id)}
+                isSelected={selectedMatchIdSet.has(matchPrediction.match.id)}
+                isLoading={loadingMatchIdSet.has(matchPrediction.match.id)}
                 onToggleSelection={() =>
                   onToggleMatchSelection &&
                   onToggleMatchSelection(matchPrediction)

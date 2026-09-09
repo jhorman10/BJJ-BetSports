@@ -83,7 +83,8 @@ const extractStat = (
   );
   if (!teamStats || !teamStats.statistics) return undefined;
   const names = Array.isArray(statName) ? statName : [statName];
-  const stat = teamStats.statistics.find((s) => names.includes(s.name));
+  const nameSet = new Set(names);
+  const stat = teamStats.statistics.find((s) => nameSet.has(s.name));
   return stat ? parseInt(stat.displayValue) : undefined;
 };
 

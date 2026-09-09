@@ -9,6 +9,8 @@ import {
   Typography,
   Chip,
   Tooltip,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import SportsSoccer from "@mui/icons-material/SportsSoccer";
@@ -78,7 +80,7 @@ const BellCurveVisualization: React.FC<{ points: ScorePoint[]; maxProb: number }
   const maxProbability = maxProb || Math.max(...topScores.map((p) => p.probability), 0.001);
 
   return (
-    <Box sx={{ position: "relative", width: "100%", height: 360, mt: 2 }}>
+    <Box sx={{ position: "relative", width: "100%", height: { xs: 280, sm: 360 }, mt: 2 }}>
       <Box
         sx={{
           position: "absolute",
@@ -181,6 +183,9 @@ export const ScoreMatrixModal: React.FC<ScoreMatrixModalProps> = ({
   onClose,
   prediction,
 }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
   if (!prediction) return null;
 
   const matrix = prediction.score_matrix;
@@ -194,7 +199,7 @@ export const ScoreMatrixModal: React.FC<ScoreMatrixModalProps> = ({
   const hasScores = points.length > 0;
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth fullScreen={isMobile}>
       <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <SportsSoccer fontSize="small" />
         <Typography variant="h6" component="span">

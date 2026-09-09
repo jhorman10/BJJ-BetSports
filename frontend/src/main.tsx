@@ -26,13 +26,13 @@ const clearDevelopmentPwaState = async (): Promise<void> => {
     }
 
     const cacheKeys = await caches.keys();
-    await Promise.all(
-      cacheKeys
-        .filter(
-          (cacheKey) => cacheKey === "api-cache" || cacheKey.startsWith("workbox-")
-        )
-        .map((cacheKey) => caches.delete(cacheKey))
-    );
+    const deletions = cacheKeys.reduce<Promise<boolean>[]>((acc, key) => {
+      if (key === "api-cache" || key.startsWith("workbox-")) {
+        acc.push(caches.delete(key));
+      }
+      return acc;
+    }, []);
+    await Promise.all(deletions);
   } catch (error) {
     // Best-effort cleanup in development. Ignore failures to avoid unhandled rejections.
     console.warn("PWA cleanup failed:", error);

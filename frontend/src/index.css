@@ -266,3 +266,56 @@ button,
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ========================================
+   MOBILE STABILITY RULES
+   ======================================== */
+
+/* Prevent horizontal overflow on mobile — clip avoids creating scroll containers */
+html,
+body {
+  overflow-x: clip;
+  -webkit-overflow-scrolling: touch;
+}
+
+#root {
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+/* Prevent iOS zoom on input focus */
+@media screen and (max-width: 600px) {
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="password"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* Stable scrollbar on mobile */
+@media screen and (max-width: 600px) {
+  ::-webkit-scrollbar {
+    width: 2px;
+    height: 2px;
+  }
+}
+
+/* Prevent pull-to-refresh on mobile */
+@media screen and (max-width: 600px) {
+  body {
+    overscroll-behavior-y: contain;
+  }
+}
+
+/* Touch-friendly tap targets */
+@media screen and (max-width: 600px) {
+  button,
+  a,
+  [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}

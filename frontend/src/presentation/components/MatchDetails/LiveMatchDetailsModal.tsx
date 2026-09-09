@@ -9,6 +9,8 @@ import {
   Typography,
   Slide,
   IconButton,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import { TransitionProps } from "@mui/material/transitions";
 import { Close, SportsSoccer } from "@mui/icons-material";
@@ -25,6 +27,8 @@ const LiveMatchDetailsModal: React.FC = () => {
   const { liveModalOpen, selectedLiveMatch, closeLiveMatchModal } =
     useUIStore();
   const { matches: liveMatches } = useLiveStore();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   if (!liveModalOpen || !selectedLiveMatch) return null;
 
@@ -59,14 +63,15 @@ const LiveMatchDetailsModal: React.FC = () => {
       onClose={closeLiveMatchModal}
       maxWidth="sm"
       fullWidth
+      fullScreen={isMobile}
       TransitionComponent={Slide}
       TransitionProps={{ direction: "up" } as TransitionProps}
       PaperProps={{
         sx: {
-          width: { xs: "95%", sm: "100%" },
-          margin: { xs: 1, sm: 2 },
-          borderRadius: 2,
-          maxHeight: { xs: "90vh", sm: "calc(100% - 64px)" },
+          width: { xs: "100%", sm: "100%" },
+          margin: { xs: 0, sm: 2 },
+          borderRadius: isMobile ? 0 : 2,
+          maxHeight: { xs: "100%", sm: "calc(100% - 64px)" },
           background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)",
           color: "white",
         },

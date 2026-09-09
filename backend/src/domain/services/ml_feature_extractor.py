@@ -4,6 +4,7 @@ ML Feature Extractor
 Centralizes the logic for creating feature vectors for ML models.
 """
 
+import hashlib
 import statistics
 import zlib
 from typing import TYPE_CHECKING, List, Optional, Sequence
@@ -20,6 +21,46 @@ class MLFeatureExtractor:
     """
 
     FEATURE_VECTOR_LENGTH = 45
+
+    # Canonical feature-schema descriptor. Order and group sizes must mirror
+    # extract_features(); the per-group sum is validated on every signature
+    # call so drift fails loudly instead of producing a stale hash.
+    SCHEMA_GROUPS = (
+        ("basic", 4),
+        ("shots", 3),
+        ("shots_on_target", 2),
+        ("fouls_diff", 1),
+        ("form_points", 2),
+        ("possession", 2),
+        ("pass_accuracy", 2),
+        ("tackles", 2),
+        ("interceptions", 2),
+        ("corners", 3),
+        ("yellow_cards", 3),
+        ("variance_corner_card", 12),
+        ("conversion", 2),
+        ("xg_proxy", 2),
+        ("referee_strictness", 1),
+        ("intl_domestic_delta", 2),
+    )
+
+    @classmethod
+    def schema_signature(cls) -> str:
+        """Deterministic hash of the feature schema (first 16 hex chars).
+
+        Stable across runs; changes iff the feature schema changes. Stored in
+        artifact metadata envelopes and compared on load.
+        """
+        group_total = sum(size for _, size in cls.SCHEMA_GROUPS)
+        if group_total != cls.FEATURE_VECTOR_LENGTH:
+            raise ValueError(
+                "SCHEMA_GROUPS sum "
+                f"({group_total}) != FEATURE_VECTOR_LENGTH "
+                f"({cls.FEATURE_VECTOR_LENGTH}); update SCHEMA_GROUPS"
+            )
+        canonical = ";".join(f"{name}:{size}" for name, size in cls.SCHEMA_GROUPS)
+        payload = f"{cls.FEATURE_VECTOR_LENGTH}|{canonical}"
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
 
     @staticmethod
     def _calculate_variance_features(

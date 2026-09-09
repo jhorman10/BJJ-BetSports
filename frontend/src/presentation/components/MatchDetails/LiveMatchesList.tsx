@@ -7,6 +7,7 @@ import {
   matchLiveWithPrediction,
   LiveMatchRaw,
 } from "../../../utils/matchMatching";
+import { MatchPrediction as DomainMatchPrediction } from "../../../domain/entities";
 
 import LiveMatchesView from "./LiveMatchesView";
 
@@ -16,8 +17,8 @@ interface LiveMatchesListProps {
 }
 
 const LiveMatchesList: React.FC<LiveMatchesListProps> = ({
-  selectedLeagueIds = [],
-  selectedLeagueNames = [],
+  selectedLeagueIds,
+  selectedLeagueNames,
 }) => {
   const { matches, loading, error, fetchMatches } = useLiveStore();
   const { openLiveMatchModal } = useUIStore();
@@ -54,7 +55,7 @@ const LiveMatchesList: React.FC<LiveMatchesListProps> = ({
   const handleMatchClick = useCallback(
     (liveMatch: LiveMatchRaw) => {
       const matchPrediction = matchLiveWithPrediction(liveMatch, predictions);
-      openLiveMatchModal(matchPrediction);
+      openLiveMatchModal(matchPrediction as DomainMatchPrediction);
     },
     [predictions, openLiveMatchModal]
   );

@@ -31,10 +31,6 @@ logger = logging.getLogger("OrchestratorCLI")
 CPU_COUNT = int(os.getenv("N_JOBS", multiprocessing.cpu_count()))
 logger.info(f"🚀 Running with {CPU_COUNT} CPU cores")
 
-# Suprimir warnings de sklearn (versión inconsistente del modelo)
-warnings.filterwarnings("ignore", category=UserWarning, module="sklearn")
-warnings.filterwarnings("ignore", message=".*InconsistentVersionWarning.*")
-
 try:
     from tqdm import tqdm
 except Exception:
@@ -113,6 +109,21 @@ async def cmd_train(
         if os.getenv("DISABLE_ML_TRAINING") == "true":
             logger.info("Training disabled via env var.")
             return
+
+        # Inject git_sha for artifact metadata (ml-model-deployment spec)
+        if "GIT_SHA" not in os.environ:
+            try:
+                import subprocess
+                git_sha = subprocess.check_output(
+                    ["git", "rev-parse", "--short", "HEAD"],
+                    cwd=PROJECT_ROOT,
+                    stderr=subprocess.DEVNULL,
+                ).decode().strip()
+                os.environ["GIT_SHA"] = git_sha
+                logger.info(f"🔖 Injected GIT_SHA={git_sha}")
+            except Exception:
+                os.environ["GIT_SHA"] = "unknown"
+                logger.warning("Could not determine git SHA; using 'unknown'")
 
         # Old orchestrator doesn't support n_jobs, removed for compatibility
         training_result = await orchestrator.run_training_pipeline(

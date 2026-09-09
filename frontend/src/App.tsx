@@ -19,6 +19,9 @@ import LiveMatchDetailsModal from "./presentation/components/MatchDetails/LiveMa
 import MainLayout from "./presentation/components/Layout/MainLayout";
 import ErrorBoundary from "./presentation/components/common/ErrorBoundary";
 import ParleyCalculatorPage from "./presentation/components/Parley/ParleyCalculatorPage";
+import TennisPredictionPage from "./presentation/components/TennisPrediction/TennisUpcomingPage";
+import BaseballUpcomingPage from "./presentation/components/BaseballPrediction/BaseballUpcomingPage";
+import BasketballUpcomingPage from "./presentation/components/BasketballPrediction/BasketballUpcomingPage";
 import { useUIStore } from "./application/stores/useUIStore";
 import { usePredictionStore } from "./application/stores/usePredictionStore";
 import { useLiveStore } from "./application/stores/useLiveStore";
@@ -149,6 +152,9 @@ const App: React.FC = () => {
           }
         />
         <Route path="/parley-calculator" element={<ParleyCalculatorPage />} />
+        <Route path="/tennis" element={<TennisPredictionPage />} />
+        <Route path="/baseball" element={<BaseballUpcomingPage />} />
+        <Route path="/basketball" element={<BasketballUpcomingPage />} />
         <Route path="/bot" element={<BotDashboard />} />
         <Route path="/dashboard" element={<Navigate to="/bot" replace />} />
       </Routes>

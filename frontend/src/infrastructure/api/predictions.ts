@@ -12,7 +12,7 @@ import { apiClient } from "./client";
 
 export const predictionsApi = {
   /**
-   * Get predictions for a league with optional sorting
+   * Get predictions for a league with optional sorting and sport filter
    */
   async getPredictions(
     leagueId: string,
@@ -22,11 +22,20 @@ export const predictionsApi = {
       | "confidence"
       | "home_probability"
       | "away_probability" = "confidence",
-    sortDesc: boolean = true
+    sortDesc: boolean = true,
+    sport?: string
   ): Promise<PredictionsResponse> {
+    const params: Record<string, unknown> = {
+      limit,
+      sort_by: sortBy,
+      sort_desc: sortDesc,
+    };
+    if (sport) {
+      params.sport = sport;
+    }
     const response = await apiClient.get<PredictionsResponse>(
       API_ENDPOINTS.PREDICTIONS_BY_LEAGUE(leagueId),
-      { params: { limit, sort_by: sortBy, sort_desc: sortDesc } }
+      { params }
     );
     return response.data;
   },

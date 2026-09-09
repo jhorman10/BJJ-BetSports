@@ -13,6 +13,7 @@ import { isNetworkError } from "../../utils/apiErrors";
 import { indexedDBStorage } from "../../infrastructure/storage/indexedDBStorage";
 
 import { useOfflineStore } from "./useOfflineStore";
+import { useUIStore } from "./useUIStore";
 
 export type SortOption =
   | "confidence"
@@ -92,21 +93,11 @@ export const usePredictionStore = create<PredictionState>()(
           set({ leaguesLoading: true, leaguesError: null });
         }
         try {
-          const data = await leaguesApi.getLeagues();
-          // Filter out excluded countries
-          const excludedCountries = [
-            "Turkey",
-            "Greece",
-            "Scotland",
-            "Belgium",
-            "Turquía",
-            "Grecia",
-            "Escocia",
-            "Bélgica",
-          ];
-          const filteredCountries = data.countries
-            .filter((c) => !excludedCountries.includes(c.name))
-            .sort((a, b) => a.name.localeCompare(b.name));
+          const sport = useUIStore.getState().selectedSport;
+          const data = await leaguesApi.getActiveLeagues(sport);
+          const filteredCountries = data.countries.sort((a, b) =>
+            a.name.localeCompare(b.name)
+          );
 
           set({
             leaguesData: {
@@ -176,11 +167,13 @@ export const usePredictionStore = create<PredictionState>()(
         }
 
         try {
+          const sport = useUIStore.getState().selectedSport;
           const response = await predictionsApi.getPredictions(
             selectedLeague.id,
             30,
             sortBy,
-            sortDesc
+            sortDesc,
+            sport
           );
           set({ predictions: response.predictions });
 

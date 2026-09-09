@@ -111,7 +111,7 @@ const LeagueSelector: React.FC = () => {
               Selecciona una Liga
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Elige el país y la liga para ver las predicciones
+              Elige el deporte, país y liga para ver las predicciones
             </Typography>
           </Box>
 

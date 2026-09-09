@@ -68,7 +68,7 @@ export const ParleySuggestions: React.FC = () => {
 
         <List disablePadding>
           {suggestions.map(({ match, pick }, idx) => (
-            <React.Fragment key={`${match.match.id}-${idx}`}>
+            <React.Fragment key={match.match.id}>
               <ListItem
                 sx={{
                   display: "flex",

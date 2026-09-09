@@ -37,23 +37,28 @@ export const LiveScoreBoard: React.FC<LiveScoreBoardProps> = ({ match }) => {
 
   const getGoalEvents = (teamId: string): React.ReactElement[] | undefined =>
     match.events
-      ?.filter(
-        (e: MatchEvent) =>
+      ?.reduce<React.ReactElement[]>((acc, e: MatchEvent) => {
+        if (
           e.type === "Goal" &&
           e.team_id === teamId &&
           e.detail !== "Missed Penalty"
-      )
-      .map((e: MatchEvent, i: number) => (
-        <Typography
-          key={`goal-${i}`}
-          variant="caption"
-          display="block"
-          color="text.secondary"
-          sx={{ lineHeight: 1.2, fontSize: isMobile ? "0.7rem" : "0.75rem" }}
-        >
-          {e.player_name} ({e.time}')
-        </Typography>
-      ));
+        ) {
+          const eventKey = `${e.type}-${e.time}-${e.player_name}`;
+          acc.push(
+            <Typography
+              key={eventKey}
+              variant="caption"
+              display="block"
+              color="text.secondary"
+              sx={{ lineHeight: 1.2, fontSize: isMobile ? "0.7rem" : "0.75rem" }}
+            >
+              {e.player_name} ({e.time}')
+            </Typography>
+          );
+        }
+        return acc;
+      }, [])
+      .filter(Boolean);
 
   return (
     <Paper

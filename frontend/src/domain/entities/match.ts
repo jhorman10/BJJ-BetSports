@@ -6,12 +6,15 @@ export interface Team {
   logo_url?: string;
 }
 
+export type Sport = "soccer" | "tennis" | "baseball" | "basketball";
+
 export interface League {
   id: string;
   name: string;
   country: string;
   season?: string;
   flag?: string;
+  sport?: Sport;
 }
 
 export interface Match {
