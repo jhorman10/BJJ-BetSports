@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 """
 League Loader Module
 

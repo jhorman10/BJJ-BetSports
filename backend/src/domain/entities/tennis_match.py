@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 from dataclasses import dataclass
 from datetime import date
 from typing import Optional

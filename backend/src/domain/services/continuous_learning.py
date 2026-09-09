@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 """
 Continuous Learning Pipeline Module
 

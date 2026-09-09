@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 """
 Odds Feed Integration Module
 

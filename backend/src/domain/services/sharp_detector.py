@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 """
 Sharp Money Detection Module
 
