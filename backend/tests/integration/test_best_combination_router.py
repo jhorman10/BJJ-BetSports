@@ -148,7 +148,8 @@ def test_409_insufficient_pool(stub_use_case) -> None:
 def test_409_no_positive_ev(stub_use_case) -> None:
     stub_use_case(
         CombinationError(
-            "no_positive_ev", "La combinada no tiene valor esperado positivo (EV -2.00%)."
+            "no_positive_ev",
+            "La combinada no tiene valor esperado positivo (EV -2.00%).",
         )
     )
     client = TestClient(app)

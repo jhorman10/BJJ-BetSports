@@ -67,8 +67,8 @@ Chain strategy: pending
 
 ## Phase 5: Quality Gate
 
-- [ ] 5.1 Run `ruff check backend/` + `black --check backend/` + `isort --check backend/` + `mypy backend/` on all touched backend files; fix any violations
-- [ ] 5.2 Run `eslint frontend/src/` + `tsc --noEmit` on all touched frontend files; fix any violations
-- [ ] 5.3 Run full `pytest backend/tests/` — all green
-- [ ] 5.4 Run full `vitest` — all green
-- [ ] 5.5 Verify no regressions: existing per-sport endpoints still return correct shapes (spot-check tennis/baseball/basketball market dicts now carry sport/match_id/odds)
+- [x] 5.1 Run `ruff check backend/` + `black --check backend/` + `isort --check backend/` + `mypy backend/` on all touched backend files; fix any violations
+- [x] 5.2 Run `eslint frontend/src/` + `tsc --noEmit` on all touched frontend files; fix any violations
+- [x] 5.3 Run full `pytest backend/tests/` — all green
+- [x] 5.4 Run full `vitest` — all green
+- [x] 5.5 Verify no regressions: existing per-sport endpoints still return correct shapes (spot-check tennis/baseball/basketball market dicts now carry sport/match_id/odds)

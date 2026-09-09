@@ -58,7 +58,9 @@ def four_sport_pools(**overrides) -> dict[str, list[dict]]:
             raw_pick("soccer", "m-s1", probability=0.65, odds=1.90, league="E0"),
             raw_pick("soccer", "m-s2", probability=0.20, odds=5.00, league="E1"),
         ],
-        "tennis": [raw_pick("tennis", "m-t1", probability=0.70, odds=2.10, league="WTA")],
+        "tennis": [
+            raw_pick("tennis", "m-t1", probability=0.70, odds=2.10, league="WTA")
+        ],
         "baseball": [
             raw_pick("baseball", "m-b1", probability=0.62, odds=1.85, league="MLB")
         ],
@@ -107,9 +109,7 @@ class TestAggregatePools:
         assert pools["tennis"] == []
 
     def test_sport_is_forced_from_key(self) -> None:
-        pools = OPT.aggregate_pools(
-            {"basketball": [raw_pick("soccer", match_id="m1")]}
-        )
+        pools = OPT.aggregate_pools({"basketball": [raw_pick("soccer", match_id="m1")]})
         assert pools["basketball"][0].sport == "basketball"
 
     def test_accepts_market_label_as_pick_label_alias(self) -> None:
@@ -122,9 +122,7 @@ class TestAggregatePools:
 class TestQualityFilter:
     def test_soccer_requires_ml_or_ia_confirmed(self) -> None:
         soccer = [
-            raw_pick(
-                "soccer", "m1", is_ml_confirmed=False, is_ia_confirmed=False
-            ),
+            raw_pick("soccer", "m1", is_ml_confirmed=False, is_ia_confirmed=False),
             raw_pick("soccer", "m2", is_ml_confirmed=True, is_ia_confirmed=False),
             raw_pick("soccer", "m3", is_ml_confirmed=False, is_ia_confirmed=True),
             raw_pick("soccer", "m4", is_ml_confirmed=True, is_ia_confirmed=True),
@@ -142,14 +140,13 @@ class TestQualityFilter:
 
     def test_other_sports_require_high_and_recommended(self) -> None:
         tennis = [
+            raw_pick("tennis", "t1", confidence_level="high", is_recommended=False),
+            raw_pick("tennis", "t2", confidence_level="medium", is_recommended=True),
             raw_pick(
-                "tennis", "t1", confidence_level="high", is_recommended=False
-            ),
-            raw_pick(
-                "tennis", "t2", confidence_level="medium", is_recommended=True
-            ),
-            raw_pick(
-                "tennis", "t3", confidence_level="high", is_recommended=True,
+                "tennis",
+                "t3",
+                confidence_level="high",
+                is_recommended=True,
                 priority_score=99.0,
             ),
         ]
@@ -229,7 +226,9 @@ class TestBuildCombination:
                 "tennis": [
                     # fails quality gate (high+recommended)
                     raw_pick(
-                        "tennis", "t1", confidence_level="low",
+                        "tennis",
+                        "t1",
+                        confidence_level="low",
                         is_recommended=False,
                     )
                 ],
@@ -269,7 +268,9 @@ class TestBuildCombination:
                 "soccer": [raw_pick("soccer", "s1", probability=0.50, odds=0.0)],
                 "tennis": [raw_pick("tennis", "t1", probability=0.50, odds=0.0)],
                 "baseball": [raw_pick("baseball", "b1", probability=0.50, odds=0.0)],
-                "basketball": [raw_pick("basketball", "bb1", probability=0.50, odds=0.0)],
+                "basketball": [
+                    raw_pick("basketball", "bb1", probability=0.50, odds=0.0)
+                ],
             }
         )
         with pytest.raises(CombinationError) as exc:

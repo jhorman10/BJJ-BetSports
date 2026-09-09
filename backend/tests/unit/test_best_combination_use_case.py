@@ -53,9 +53,7 @@ def broken_fetcher():
 
 
 def use_case(**pools_source) -> BestCombinationUseCase:
-    fetch_pools = {
-        sport: fetcher(picks or []) for sport, picks in pools_source.items()
-    }
+    fetch_pools = {sport: fetcher(picks or []) for sport, picks in pools_source.items()}
     return BestCombinationUseCase(fetch_pools=fetch_pools)
 
 
@@ -122,7 +120,10 @@ class TestExecuteHappyPath:
 
 class TestErrorPaths:
     async def test_insufficient_pool(self) -> None:
-        uc = use_case(soccer=[raw_pick("soccer", "s1")], basketball=[raw_pick("basketball", "bb1")])
+        uc = use_case(
+            soccer=[raw_pick("soccer", "s1")],
+            basketball=[raw_pick("basketball", "bb1")],
+        )
         with pytest.raises(CombinationError) as exc:
             await uc.execute(BestCombinationRequest())
         assert exc.value.code == "insufficient_pool"

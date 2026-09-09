@@ -72,13 +72,13 @@ def _to_soccer_pick(pick: Any, match: Any) -> dict[str, Any]:
 async def _fetch_soccer_pool() -> list[dict[str, Any]]:
     """Harvest soccer candidates from league predictions (cached when warm)."""
     from src.application.use_cases.use_cases import GetPredictionsUseCase
-    from src.domain.constants import LEAGUES_METADATA
     from src.dependencies import (
         get_data_sources,
         get_match_aggregator_service,
         get_prediction_service,
         get_statistics_service,
     )
+    from src.domain.constants import LEAGUES_METADATA
 
     use_case = GetPredictionsUseCase(
         data_sources=get_data_sources(),
@@ -282,7 +282,9 @@ class BestCombinationUseCase:
         fetch_pools: Optional[dict[str, PoolFetcher]] = None,
     ) -> None:
         self.optimizer = optimizer or CombinationOptimizer()
-        self._fetch = fetch_pools or default_pool_fetchers()
+        # NOTE: keep the None check explicit — an intentionally empty fetcher
+        # map (all pools empty) must NOT fall back to production fetchers.
+        self._fetch = default_pool_fetchers() if fetch_pools is None else fetch_pools
 
     async def execute(self, request: BestCombinationRequest) -> BestCombinationResponse:
         """Assemble the best combination for the validated request.
