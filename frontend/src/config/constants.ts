@@ -56,6 +56,9 @@ export const API_ENDPOINTS = {
   BASKETBALL_PREDICT_BY_CONFERENCE: (conferenceId: string) =>
     `/basketball/predictions/${conferenceId}`,
 
+  // Best Combination
+  BEST_COMBINATION: "/api/v1/best-combination",
+
   // Health
   HEALTH: "/health",
 } as const;

@@ -28,10 +28,11 @@ const ENDPOINT_METHODS = [
   "getBasketballGames",
   "getBasketballConferences",
   "getBasketballPredictionsByConference",
+  "getBestCombination",
 ];
 
 describe("services/api export surface", () => {
-  it("exposes 24 endpoint methods plus generic post/get (26 exports)", () => {
+  it("exposes 25 endpoint methods plus generic post/get (27 exports)", () => {
     const exported = Object.keys(api).sort();
     expect(exported).toEqual([...ENDPOINT_METHODS, "get", "post"].sort());
   });

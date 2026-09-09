@@ -34,6 +34,8 @@ import {
   BasketballGamesResponse,
   BasketballConferencesResponse,
   BasketballConferenceGamesResponse,
+  BestCombinationRequest,
+  BestCombinationResponse,
 } from "../types";
 
 /**
@@ -303,6 +305,19 @@ export const api = {
   async getLearningStats(): Promise<LearningStatsResponse> {
     const response = await apiClient.get<LearningStatsResponse>(
       API_ENDPOINTS.LEARNING_STATS
+    );
+    return response.data;
+  },
+
+  /**
+   * Ask the model for the single best cross-sport 4-leg combination.
+   */
+  async getBestCombination(
+    pool?: BestCombinationRequest
+  ): Promise<BestCombinationResponse> {
+    const response = await apiClient.post<BestCombinationResponse>(
+      API_ENDPOINTS.BEST_COMBINATION,
+      pool ?? {}
     );
     return response.data;
   },

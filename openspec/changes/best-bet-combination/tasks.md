@@ -56,14 +56,14 @@ Chain strategy: pending
 
 ## Phase 4: Frontend
 
-- [ ] 4.1 Create `frontend/src/types/bestCombination.ts`: TS types `BestCombinationRequest`, `BestCombinationLeg`, `BestCombinationResponse` mirroring backend DTOs
-- [ ] 4.2 Modify `frontend/src/config/constants.ts`: add `BEST_COMBINATION: "/api/v1/best-combination"`
-- [ ] 4.3 Modify `frontend/src/services/api.ts`: add `getBestCombination(pool?: BestCombinationRequest): Promise<BestCombinationResponse>` (POST)
-- [ ] 4.4 Create `frontend/src/presentation/components/BestCombination/BestCombinationPage.tsx`: loading spinner, error state, empty state, 4-leg display (sport icon, match_label, pick_label, probability, odds), aggregate card (total odds, probability, EV, stake), confidence/odds warnings, "Preguntale al modelo" CTA, Spanish neutral/professional UI copy
-- [ ] 4.5 Modify `frontend/src/App.tsx`: add `/best-combination` route with `BestCombinationPage`
-- [ ] 4.6 Modify `frontend/src/presentation/components/Layout/MainLayout.tsx`: add nav entry `{ path: "/best-combination", label: "Mejor Combinación", icon: SmartToy }` to `NAV_ITEMS`
-- [ ] 4.7 Vitest tests `frontend/src/presentation/components/BestCombination/BestCombinationPage.test.tsx`: test loading, error, empty, data-rendered states; test confidence/odds warning rendering
-- [ ] 4.8 Vitest test `frontend/src/services/api.test.ts` (or dedicated file): test `getBestCombination` posts to correct endpoint with correct body
+- [x] 4.1 Create `frontend/src/types/bestCombination.ts`: TS types `BestCombinationRequest`, `BestCombinationLeg`, `BestCombinationResponse` mirroring backend DTOs
+- [x] 4.2 Modify `frontend/src/config/constants.ts`: add `BEST_COMBINATION: "/api/v1/best-combination"`
+- [x] 4.3 Modify `frontend/src/services/api.ts`: add `getBestCombination(pool?: BestCombinationRequest): Promise<BestCombinationResponse>` (POST)
+- [x] 4.4 Create `frontend/src/presentation/components/BestCombination/BestCombinationPage.tsx`: loading spinner, error state, empty state, 4-leg display (sport icon, match_label, pick_label, probability, odds), aggregate card (total odds, probability, EV, stake), confidence/odds warnings, "Pregúntale al modelo" CTA, Spanish neutral/professional UI copy
+- [x] 4.5 Modify `frontend/src/App.tsx`: add `/best-combination` route with `BestCombinationPage`
+- [x] 4.6 Modify `frontend/src/presentation/components/Layout/MainLayout.tsx`: add nav entry `{ path: "/best-combination", label: "Mejor Combinación", icon: SmartToy }` to `NAV_ITEMS`
+- [x] 4.7 Vitest tests `frontend/src/presentation/components/BestCombination/BestCombinationPage.test.tsx`: test loading, error, empty, data-rendered states; test confidence/odds warning rendering
+- [x] 4.8 Vitest test `frontend/src/services/api.test.ts`: test `getBestCombination` posts to correct endpoint with correct body
 
 ## Phase 5: Quality Gate
 

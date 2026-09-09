@@ -43,6 +43,7 @@ const NAV_ITEMS = [
   { path: "/tennis", label: "Tenis", icon: SportsTennis },
   { path: "/baseball", label: "Béisbol", icon: SportsBaseball },
   { path: "/basketball", label: "Baloncesto", icon: SportsBasketball },
+  { path: "/best-combination", label: "Mejor Combinación", icon: SmartToy },
   { path: "/parley-calculator", label: "Calculadora", icon: Calculate },
 ];
 

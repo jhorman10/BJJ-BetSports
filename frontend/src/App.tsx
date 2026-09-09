@@ -22,6 +22,7 @@ import ParleyCalculatorPage from "./presentation/components/Parley/ParleyCalcula
 import TennisPredictionPage from "./presentation/components/TennisPrediction/TennisUpcomingPage";
 import BaseballUpcomingPage from "./presentation/components/BaseballPrediction/BaseballUpcomingPage";
 import BasketballUpcomingPage from "./presentation/components/BasketballPrediction/BasketballUpcomingPage";
+import BestCombinationPage from "./presentation/components/BestCombination/BestCombinationPage";
 import { useUIStore } from "./application/stores/useUIStore";
 import { usePredictionStore } from "./application/stores/usePredictionStore";
 import { useLiveStore } from "./application/stores/useLiveStore";
@@ -152,6 +153,7 @@ const App: React.FC = () => {
           }
         />
         <Route path="/parley-calculator" element={<ParleyCalculatorPage />} />
+        <Route path="/best-combination" element={<BestCombinationPage />} />
         <Route path="/tennis" element={<TennisPredictionPage />} />
         <Route path="/baseball" element={<BaseballUpcomingPage />} />
         <Route path="/basketball" element={<BasketballUpcomingPage />} />
