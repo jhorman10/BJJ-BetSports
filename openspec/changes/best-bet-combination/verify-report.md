@@ -1,14 +1,29 @@
 # Verify Report: best-bet-combination
 
 **Change**: best-bet-combination
-**Version**: spec v1 (best-combination + api-client deltas)
+**Version**: spec v1 (best-combination + api-client deltas, amended w/ ADR-6 deviation + W-3 relaxation)
 **Mode**: Standard (strict TDD not active per openspec/config.yaml `tdd: false`)
-**Date**: 2026-09-08
-**Evidence base**: real execution (ruff/black/isort/mypy/pytest/tsc/eslint/vitest/API smoke via FastAPI TestClient)
+**Date**: 2026-09-08 (re-verify pass 2)
+**Evidence base**: real execution (ruff/black/isort/mypy/pytest/tsc/eslint/vitest ×2 full runs + solo flake re-runs/API smoke via FastAPI TestClient against live production fetchers)
 
-## Verdict: FAIL
+## Verdict: PASS
 
-One CRITICAL response-schema contract mismatch (aggregate.* field placement vs spec) — all runtime evidence green (291 backend tests, 79 frontend tests, live 200 smoke response, end-to-end 4-leg combination computed through production fetchers).
+All prior findings resolved: C-1 accepted as documented deviation (ADR-6), W-1..W-4 fixed + test-covered + live-proven, S-2/S-3 resolved. Full gates green: backend 297 passed, frontend 82 passed (clean full re-run), tsc/lint clean, live smoke 200 response matches the amended DTO field-for-field.
+
+## Prior Finding Resolution
+
+| Finding | Status | Evidence |
+|---------|--------|----------|
+| **C-1** Response schema contract mismatch (aggregate.* vs stake + top-level) | ✅ **RESOLVED** — accepted documented deviation (ADR-6), no refactor | spec.md:36-38 amended table now documents `stake.{risk_level, suggested_stake_pct, kelly_fraction}` as separate object and `independence_disclaimer` as top-level string (both "see ADR-6"); design.md:16 ADR-6 row + design.md:94-99 note "accepted deviation … Do not relocate the fields". Implementation (best_combination_dtos.py:48-73) == spec table == frontend types (bestCombination.ts:31-50) == live smoke 200 (top-level keys `[aggregate, generated_at, independence_disclaimer, legs, stake, warnings]`; `risk_level`/`suggested_stake_pct` NOT in aggregate). |
+| **W-1** Frontend error extraction mismatch (409 object / 422 array) | ✅ **RESOLVED** | BestCombinationPage.tsx:56-64 `detailFromObject` (409 `{error, detail, missing_sports}`), :66-94 `extractErrorDetail` renders string / joins 422 array msgs / object / generic fallback. Tests: BestCombinationPage.test.tsx:137 (object-409 nested detail rendered), :165 (422 array msg joined), :191 (no-detail fallback), :115 (string preserved). Live: smoke 409 returns object detail `{error, detail, missing_sports}`; smoke 422 returns list — both shapes handled. |
+| **W-2** Fallback leg does not force `is_recommended: false` | ✅ **RESOLVED** | combination_optimizer.py:330 `is_recommended=pick.is_recommended and not confidence_warning` (+ docstring :307-311). Tests: `test_fallback_leg_forces_is_recommended_false`, `test_high_confidence_leg_keeps_recommended_flag`. Live smoke: quality-pool soccer leg `is_recommended=True` preserved (confidence_warning=False). |
+| **W-3** `min_probability` not enforced on fallback pool | ✅ **RESOLVED** — relaxation now spec-documented | spec.md:47-51 amendment: "min_probability filters ONLY the high-confidence quality pool … fallback pool is NOT threshold-filtered … fallback leg MAY be below the requested threshold; it always carries confidence_warning: true." Implementation `_select_sport_leg` (combination_optimizer.py:200-209): quality list applies `p.probability >= threshold`, fallback list applies only the exclude_leagues hard constraint. Test: `test_fallback_ignores_min_probability_but_warns` (sub-threshold leg returned, `confidence_warning` true, 4-leg scope kept). |
+| **W-4** Per-league exposure cap not applied | ✅ **RESOLVED** | `size_stake` (combination_optimizer.py:388-419) gains `leagues` param; caps = [MAX_SINGLE_STAKE, MAX_DAILY_EXPOSURE] + `MAX_LEAGUE_EXPOSURE` (0.03, risk_manager.py:29) when any league present; `build_combination` passes `leagues=[leg.league for leg in legs]` (:288-290). Tests: `test_stake_capped_by_league_exposure_when_league_present`, `test_stake_without_league_uses_single_and_daily_caps`, `test_build_combination_applies_league_cap_end_to_end`. |
+| **W-5** Pre-existing frontend flake (TrainingControlPanel) | ✅ **Re-confirmed environmental, not introduced by this change** | Run 1: 3 timeout failures (TrainingControlPanel + MatchCard, 5000ms test timeouts under first-run parallel load, 186s import warmup). Run 2 full suite: **82/82 passed**. Solo re-runs: TrainingControlPanel 4/4, MatchCard 4/4. Both files untouched by branch (`git diff 9c42dbe..HEAD` empty; zero commits touch them). |
+| **S-1** Dedicated unit tests for sport-service emission of sport/match_id/odds | ⏳ OPEN (suggestion) | Scenario 1 now backed by live smoke (4 real-sport legs carry sport/match_id/league/odds) + static emission points; dedicated per-service unit tests still recommended. |
+| **S-2** Regression tests for W-2/W-3 | ✅ **RESOLVED** | Added in 8b81ea7 (see W-2/W-3 rows). |
+| **S-3** SDD artifacts untracked in git | ✅ **RESOLVED** | `git ls-files openspec/changes/best-bet-combination/` → proposal.md, design.md, specs/api-client/spec.md, specs/best-combination/spec.md, tasks.md, verify-report.md all tracked. Commit 6787daf `docs(sdd): best-combination artifacts`. |
+| **S-4** PR base decision (branch cut from feat/multi-sport-support HEAD 9c42dbe, not raw main) | ⏳ OPEN (orchestration, not code) | `git merge-base HEAD main` = 1ba34ca (on main); base 9c42dbe is on `feat/multi-sport-support` only. Orchestrator must pick PR base before archive (likely multi-sport-support, or main after that branch merges). |
 
 ## Completeness
 
@@ -22,85 +37,95 @@ One CRITICAL response-schema contract mismatch (aggregate.* field placement vs s
 
 **Backend**
 - `ruff check src/ tests/` → ✅ All checks passed
-- `black --check src/ tests/` → ✅ 199 files unchanged
+- `black --check src/ tests/` → ✅ 199 files would be left unchanged
 - `isort --check-only src/ tests/` → ✅ clean
-- `mypy src --ignore-missing-imports --follow-imports=skip` → ✅ Success, 149 source files
-- `pytest tests/ -q` → ✅ 291 passed, 3331 warnings (pre-existing deprecation warnings), 37.08s
-  - New change tests: 36 passed (test_combination_optimizer.py + test_best_combination_use_case.py + test_best_combination_router.py)
+- `mypy src --ignore-missing-imports --follow-imports=skip` → ✅ Success: no issues found in 149 source files
+- `pytest tests/ -q` → ✅ **297 passed**, 3331 warnings (pre-existing deprecation warnings), 20.35s
+  - 6 new change tests vs previous run (291 → 297): W-2 ×2 (fallback forces False / quality keeps flag), W-3 ×1 (fallback ignores min_probability), W-4 ×3 (league cap unit / no-league caps / end-to-end league cap)
 
 **Frontend**
 - `tsc -b` → ✅ clean (exit 0)
 - `npm run lint` → ✅ 0 errors, 19 warnings (≤ 25)
-- `npx vitest run` → 79 tests; 4 full-suite runs: 78/79, 79/79, 79/79, 79/79 (1 intermittent failure = pre-existing TrainingControlPanel.test.tsx flake under parallel load; passes solo 2/2; file untouched by this branch — verified via git diff)
+- `npx vitest run` (full):
+  - Run 1: 3 failed / 79 passed — 5000ms test timeouts in TrainingControlPanel.test.tsx + MatchCard.test.tsx under first-run parallel load (import warmup 186s). Both files untouched by this branch (git diff empty, no commits)
+  - Run 2: ✅ **82 passed (82)**, 21/21 files, 17.10s (import warmup 78s)
+  - Solo re-runs: TrainingControlPanel.test.tsx 4/4 passed; MatchCard.test.tsx 4/4 passed
+  - Honest reporting: the run-1 failures are the pre-existing parallel-load timing flake (same class as previously documented W-5), reproduced this session in untouched files and cleared by a clean full re-run + solo passes. No new failures attributable to this change (3 new tests are BestCombinationPage error-shape tests, all passing run 2)
+- Coverage: ➖ not configured as a gate for this change
 
-**API smoke (FastAPI TestClient, real app, production fetchers)**
-- `POST /api/v1/best-combination` `{}` → **200 OK** real 4-leg combination (soccer E0 ESPN fixture, tennis US Open, baseball MLB, basketball NBA demo; all legs `odds_source: fair`, aggregate `total_probability 0.3794`, `total_odds 2.64` = 1/0.3794, `EV 0.0016`, stake 0.02%, risk 1, independence_disclaimer present, 5 warnings) — quality gate, fair-odds fallback, mixed-odds rule, Kelly stake, and disclaimer all proven end-to-end
-- `{"min_probability": 1.5}` → 422 `less_than` (Pydantic `lt=1` gate) ✅
+**API smoke (FastAPI TestClient, real app, production fetchers — fresh run)**
+- `POST /api/v1/best-combination` `{}` → **200 OK**, shape matches amended DTO exactly:
+  - Top-level keys: `['aggregate', 'generated_at', 'independence_disclaimer', 'legs', 'stake', 'warnings']`
+  - `legs`: 4 (soccer E0, tennis, baseball MLB, basketball NBA); leg[0] = soccer prob 0.95, odds 1.05 fair (odds_source=fair, odds_warning=True), is_recommended=True, confidence_warning=False, league=E0; all legs carry match_id/league
+  - `aggregate` keys: `['expected_value', 'mixed_odds', 'total_odds', 'total_probability']` — risk_level/suggested_stake_pct/disclaimer NOT inside aggregate
+  - `aggregate`: total_probability 0.3794, total_odds 2.64 (= 1/0.3794, mixed-odds rule), expected_value 0.0016 (= 0.3794×2.64−1), mixed_odds True
+  - `stake` keys: `['kelly_fraction', 'risk_level', 'suggested_stake_pct']` → pct 0.0002, risk 1, kelly 0.0002
+  - `independence_disclaimer` top-level, non-empty (Spanish); warnings 5; generated_at present
+- `{"min_probability": 1.5}` → 422, `detail` is a LIST (`less_than` msg) ✅ (matches W-1 array path)
 - `{"exclude_leagues": "E0"}` → 422 (type validation) ✅
-- `{"min_probability": 0.5, "exclude_leagues": ["E0"]}` → 409 `{detail: {error: insufficient_pool, detail, missing_sports: [soccer]}}` — exclude_leagues hard-constraint behaved correctly (E0 exclusion wiped soccer pool) ✅
-- No internal leak: response bodies contain no tracebacks/source paths ✅
+- `{"min_probability": 0.9, "exclude_leagues": ["E0"]}` → 409, `detail` is an OBJECT `{error: insufficient_pool, detail, missing_sports: ['soccer']}` ✅ (matches W-1 object path); no traceback/source-path leak in body ✅
 
 ## Spec Compliance Matrix (specs/best-combination/spec.md)
 
 | Requirement | Scenario | Test / Evidence | Result |
 |-------------|----------|-----------------|--------|
-| Unified pick DTO | All sports expose unified picks | Smoke 200 (real legs carried match_id); static picks.py:58-62, tennis_prediction_service.py:705-707, baseball_prediction_service.py:433-435, basketball_prediction_service.py:466-468. No dedicated unit test | ⚠️ PARTIAL |
+| Unified pick DTO | All sports expose unified picks | Smoke 200 (real legs from all 4 sports carry sport/match_id/league/odds); static picks.py:58-62, tennis_prediction_service.py:705-707, baseball_prediction_service.py:433-435, basketball_prediction_service.py:466-468; use-case fetchers `_to_soccer_pick`/`_fetch_*` emit unified fields | ✅ COMPLIANT (live smoke + static; no dedicated per-service unit test — see S-1) |
 | Unified pick DTO | Pick lacking match_id excluded | `test_drops_picks_missing_match_id` | ✅ COMPLIANT |
-| POST /best-combination | Request with filters | `test_min_probability_filters_quality_pool`, `test_min_probability_passthrough`, `test_exclude_leagues_passthrough`; fallback path ignores min_probability (see WARNING W-3) | ⚠️ PARTIAL |
-| POST /best-combination | Invalid filter rejected | `test_422_on_invalid_min_probability`, `test_422_on_invalid_exclude_leagues_type` + smoke 422 | ✅ COMPLIANT |
+| POST /best-combination | Request with filters | `test_min_probability_filters_quality_pool`, `test_min_probability_passthrough`, `test_fallback_ignores_min_probability_but_warns` (amended relaxation: fallback MAY be below threshold, always confidence_warning) | ✅ COMPLIANT |
+| POST /best-combination | Invalid filter rejected | `test_422_on_invalid_min_probability`, `test_422_on_invalid_exclude_leagues_type` + smoke 422 ×2 | ✅ COMPLIANT |
 | Quality filter | Qualifying pick enters pool | `test_soccer_requires_ml_or_ia_confirmed` | ✅ COMPLIANT |
 | Quality filter | Low-confidence pick filtered | `test_other_sports_require_high_and_recommended` | ✅ COMPLIANT |
 | Single best selection | Happy path — best combo | `test_happy_path_four_legs_and_totals`, `test_returns_four_legs`, smoke 200 (4 distinct sports) | ✅ COMPLIANT |
 | Single best selection | Highest-priority leg chosen | `test_picks_best_by_priority_then_probability`, `test_priority_tie_breaks_by_probability` | ✅ COMPLIANT |
-| Missing high-confidence policy | Sport lacks high-confidence picks | `test_fallback_when_quality_pool_empty` (confidence_warning + 4 legs) | ✅ COMPLIANT (scenario body); requirement text deviation → WARNING W-2 |
-| Odds fallback | Missing market odds | `test_fair_odds_fallback_when_odds_missing` + smoke (all 4 legs fair, 1/p math verified) | ✅ COMPLIANT |
-| Combination math & EV | EV from combined odds | `test_happy_path_four_legs_and_totals` (Πp, Πodds, EV formula); disclaimer asserted in `test_returns_four_legs` | ✅ COMPLIANT |
+| Missing high-confidence policy | Sport lacks high-confidence picks | `test_fallback_when_quality_pool_empty`, `test_fallback_leg_forces_is_recommended_false` (confidence_warning + is_recommended False + 4 legs) | ✅ COMPLIANT |
+| Odds fallback | Missing market odds | `test_fair_odds_fallback_when_odds_missing` + smoke (soccer fair 1/0.95=1.05 verified; total_odds 2.64 = 1/0.3794) | ✅ COMPLIANT |
+| Combination math & EV | EV from combined odds | `test_happy_path_four_legs_and_totals` (Πp, Πodds, EV formula); disclaimer asserted in `test_returns_four_legs` + smoke (EV 0.0016 = 0.3794×2.64−1) | ✅ COMPLIANT |
 | Combination math & EV | Negative EV refused | `test_no_positive_ev_when_edge_not_positive`, `test_409_no_positive_ev` | ✅ COMPLIANT |
-| Stake guidance | Kelly capped by exposure | `test_stake_capped_at_risk_manager_max` | ✅ COMPLIANT (scenario); requirement text deviation → WARNING W-4 |
-| Insufficient-data errors | One sport has no events | `test_insufficient_pool_reports_missing_sports`, `test_409_insufficient_pool` (missing_sports asserted), smoke 409 | ✅ COMPLIANT |
+| Stake guidance | Kelly capped by exposure | `test_stake_capped_at_risk_manager_max`, `test_stake_capped_by_league_exposure_when_league_present`, `test_build_combination_applies_league_cap_end_to_end` | ✅ COMPLIANT |
+| Insufficient-data errors | One sport has no events | `test_insufficient_pool_reports_missing_sports`, `test_409_insufficient_pool`, smoke 409 (missing_sports=[soccer]) | ✅ COMPLIANT |
 | Insufficient-data errors | No picks at all | `test_no_picks_available_when_all_empty`, `test_409_no_picks_available` | ✅ COMPLIANT |
 
-**Response field contract (spec table lines 29-37) vs implementation:**
+**Response field contract (amended spec table lines 29-38) — spec == implementation == frontend types == live response:**
 
-| Spec field | Implemented | Status |
-|------------|-------------|--------|
-| legs[].sport / match_id / match_label / pick_label | ✅ legs.* | ✅ |
-| legs[].probability / odds | ✅ legs.* | ✅ |
-| legs[].odds_source market\|fair | ✅ legs.* Literal | ✅ |
-| legs[].confidence_level / is_recommended | ✅ legs.* | ✅ |
-| legs[].confidence_warning / odds_warning | ✅ legs.* | ✅ |
-| aggregate.total_probability / total_odds / expected_value | ✅ aggregate.* | ✅ |
-| **aggregate.risk_level** | ❌ `stake.risk_level` (best_combination_dtos.py:57-62) | ❌ **CRITICAL C-1** |
-| **aggregate.suggested_stake_pct** | ❌ `stake.suggested_stake_pct` | ❌ **CRITICAL C-1** |
-| **aggregate.independence_disclaimer** | ❌ top-level `independence_disclaimer` (lines 65-73) | ❌ **CRITICAL C-1** |
+| Spec field | Implemented (DTO) | Frontend type | Live smoke | Status |
+|------------|-------------------|---------------|------------|--------|
+| legs[].sport / match_id / match_label / pick_label (+ league) | best_combination_dtos.py:33-37 | bestCombination.ts:15-20 | ✅ legs.* | ✅ |
+| legs[].probability / odds | :38-39 | :21-22 | ✅ | ✅ |
+| legs[].odds_source market\|fair | :40 Literal | :23 | ✅ fair observed | ✅ |
+| legs[].confidence_level / is_recommended | :41-42 | :24-25 | ✅ | ✅ |
+| legs[].confidence_warning / odds_warning | :44-45 | :27-28 | ✅ | ✅ |
+| aggregate.total_probability / total_odds / expected_value (+ mixed_odds) | :51-54 | :31-36 | ✅ 0.3794 / 2.64 / 0.0016 / True | ✅ |
+| stake.risk_level / stake.suggested_stake_pct / stake.kelly_fraction (separate object, ADR-6) | :57-62 | :38-42 | ✅ pct 0.0002 / risk 1 / kelly 0.0002; NOT in aggregate | ✅ |
+| independence_disclaimer (top-level, ADR-6) | :72 | :49 | ✅ top-level, non-empty; NOT in aggregate | ✅ |
 
 **Specs/api-client/spec.md**
 
 | Scenario | Test / Evidence | Result |
 |----------|-----------------|--------|
 | Endpoint constant resolves | constants.ts:60 `BEST_COMBINATION: "/api/v1/best-combination"`; api.test.ts asserts POST to constant; smoke hit path → 200 | ✅ COMPLIANT |
-| Typed client method posts | api.test.ts (3 tests: filter body, empty body, typed data resolution); api.surface.test.ts export (27 exports) | ✅ COMPLIANT |
-| Type alignment with backend | types/bestCombination.ts mirrors backend DTO field-for-field (incl. stake subobject) | ✅ COMPLIANT |
+| Typed client method posts | api.test.ts (3 tests: filter body, empty body, typed data resolution); api.surface.test.ts export | ✅ COMPLIANT |
+| Type alignment with backend | types/bestCombination.ts mirrors backend DTO field-for-field incl. stake subobject + top-level disclaimer; page SAMPLE fixture same shape; smoke keys match | ✅ COMPLIANT |
 
-**Compliance summary**: 17/18 scenarios compliant (1 PARTIAL without blocker, 1 PARTIAL with warning); 18/18 have runtime or static evidence; 0 UNTESTED with zero evidence.
+**Compliance summary**: 18/18 scenarios compliant with passing runtime coverage (17 via unit/integration tests, scenario 1 via live smoke + static); 0 UNTESTED, 0 FAILING.
 
 ## Correctness (Static Evidence)
 
 | Requirement | Status | Notes |
 |------------|--------|-------|
-| Unified pick DTO (sport+match_id) | ✅ Implemented | unified_pick.py frozen dataclass; suggested_pick.py:105-106 backward-compatible defaults; picks.py:58-62 soccer emission |
-| Quality filter per sport | ✅ Implemented | combination_optimizer.py:174-179 (`is_ml_confirmed or is_ia_confirmed` soccer; `high`+`is_recommended` others) |
-| Single best selection | ✅ Implemented | `_best` priority→probability (182-184) |
-| Fallback + confidence_warning | ✅ Implemented | `_select_sport_leg` 198-214; 4-leg scope preserved |
-| Odds fallback market/fair | ✅ Implemented | `_leg_odds` 372-378 (market if >1.0 else 1/p, rounding 2) |
-| Mixed-odds rule | ✅ Implemented | `_compute_totals` 347-370 (all-market product else 1/total_p) — ADR-3 honored |
-| Neg-EV guard | ✅ Implemented | 280-286 → `no_positive_ev` |
-| Coverage errors | ✅ Implemented | 246-260 `insufficient_pool`/`no_picks_available` + missing_sports |
-| Kelly + RiskManager cap | ✅ Implemented (partial per W-4) | `size_stake` 380-402 |
-| 409/422 error contract | ✅ Implemented | router 39-45 `{error, detail, missing_sports}`; Pydantic 422; no leak (smoke) |
+| Unified pick DTO (sport+match_id) | ✅ Implemented | unified_pick.py frozen dataclass; suggested_pick.py backward-compatible defaults; use-case fetchers emit unified dicts |
+| Quality filter per sport | ✅ Implemented | combination_optimizer.py:174-179 |
+| Single best selection | ✅ Implemented | `_best` priority→probability (:181-184) |
+| Fallback + confidence_warning + is_recommended False | ✅ Implemented | `_select_sport_leg` :186-214; `_build_leg` :330 forces False on fallback (W-2) |
+| min_probability on quality pool only; fallback relaxed + warned | ✅ Implemented | :200-209 + spec relaxation (W-3) |
+| Odds fallback market/fair | ✅ Implemented | `_leg_odds` :380-386 |
+| Mixed-odds rule | ✅ Implemented | `_compute_totals` :355-378 (all-market product else 1/total_p) — ADR-3 honored |
+| Neg-EV guard | ✅ Implemented | :280-286 → `no_positive_ev` |
+| Coverage errors | ✅ Implemented | :246-260 `insufficient_pool`/`no_picks_available` + missing_sports |
+| Kelly + RiskManager caps incl. per-league | ✅ Implemented | `size_stake` :388-419 applies MAX_LEAGUE_EXPOSURE 0.03 when league present (W-4) |
+| 409/422 error contract | ✅ Implemented | router :39-45 `{error, detail, missing_sports}`; Pydantic 422; no leak (smoke) |
 | min_probability gt=0 lt=1 | ✅ Implemented | dtos.py:18-23; smoke 422 `less_than` |
-| Router registered | ✅ Implemented | api/main.py:85-87, 111 |
-| Frontend page/states/nav/route | ✅ Implemented | BestCombinationPage.tsx (loading/error/empty/data/warnings); App.tsx:156; MainLayout.tsx:46 "Mejor Combinación"; no `as any` (grep clean) |
+| Router registered | ✅ Implemented | api/main.py include_router |
+| Frontend page/states/nav/route | ✅ Implemented | BestCombinationPage.tsx (loading/error/empty/data/warnings); App.tsx route; MainLayout.tsx "Mejor Combinación"; no `as any` |
 | Spanish neutral copy | ✅ Implemented | Page + warnings + disclaimer professional neutral Spanish |
 | ADR-5 ParleyService untouched | ✅ Implemented | `git diff 9c42dbe..HEAD -- parley_service.py get_parleys_use_case.py` → empty |
 
@@ -109,40 +134,32 @@ One CRITICAL response-schema contract mismatch (aggregate.* field placement vs s
 | Decision | Followed? | Notes |
 |----------|-----------|-------|
 | ADR-1 Max EV (ties→probability) | ✅ Yes | `_best` priority, probability tiebreak |
-| ADR-2 Neg-EV forced 4-leg → 409 | ✅ Yes | ev <= 0 → 409 |
-| ADR-3 Mixed-odds rule | ✅ Yes | product only if all 4 market |
-| ADR-4 UnifiedPick + per-sport adapter | ✅ Yes | to_unified + default_pool_fetchers; explicit `is None` check for empty fetcher map (use_case.py:287) |
+| ADR-2 Neg-EV forced 4-leg → 409 | ✅ Yes | EV ≤ 0 → 409 |
+| ADR-3 Mixed-odds rule | ✅ Yes | product only if all 4 market; smoke 2.64 = 1/0.3794 |
+| ADR-4 UnifiedPick + per-sport adapter | ✅ Yes | to_unified + default_pool_fetchers; explicit None check (use_case.py:285-287) |
 | ADR-5 New CombinationOptimizer; ParleyService untouched | ✅ Yes | git diff empty |
-| Design interface: risk_level/suggested_stake_pct/independence_disclaimer inside `aggregate` | ❌ No | implemented in `stake` + top-level → CRITICAL C-1 |
-| Design step 8: cap = max_single 0.05, daily 0.05, per-league 0.03 | ⚠️ Partial | only max_single + daily applied (W-4) |
-| Design algorithm step 2 vs step 4: min_probability on quality pool only | ⚠️ Yes (documented) | implementation matches design; spec scenario text stricter (W-3) |
-| Testing strategy | ✅ Yes | unit optimizer/use-case/Kelly + router integration + frontend vitest all present |
+| **ADR-6 Response DTO shape (ACCEPTED DEVIATION)** | ✅ Yes — documented | stake object separate from aggregate + top-level disclaimer; spec table amended (:37-38), design ADR-6 row (:16) + note (:94-99); frontend mirrors; live 200 matches. C-1 resolved by documentation, NOT refactor — as instructed |
+| Design step 8: per-league cap 0.03 when league present | ✅ Yes | size_stake + end-to-end test (W-4) |
+| Design algorithm step 4: min_probability on quality pool only; fallback relaxed | ✅ Yes | spec relaxation recorded (W-3) |
+| Testing strategy | ✅ Yes | unit optimizer/use-case/Kelly caps + router integration + frontend vitest all present; remediation added 6 backend + 3 frontend tests |
 
 ## Issues Found
 
-**CRITICAL**
-- **C-1 Response schema contract mismatch**: spec table (spec.md:36-37) and design interface (design.md:76-83) place `risk_level`, `suggested_stake_pct`, and `independence_disclaimer` **inside `aggregate`**. Implementation returns them in a separate `stake` object (`stake.risk_level`, `stake.suggested_stake_pct`) and top-level `independence_disclaimer` (best_combination_dtos.py:48-73). Response payload is a superset (frontend mirrors the implementation, so nothing breaks at runtime), but the public API shape does not match the spec contract. Fix = relocate DTO fields to `aggregate` + update frontend types/tests, OR record an accepted spec deviation (amend spec table). Deviation was not recorded in design Open Questions during apply.
+**CRITICAL**: None — C-1 resolved as accepted documented deviation (ADR-6), spec table and design updated to match the implemented contract; all runtime gates green.
 
-**WARNING**
-- **W-1 Frontend error extraction mismatch**: backend 409s serialize `detail` as an OBJECT (`{error, detail, missing_sports}` — best_combination.py:41-45) and 422s as a LIST (Pydantic); `extractErrorDetail` (BestCombinationPage.tsx:53-60) only renders string details, so real 409/422 messages are replaced by the generic fallback text. Test mocks a string detail (test:115-135), so this is not caught. Backend error contract itself is spec-correct.
-- **W-2 Fallback leg does not force `is_recommended: false`**: spec requirement text (spec.md:86) — fallback "MUST set ... is_recommended: false". `_select_sport_leg` (combination_optimizer.py:212-214) returns the best-available pick with only `confidence_warning=True`; `_build_leg` (line 322) propagates `pick.is_recommended` unchanged. Test data masks it (fallback pick happened to be `is_recommended=False`). Reachable in production (e.g., recommended-but-unconfirmed soccer pick).
-- **W-3 `min_probability` not enforced on fallback pool**: `_select_sport_leg` applies the threshold only to the quality pool (line 203); the fallback list (line 209) ignores it. With `min_probability: 0.6` and an empty quality pool, a 0.4-probability leg can be returned — contradicts spec scenario "Request with filters" ("each leg probability is ≥ 0.5"). Design algorithm step 4 implies this relaxation, but the spec scenario is unconditional. Needs explicit decision.
-- **W-4 Per-league exposure cap not applied**: spec requirement 8 and design step 8 list per-league exposure (RiskManager.MAX_LEAGUE_EXPOSURE = 0.03, risk_manager.py:29); `size_stake` (combination_optimizer.py:393-397) caps only at MAX_SINGLE_STAKE (0.05) and MAX_DAILY_EXPOSURE (0.05). `test_stake_capped_at_risk_manager_max` asserts the 0.05 caps, so the scenario passes — but a Kelly of 0.05 would never be trimmed to 0.03 per-league.
-- **W-5 Pre-existing frontend flake**: TrainingControlPanel.test.tsx intermittently fails under full-suite parallel load (1 failure in 4 runs; 2/2 solo passes). File untouched by this branch (git diff empty). Not introduced by this change; re-run solo confirms. Reported per instructions.
+**WARNING**: None — W-1..W-4 fixed with tests + live evidence (see resolution table). W-5 re-observed as environmental: TrainingControlPanel + MatchCard 5000ms timeouts in one parallel-load run; both files untouched by this branch, clean full re-run (82/82) and solo passes (4/4 + 4/4); not introduced by this change, reported honestly per instructions.
 
 **SUGGESTION**
-- **S-1** Add dedicated unit tests asserting soccer/tennis/baseball/basketball services emit `sport`/`match_id`/`odds` on market dicts (scenario 1 currently relies on smoke + static evidence; task 5.5 was a manual spot-check).
-- **S-2** Add regression tests: fallback leg `is_recommended == False` (W-2) and `min_probability` enforcement on fallback (W-3).
-- **S-3** Commit the SDD artifacts (proposal.md, design.md, specs/, tasks.md are untracked in git) so the PR/archive review can see them.
-- **S-4** Branch was cut from `feat/multi-sport-support` HEAD (base 9c42dbe), not raw main — orchestrator should confirm PR base decision before archive (flagged in apply-progress too).
+- **S-1** (carried, still open): Add dedicated unit tests asserting soccer/tennis/baseball/basketball services emit `sport`/`match_id`/`odds` on market dicts (scenario 1 relies on live smoke + static evidence; task 5.5 was a manual spot-check).
+- **S-4** (carried, orchestration): Branch base is `feat/multi-sport-support` HEAD (9c42dbe), NOT on main (merge-base 1ba34ca). Orchestrator must confirm PR base before archive — likely multi-sport-support (branch builds on it) or main after it merges.
 
 ## Risks
 
-- C-1 schema mismatch will break any external consumer implementing strictly against the spec; internal app unaffected (frontend types mirror implementation).
-- W-3 could mislead users into thinking all legs meet the requested minimum probability.
 - Production soccer legs always use fair odds (DTOs expose no decimal odds) → mixed-odds rule applies, EV ≈ 0 on fair legs; endpoint may frequently 409 `no_positive_ev` with real bookmaker-free data (smoke: EV 0.0016 barely positive). Expected per ADR-3; flagged in design Open Questions.
 - Fetchers swallow per-sport exceptions as empty pools (use_case.py:295-305); silent pool degradation is by design but hides data-source outages behind `insufficient_pool` 409s.
+- W-5 class flake: timing-sensitive frontend tests (TrainingControlPanel, MatchCard) can time out under first-run parallel load; mitigate with solo re-runs or increased testTimeout — pre-existing, not from this change.
+- Pre-merge PR base decision (S-4) can affect diff size/reviewability; recommended: target multi-sport-support so the change's 750-950 lines stay reviewable.
 
 ## Verdict
 
-**FAIL** — all execution gates green (lint/type/tests/smoke) and 17/18 spec scenarios compliant, but the response schema deviates from the spec contract table (aggregate.* field placement, C-1). Resolve C-1 (relocate DTO fields or amend spec as accepted deviation) and re-verify; W-2..W-5 should be addressed or explicitly accepted by the orchestrator in the same pass.
+**PASS** — C-1 documented as an accepted deviation (ADR-6) with spec table, design, implementation, frontend types, and live 200 response all aligned; W-1..W-4 fixed, unit-tested, and re-proven live; S-2/S-3 resolved. Full gates: backend 297 passed (ruff/black/isort/mypy clean), frontend 82 passed (tsc clean, eslint 0 err/19 warn, clean full re-run + solo flake confirmations), smoke 200/409/422 all contract-correct. 18/18 spec scenarios compliant. Remaining S-1 (per-service emission unit tests) and S-4 (PR base) are non-blocking orchestration/suggestion items.
