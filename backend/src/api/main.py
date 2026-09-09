@@ -82,6 +82,9 @@ def health_check() -> HealthResponse:
 
 from src.api.routers.baseball_router import router as baseball_router  # noqa: E402
 from src.api.routers.basketball_router import router as basketball_router  # noqa: E402
+from src.api.routers.best_combination import (  # noqa: E402
+    router as best_combination_router,
+)
 from src.api.routers.labeler import router as labeler_router  # noqa: E402
 
 # Register routers
@@ -105,6 +108,7 @@ app.include_router(training_router)
 app.include_router(tennis_router)
 app.include_router(baseball_router)
 app.include_router(basketball_router)
+app.include_router(best_combination_router)
 
 
 @app.on_event("startup")

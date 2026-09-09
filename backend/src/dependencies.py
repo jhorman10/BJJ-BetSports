@@ -8,7 +8,7 @@ Contains factory functions for creating use case dependencies.
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from src.application.services.ml_training_orchestrator import MLTrainingOrchestrator
 from src.application.services.training_data_service import TrainingDataService
@@ -50,6 +50,11 @@ from src.infrastructure.training.repositories import (
     TrainingJobEventRepository,
     TrainingJobRepository,
 )
+
+if TYPE_CHECKING:
+    from src.application.use_cases.best_combination_use_case import (
+        BestCombinationUseCase,
+    )
 
 
 @lru_cache()
@@ -282,3 +287,17 @@ def get_background_processor() -> BackgroundProcessor:
 def get_risk_manager() -> RiskManager:
     """Get RiskManager (cached)."""
     return RiskManager()
+
+
+@lru_cache()
+def get_best_combination_use_case() -> "BestCombinationUseCase":
+    """Get the best-combination use case (cached singleton).
+
+    Imports happen inside the factory so heavy sport-service fetchers are not
+    loaded at module import time (mirrors get_ml_training_orchestrator).
+    """
+    from src.application.use_cases.best_combination_use_case import (
+        BestCombinationUseCase,
+    )
+
+    return BestCombinationUseCase()
