@@ -49,10 +49,10 @@ Chain strategy: pending
 
 ## Phase 3: Backend Tests
 
-- [ ] 3.1 Unit tests `backend/tests/unit/test_combination_optimizer.py`: pool aggregation, quality filter, fallback when pool empty, odds fallback (market vs fair), totals math, neg-EV rejection
-- [ ] 3.2 Unit tests `backend/tests/unit/test_best_combination_use_case.py`: mocked per-sport fetch → 200 happy path; mock 409 `insufficient_pool`; mock 409 `no_picks_available`; mock 409 `no_positive_ev`
-- [ ] 3.3 Unit test Kelly/RiskManager cap: stake capped at `max_stake_pct` when Kelly exceeds; risk_level correct
-- [ ] 3.4 Integration test `backend/tests/integration/test_best_combination_router.py`: FastAPI `TestClient` POST 200 with seeded sport data; 422 with bad filter; 409 insufficient pool
+- [x] 3.1 Unit tests `backend/tests/unit/test_combination_optimizer.py`: pool aggregation, quality filter, fallback when pool empty, odds fallback (market vs fair), totals math, neg-EV rejection
+- [x] 3.2 Unit tests `backend/tests/unit/test_best_combination_use_case.py`: mocked per-sport fetch → 200 happy path; mock 409 `insufficient_pool`; mock 409 `no_picks_available`; mock 409 `no_positive_ev`
+- [x] 3.3 Unit test Kelly/RiskManager cap: stake capped at `max_stake_pct` when Kelly exceeds; risk_level correct
+- [x] 3.4 Integration test `backend/tests/integration/test_best_combination_router.py`: FastAPI `TestClient` POST 200 with seeded sport data; 422 with bad filter; 409 insufficient pool
 
 ## Phase 4: Frontend
 
