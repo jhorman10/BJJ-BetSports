@@ -54,7 +54,8 @@ export interface BaseballGamesResponse {
 }
 
 export interface BaseballSeriesResponse {
-  series: BaseballSeries[];
+  /** Each series is an ordered list of games (backend shape: List[List[BaseballSeriesGame]]) */
+  series: BaseballGameWithPrediction[][];
   generated_at: string;
   is_demo: boolean;
 }
