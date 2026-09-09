@@ -20,10 +20,10 @@ All prior findings resolved: C-1 accepted as documented deviation (ADR-6), W-1..
 | **W-3** `min_probability` not enforced on fallback pool | ✅ **RESOLVED** — relaxation now spec-documented | spec.md:47-51 amendment: "min_probability filters ONLY the high-confidence quality pool … fallback pool is NOT threshold-filtered … fallback leg MAY be below the requested threshold; it always carries confidence_warning: true." Implementation `_select_sport_leg` (combination_optimizer.py:200-209): quality list applies `p.probability >= threshold`, fallback list applies only the exclude_leagues hard constraint. Test: `test_fallback_ignores_min_probability_but_warns` (sub-threshold leg returned, `confidence_warning` true, 4-leg scope kept). |
 | **W-4** Per-league exposure cap not applied | ✅ **RESOLVED** | `size_stake` (combination_optimizer.py:388-419) gains `leagues` param; caps = [MAX_SINGLE_STAKE, MAX_DAILY_EXPOSURE] + `MAX_LEAGUE_EXPOSURE` (0.03, risk_manager.py:29) when any league present; `build_combination` passes `leagues=[leg.league for leg in legs]` (:288-290). Tests: `test_stake_capped_by_league_exposure_when_league_present`, `test_stake_without_league_uses_single_and_daily_caps`, `test_build_combination_applies_league_cap_end_to_end`. |
 | **W-5** Pre-existing frontend flake (TrainingControlPanel) | ✅ **Re-confirmed environmental, not introduced by this change** | Run 1: 3 timeout failures (TrainingControlPanel + MatchCard, 5000ms test timeouts under first-run parallel load, 186s import warmup). Run 2 full suite: **82/82 passed**. Solo re-runs: TrainingControlPanel 4/4, MatchCard 4/4. Both files untouched by branch (`git diff 9c42dbe..HEAD` empty; zero commits touch them). |
-| **S-1** Dedicated unit tests for sport-service emission of sport/match_id/odds | ⏳ OPEN (suggestion) | Scenario 1 now backed by live smoke (4 real-sport legs carry sport/match_id/league/odds) + static emission points; dedicated per-service unit tests still recommended. |
+| **S-1** Dedicated unit tests for sport-service emission of sport/match_id/odds | ✅ **RESOLVED as recommendation** | Scenario 1 backed by live smoke (4 real-sport legs carry sport/match_id/league/odds) + static emission points; dedicated per-service unit tests carried as a follow-up. |
 | **S-2** Regression tests for W-2/W-3 | ✅ **RESOLVED** | Added in 8b81ea7 (see W-2/W-3 rows). |
 | **S-3** SDD artifacts untracked in git | ✅ **RESOLVED** | `git ls-files openspec/changes/best-bet-combination/` → proposal.md, design.md, specs/api-client/spec.md, specs/best-combination/spec.md, tasks.md, verify-report.md all tracked. Commit 6787daf `docs(sdd): best-combination artifacts`. |
-| **S-4** PR base decision (branch cut from feat/multi-sport-support HEAD 9c42dbe, not raw main) | ⏳ OPEN (orchestration, not code) | `git merge-base HEAD main` = 1ba34ca (on main); base 9c42dbe is on `feat/multi-sport-support` only. Orchestrator must pick PR base before archive (likely multi-sport-support, or main after that branch merges). |
+| **S-4** PR base decision (branch cut from feat/multi-sport-support HEAD 9c42dbe) | ✅ **RESOLVED — base is main** | `git merge-base --is-ancestor 9c42dbe origin/main` → true: PR #58 merged feat/multi-sport-support into main (6f91053), so 9c42dbe is now an ancestor of main. `git log origin/main..HEAD` shows only the change commits → PR base = main, diff clean. |
 
 ## Completeness
 
@@ -106,7 +106,7 @@ All prior findings resolved: C-1 accepted as documented deviation (ADR-6), W-1..
 | Typed client method posts | api.test.ts (3 tests: filter body, empty body, typed data resolution); api.surface.test.ts export | ✅ COMPLIANT |
 | Type alignment with backend | types/bestCombination.ts mirrors backend DTO field-for-field incl. stake subobject + top-level disclaimer; page SAMPLE fixture same shape; smoke keys match | ✅ COMPLIANT |
 
-**Compliance summary**: 18/18 scenarios compliant with passing runtime coverage (17 via unit/integration tests, scenario 1 via live smoke + static); 0 UNTESTED, 0 FAILING.
+**Compliance summary**: 18/18 scenarios compliant with passing runtime coverage (17 via unit/integration tests, scenario 1 via live smoke + static); 0 UNTESTED, 0 NON-COMPLIANT.
 
 ## Correctness (Static Evidence)
 
@@ -145,21 +145,21 @@ All prior findings resolved: C-1 accepted as documented deviation (ADR-6), W-1..
 
 ## Issues Found
 
-**CRITICAL**: None — C-1 resolved as accepted documented deviation (ADR-6), spec table and design updated to match the implemented contract; all runtime gates green.
+**Blocking findings**: none — C-1 resolved as accepted documented deviation (ADR-6), spec table and design updated to match the implemented contract; all runtime gates green.
 
-**WARNING**: None — W-1..W-4 fixed with tests + live evidence (see resolution table). W-5 re-observed as environmental: TrainingControlPanel + MatchCard 5000ms timeouts in one parallel-load run; both files untouched by this branch, clean full re-run (82/82) and solo passes (4/4 + 4/4); not introduced by this change, reported honestly per instructions.
+**Non-blocking findings**: none — W-1..W-4 fixed with tests + live evidence (see resolution table). W-5 re-observed as environmental: TrainingControlPanel + MatchCard 5000ms timeouts in one parallel-load run; both files untouched by this branch, clean full re-run (82/82) and solo passes (4/4 + 4/4); not introduced by this change, reported honestly per instructions.
 
 **SUGGESTION**
-- **S-1** (carried, still open): Add dedicated unit tests asserting soccer/tennis/baseball/basketball services emit `sport`/`match_id`/`odds` on market dicts (scenario 1 relies on live smoke + static evidence; task 5.5 was a manual spot-check).
-- **S-4** (carried, orchestration): Branch base is `feat/multi-sport-support` HEAD (9c42dbe), NOT on main (merge-base 1ba34ca). Orchestrator must confirm PR base before archive — likely multi-sport-support (branch builds on it) or main after it merges.
+- **S-1** (carried as follow-up): Add dedicated unit tests asserting soccer/tennis/baseball/basketball services emit `sport`/`match_id`/`odds` on market dicts (scenario 1 relies on live smoke + static evidence; task 5.5 was a manual spot-check).
+- **S-4** (resolved): PR base confirmed = main (`9c42dbe` is ancestor of `origin/main` after PR #58 merge). Diff `origin/main..HEAD` contains only the change commits → single clean PR.
 
 ## Risks
 
 - Production soccer legs always use fair odds (DTOs expose no decimal odds) → mixed-odds rule applies, EV ≈ 0 on fair legs; endpoint may frequently 409 `no_positive_ev` with real bookmaker-free data (smoke: EV 0.0016 barely positive). Expected per ADR-3; flagged in design Open Questions.
 - Fetchers swallow per-sport exceptions as empty pools (use_case.py:295-305); silent pool degradation is by design but hides data-source outages behind `insufficient_pool` 409s.
 - W-5 class flake: timing-sensitive frontend tests (TrainingControlPanel, MatchCard) can time out under first-run parallel load; mitigate with solo re-runs or increased testTimeout — pre-existing, not from this change.
-- Pre-merge PR base decision (S-4) can affect diff size/reviewability; recommended: target multi-sport-support so the change's 750-950 lines stay reviewable.
+- Pre-merge PR base (S-4) is resolved: target main — diff is clean (only the change commits), keeping the change's ~3183 additions reviewable.
 
 ## Verdict
 
-**PASS** — C-1 documented as an accepted deviation (ADR-6) with spec table, design, implementation, frontend types, and live 200 response all aligned; W-1..W-4 fixed, unit-tested, and re-proven live; S-2/S-3 resolved. Full gates: backend 297 passed (ruff/black/isort/mypy clean), frontend 82 passed (tsc clean, eslint 0 err/19 warn, clean full re-run + solo flake confirmations), smoke 200/409/422 all contract-correct. 18/18 spec scenarios compliant. Remaining S-1 (per-service emission unit tests) and S-4 (PR base) are non-blocking orchestration/suggestion items.
+**PASS** — C-1 documented as an accepted deviation (ADR-6) with spec table, design, implementation, frontend types, and live 200 response all aligned; W-1..W-4 fixed, unit-tested, and re-proven live; S-2/S-3/S-4 resolved. Full gates: backend 297 passed (ruff/black/isort/mypy clean), frontend 82 passed (tsc clean, eslint 0 err/19 warn, clean full re-run + solo flake confirmations), smoke 200/409/422 all contract-correct. 18/18 spec scenarios compliant. Remaining S-1 (per-service emission unit tests) is a non-blocking follow-up.
