@@ -55,6 +55,11 @@ async def get_suggested_picks(
         )
 
     picks = [p.model_dump() for p in dto.suggested_picks] if dto.suggested_picks else []
+    # Uniform pick shape: soccer picks carry the sport back-reference and their
+    # match id so the cross-sport best-combination aggregator can consume them.
+    for pick in picks:
+        pick.setdefault("sport", "soccer")
+        pick["match_id"] = dto.match_id
     generated_at = (
         dto.generated_at.isoformat()
         if hasattr(dto.generated_at, "isoformat")

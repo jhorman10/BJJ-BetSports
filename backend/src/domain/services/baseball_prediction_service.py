@@ -423,7 +423,17 @@ class BaseballPredictionService:
         markets.extend(self._create_bts_markets(game, home_prob, away_prob))
 
         markets.sort(key=lambda x: (-int(x["is_recommended"]), -x["probability"]))
-        return markets
+        return [self._with_unified_fields(market, game) for market in markets]
+
+    def _with_unified_fields(self, market: dict, game: BaseballGame) -> dict:
+        """Add sport, match_id, and odds fields required for cross-sport combination."""
+        raw_odds = market.get("odds") or 0.0
+        return {
+            **market,
+            "sport": "baseball",
+            "match_id": game.game_id,
+            "odds": round(float(raw_odds), 2),
+        }
 
     def _create_market_dict(
         self,
@@ -455,14 +465,17 @@ class BaseballPredictionService:
         markets = []
         winner_prob = max(home_prob, away_prob)
         winner_team = game.home_team if home_prob > away_prob else game.away_team
-        markets.append(
-            self._create_market_dict(
-                "moneyline",
-                f"{winner_team} gana",
-                winner_prob,
-                "ML_H" if home_prob > away_prob else "ML_A",
-            )
+        moneyline = self._create_market_dict(
+            "moneyline",
+            f"{winner_team} gana",
+            winner_prob,
+            "ML_H" if home_prob > away_prob else "ML_A",
         )
+        # Attach the winner's bookmaker odds when available (else fair fallback)
+        moneyline["odds"] = (
+            game.home_odds if home_prob > away_prob else game.away_odds
+        ) or 0.0
+        markets.append(moneyline)
         return markets
 
     def _create_run_line_markets(

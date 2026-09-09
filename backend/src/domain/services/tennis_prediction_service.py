@@ -693,7 +693,19 @@ class TennisPredictionService:
         # Sort by priority (recommended first, then by probability)
         markets.sort(key=lambda x: (-int(x["is_recommended"]), -x["probability"]))  # type: ignore[call-overload,operator]
 
-        return markets
+        # Decorate every market with the unified sport/match_id/odds fields
+        # required by the cross-sport best-combination aggregator.
+        return [self._with_unified_fields(market, match) for market in markets]
+
+    def _with_unified_fields(self, market: dict, match: TennisMatch) -> dict:
+        """Add sport, match_id, and odds fields to a market dict."""
+        raw_odds = market.get("odds") or 0.0
+        return {
+            **market,
+            "sport": "tennis",
+            "match_id": match.match_id,
+            "odds": round(float(raw_odds), 2),
+        }
 
     def _create_moneyline(
         self, match: TennisMatch, p1_prob: float, p2_prob: float
@@ -716,6 +728,7 @@ class TennisPredictionService:
                     "is_recommended": p1_prob > 0.6,
                     "priority_score": round(p1_prob * 100, 1),
                     "pick_code": "ML1",
+                    "odds": match.p1_odds or 0.0,
                 }
             )
         else:
@@ -733,6 +746,7 @@ class TennisPredictionService:
                     "is_recommended": p2_prob > 0.6,
                     "priority_score": round(p2_prob * 100, 1),
                     "pick_code": "ML2",
+                    "odds": match.p2_odds or 0.0,
                 }
             )
         return markets
