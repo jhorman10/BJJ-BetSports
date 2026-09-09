@@ -36,16 +36,16 @@ Chain strategy: pending
 
 ## Phase 2: Backend Core
 
-- [ ] 2.1 Create `backend/src/api/dtos/best_combination_dtos.py`: Pydantic v2 `BestCombinationRequest`, `BestCombinationLeg`, `BestCombinationAggregate`, `BestCombinationResponse`
-- [ ] 2.2 Create `backend/src/domain/services/combination_optimizer.py`: `aggregate_pools(per_sport_picks) → list[UnifiedPick]`; drop picks missing sport/match_id; quality filter per spec (soccer: `is_ml_confirmed` or `is_ia_confirmed`; others: `confidence_level=="high"` + `is_recommended`); apply `min_probability`/`exclude_leagues`
-- [ ] 2.3 Implement `build_combination(pools) → tuple[list[UnifiedPick], dict]`: per sport pick best by priority_score (tie: probability); fallback best-available + confidence_warning if pool empty; compute odds (market if >1.0 else fair 1/p); compute totals (product p; product market odds if ALL 4 market else 1/total_p); EV = total_p × total_odds − 1
-- [ ] 2.4 Implement neg-EV guard: raise/return 409 `no_positive_ev` when EV < 0
-- [ ] 2.5 Implement insufficient-pool errors: 409 `insufficient_pool` (with `missing_sports`) if <4 sports have any pick; 409 `no_picks_available` if all empty
-- [ ] 2.6 Wire `KellySizer.kelly_with_confidence` + `RiskManager.apply_portfolio_constraints` for stake sizing: fractional Kelly on combined probability/odds, capped at `max_stake_pct`; set `risk_level` and `suggested_stake_pct`
-- [ ] 2.7 Create `backend/src/application/use_cases/best_combination_use_case.py`: `execute(request) → BestCombinationResponse`; fetch per-sport upcoming events via existing sport services/routers, delegate to optimizer
-- [ ] 2.8 Create `backend/src/api/routers/best_combination.py`: `POST /api/v1/best-combination` with 422 on invalid filters; call use case; return response or 409/422 errors
-- [ ] 2.9 Modify `backend/src/api/main.py`: `include_router(best_combination_router)`
-- [ ] 2.10 Verify `parley_service.py` / `get_parleys_use_case.py` are NOT modified (ADR-5: leave untouched)
+- [x] 2.1 Create `backend/src/api/dtos/best_combination_dtos.py`: Pydantic v2 `BestCombinationRequest`, `BestCombinationLeg`, `BestCombinationAggregate`, `BestCombinationResponse`
+- [x] 2.2 Create `backend/src/domain/services/combination_optimizer.py`: `aggregate_pools(per_sport_picks) → list[UnifiedPick]`; drop picks missing sport/match_id; quality filter per spec (soccer: `is_ml_confirmed` or `is_ia_confirmed`; others: `confidence_level=="high"` + `is_recommended`); apply `min_probability`/`exclude_leagues`
+- [x] 2.3 Implement `build_combination(pools) → tuple[list[UnifiedPick], dict]`: per sport pick best by priority_score (tie: probability); fallback best-available + confidence_warning if pool empty; compute odds (market if >1.0 else fair 1/p); compute totals (product p; product market odds if ALL 4 market else 1/total_p); EV = total_p × total_odds − 1
+- [x] 2.4 Implement neg-EV guard: raise/return 409 `no_positive_ev` when EV < 0
+- [x] 2.5 Implement insufficient-pool errors: 409 `insufficient_pool` (with `missing_sports`) if <4 sports have any pick; 409 `no_picks_available` if all empty
+- [x] 2.6 Wire `KellySizer.kelly_with_confidence` + `RiskManager.apply_portfolio_constraints` for stake sizing: fractional Kelly on combined probability/odds, capped at `max_stake_pct`; set `risk_level` and `suggested_stake_pct`
+- [x] 2.7 Create `backend/src/application/use_cases/best_combination_use_case.py`: `execute(request) → BestCombinationResponse`; fetch per-sport upcoming events via existing sport services/routers, delegate to optimizer
+- [x] 2.8 Create `backend/src/api/routers/best_combination.py`: `POST /api/v1/best-combination` with 422 on invalid filters; call use case; return response or 409/422 errors
+- [x] 2.9 Modify `backend/src/api/main.py`: `include_router(best_combination_router)`
+- [x] 2.10 Verify `parley_service.py` / `get_parleys_use_case.py` are NOT modified (ADR-5: leave untouched)
 
 ## Phase 3: Backend Tests
 
