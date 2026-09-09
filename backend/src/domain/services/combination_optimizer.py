@@ -285,7 +285,9 @@ class CombinationOptimizer:
                 f"(EV {expected_value * 100:.2f}%).",
             )
 
-        stake = self.size_stake(total_probability, total_odds)
+        stake = self.size_stake(
+            total_probability, total_odds, leagues=[leg.league for leg in legs]
+        )
 
         return CombinationResult(
             legs=tuple(legs),
@@ -308,7 +310,13 @@ class CombinationOptimizer:
         odds_source: OddsSource,
         odds_warning: bool,
     ) -> CombinationLeg:
-        """Map a candidate pick into an assembled leg."""
+        """Map a candidate pick into an assembled leg.
+
+        Fallback legs (``confidence_warning``) come from outside the
+        high-confidence pool, so they MUST NOT be presented as recommended
+        regardless of the raw pick's flag (spec: missing high-confidence
+        sport policy).
+        """
         return CombinationLeg(
             sport=pick.sport,
             match_id=pick.match_id,
@@ -319,7 +327,7 @@ class CombinationOptimizer:
             odds=odds,
             odds_source=odds_source,
             confidence_level=pick.confidence_level,
-            is_recommended=pick.is_recommended,
+            is_recommended=pick.is_recommended and not confidence_warning,
             priority_score=pick.priority_score,
             confidence_warning=confidence_warning,
             odds_warning=odds_warning,
@@ -383,18 +391,27 @@ class CombinationOptimizer:
         total_odds: float,
         kelly_sizer: Optional[KellySizer] = None,
         risk_manager: Optional[RiskManager] = None,
+        leagues: Optional[list[Optional[str]]] = None,
     ) -> StakeSuggestion:
-        """Size the combination stake: fractional Kelly capped by RiskManager."""
+        """Size the combination stake: fractional Kelly capped by RiskManager.
+
+        Caps applied in order of strictness: the per-league exposure
+        (``MAX_LEAGUE_EXPOSURE``) when any leg exposes league info, plus the
+        single-bet and daily caps. When no leg carries a league, only the
+        single/daily caps apply (spot-stake sizing without league context).
+        """
         kelly_sizer = kelly_sizer or KellySizer()
         risk_manager = risk_manager or RiskManager()
         kelly_fraction = kelly_sizer.calculate_kelly_fraction(
             total_probability, total_odds
         )
-        stake_pct = min(
-            kelly_fraction,
+        caps = [
             risk_manager.MAX_SINGLE_STAKE,
             risk_manager.MAX_DAILY_EXPOSURE,
-        )
+        ]
+        if any(league is not None for league in (leagues or [])):
+            caps.append(risk_manager.MAX_LEAGUE_EXPOSURE)
+        stake_pct = min(kelly_fraction, *caps)
         return StakeSuggestion(
             suggested_stake_pct=round(stake_pct, 4),
             risk_level=self._risk_level_for_stake(stake_pct),

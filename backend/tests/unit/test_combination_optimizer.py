@@ -242,6 +242,50 @@ class TestBuildCombination:
         assert tennis_leg.confidence_warning is True
         assert any("tennis" in w and "alta confianza" in w for w in result.warnings)
 
+    def test_fallback_leg_forces_is_recommended_false(self) -> None:
+        """W-2: a fallback pick that IS recommended in the raw data must still
+        be presented as not recommended on the assembled leg."""
+        pools = OPT.aggregate_pools(
+            {
+                "soccer": [raw_pick("soccer", "s1")],
+                "tennis": [
+                    # is_recommended=True but fails the quality gate
+                    raw_pick(
+                        "tennis",
+                        "t1",
+                        confidence_level="medium",
+                        is_recommended=True,
+                        priority_score=99.0,
+                    )
+                ],
+                "baseball": [raw_pick("baseball", "b1")],
+                "basketball": [raw_pick("basketball", "bb1")],
+            }
+        )
+        result = OPT.build_combination(pools)
+        tennis_leg = [leg for leg in result.legs if leg.sport == "tennis"][0]
+        assert tennis_leg.confidence_warning is True
+        assert tennis_leg.is_recommended is False
+
+    def test_high_confidence_leg_keeps_recommended_flag(self) -> None:
+        """W-2 guard: a quality-pool leg preserves its is_recommended flag."""
+        pools = OPT.aggregate_pools(
+            {
+                "soccer": [raw_pick("soccer", "s1")],
+                "tennis": [
+                    raw_pick(
+                        "tennis", "t1", confidence_level="high", is_recommended=True
+                    )
+                ],
+                "baseball": [raw_pick("baseball", "b1")],
+                "basketball": [raw_pick("basketball", "bb1")],
+            }
+        )
+        result = OPT.build_combination(pools)
+        tennis_leg = [leg for leg in result.legs if leg.sport == "tennis"][0]
+        assert tennis_leg.confidence_warning is False
+        assert tennis_leg.is_recommended is True
+
     def test_fair_odds_fallback_when_odds_missing(self) -> None:
         pools = OPT.aggregate_pools(
             {
@@ -335,6 +379,34 @@ class TestBuildCombination:
         soccer_leg = [leg for leg in result.legs if leg.sport == "soccer"][0]
         assert soccer_leg.match_id == "high"
 
+    def test_fallback_ignores_min_probability_but_warns(self) -> None:
+        """W-3: fallback pool is NOT threshold-filtered (coverage policy keeps
+        the 4-leg scope); the fallback leg may sit below the requested
+        min_probability and must carry confidence_warning."""
+        pools = OPT.aggregate_pools(
+            {
+                "soccer": [raw_pick("soccer", "s1", probability=0.90)],
+                "tennis": [
+                    # quality pick, but under the requested threshold
+                    raw_pick(
+                        "tennis",
+                        "t1",
+                        probability=0.40,
+                        confidence_level="high",
+                        is_recommended=True,
+                    )
+                ],
+                "baseball": [raw_pick("baseball", "b1", probability=0.90)],
+                "basketball": [raw_pick("basketball", "bb1", probability=0.90)],
+            }
+        )
+        result = OPT.build_combination(pools, min_probability=0.60)
+        tennis_leg = [leg for leg in result.legs if leg.sport == "tennis"][0]
+        assert tennis_leg.match_id == "t1"
+        assert tennis_leg.probability < 0.60
+        assert tennis_leg.confidence_warning is True
+        assert len(result.legs) == 4  # coverage policy keeps the scope
+
     def test_best_available_selected_for_sport_without_picks(self) -> None:
         pools = OPT.aggregate_pools(four_sport_pools())
         del pools["tennis"]
@@ -354,6 +426,50 @@ class TestStakeSizing:
         assert stake.suggested_stake_pct <= RiskManager.MAX_SINGLE_STAKE
         assert stake.suggested_stake_pct <= RiskManager.MAX_DAILY_EXPOSURE
         assert stake.risk_level == 4
+
+    def test_stake_capped_by_league_exposure_when_league_present(self) -> None:
+        """W-4: with leg league info available, the per-league cap (0.03)
+        trims a stake that would otherwise fit under single/daily caps."""
+
+        class KellyAboveLeagueCap(KellySizer):
+            def calculate_kelly_fraction(self, model_prob, odds, kelly_fraction=None):
+                del model_prob, odds, kelly_fraction
+                return 0.04  # > 0.03 league cap, < 0.05 single/daily caps
+
+        stake = OPT.size_stake(
+            total_probability=0.80,
+            total_odds=2.0,
+            kelly_sizer=KellyAboveLeagueCap(),  # type: ignore[arg-type]
+            leagues=["E0", "WTA", "MLB", "NBA"],
+        )
+        assert stake.suggested_stake_pct == pytest.approx(
+            RiskManager.MAX_LEAGUE_EXPOSURE, abs=1e-4
+        )
+        assert stake.suggested_stake_pct <= RiskManager.MAX_SINGLE_STAKE
+
+    def test_stake_without_league_uses_single_and_daily_caps(self) -> None:
+        """W-4 guard: no league info -> league cap NOT applied; single/daily
+        caps still hold."""
+
+        class KellyInBand(KellySizer):
+            def calculate_kelly_fraction(self, model_prob, odds, kelly_fraction=None):
+                del model_prob, odds, kelly_fraction
+                return 0.04
+
+        stake = OPT.size_stake(
+            total_probability=0.80,
+            total_odds=2.0,
+            kelly_sizer=KellyInBand(),  # type: ignore[arg-type]
+            leagues=[None, None, None, None],
+        )
+        assert stake.suggested_stake_pct == pytest.approx(0.04, abs=1e-4)
+
+    def test_build_combination_applies_league_cap_end_to_end(self) -> None:
+        """W-4 end-to-end: a 4-leg combo with leagues is capped at 0.03 even
+        when Kelly alone would exceed it."""
+        pools = OPT.aggregate_pools(four_sport_pools())
+        result = OPT.build_combination(pools)
+        assert result.stake.suggested_stake_pct <= RiskManager.MAX_LEAGUE_EXPOSURE
 
     def test_low_edge_yields_low_risk_level(self) -> None:
         stake = OPT.size_stake(

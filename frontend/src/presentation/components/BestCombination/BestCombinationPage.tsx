@@ -50,13 +50,47 @@ function formatProbability(p: number): string {
   return `${(p * 100).toFixed(1)}%`;
 }
 
+const FALLBACK_ERROR =
+  "No se pudo calcular la mejor combinación. Inténtalo de nuevo.";
+
+function detailFromObject(detail: Record<string, unknown>): string {
+  // Backend 409 shape: { error, detail, missing_sports }
+  if (typeof detail.detail === "string") return detail.detail;
+  if (typeof detail.error === "string") return detail.error;
+  if (Array.isArray(detail.missing_sports) && detail.missing_sports.length > 0) {
+    return `Deportes sin suficientes picks: ${detail.missing_sports.join(", ")}.`;
+  }
+  return FALLBACK_ERROR;
+}
+
 function extractErrorDetail(err: unknown): string {
   if (typeof err === "object" && err !== null) {
     const axiosErr = err as { response?: { data?: { detail?: unknown } } };
     const detail = axiosErr.response?.data?.detail;
+    // 409s serialize detail as an object; Pydantic 422s as an array.
     if (typeof detail === "string") return detail;
+    if (Array.isArray(detail)) {
+      const messages = detail
+        .map((entry) => {
+          if (typeof entry === "string") return entry;
+          if (
+            typeof entry === "object" &&
+            entry !== null &&
+            "msg" in entry &&
+            typeof (entry as { msg?: unknown }).msg === "string"
+          ) {
+            return (entry as { msg: string }).msg;
+          }
+          return null;
+        })
+        .filter((msg): msg is string => msg !== null);
+      if (messages.length > 0) return messages.join(" ");
+    }
+    if (typeof detail === "object" && detail !== null) {
+      return detailFromObject(detail as Record<string, unknown>);
+    }
   }
-  return "No se pudo calcular la mejor combinación. Inténtalo de nuevo.";
+  return FALLBACK_ERROR;
 }
 
 const BestCombinationPage: React.FC = () => {

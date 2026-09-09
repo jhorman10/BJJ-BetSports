@@ -134,6 +134,76 @@ describe("BestCombinationPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows the nested detail of an object-detail 409 error", async () => {
+    // Backend 409 contract: { error, detail, missing_sports }
+    vi.mocked(api.getBestCombination).mockRejectedValue({
+      response: {
+        data: {
+          detail: {
+            error: "insufficient_pool",
+            detail: "No hay suficientes picks para armar una combinada de cuatro piernas.",
+            missing_sports: ["basketball"],
+          },
+        },
+      },
+    });
+    const user = userEvent.setup();
+    render(<BestCombinationPage />);
+
+    await user.click(
+      screen.getByRole("button", { name: /Pregúntale al modelo/i })
+    );
+
+    expect(
+      await screen.findByText(
+        "No hay suficientes picks para armar una combinada de cuatro piernas."
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Inténtalo de nuevo/i)).not.toBeInTheDocument();
+  });
+
+  it("joins Pydantic 422 array details into a message", async () => {
+    vi.mocked(api.getBestCombination).mockRejectedValue({
+      response: {
+        data: {
+          detail: [
+            {
+              loc: ["body", "min_probability"],
+              msg: "Input should be less than 1",
+              type: "less_than",
+            },
+          ],
+        },
+      },
+    });
+    const user = userEvent.setup();
+    render(<BestCombinationPage />);
+
+    await user.click(
+      screen.getByRole("button", { name: /Pregúntale al modelo/i })
+    );
+
+    expect(
+      await screen.findByText("Input should be less than 1")
+    ).toBeInTheDocument();
+  });
+
+  it("shows the generic fallback when the error carries no detail", async () => {
+    vi.mocked(api.getBestCombination).mockRejectedValue(new Error("network"));
+    const user = userEvent.setup();
+    render(<BestCombinationPage />);
+
+    await user.click(
+      screen.getByRole("button", { name: /Pregúntale al modelo/i })
+    );
+
+    expect(
+      await screen.findByText(
+        "No se pudo calcular la mejor combinación. Inténtalo de nuevo."
+      )
+    ).toBeInTheDocument();
+  });
+
   it("shows an empty state when the response has no legs", async () => {
     vi.mocked(api.getBestCombination).mockResolvedValue({
       ...SAMPLE,
