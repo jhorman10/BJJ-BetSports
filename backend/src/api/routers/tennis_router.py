@@ -3,8 +3,9 @@ import uuid
 from datetime import date
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from src.api.dtos.tennis_dtos import TennisMatchRequest, TennisPredictionResponse
+from src.api.rate_limits import LIMIT_SPORTS_PREDICT, LIMIT_SPORTS_READ, limiter
 from src.domain.entities.tennis_match import TennisMatch
 from src.domain.services.tennis_feature_extractor import TennisFeatureExtractor
 from src.domain.services.tennis_prediction_service import TennisPredictionService
@@ -15,7 +16,7 @@ from src.infrastructure.data_sources.tennis_fixture_source import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/tennis", tags=["tennis"])
+router = APIRouter(prefix="/api/v1/tennis", tags=["tennis"])
 
 # Singleton instances
 _data_source = TennisDataSource(tour="atp")
@@ -46,42 +47,47 @@ def get_all_fixtures() -> list[dict]:
 
 
 @router.post("/predict", response_model=TennisPredictionResponse)
-async def predict_tennis_match(request: TennisMatchRequest) -> TennisPredictionResponse:
+@limiter.limit(LIMIT_SPORTS_PREDICT)
+async def predict_tennis_match(
+    request: Request, payload: TennisMatchRequest
+) -> TennisPredictionResponse:
     """Predict the outcome of a single tennis match."""
     try:
         match_entity = TennisMatch(
             match_id=str(uuid.uuid4()),
-            tournament_name=request.tournament_name,
-            surface=request.surface,
-            tourney_level=request.tourney_level,
-            round_name=request.round_name,
-            match_date=request.match_date,
-            best_of=request.best_of,
-            p1_name=request.p1_name,
-            p1_rank=request.p1_rank,
-            p1_rank_points=request.p1_rank_points,
-            p1_age=request.p1_age,
-            p1_hand=request.p1_hand,
-            p1_height=request.p1_height,
-            p1_seed=request.p1_seed,
-            p1_entry=request.p1_entry,
-            p1_odds=request.p1_odds,
-            p2_name=request.p2_name,
-            p2_rank=request.p2_rank,
-            p2_rank_points=request.p2_rank_points,
-            p2_age=request.p2_age,
-            p2_hand=request.p2_hand,
-            p2_height=request.p2_height,
-            p2_seed=request.p2_seed,
-            p2_entry=request.p2_entry,
-            p2_odds=request.p2_odds,
+            tournament_name=payload.tournament_name,
+            surface=payload.surface,
+            tourney_level=payload.tourney_level,
+            round_name=payload.round_name,
+            match_date=payload.match_date,
+            best_of=payload.best_of,
+            p1_name=payload.p1_name,
+            p1_rank=payload.p1_rank,
+            p1_rank_points=payload.p1_rank_points,
+            p1_age=payload.p1_age,
+            p1_hand=payload.p1_hand,
+            p1_height=payload.p1_height,
+            p1_seed=payload.p1_seed,
+            p1_entry=payload.p1_entry,
+            p1_odds=payload.p1_odds,
+            p2_name=payload.p2_name,
+            p2_rank=payload.p2_rank,
+            p2_rank_points=payload.p2_rank_points,
+            p2_age=payload.p2_age,
+            p2_hand=payload.p2_hand,
+            p2_height=payload.p2_height,
+            p2_seed=payload.p2_seed,
+            p2_entry=payload.p2_entry,
+            p2_odds=payload.p2_odds,
         )
 
         predictor = get_prediction_service()
         prediction = predictor.predict(match_entity)
 
         if not prediction:
-            raise HTTPException(status_code=500, detail="Prediction failed")
+            raise HTTPException(
+                status_code=500, detail="Prediction service unavailable"
+            )
 
         return TennisPredictionResponse(
             match_id=match_entity.match_id,
@@ -95,13 +101,16 @@ async def predict_tennis_match(request: TennisMatchRequest) -> TennisPredictionR
             tournament_name=match_entity.tournament_name,
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Prediction error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Prediction service unavailable")
 
 
 @router.get("/tournaments")
-async def get_tournaments() -> dict:
+@limiter.limit(LIMIT_SPORTS_READ)
+async def get_tournaments(request: Request) -> dict:
     """
     Get available tennis tournaments (like leagues endpoint for football).
     Returns tournaments grouped by surface, each with match count.
@@ -130,13 +139,16 @@ async def get_tournaments() -> dict:
 
         return {"tournaments": tournaments, "total_matches": len(fixtures)}
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error fetching tournaments: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Tennis service unavailable")
 
 
 @router.get("/predictions/{tournament_id}")
-async def get_predictions_by_tournament(tournament_id: str) -> dict:
+@limiter.limit(LIMIT_SPORTS_READ)
+async def get_predictions_by_tournament(request: Request, tournament_id: str) -> dict:
     """
     Get predictions for a specific tournament (like predictions by league for football).
     Returns all matches in the tournament with full predictions.
@@ -270,13 +282,18 @@ async def get_predictions_by_tournament(tournament_id: str) -> dict:
             "generated_at": date.today().isoformat(),
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error fetching predictions for tournament: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Tennis service unavailable")
 
 
 @router.get("/upcoming")
-async def get_upcoming_matches(tournament: Optional[str] = Query(None)) -> dict:
+@limiter.limit(LIMIT_SPORTS_READ)
+async def get_upcoming_matches(
+    request: Request, tournament: Optional[str] = Query(None)
+) -> dict:
     """
     Get upcoming tennis matches with predictions.
     Optional tournament filter.
@@ -387,6 +404,8 @@ async def get_upcoming_matches(tournament: Optional[str] = Query(None)) -> dict:
 
         return {"matches": results}
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error fetching upcoming matches: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Tennis service unavailable")

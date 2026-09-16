@@ -1,16 +1,24 @@
-fastapi==0.127.0
+fastapi==0.141.1
 uvicorn==0.40.0
+gunicorn==23.0.0
 pydantic==2.12.5
-pydantic-settings==2.12.0
+pydantic-settings==2.14.2
+
+# starlette 1.3.1+ required for CVE fixes; FastAPI 0.141+ allows it
+starlette>=1.3.1,<2.0.0
 slowapi==0.1.9
 httpx==0.26.0
-aiohttp==3.13.2
+aiohttp==3.14.3
 sqlalchemy==2.0.45
 psycopg2-binary==2.9.11
 pymongo==4.9.1
 motor==3.6.0
-python-dotenv==1.0.0
+python-dotenv==1.2.2
 pytz==2024.1
+
+# Caching (for ephemeral cache layer)
+# NOTE: diskcache 5.6.3 has PYSEC-2026-2447 (pickle deserialization risk) — no fix released yet.
+# Mitigation: only store trusted data in cache; consider migrating to redis for production.
 diskcache==5.6.3
 numpy>=1.26.4
 pandas>=2.2.0

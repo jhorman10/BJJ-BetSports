@@ -36,25 +36,25 @@ export const API_ENDPOINTS = {
   TRAINING_STATUS: "/api/v1/training/results/latest",
 
   // Tennis
-  TENNIS_PREDICT: "/tennis/predict",
-  TENNIS_UPCOMING: "/tennis/upcoming",
-  TENNIS_TOURNAMENTS: "/tennis/tournaments",
+  TENNIS_PREDICT: "/api/v1/tennis/predict",
+  TENNIS_UPCOMING: "/api/v1/tennis/upcoming",
+  TENNIS_TOURNAMENTS: "/api/v1/tennis/tournaments",
   TENNIS_PREDICT_BY_TOURNAMENT: (tournamentId: string) =>
-    `/tennis/predictions/${tournamentId}`,
+    `/api/v1/tennis/predictions/${tournamentId}`,
 
   // Baseball
-  BASEBALL_PREDICT: "/baseball/predict",
-  BASEBALL_GAMES: "/baseball/games",
-  BASEBALL_SERIES: "/baseball/series",
+  BASEBALL_PREDICT: "/api/v1/baseball/predict",
+  BASEBALL_GAMES: "/api/v1/baseball/games",
+  BASEBALL_SERIES: "/api/v1/baseball/series",
   BASEBALL_SERIES_PREDICTIONS: (seriesId: string) =>
-    `/baseball/predictions/${seriesId}`,
+    `/api/v1/baseball/predictions/${seriesId}`,
 
   // Basketball
-  BASKETBALL_PREDICT: "/basketball/predict",
-  BASKETBALL_GAMES: "/basketball/games",
-  BASKETBALL_CONFERENCES: "/basketball/conferences",
+  BASKETBALL_PREDICT: "/api/v1/basketball/predict",
+  BASKETBALL_GAMES: "/api/v1/basketball/games",
+  BASKETBALL_CONFERENCES: "/api/v1/basketball/conferences",
   BASKETBALL_PREDICT_BY_CONFERENCE: (conferenceId: string) =>
-    `/basketball/predictions/${conferenceId}`,
+    `/api/v1/basketball/predictions/${conferenceId}`,
 
   // Best Combination
   BEST_COMBINATION: "/api/v1/best-combination",

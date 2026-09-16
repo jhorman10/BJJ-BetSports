@@ -3,7 +3,7 @@ import uuid
 from datetime import date
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from src.api.dtos.baseball_dtos import (
     BaseballGameResponse,
     BaseballGamesResponse,
@@ -13,6 +13,7 @@ from src.api.dtos.baseball_dtos import (
     BaseballSeriesGame,
     BaseballSeriesResponse,
 )
+from src.api.rate_limits import LIMIT_SPORTS_PREDICT, LIMIT_SPORTS_READ, limiter
 from src.domain.entities.baseball_game import BaseballGame
 from src.domain.services.baseball_feature_extractor import BaseballFeatureExtractor
 from src.domain.services.baseball_prediction_service import BaseballPredictionService
@@ -21,7 +22,7 @@ from src.infrastructure.data_sources.retrosheet_data_source import RetrosheetDat
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/baseball", tags=["baseball"])
+router = APIRouter(prefix="/api/v1/baseball", tags=["baseball"])
 
 # Singleton instances
 _data_source = RetrosheetDataSource()
@@ -67,29 +68,33 @@ def _game_data_to_entity(
 
 
 @router.post("/predict", response_model=BaseballPredictResponse)
+@limiter.limit(LIMIT_SPORTS_PREDICT)
 async def predict_baseball_game(
-    request: BaseballPredictRequest,
+    request: Request,
+    payload: BaseballPredictRequest,
 ) -> BaseballPredictResponse:
     """Predict the outcome of a single baseball game."""
     try:
         game_entity = BaseballGame(
             game_id=str(uuid.uuid4()),
-            date=request.date,
-            home_team=request.home_team,
-            away_team=request.away_team,
-            venue=request.venue,
-            day_night=request.day_night or "day",
-            home_pitcher_name=request.home_pitcher_name,
-            away_pitcher_name=request.away_pitcher_name,
-            season=request.season,
-            series_id=request.series_id,
-            home_odds=request.home_odds,
-            away_odds=request.away_odds,
+            date=payload.date,
+            home_team=payload.home_team,
+            away_team=payload.away_team,
+            venue=payload.venue,
+            day_night=payload.day_night or "day",
+            home_pitcher_name=payload.home_pitcher_name,
+            away_pitcher_name=payload.away_pitcher_name,
+            season=payload.season,
+            series_id=payload.series_id,
+            home_odds=payload.home_odds,
+            away_odds=payload.away_odds,
         )
         predictor = get_prediction_service()
         prediction = predictor.predict(game_entity)
         if not prediction:
-            raise HTTPException(status_code=500, detail="Prediction failed")
+            raise HTTPException(
+                status_code=500, detail="Prediction service unavailable"
+            )
         return BaseballPredictResponse(
             game_id=game_entity.game_id,
             home_team=game_entity.home_team,
@@ -103,11 +108,15 @@ async def predict_baseball_game(
         raise
     except Exception as e:
         logger.error(f"Prediction error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+            status_code=500, detail="Baseball prediction service unavailable"
+        )
 
 
 @router.get("/games")
+@limiter.limit(LIMIT_SPORTS_READ)
 async def get_upcoming_games(
+    request: Request,
     team: Optional[str] = Query(None),
 ) -> BaseballGamesResponse:
     """Get upcoming baseball games."""
@@ -145,13 +154,18 @@ async def get_upcoming_games(
         return BaseballGamesResponse(
             games=results, generated_at=date.today().isoformat()
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error fetching games: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Baseball service unavailable")
 
 
 @router.get("/series")
-async def get_series(team: Optional[str] = Query(None)) -> BaseballSeriesResponse:
+@limiter.limit(LIMIT_SPORTS_PREDICT)
+async def get_series(
+    request: Request, team: Optional[str] = Query(None)
+) -> BaseballSeriesResponse:
     """Get upcoming games grouped into series with predictions."""
     try:
         series_list = _fixture_source.get_series(days=14, team=team)
@@ -205,13 +219,16 @@ async def get_series(team: Optional[str] = Query(None)) -> BaseballSeriesRespons
             generated_at=date.today().isoformat(),
             is_demo=is_demo,
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error fetching series: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Baseball service unavailable")
 
 
 @router.get("/predictions/{series_id}")
-async def get_series_predictions(series_id: str) -> dict:
+@limiter.limit(LIMIT_SPORTS_PREDICT)
+async def get_series_predictions(request: Request, series_id: str) -> dict:
     """Get predictions for a specific series."""
     try:
         all_games = get_all_games()
@@ -259,6 +276,8 @@ async def get_series_predictions(series_id: str) -> dict:
             "games": results,
             "generated_at": date.today().isoformat(),
         }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error fetching series predictions: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Baseball service unavailable")

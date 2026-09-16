@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
+from src.api.rate_limits import LIMIT_PICKS_GENERATE, LIMIT_PICKS_OTHER, limiter
 from src.api.schemas.auxiliary import (
     BettingFeedbackRequest,
     BettingFeedbackResponse,
@@ -29,7 +30,9 @@ router = APIRouter(prefix="/api/v1/suggested-picks", tags=["suggested-picks"])
 
 
 @router.get("/match/{match_id}", response_model=MatchSuggestedPicksResponse)
+@limiter.limit(LIMIT_PICKS_GENERATE)
 async def get_suggested_picks(
+    request: Request,
     match_id: str,
     data_sources: Any = Depends(get_data_sources),
     prediction_service: Any = Depends(get_prediction_service),
@@ -76,7 +79,9 @@ async def get_suggested_picks(
 
 
 @router.post("/feedback", response_model=BettingFeedbackResponse)
+@limiter.limit(LIMIT_PICKS_OTHER)
 def register_feedback(
+    request: Request,
     payload: BettingFeedbackRequest,
     learning_service: LearningService = Depends(get_learning_service),
 ) -> BettingFeedbackResponse:
@@ -93,7 +98,9 @@ def register_feedback(
 
 
 @router.get("/learning-stats", response_model=LearningStatsResponse)
+@limiter.limit(LIMIT_PICKS_OTHER)
 def get_learning_stats(
+    request: Request,
     learning_service: LearningService = Depends(get_learning_service),
 ) -> LearningStatsResponse:
     stats = learning_service.get_all_stats()

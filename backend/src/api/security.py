@@ -6,6 +6,7 @@ Provee dependencia para endpoints administrativos.
 from __future__ import annotations
 
 import ipaddress
+import logging
 import os
 from enum import Enum
 from typing import Any, Optional
@@ -15,6 +16,8 @@ from fastapi.security import APIKeyHeader
 from src.core.env import load_backend_env
 
 load_backend_env()
+
+_logger = logging.getLogger(__name__)
 
 API_KEY_HEADER = APIKeyHeader(name="X-API-Key", auto_error=False)
 _LOCAL_DEV_HOSTS = {"127.0.0.1", "::1", "localhost", "testclient"}
@@ -45,23 +48,40 @@ def _is_local_dev_bypass_enabled() -> bool:
 
 
 def _is_local_dev_request(request: Request) -> bool:
+    """Check if request comes from loopback ONLY.
+
+    Restricted to actual loopback (127.0.0.0/8, ::1, localhost) — private
+    ranges (10.x, 172.16-31.x, 192.168.x) are NOT considered local because
+    corporate networks and VPNs would bypass auth otherwise.
+    """
     host = _get_request_host(request)
     if host in _LOCAL_DEV_HOSTS:
         return True
 
     try:
         addr = ipaddress.ip_address(host)
-        return addr.is_private or addr.is_loopback
+        # Only loopback — not all private ranges (was a vuln risk)
+        return addr.is_loopback
     except ValueError:
         return False
 
 
 def _allow_local_dev_bypass(request: Request) -> bool:
-    return (
+    allowed = (
         _is_local_dev_bypass_enabled()
         and not _is_api_only_mode()
         and _is_local_dev_request(request)
     )
+    if allowed:
+        # Audit log every bypass use — visibility into potential misuse
+        _logger.warning(
+            "LOCAL DEV BYPASS used on %s %s from %s (UA=%s)",
+            request.method,
+            request.url.path,
+            _get_request_host(request),
+            request.headers.get("user-agent", ""),
+        )
+    return allowed
 
 
 def _get_training_permissions() -> set[TrainingPermission]:

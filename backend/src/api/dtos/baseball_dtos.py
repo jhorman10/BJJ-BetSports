@@ -1,23 +1,23 @@
 from datetime import date
-from typing import List, Optional
+from typing import List, Literal, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class BaseballPredictRequest(BaseModel):
     """Request model for baseball game prediction."""
 
     date: date
-    home_team: str
-    away_team: str
-    venue: Optional[str] = None
-    day_night: str = "day"
-    home_pitcher_name: Optional[str] = None
-    away_pitcher_name: Optional[str] = None
-    season: Optional[int] = None
-    series_id: Optional[str] = None
-    home_odds: Optional[float] = None
-    away_odds: Optional[float] = None
+    home_team: str = Field(min_length=1, max_length=10)  # MLB codes: NYY, LAD, etc.
+    away_team: str = Field(min_length=1, max_length=10)
+    venue: Optional[str] = Field(None, max_length=100)
+    day_night: Literal["day", "night"] = "day"
+    home_pitcher_name: Optional[str] = Field(None, max_length=100)
+    away_pitcher_name: Optional[str] = Field(None, max_length=100)
+    season: Optional[int] = Field(None, ge=1900, le=2100)
+    series_id: Optional[str] = Field(None, max_length=50)
+    home_odds: Optional[float] = Field(None, gt=1.0, le=1000.0)
+    away_odds: Optional[float] = Field(None, gt=1.0, le=1000.0)
 
 
 class BaseballGameResponse(BaseModel):
