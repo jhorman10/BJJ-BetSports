@@ -271,12 +271,16 @@ button,
    MOBILE STABILITY RULES
    ======================================== */
 
-/* Prevent horizontal overflow on mobile */
+/* Prevent horizontal overflow on mobile — clip avoids creating scroll containers */
 html,
-body,
+body {
+  overflow-x: clip;
+  -webkit-overflow-scrolling: touch;
+}
+
 #root {
   overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
+  min-height: 100vh;
 }
 
 /* Prevent iOS zoom on input focus */

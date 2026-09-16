@@ -8,9 +8,7 @@ def test_build_leagues_response_contains_metadata():
     # placeholder sports, so assert every returned league is soccer rather than
     # a raw count comparison.
     assert resp.total_leagues > 0
-    all_leagues = [
-        league for country in resp.countries for league in country.leagues
-    ]
+    all_leagues = [league for country in resp.countries for league in country.leagues]
     assert all(league.sport == "soccer" for league in all_leagues)
 
 

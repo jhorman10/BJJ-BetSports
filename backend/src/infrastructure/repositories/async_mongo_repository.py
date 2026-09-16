@@ -240,12 +240,14 @@ class AsyncMongoRepository:
 
         await self._ensure_indexes()
 
-    async def get_league_ids_with_predictions(self, sport: str | None = None) -> List[str]:
+    async def get_league_ids_with_predictions(
+        self, sport: str | None = None
+    ) -> List[str]:
         """Get distinct league_ids that have active (non-expired) predictions."""
         await self._ensure_ready()
         match_stage: Dict[str, Any] = {"expires_at": {"$gt": get_current_time()}}
         if sport:
-            match_stage["sport"] = sport
+            match_stage["$or"] = [{"sport": sport}, {"sport": None}]
         pipeline = [
             {"$match": match_stage},
             {"$group": {"_id": "$league_id"}},
@@ -291,7 +293,11 @@ class AsyncMongoRepository:
         return out
 
     async def save_match_prediction(
-        self, match_id: str, league_id: str, data: dict, ttl_seconds: int = 86400,
+        self,
+        match_id: str,
+        league_id: str,
+        data: dict,
+        ttl_seconds: int = 86400,
         sport: str = "soccer",
     ) -> None:
         await self._ensure_ready()
@@ -412,7 +418,7 @@ class AsyncMongoRepository:
         if league_id is not None:
             query["league_id"] = league_id
         if sport is not None:
-            query["sport"] = sport
+            query["$or"] = [{"sport": sport}, {"sport": None}]
         cursor = self.match_predictions.find(query).skip(skip).limit(limit)
         out = []
         async for doc in cursor:

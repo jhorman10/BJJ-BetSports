@@ -1,8 +1,6 @@
 """Tests for multi-sport plumbing (sport catalog, enum, mapper, loader)."""
 
-import pytest
-
-from src.domain.constants import DEFAULT_SPORT, Sport, LEAGUES_METADATA
+from src.domain.constants import DEFAULT_SPORT, LEAGUES_METADATA, Sport
 
 
 class TestSportEnum:
@@ -68,7 +66,7 @@ class TestLeagueDatasetSportIndex:
         from src.infrastructure.data.league_loader import dataset
 
         tennis = dataset.get_by_sport("tennis")
-        assert all(l.get("sport") == "tennis" for l in tennis)
+        assert all(lg.get("sport") == "tennis" for lg in tennis)
 
     def test_get_by_sport_soccer_returns_all_soccer(self):
         from src.infrastructure.data.league_loader import dataset
@@ -131,9 +129,8 @@ class TestLeagueMapperSportFilter:
 
     def test_find_league_sport_mismatch_raises(self):
         import pytest as _pytest
-
-        from src.api.mappers.league_mapper import find_league
         from fastapi import HTTPException
+        from src.api.mappers.league_mapper import find_league
 
         with _pytest.raises(HTTPException) as excinfo:
             find_league("B_MLB", sport="soccer")

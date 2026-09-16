@@ -19,6 +19,10 @@ export interface Prediction {
   predicted_home_red_cards?: number;
   predicted_away_red_cards?: number;
 
+  // Tennis-specific fields
+  setOverUnderProbabilities?: SetOverUnderProbability[];
+  gameProbabilities?: GameProbability[];
+
   // New Standard Probabilities
   over_95_corners_probability?: number;
   under_95_corners_probability?: number;
@@ -71,6 +75,18 @@ export interface ScoreAccuracyHistory {
   total_predictions: number;
   exact_score_hits: number;
   accuracy_percentage: number;
+}
+
+export interface SetOverUnderProbability {
+  set: number;
+  over_probability: number;
+  under_probability: number;
+}
+
+export interface GameProbability {
+  game: number;
+  win_probability: number;
+  lose_probability: number;
 }
 
 export interface MatchPrediction {

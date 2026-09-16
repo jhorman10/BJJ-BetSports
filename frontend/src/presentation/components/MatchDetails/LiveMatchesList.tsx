@@ -7,6 +7,7 @@ import {
   matchLiveWithPrediction,
   LiveMatchRaw,
 } from "../../../utils/matchMatching";
+import { MatchPrediction as DomainMatchPrediction } from "../../../domain/entities";
 
 import LiveMatchesView from "./LiveMatchesView";
 
@@ -54,7 +55,7 @@ const LiveMatchesList: React.FC<LiveMatchesListProps> = ({
   const handleMatchClick = useCallback(
     (liveMatch: LiveMatchRaw) => {
       const matchPrediction = matchLiveWithPrediction(liveMatch, predictions);
-      openLiveMatchModal(matchPrediction);
+      openLiveMatchModal(matchPrediction as DomainMatchPrediction);
     },
     [predictions, openLiveMatchModal]
   );

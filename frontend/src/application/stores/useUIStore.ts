@@ -34,7 +34,7 @@ function loadInitialSport(): Sport {
   if (typeof window === "undefined") return DEFAULT_SPORT;
   try {
     const saved = window.localStorage.getItem(SPORT_STORAGE_KEY);
-    if (saved === "tennis" || saved === "baseball" || saved === "basketball" || saved === "soccer") {
+    if (saved === "tennis" || saved === "baseball" || saved === "soccer") {
       return saved as Sport;
     }
   } catch {

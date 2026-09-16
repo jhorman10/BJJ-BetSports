@@ -129,8 +129,8 @@ const PredictionGrid: React.FC = memo(() => {
           // Fallback for missing data
           const bestPick = getBestPick(match);
           if (bestPick) {
-            const pickItem: ParleyPickItem = {
-              match: match,
+const pickItem: ParleyPickItem = {
+            match: match,
               pick: bestPick.pick_code || bestPick.market_type || "WINNER",
               probability: bestPick.probability,
               label: bestPick.market_label,

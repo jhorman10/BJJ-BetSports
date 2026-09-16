@@ -13,9 +13,7 @@ describe("SPORTS", () => {
     expect(SPORTS.find((s) => s.value === "soccer")?.label).toBe("Fútbol");
     expect(SPORTS.find((s) => s.value === "tennis")?.label).toBe("Tenis");
     expect(SPORTS.find((s) => s.value === "baseball")?.label).toBe("Béisbol");
-    expect(SPORTS.find((s) => s.value === "basketball")?.label).toBe(
-      "Baloncesto"
-    );
+    expect(SPORTS.find((s) => s.value === "basketball")?.label).toBe("Baloncesto");
   });
 });
 

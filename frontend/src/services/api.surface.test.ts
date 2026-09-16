@@ -16,10 +16,23 @@ const ENDPOINT_METHODS = [
   "getSuggestedPicks",
   "registerFeedback",
   "getLearningStats",
+  "predictTennis",
+  "getTennisUpcoming",
+  "getTennisTournaments",
+  "getTennisPredictionsByTournament",
+  "predictBaseball",
+  "getBaseballGames",
+  "getBaseballSeries",
+  "getBaseballSeriesPredictions",
+  "predictBasketball",
+  "getBasketballGames",
+  "getBasketballConferences",
+  "getBasketballPredictionsByConference",
+  "getBestCombination",
 ];
 
 describe("services/api export surface", () => {
-  it("exposes 12 endpoint methods plus generic post/get (14 exports)", () => {
+  it("exposes 25 endpoint methods plus generic post/get (27 exports)", () => {
     const exported = Object.keys(api).sort();
     expect(exported).toEqual([...ENDPOINT_METHODS, "get", "post"].sort());
   });

@@ -41,6 +41,14 @@ class PredictionModel(BaseModel):
     away_win_probability: float = 0.0
     over_25_probability: float = 0.0
     under_25_probability: float = 0.0
+    set_over_under_probabilities: list[dict] = Field(
+        default_factory=list,
+        description="Per-set over/under probabilities (tennis-specific)",
+    )
+    game_probabilities: list[dict] = Field(
+        default_factory=list,
+        description="Per-game win probabilities (tennis-specific)",
+    )
     predicted_home_goals: float = 0.0
     predicted_away_goals: float = 0.0
     # Map Extended Predictions

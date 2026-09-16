@@ -12,15 +12,35 @@ def _load_default_leagues() -> list[str]:
     """
     try:
         from src.infrastructure.data.league_loader import dataset
+
         return dataset.get_default_leagues()
     except Exception:
         # Fallback: original 25 leagues
         return [
-            "E0", "SP1", "D1", "I1", "F1", "N1", "B1", "P1",
-            "E1", "E2", "E3", "E_FA", "SP2", "SP_C",
-            "D2", "I2", "F2", "N2", "B2", "P2",
+            "E0",
+            "SP1",
+            "D1",
+            "I1",
+            "F1",
+            "N1",
+            "B1",
+            "P1",
+            "E1",
+            "E2",
+            "E3",
+            "E_FA",
+            "SP2",
+            "SP_C",
+            "D2",
+            "I2",
+            "F2",
+            "N2",
+            "B2",
+            "P2",
             *ORDERED_INTERNATIONAL_TOURNAMENTS,
-            "COL1", "ARG1", "BRA1",
+            "COL1",
+            "ARG1",
+            "BRA1",
         ]
 
 

@@ -84,12 +84,14 @@ class AsyncMongoAdapter:
                 "AsyncMongoAdapter: using sync MongoRepository wrapped with to_thread"
             )
 
-    async def get_league_ids_with_predictions(self, sport: str | None = None) -> List[str]:
+    async def get_league_ids_with_predictions(
+        self, sport: str | None = None
+    ) -> List[str]:
         """Get distinct league_ids that have active (non-expired) predictions."""
         if self._use_motor:
             match_stage: Dict[str, Any] = {"expires_at": {"$gt": get_current_time()}}
             if sport:
-                match_stage["sport"] = sport
+                match_stage["$or"] = [{"sport": sport}, {"sport": None}]
             pipeline = [
                 {"$match": match_stage},
                 {"$group": {"_id": "$league_id"}},
@@ -206,7 +208,11 @@ class AsyncMongoAdapter:
             )
 
     async def save_match_prediction(
-        self, match_id: str, league_id: str, data: dict, ttl_seconds: int = 86400,
+        self,
+        match_id: str,
+        league_id: str,
+        data: dict,
+        ttl_seconds: int = 86400,
         sport: str = "soccer",
     ) -> None:
         expires_at = get_current_time() + timedelta(seconds=ttl_seconds)
@@ -283,7 +289,7 @@ class AsyncMongoAdapter:
             if league_id is not None:
                 query["league_id"] = league_id
             if sport is not None:
-                query["sport"] = sport
+                query["$or"] = [{"sport": sport}, {"sport": None}]
             docs = (
                 await self.match_predictions.find(query)
                 .skip(skip)

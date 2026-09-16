@@ -102,6 +102,8 @@ class SuggestedPick:
     is_ia_confirmed: bool = False  # [NEW] Unique flag for the absolute best pick
     formatted_reasoning: Optional[str] = None  # [NEW] Structured reasoning for UI
     ml_confidence: float = 0.0  # Raw ML probability score (0.0 - 1.0)
+    sport: str = "soccer"  # Sports identifier; existing picks are football/soccer
+    match_id: Optional[str] = None  # Back-reference to the source match
 
     def __post_init__(self) -> None:
         """Validate probability and risk level."""
