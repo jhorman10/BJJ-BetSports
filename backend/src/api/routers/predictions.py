@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import inspect
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from src.api.mappers.league_mapper import find_league
 from src.api.mappers.prediction_mapper import normalize_prediction_document
+from src.api.rate_limits import LIMIT_PREDICTIONS_MATCH, LIMIT_PREDICTIONS_READ, limiter
 from src.api.schemas.predictions import MatchPredictionModel, PredictionsResponse
 from src.api.utils.serializers import _utc_now_iso
 from src.domain.constants import DEFAULT_SPORT
@@ -19,7 +20,9 @@ router = APIRouter(prefix="/api/v1/predictions", tags=["predictions"])
 
 
 @router.get("/league/{league_id}", response_model=PredictionsResponse)
+@limiter.limit(LIMIT_PREDICTIONS_READ)
 async def get_predictions_by_league(
+    request: Request,
     league_id: str,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -80,7 +83,10 @@ async def get_predictions_by_league(
 
 
 @router.get("/match/{match_id}", response_model=MatchPredictionModel)
-async def get_prediction_by_match(match_id: str) -> MatchPredictionModel:
+@limiter.limit(LIMIT_PREDICTIONS_MATCH)
+async def get_prediction_by_match(
+    request: Request, match_id: str
+) -> MatchPredictionModel:
     repo = get_async_mongo_repository()
     document = await repo.get_match_prediction_document(match_id)
     if document is None:

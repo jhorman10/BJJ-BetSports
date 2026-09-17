@@ -3,8 +3,9 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
 from src.api.mappers.league_mapper import build_leagues_response, find_league
+from src.api.rate_limits import LIMIT_LEAGUES_READ, limiter
 from src.api.schemas.leagues import CountryModel, LeagueModel, LeaguesResponse
 from src.domain.constants import DEFAULT_SPORT
 from src.infrastructure.repositories.async_mongo_adapter import (
@@ -15,12 +16,15 @@ router = APIRouter(prefix="/api/v1/leagues", tags=["leagues"])
 
 
 @router.get("", response_model=LeaguesResponse)
-def get_leagues(sport: str = Query(DEFAULT_SPORT)) -> LeaguesResponse:
+@limiter.limit(LIMIT_LEAGUES_READ)
+def get_leagues(request: Request, sport: str = Query(DEFAULT_SPORT)) -> LeaguesResponse:
     return build_leagues_response(sport=sport)
 
 
 @router.get("/active", response_model=LeaguesResponse)
+@limiter.limit(LIMIT_LEAGUES_READ)
 async def get_leagues_with_predictions(
+    request: Request,
     sport: str = Query(DEFAULT_SPORT),
 ) -> LeaguesResponse:
     """Return only leagues that have active predictions in the database."""
@@ -58,5 +62,8 @@ async def get_leagues_with_predictions(
 
 
 @router.get("/{league_id}", response_model=LeagueModel)
-def get_league(league_id: str, sport: str = Query(DEFAULT_SPORT)) -> LeagueModel:
+@limiter.limit(LIMIT_LEAGUES_READ)
+def get_league(
+    request: Request, league_id: str, sport: str = Query(DEFAULT_SPORT)
+) -> LeagueModel:
     return find_league(league_id, sport=sport)

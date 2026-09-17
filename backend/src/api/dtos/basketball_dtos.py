@@ -1,22 +1,22 @@
 from datetime import date
-from typing import List, Optional
+from typing import List, Literal, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class BasketballPredictRequest(BaseModel):
     """Request model for basketball game prediction."""
 
     date: date
-    home_team: str
-    away_team: str
-    venue: Optional[str] = None
-    season: Optional[str] = None
-    game_type: Optional[str] = None
-    home_odds: Optional[float] = None
-    away_odds: Optional[float] = None
-    spread: Optional[float] = None
-    total: Optional[float] = None
+    home_team: str = Field(min_length=1, max_length=10)  # NBA codes: LAL, BOS, etc.
+    away_team: str = Field(min_length=1, max_length=10)
+    venue: Optional[str] = Field(None, max_length=100)
+    season: Optional[str] = Field(None, pattern=r"^\d{4}-\d{2}$")  # e.g. "2025-26"
+    game_type: Optional[Literal["R", "P"]] = None  # Regular / Playoffs
+    home_odds: Optional[float] = Field(None, gt=1.0, le=1000.0)
+    away_odds: Optional[float] = Field(None, gt=1.0, le=1000.0)
+    spread: Optional[float] = Field(None, ge=-50.0, le=50.0)
+    total: Optional[float] = Field(None, ge=100.0, le=350.0)
 
 
 class BasketballGameResponse(BaseModel):

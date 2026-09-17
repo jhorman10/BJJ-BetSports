@@ -5,15 +5,14 @@ import os
 from pathlib import Path
 from typing import Any, Callable, Dict, cast
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-# Rate limiting (admin endpoints)
-from slowapi import Limiter, _rate_limit_exceeded_handler
+# Rate limiting — shared limiter instance from rate_limits
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
-from slowapi.util import get_remote_address
+from src.api.rate_limits import limiter
 from src.api.schemas.auxiliary import TrainingCachedPayload, TrainingStatusPayload
 from src.api.schemas.health import HealthResponse
 from src.api.schemas.training import TrainingJobCreatePayload
@@ -44,6 +43,151 @@ cors_origins = [
 if not cors_origins:
     cors_origins = ["http://localhost:5173"]
 
+# Validate CORS: allow_credentials=True requires explicit origins (no wildcard)
+if "*" in cors_origins:
+    _logger.warning(
+        "CORS_ORIGINS contains '*', but allow_credentials=True. Removing wildcard."
+    )
+    cors_origins = [o for o in cors_origins if o != "*"]
+    if not cors_origins:
+        cors_origins = ["http://localhost:5173"]
+
+# Note: CORSMiddleware registered AFTER all other middleware below so
+# it wraps them as the OUTERMOST layer — every response (including 4xx/5xx
+# short-circuits from request-size limiter) gets CORS headers.
+
+# ---- Request Size Limit Middleware ----
+# Protect against DoS via oversized payloads (1MB is plenty for JSON APIs here)
+_MAX_REQUEST_BYTES = 1_048_576  # 1 MB
+
+
+def _error_response(status_code: int, detail: str) -> JSONResponse:
+    """JSON error response with CORS pre-flight headers baked in.
+
+    Size-limit short-circuits run BEFORE CORSMiddleware in the onion,
+    so we must attach CORS headers ourselves or the browser reports a
+    network error instead of the actual 4xx.
+    """
+    return JSONResponse(
+        status_code=status_code,
+        content={"detail": detail},
+        headers={
+            "Access-Control-Allow-Origin": cors_origins[0],
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Authorization, Content-Type, X-API-Key",
+        },
+    )
+
+
+@app.middleware("http")
+async def limit_request_size(request: Request, call_next: Callable) -> Response:
+    content_length = request.headers.get("content-length")
+    transfer_encoding = (request.headers.get("transfer-encoding") or "").lower()
+
+    # Chunked-transfer bypass: no Content-Length header → reject outright.
+    # Real proxies (nginx) always set Content-Length before forwarding.
+    if "chunked" in transfer_encoding and request.method in ("POST", "PUT", "PATCH"):
+        return _error_response(
+            411, "Content-Length header required for chunked uploads"
+        )
+
+    if content_length:
+        try:
+            if int(content_length) > _MAX_REQUEST_BYTES:
+                return _error_response(413, "Request entity too large (max 1MB)")
+        except ValueError:
+            return _error_response(400, "Invalid Content-Length header")
+    return await call_next(request)
+
+
+# ---- Security Headers Middleware ----
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next: Callable) -> Response:
+    """Add security headers to all responses."""
+    response = await call_next(request)
+
+    # Content Security Policy - restrict sources to self
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: https:; "
+        "font-src 'self'; "
+        "connect-src 'self'; "
+        "frame-ancestors 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self'"
+    )
+
+    # HTTP Strict Transport Security (HSTS) - 1 year, include subdomains
+    # Only set in production (when not localhost)
+    if "localhost" not in str(request.url) and "127.0.0.1" not in str(request.url):
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains; preload"
+        )
+
+    # Prevent clickjacking
+    response.headers["X-Frame-Options"] = "DENY"
+
+    # Prevent MIME type sniffing
+    response.headers["X-Content-Type-Options"] = "nosniff"
+
+    # Referrer Policy
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+
+    # Permissions Policy - restrict browser features
+    response.headers["Permissions-Policy"] = (
+        "accelerometer=(), camera=(), geolocation=(), gyroscope=(), "
+        "magnetometer=(), microphone=(), payment=(), usb=()"
+    )
+
+    # Hide server information
+    response.headers["Server"] = "BJJ-BetSports"
+
+    return response
+
+
+# ---- Rate Limiting (shared limiter from src.api.rate_limits) ----
+app.state.limiter = limiter
+
+
+# Custom 429 handler: log + Retry-After header so ops can detect spikes.
+def _rate_limit_exceeded_handler_with_log(
+    request: Request, exc: RateLimitExceeded
+) -> JSONResponse:
+    from src.api.rate_limits import _get_client_ip
+
+    client_ip = _get_client_ip(request)
+    _logger.warning(
+        "Rate limit exceeded: %s %s from %s",
+        request.method,
+        request.url.path,
+        client_ip,
+    )
+    return JSONResponse(
+        status_code=429,
+        content={
+            "detail": "Rate limit exceeded. Try again later.",
+            "retry_after_seconds": 60,
+        },
+        headers={"Retry-After": "60"},
+    )
+
+
+# slowapi's handler is typed with the narrower RateLimitExceeded exception;
+# Starlette requires a generic Exception handler, so cast the variance away.
+app.add_exception_handler(
+    RateLimitExceeded,
+    cast(
+        Callable[[Request, Exception], JSONResponse],
+        _rate_limit_exceeded_handler_with_log,
+    ),
+)
+app.add_middleware(SlowAPIMiddleware)
+
+# CORS registered LAST so it's the outermost middleware layer.
+# Every response — including 4xx short-circuits from earlier layers —
+# returns with Access-Control-Allow-Origin set.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
@@ -52,26 +196,13 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "X-API-Key"],
 )
 
-# Configure rate limiter for selective endpoint protection
-limiter = Limiter(key_func=get_remote_address)
-app.state.limiter = limiter
-# slowapi's handler is typed with the narrower RateLimitExceeded exception;
-# Starlette requires a generic Exception handler, so cast the variance away.
-app.add_exception_handler(
-    RateLimitExceeded,
-    cast(
-        Callable[[Request, Exception], JSONResponse],
-        _rate_limit_exceeded_handler,
-    ),
-)
-app.add_middleware(SlowAPIMiddleware)
-
 
 @app.exception_handler(Exception)
 async def _global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     _logger.exception(
         "Unhandled exception on %s %s: %s", request.method, request.url, exc
     )
+    # Generic error message - no internal details leaked
     return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 
@@ -80,6 +211,7 @@ def health_check() -> HealthResponse:
     return HealthResponse(status="ok", version=app.version, timestamp=_utc_now_iso())
 
 
+# Import routers
 from src.api.routers.baseball_router import router as baseball_router  # noqa: E402
 from src.api.routers.basketball_router import router as basketball_router  # noqa: E402
 from src.api.routers.best_combination import (  # noqa: E402

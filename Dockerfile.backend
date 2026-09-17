@@ -1,3 +1,10 @@
+# =============================================================================
+# BJJ-BetSports Backend - Multi-stage Dockerfile
+# Stage 1: Build dependencies
+# Stage 2: Production runtime with gunicorn + uvicorn workers
+# =============================================================================
+
+# ---- Stage 1: Builder ----
 FROM python:3.11-slim AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -7,17 +14,22 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
     libffi-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Python dependencies
 COPY backend/requirements-prod.txt ./backend/
 RUN pip install --no-cache-dir -r backend/requirements-prod.txt
 
+# Copy application code
 COPY backend ./backend
 
+
+# ---- Stage 2: Production Runtime ----
 FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -27,8 +39,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# Install runtime dependencies only (curl for healthchecks)
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 
+# Copy installed packages and application from builder
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 COPY --from=builder /app/backend /app/backend
@@ -38,4 +52,18 @@ EXPOSE 8000
 
 WORKDIR /app/backend
 
-CMD ["python", "-m", "uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Production: gunicorn with uvicorn workers (no --reload)
+# WEB_CONCURRENCY: override worker count (default 4; 2*CPU+1 is typical)
+# Timeout: 120s to accommodate /suggested-picks (90s) and slow ML inference
+# Graceful timeout: 30s for in-flight requests on shutdown
+CMD exec gunicorn src.api.main:app \
+    -w "${WEB_CONCURRENCY:-4}" \
+    -k uvicorn.workers.UvicornWorker \
+    --bind 0.0.0.0:8000 \
+    --timeout 120 \
+    --graceful-timeout 30 \
+    --keep-alive 5 \
+    --preload \
+    --access-logfile - \
+    --error-logfile - \
+    --log-level info

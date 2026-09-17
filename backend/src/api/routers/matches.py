@@ -3,9 +3,10 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from src.api.mappers.league_mapper import find_league
 from src.api.mappers.prediction_mapper import normalize_prediction_document
+from src.api.rate_limits import LIMIT_MATCHES_LIVE, LIMIT_MATCHES_QUERY, limiter
 from src.api.schemas.predictions import MatchPredictionModel
 from src.infrastructure.repositories.mongo_repository import get_mongo_repository
 from src.utils.time_utils import get_current_time
@@ -19,7 +20,8 @@ LIVE_STATUSES = {"1H", "2H", "HT", "LIVE", "IN_PLAY", "PAUSED"}
 
 
 @router.get("/live", response_model=list[dict[str, Any]])
-def get_live_matches() -> list[dict[str, Any]]:
+@limiter.limit(LIMIT_MATCHES_LIVE)
+def get_live_matches(request: Request) -> list[dict[str, Any]]:
     try:
         repository = get_mongo_repository()
         now = get_current_time()
@@ -44,7 +46,9 @@ def get_live_matches() -> list[dict[str, Any]]:
 
 
 @router.get("/live/with-predictions", response_model=list[dict[str, Any]])
+@limiter.limit(LIMIT_MATCHES_LIVE)
 def get_live_matches_with_predictions(
+    request: Request,
     filter_target_leagues: bool = True,
 ) -> list[dict[str, Any]]:
     try:
@@ -71,8 +75,9 @@ def get_live_matches_with_predictions(
 
 
 @router.get("/daily", response_model=list[dict[str, Any]])
+@limiter.limit(LIMIT_MATCHES_QUERY)
 def get_daily_matches(  # noqa: C901
-    date: str | None = None, league_id: str | None = None
+    request: Request, date: str | None = None, league_id: str | None = None
 ) -> list[dict[str, Any]]:
     """Return matches for a given date (YYYY-MM-DD) and optional league filter.
 
@@ -134,7 +139,10 @@ def get_daily_matches(  # noqa: C901
 
 
 @router.get("/team/{team_name}", response_model=list[dict[str, Any]])
-def get_team_matches(team_name: str, limit: int = 10) -> list[dict[str, Any]]:
+@limiter.limit(LIMIT_MATCHES_QUERY)
+def get_team_matches(
+    request: Request, team_name: str, limit: int = 10
+) -> list[dict[str, Any]]:
     """Return recent matches where the team appears as home or away.
 
     Matching is case-insensitive substring search on team names.
