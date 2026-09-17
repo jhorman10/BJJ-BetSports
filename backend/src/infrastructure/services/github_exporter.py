@@ -1,7 +1,9 @@
 import json
 import logging
 import os
+import stat
 import subprocess
+import urllib.parse
 from pathlib import Path
 from typing import Dict, List
 
@@ -74,26 +76,33 @@ class GithubExporterService:
         )
 
         # Write credentials file BEFORE any git operation that needs auth
-        # Format: https://<token>@github.com
-        # This avoids the token appearing in process args / URLs
+        # Format: https://<url-encoded-token>@github.com
+        # Atomic write with mode 0600 from creation (no race window where the file
+        # exists with default 0644 permissions). Token is guaranteed non-None here
+        # because export_and_push() early-returns when self.github_token is falsy.
         creds_path = Path.home() / ".git-credentials"
-        creds_line = f"https://{self.github_token}@github.com\n"
+        encoded_token = urllib.parse.quote(self.github_token or "", safe="")
+        creds_line = f"https://{encoded_token}@github.com\n"
         try:
-            creds_path.write_text(creds_line, encoding="utf-8")
-            # Restrict permissions (best effort; container FS may ignore)
-            creds_path.chmod(0o600)
+            # O_CREAT | O_WRONLY | O_TRUNC with mode 0600 — no race window
+            fd = os.open(creds_path, os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600)
+            try:
+                os.write(fd, creds_line.encode("utf-8"))
+            finally:
+                os.close(fd)
+            # Double-check permissions (umask may have interfered)
+            current_mode = stat.S_IMODE(creds_path.stat().st_mode)
+            if current_mode != 0o600:
+                creds_path.chmod(0o600)
         except Exception as e:
             logger.warning(f"Could not write git credentials file: {e}")
 
     def _sync_repo(self) -> None:
         """Clones the repo if it doesn't exist, else pulls latest changes."""
-        # Use clean URL — credential helper provides auth from ~/.git-credentials
-        repo_url = self._repo_url
-
         if not os.path.exists(self.local_repo_path):
             logger.info(f"Cloning {self.github_repo} into {self.local_repo_path}...")
             subprocess.run(
-                ["git", "clone", repo_url, self.local_repo_path],
+                ["git", "clone", self._repo_url, self.local_repo_path],
                 check=True,
                 capture_output=True,
             )
@@ -143,9 +152,8 @@ class GithubExporterService:
             )
 
             # Push — clean URL, credential helper injects auth
-            repo_url = self._repo_url
             subprocess.run(
-                ["git", "-C", self.local_repo_path, "push", repo_url, "main"],
+                ["git", "-C", self.local_repo_path, "push", self._repo_url, "main"],
                 check=True,
                 capture_output=True,
             )

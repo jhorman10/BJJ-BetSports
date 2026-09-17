@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import uuid
 from datetime import date
@@ -86,7 +87,7 @@ async def predict_basketball_game(
             total=payload.total,
         )
         predictor = get_prediction_service()
-        prediction = predictor.predict(game_entity)
+        prediction = await asyncio.to_thread(predictor.predict, game_entity)
         if not prediction:
             raise HTTPException(
                 status_code=500, detail="Prediction service unavailable"
@@ -213,7 +214,7 @@ async def get_conference_predictions(
         for gd in conference_games:
             try:
                 ent = _game_data_to_entity(gd)
-                pred = predictor.predict(ent)
+                pred = await asyncio.to_thread(predictor.predict, ent)
                 markets = []
                 kf = []
                 if pred:

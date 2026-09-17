@@ -53,11 +53,17 @@ EXPOSE 8000
 WORKDIR /app/backend
 
 # Production: gunicorn with uvicorn workers (no --reload)
-# Workers = 2 * CPU cores + 1 is a common heuristic; override via WEB_CONCURRENCY env
-CMD ["gunicorn", "src.api.main:app", \
-     "-w", "4", \
-     "-k", "uvicorn.workers.UvicornWorker", \
-     "--bind", "0.0.0.0:8000", \
-     "--access-logfile", "-", \
-     "--error-logfile", "-", \
-     "--log-level", "info"]
+# WEB_CONCURRENCY: override worker count (default 4; 2*CPU+1 is typical)
+# Timeout: 120s to accommodate /suggested-picks (90s) and slow ML inference
+# Graceful timeout: 30s for in-flight requests on shutdown
+CMD exec gunicorn src.api.main:app \
+    -w "${WEB_CONCURRENCY:-4}" \
+    -k uvicorn.workers.UvicornWorker \
+    --bind 0.0.0.0:8000 \
+    --timeout 120 \
+    --graceful-timeout 30 \
+    --keep-alive 5 \
+    --preload \
+    --access-logfile - \
+    --error-logfile - \
+    --log-level info

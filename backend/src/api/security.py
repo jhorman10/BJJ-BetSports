@@ -43,27 +43,49 @@ def _get_request_host(request: Request) -> str:
     return ""
 
 
+def _has_proxy_headers(request: Request) -> bool:
+    """Detect whether the request came through a proxy.
+
+    X-Forwarded-For / Forwarded / X-Real-IP headers indicate a proxy hop.
+    A loopback-only bypass MUST NOT accept these — otherwise an outside
+    attacker can inject `X-Forwarded-For: 127.0.0.1` to fool the loopback
+    check into believing they're local.
+    """
+    proxy_headers = ("x-forwarded-for", "x-forwarded-host", "x-real-ip", "forwarded")
+    return any(request.headers.get(h) for h in proxy_headers)
+
+
 def _is_local_dev_bypass_enabled() -> bool:
     return os.getenv("LOCAL_DEV_BYPASS_ENABLED", "false").strip().lower() == "true"
 
 
 def _is_local_dev_request(request: Request) -> bool:
-    """Check if request comes from loopback ONLY.
+    """Check if request comes from UNPROXIED loopback ONLY.
 
-    Restricted to actual loopback (127.0.0.0/8, ::1, localhost) — private
-    ranges (10.x, 172.16-31.x, 192.168.x) are NOT considered local because
-    corporate networks and VPNs would bypass auth otherwise.
+    Two gates:
+      1. Direct peer (request.client.host) must be loopback.
+      2. No proxy-hop headers — a request that traveled through nginx/ALB
+         may have a loopback socket peer (proxy on same host) but came from
+         an untrusted public internet IP. Reject those.
     """
     host = _get_request_host(request)
+
+    # Gate 1: explicit allowlist for known local identities
     if host in _LOCAL_DEV_HOSTS:
+        if _has_proxy_headers(request):
+            return False  # Came via proxy — not truly local
         return True
 
+    # Gate 2: peer must parse as a loopback address
     try:
         addr = ipaddress.ip_address(host)
-        # Only loopback — not all private ranges (was a vuln risk)
-        return addr.is_loopback
+        if not addr.is_loopback:
+            return False
     except ValueError:
         return False
+
+    # Loopback peer + no proxy headers → genuinely local
+    return not _has_proxy_headers(request)
 
 
 def _allow_local_dev_bypass(request: Request) -> bool:

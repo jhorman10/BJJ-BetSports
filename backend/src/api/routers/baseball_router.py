@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import uuid
 from datetime import date
@@ -90,7 +91,7 @@ async def predict_baseball_game(
             away_odds=payload.away_odds,
         )
         predictor = get_prediction_service()
-        prediction = predictor.predict(game_entity)
+        prediction = await asyncio.to_thread(predictor.predict, game_entity)
         if not prediction:
             raise HTTPException(
                 status_code=500, detail="Prediction service unavailable"
@@ -179,7 +180,7 @@ async def get_series(
             for gd in series_games:
                 try:
                     ent = _game_data_to_entity(gd)
-                    pred = predictor.predict(ent)
+                    pred = await asyncio.to_thread(predictor.predict, ent)
                     markets, kf = (pred.key_factors, []) if pred else ([], [])
                     if pred:
                         markets = predictor.generate_baseball_markets(
@@ -244,7 +245,7 @@ async def get_series_predictions(request: Request, series_id: str) -> dict:
         for gd in series_games:
             try:
                 ent = _game_data_to_entity(gd, series_id)
-                pred = predictor.predict(ent)
+                pred = await asyncio.to_thread(predictor.predict, ent)
                 if pred:
                     markets = predictor.generate_baseball_markets(
                         ent, pred.home_win_prob, pred.away_win_prob

@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import uuid
 from datetime import date
@@ -82,7 +83,8 @@ async def predict_tennis_match(
         )
 
         predictor = get_prediction_service()
-        prediction = predictor.predict(match_entity)
+        # Offload sync ML inference to a thread so the event loop stays responsive.
+        prediction = await asyncio.to_thread(predictor.predict, match_entity)
 
         if not prediction:
             raise HTTPException(
@@ -207,7 +209,7 @@ async def get_predictions_by_tournament(request: Request, tournament_id: str) ->
                     p2_seed=p2.get("seed"),
                 )
 
-                prediction = predictor.predict(match_entity)
+                prediction = await asyncio.to_thread(predictor.predict, match_entity)
 
                 if prediction:
                     # Generate markets for this match
@@ -350,7 +352,7 @@ async def get_upcoming_matches(
                     p2_seed=p2.get("seed"),
                 )
 
-                prediction = predictor.predict(match_entity)
+                prediction = await asyncio.to_thread(predictor.predict, match_entity)
 
                 if prediction:
                     # Generate markets for this match
